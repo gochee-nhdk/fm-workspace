@@ -3,7 +3,8 @@ import { Drawer } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StoreItem } from '@/types/workspace';
-import { MapPin, Navigation } from 'lucide-react';
+import { MapPin, Navigation, ExternalLink } from 'lucide-react';
+import { getMapEmbedUrl } from '@/components/ui/MapPreviewModal';
 import toast from 'react-hot-toast';
 
 interface StoreDrawerFormProps {
@@ -23,6 +24,7 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
   const [address, setAddress] = useState('');
   const [googleMaps, setGoogleMaps] = useState('');
   const [type, setType] = useState('Standard');
+  const [showMapPreview, setShowMapPreview] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ storeCode?: string; address?: string }>({});
 
@@ -126,6 +128,35 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
             onChange={(e) => setGoogleMaps(e.target.value)}
             leftIcon={<Navigation className="w-4 h-4 text-[#86868b]" />}
           />
+
+          {/* Live Map Preview Toggle */}
+          {(address.trim() || googleMaps.trim()) && (
+            <div className="mt-2.5">
+              <button
+                type="button"
+                onClick={() => setShowMapPreview((prev) => !prev)}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 transition-colors cursor-pointer"
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                <span>{showMapPreview ? 'Ẩn bản đồ xem trước' : 'Xem trước vị trí trên Google Maps'}</span>
+              </button>
+
+              {showMapPreview && (
+                <div className="mt-2 rounded-2xl overflow-hidden border border-black/10 dark:border-white/15 h-56 bg-black/5 dark:bg-white/5 relative shadow-inner">
+                  <iframe
+                    title="Xem trước bản đồ cửa hàng"
+                    src={getMapEmbedUrl(address, googleMaps)}
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                    allowFullScreen
+                    loading="lazy"
+                    className="w-full h-full"
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div>

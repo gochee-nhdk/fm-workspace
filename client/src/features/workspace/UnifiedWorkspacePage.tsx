@@ -34,6 +34,7 @@ import { LinkDrawerForm } from '@/components/forms/LinkDrawerForm';
 import { AccountDrawerForm } from '@/components/forms/AccountDrawerForm';
 import { StoreDrawerForm } from '@/components/forms/StoreDrawerForm';
 import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
+import { MapPreviewModal } from '@/components/ui/MapPreviewModal';
 import toast from 'react-hot-toast';
 
 type TabType = 'links' | 'accounts' | 'stores';
@@ -84,6 +85,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
 
   const [storeDrawerOpen, setStoreDrawerOpen] = useState(false);
   const [editingStore, setEditingStore] = useState<StoreItem | null>(null);
+  const [previewMapStore, setPreviewMapStore] = useState<StoreItem | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<{
     type: TabType;
@@ -1132,20 +1134,31 @@ export const UnifiedWorkspacePage: React.FC = () => {
                         )}
                       </td>
 
-                      {/* Google Maps Link */}
+                      {/* Google Maps Link / In-app Preview */}
                       <td className="px-4 py-3">
-                        {item.googleMaps ? (
-                          <a
-                            href={item.googleMaps}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs font-semibold hover:bg-amber-500/20 transition-all active:scale-95"
-                            title="Mở chỉ đường trên Google Maps"
-                          >
-                            <MapPin className="w-3 h-3" />
-                            <span>Xem Google Maps</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
+                        {item.googleMaps || item.address ? (
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewMapStore(item)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/15 to-amber-600/15 hover:from-amber-500/25 hover:to-amber-600/25 text-amber-700 dark:text-amber-300 text-xs font-semibold border border-amber-500/30 shadow-xs active:scale-95 transition-all cursor-pointer group/map"
+                              title="Xem bản đồ trực tiếp trong web app"
+                            >
+                              <MapPin className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 group-hover/map:scale-110 transition-transform" />
+                              <span>Xem Map</span>
+                            </button>
+                            {item.googleMaps && (
+                              <a
+                                href={item.googleMaps}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1 rounded-full text-[#76767b] hover:text-amber-600 dark:hover:text-amber-400 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                                title="Mở trên trang Google Maps ngoài"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-xs text-[#a1a1a6] opacity-50">Chưa có vị trí</span>
                         )}
@@ -1257,6 +1270,13 @@ export const UnifiedWorkspacePage: React.FC = () => {
             : 'Cửa hàng'
         }?`}
         description={`Bạn có chắc chắn muốn xóa "${deleteTarget?.label}"? Thao tác này không thể hoàn tác.`}
+      />
+
+      {/* Google Maps In-App Preview Modal */}
+      <MapPreviewModal
+        isOpen={!!previewMapStore}
+        onClose={() => setPreviewMapStore(null)}
+        store={previewMapStore}
       />
     </div>
   );
