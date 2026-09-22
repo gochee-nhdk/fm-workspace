@@ -1081,11 +1081,12 @@ tbody td {
 }
 
 /* ==========================================================================
-   Liquid Glass macOS 27 HUD Notification (Dynamic Island & Center-Aligned)
+   Apple visionOS & macOS 27 Liquid Glass HUD (Bottom-Center & Zero Obstruction)
    ========================================================================== */
 .apple-toaster-container {
   pointer-events: none !important;
-  top: 78px !important;
+  bottom: 32px !important;
+  top: auto !important;
   z-index: 99999 !important;
   left: 0 !important;
   right: 0 !important;
@@ -1105,75 +1106,104 @@ tbody td {
 
 .liquid-glass-macos27-toast,
 .apple-hud-toast {
+  position: relative !important;
   pointer-events: auto !important;
   border-radius: 9999px !important;
-  padding: 8.5px 22px !important;
-  background: rgba(255, 255, 255, 0.58) !important;
-  backdrop-filter: blur(48px) saturate(220%) contrast(106%) brightness(105%) !important;
-  -webkit-backdrop-filter: blur(48px) saturate(220%) contrast(106%) brightness(105%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.78) !important;
+  padding: 8px 20px 8px 10px !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(48px) saturate(220%) contrast(106%) brightness(104%) !important;
+  -webkit-backdrop-filter: blur(48px) saturate(220%) contrast(106%) brightness(104%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.85) !important;
   box-shadow: 
     /* Top double-rim specular meniscus arc */
-    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.98),
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 1),
     /* Internal volumetric liquid glow */
-    inset 0 0 16px 0 rgba(255, 255, 255, 0.3),
+    inset 0 0 16px 0 rgba(255, 255, 255, 0.35),
     /* Bottom meniscus refraction shadow */
-    inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.1),
-    /* Subtle outer perimeter rim */
-    0 0 0 0.5px rgba(255, 255, 255, 0.5),
+    inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.08),
+    /* Outer subtle perimeter rim */
+    0 0 0 0.5px rgba(255, 255, 255, 0.65),
     /* Multi-layered soft ambient ambient cushion */
     0 20px 48px -8px rgba(0, 0, 0, 0.16),
-    0 6px 16px -2px rgba(0, 0, 0, 0.06) !important;
+    0 6px 18px -2px rgba(0, 0, 0, 0.08) !important;
   color: #1d1d1f !important;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif !important;
   font-size: 13.5px !important;
   font-weight: 600 !important;
-  letter-spacing: -0.018em !important;
+  letter-spacing: -0.015em !important;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 10px !important;
+  gap: 11px !important;
   user-select: none !important;
+  overflow: hidden !important;
+  cursor: default !important;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease !important;
 }
 
 .liquid-glass-macos27-toast:hover,
 .apple-hud-toast:hover {
-  transform: translateY(-1px) scale(1.015) !important;
+  transform: translateY(-2px) scale(1.015) !important;
   box-shadow: 
     inset 0 1.5px 1px 0 rgba(255, 255, 255, 1),
-    inset 0 0 18px 0 rgba(255, 255, 255, 0.4),
-    inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.12),
-    0 0 0 0.5px rgba(255, 255, 255, 0.65),
+    inset 0 0 20px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.1),
+    0 0 0 0.5px rgba(255, 255, 255, 0.8),
     0 24px 56px -8px rgba(0, 0, 0, 0.2),
-    0 8px 20px -2px rgba(0, 0, 0, 0.08) !important;
-}
-
-.liquid-glass-macos27-toast [role="status"],
-.apple-hud-toast [role="status"] {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-.liquid-glass-macos27-toast svg,
-.apple-hud-toast svg {
-  width: 17px !important;
-  height: 17px !important;
-  filter: drop-shadow(0 2px 6px rgba(52, 199, 89, 0.45)) !important;
+    0 8px 22px -2px rgba(0, 0, 0, 0.1) !important;
 }
 
 .dark .liquid-glass-macos27-toast,
 .dark .apple-hud-toast {
-  background: rgba(22, 22, 28, 0.62) !important;
+  background: rgba(22, 22, 28, 0.68) !important;
   backdrop-filter: blur(48px) saturate(220%) contrast(106%) !important;
   -webkit-backdrop-filter: blur(48px) saturate(220%) contrast(106%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
   box-shadow: 
-    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.45),
-    inset 0 0 18px 0 rgba(255, 255, 255, 0.08),
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 0 18px 0 rgba(255, 255, 255, 0.1),
     inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.55),
-    0 0 0 0.5px rgba(255, 255, 255, 0.12),
-    0 24px 56px -8px rgba(0, 0, 0, 0.8),
-    0 8px 20px -2px rgba(0, 0, 0, 0.5) !important;
+    0 0 0 0.5px rgba(255, 255, 255, 0.14),
+    0 24px 56px -8px rgba(0, 0, 0, 0.85),
+    0 8px 20px -2px rgba(0, 0, 0, 0.55) !important;
   color: #f5f5f7 !important;
+}
+
+/* Subtle Apple glass fluid specular gleam across the capsule */
+.apple-toast-shimmer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.25) 35%,
+    rgba(255, 255, 255, 0.4) 40%,
+    transparent 55%
+  );
+  background-size: 200% 100%;
+  animation: appleGlassGleam 2.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.dark .apple-toast-shimmer {
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.08) 35%,
+    rgba(255, 255, 255, 0.18) 40%,
+    transparent 55%
+  );
+  background-size: 200% 100%;
+}
+
+@keyframes appleGlassGleam {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
