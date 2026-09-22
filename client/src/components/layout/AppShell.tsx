@@ -120,7 +120,7 @@ export const AppShell: React.FC = () => {
           className={`border-b border-black/[0.06] dark:border-white/10 flex items-center ${
             isSidebarCollapsed
               ? 'py-3.5 px-2 flex-col gap-2.5 justify-center'
-              : 'h-16 px-4 justify-between gap-2.5'
+              : 'h-[68px] px-3.5 justify-between gap-2.5'
           }`}
         >
           <button
@@ -132,33 +132,33 @@ export const AppShell: React.FC = () => {
             title="Về trang chủ"
           >
             {/* Big, clear, crisp circular logo */}
-            <div className="w-11 h-11 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-[0_3px_12px_rgba(250,196,38,0.35)] border-2 border-white/90 dark:border-white/20 shrink-0 group-hover:scale-105 group-active:scale-95 transition-all duration-200 ring-2 ring-[#FAC426]/20">
+            <div className="w-12 h-12 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-[0_4px_14px_rgba(250,196,38,0.38)] border-2 border-white dark:border-white/20 shrink-0 group-hover:scale-105 group-active:scale-95 transition-all duration-200">
               <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover rounded-full" />
             </div>
             {!isSidebarCollapsed && (
-              <div className="min-w-0 flex-1">
-                <div className="font-bold text-[14px] leading-tight tracking-tight text-[#1d1d1f] dark:text-white truncate group-hover:text-[#0066cc] dark:group-hover:text-[#2997ff] transition-colors">
+              <div className="min-w-0 flex-1 flex flex-col justify-center">
+                <span className="font-bold text-[14.5px] leading-none tracking-tight text-[#1d1d1f] dark:text-white truncate group-hover:text-[#0066cc] dark:group-hover:text-[#2997ff] transition-colors">
                   FARMERS MARKET
-                </div>
-                <span className="text-[10px] text-[#0066cc] dark:text-[#2997ff] font-semibold tracking-wider uppercase">
+                </span>
+                <span className="text-[10px] leading-none font-semibold text-[#0066cc] dark:text-[#2997ff] tracking-wider uppercase mt-1.5">
                   FM Workspace OS
                 </span>
               </div>
             )}
           </button>
 
-          {/* Elegant Single Liquid-Glass Sidebar Toggle Button */}
+          {/* Elegant Circular Liquid-Glass Sidebar Toggle Button */}
           <button
             type="button"
             onClick={toggleSidebar}
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-[#76767b] hover:text-[#0066cc] dark:text-[#a1a1a6] dark:hover:text-[#2997ff] bg-black/[0.03] dark:bg-white/[0.06] hover:bg-[#0066cc]/10 dark:hover:bg-[#2997ff]/15 border border-black/[0.06] dark:border-white/[0.1] shadow-2xs hover:shadow-xs active:scale-90 transition-all duration-200 cursor-pointer shrink-0 group/toggle"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#0066cc] dark:text-[#a1a1a6] dark:hover:text-[#2997ff] bg-white/70 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.15] border border-black/[0.06] dark:border-white/[0.12] shadow-[0_2px_8px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.9)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.2)] active:scale-90 transition-all duration-200 cursor-pointer shrink-0 group/toggle"
             title={isSidebarCollapsed ? 'Mở rộng thanh bên (Ctrl+\\)' : 'Thu gọn thanh bên (Ctrl+\\)'}
             aria-label={isSidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
           >
             {isSidebarCollapsed ? (
-              <PanelLeftOpen className="w-4 h-4 stroke-[1.8] group-hover/toggle:scale-110 transition-transform" />
+              <PanelLeftOpen className="w-4 h-4 stroke-[1.8] group-hover/toggle:scale-105 transition-transform" />
             ) : (
-              <PanelLeftClose className="w-4 h-4 stroke-[1.8] group-hover/toggle:scale-110 transition-transform" />
+              <PanelLeftClose className="w-4 h-4 stroke-[1.8] group-hover/toggle:scale-105 transition-transform" />
             )}
           </button>
         </div>
