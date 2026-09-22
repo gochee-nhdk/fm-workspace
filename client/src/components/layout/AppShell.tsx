@@ -112,7 +112,7 @@ export const AppShell: React.FC = () => {
       {/* ─────────────────── visionOS Desktop Sidebar (Image 2) ─────────────────── */}
       <aside
         className={`hidden md:flex flex-col ${
-          isSidebarCollapsed ? 'w-[72px]' : 'w-64'
+          isSidebarCollapsed ? 'w-[72px]' : 'w-72'
         } vision-glass-sidebar shrink-0 h-full select-none z-30 transition-all duration-300 relative`}
       >
         {/* Workspace Brand Header */}
@@ -120,28 +120,28 @@ export const AppShell: React.FC = () => {
           className={`border-b border-black/[0.06] dark:border-white/10 flex items-center ${
             isSidebarCollapsed
               ? 'py-3 px-2 flex-col gap-2.5 justify-center'
-              : 'h-[76px] px-3.5 justify-between gap-2.5'
+              : 'h-[76px] px-3.5 justify-between gap-2'
           }`}
         >
           <button
             type="button"
             onClick={handleLogoClick}
             className={`flex items-center ${
-              isSidebarCollapsed ? 'justify-center' : 'gap-3 text-left min-w-0 flex-1'
+              isSidebarCollapsed ? 'justify-center' : 'gap-2.5 text-left min-w-0 flex-1'
             } group cursor-pointer outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 border-none select-none [-webkit-tap-highlight-color:transparent]`}
             title="Về trang chủ"
           >
-            {/* Big, clear, crisp circular logo (56px) */}
-            <div className="w-14 h-14 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-[0_4px_16px_rgba(250,196,38,0.4)] border-2 border-white dark:border-white/20 shrink-0 group-hover:scale-105 group-active:scale-95 transition-all duration-200">
+            {/* Big, clear, crisp circular logo (52px) */}
+            <div className="w-[52px] h-[52px] rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-[0_4px_16px_rgba(250,196,38,0.4)] border-2 border-white dark:border-white/20 shrink-0 group-hover:scale-105 group-active:scale-95 transition-all duration-200">
               <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover rounded-full pointer-events-none" />
             </div>
             {!isSidebarCollapsed && (
               <div className="min-w-0 flex-1 flex flex-col justify-center select-none">
-                <span className="font-extrabold text-[15px] leading-tight tracking-tight text-[#1d1d1f] dark:text-white truncate group-hover:text-[#FAC426] group-active:text-[#E5B01E] dark:group-hover:text-[#FAC426] transition-colors duration-150">
+                <span className="font-extrabold text-[14.5px] leading-tight tracking-tight text-[#1d1d1f] dark:text-white whitespace-nowrap group-hover:text-[#FAC426] group-active:text-[#E5B01E] dark:group-hover:text-[#FAC426] transition-colors duration-150">
                   FARMERS MARKET
                 </span>
-                <span className="text-[10px] leading-tight font-bold text-[#0066cc] dark:text-[#2997ff] group-hover:text-[#FAC426] group-active:text-[#E5B01E] dark:group-hover:text-[#FAC426] transition-colors duration-150 tracking-wider uppercase mt-1">
-                  FM Workspace OS
+                <span className="text-[10px] leading-tight font-bold text-[#0066cc] dark:text-[#2997ff] group-hover:text-[#FAC426] group-active:text-[#E5B01E] dark:group-hover:text-[#FAC426] transition-colors duration-150 tracking-wider uppercase mt-0.5 whitespace-nowrap">
+                  FM WORKSPACE OS
                 </span>
               </div>
             )}
@@ -346,7 +346,7 @@ export const AppShell: React.FC = () => {
                   <div className="w-11 h-11 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-md border-2 border-white/80 dark:border-white/20 shrink-0 group-hover:scale-105 group-active:scale-95 transition-all duration-200">
                     <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover rounded-full" />
                   </div>
-                  <span className="font-semibold text-[15px] text-[#1d1d1f] dark:text-white group-hover:text-[#0066cc] dark:group-hover:text-[#2997ff] transition-colors">
+                  <span className="font-bold text-[15px] text-[#1d1d1f] dark:text-white group-hover:text-[#FAC426] group-active:text-[#E5B01E] dark:group-hover:text-[#FAC426] transition-colors">
                     FARMERS MARKET
                   </span>
                 </button>
