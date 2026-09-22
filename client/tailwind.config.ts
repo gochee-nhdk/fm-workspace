@@ -9,18 +9,21 @@ export default {
     extend: {
       fontFamily: {
         sans: [
-          '-apple-system',
-          'BlinkMacSystemFont',
           '"SF Pro Text"',
           '"SF Pro Display"',
+          '"SF Pro"',
+          '-apple-system',
+          'BlinkMacSystemFont',
           '"Be Vietnam Pro"',
           'Inter',
           'sans-serif',
         ],
         display: [
+          '"SF Pro Display"',
+          '"SF Pro Text"',
+          '"SF Pro"',
           '-apple-system',
           'BlinkMacSystemFont',
-          '"SF Pro Display"',
           '"Be Vietnam Pro"',
           'Inter',
           'sans-serif',
