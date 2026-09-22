@@ -87,10 +87,10 @@ export const Modal: React.FC<ModalProps> = ({
         onClick={handleClose}
       />
 
-      {/* MacBook Fluid Droplet Modal Surface */}
+      {/* Fluid Droplet Modal Surface */}
       <div
         className={cn(
-          'relative w-full bg-white/95 dark:bg-[#1d1d1f]/95 backdrop-blur-3xl rounded-[22px] shadow-[0_24px_70px_rgba(0,0,0,0.25)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.6)] border border-white/60 dark:border-white/12 overflow-hidden z-10 max-h-[90vh] flex flex-col',
+          'relative w-full bg-white/80 dark:bg-[#141418]/82 backdrop-blur-3xl rounded-[22px] shadow-[0_24px_70px_rgba(0,0,0,0.22),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.65),inset_0_1px_1px_rgba(255,255,255,0.15)] border border-white/70 dark:border-white/15 overflow-hidden z-10 max-h-[90vh] flex flex-col',
           sizes[size],
           isClosing ? 'liquid-droplet-exit' : 'liquid-droplet-enter'
         )}

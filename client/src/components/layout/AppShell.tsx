@@ -122,7 +122,7 @@ export const AppShell: React.FC = () => {
           </button>
         </div>
 
-        {/* Navigation Items with Apple Vision Active Indicator */}
+        {/* Navigation Items with Fluid Active Indicator */}
         <nav className="p-3 space-y-1.5 flex-1 overflow-y-auto">
           <div className="px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#76767b] dark:text-[#98989d]">
             Không gian làm việc
@@ -134,7 +134,7 @@ export const AppShell: React.FC = () => {
               to={item.to}
               end={item.to === '/'}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3.5 py-2.5 rounded-full text-[13.5px] transition-all duration-200 ease-apple-spring active:scale-[0.98] ${
+                `flex items-center gap-3 px-3.5 py-2.5 rounded-full text-[13.5px] transition-all duration-200 ease-out active:scale-[0.98] ${
                   isActive
                     ? 'liquid-lens-pill !bg-[#0071e3] !border-[#2997ff]/40 text-white font-semibold !shadow-[0_4px_16px_rgba(0,113,227,0.4),inset_0_1.5px_1px_rgba(255,255,255,0.7)]'
                     : 'text-[#555558] dark:text-[#a1a1a6] hover:bg-black/[0.04] dark:hover:bg-white/[0.08] hover:text-[#1d1d1f] dark:hover:text-white hover:translate-x-0.5'
@@ -194,8 +194,8 @@ export const AppShell: React.FC = () => {
 
       {/* ─────────────────── Main Content Canvas ─────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative z-10">
-        {/* Topbar: visionOS Frosted Floating Glass Bar */}
-        <header className="h-16 shrink-0 px-4 sm:px-6 bg-white/50 dark:bg-[#121216]/50 backdrop-blur-3xl border-b border-black/[0.05] dark:border-white/10 flex items-center justify-between z-20 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
+        {/* Topbar: Translucent Liquid Glass Bar */}
+        <header className="h-16 shrink-0 px-4 sm:px-6 bg-white/35 dark:bg-[#0e0e12]/45 backdrop-blur-3xl border-b border-white/60 dark:border-white/10 flex items-center justify-between z-20 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
           <div className="flex items-center gap-3.5">
             <button
               onClick={() => setMobileMenuOpen(true)}
@@ -289,7 +289,7 @@ export const AppShell: React.FC = () => {
               className="fixed inset-0 bg-black/45 backdrop-blur-md transition-opacity"
               onClick={() => setMobileMenuOpen(false)}
             />
-            <div className="fixed inset-y-0 left-0 w-72 vision-glass-sidebar shadow-2xl p-5 flex flex-col z-10 animate-in slide-in-from-left duration-250 ease-apple-spring border-r border-[#e0e0e0] dark:border-white/10">
+            <div className="fixed inset-y-0 left-0 w-72 vision-glass-sidebar shadow-2xl p-5 flex flex-col z-10 animate-in slide-in-from-left duration-250 ease-out border-r border-[#e0e0e0] dark:border-white/10">
               <div className="flex items-center justify-between pb-4 border-b border-[#e0e0e0] dark:border-white/10">
                 <button
                   type="button"

@@ -297,7 +297,7 @@ export const StoresPage: React.FC = () => {
             </table>
           </div>
 
-          {/* Mobile Cards (Apple Utility Cards) */}
+          {/* Mobile Cards (Utility Cards) */}
           <div className="md:hidden space-y-3">
             {filteredStores.map((item, idx) => (
               <div

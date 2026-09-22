@@ -15,11 +15,11 @@ export const Card: React.FC<CardProps> = ({ className, hoverable, glass, tilt = 
     <div
       ref={tiltRef}
       className={cn(
-        'rounded-[18px] border border-[#e0e0e0] dark:border-white/10 overflow-hidden transition-all duration-200 ease-apple-spring',
+        'rounded-[20px] overflow-hidden transition-all duration-200',
         glass
-          ? 'bg-white/80 dark:bg-[#1d1d1f]/80 backdrop-blur-xl shadow-xs'
-          : 'bg-white dark:bg-[#1d1d1f] shadow-xs',
-        (hoverable || tilt) && 'liquid-tilt-card hover:shadow-md hover:border-[#0066cc]/40 dark:hover:border-[#2997ff]/40 cursor-pointer',
+          ? 'liquid-glass'
+          : 'bg-white/70 dark:bg-[#141418]/70 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-xs',
+        (hoverable || tilt) && 'liquid-tilt-card hover:shadow-lg hover:border-[#0066cc]/40 dark:hover:border-[#2997ff]/40 cursor-pointer',
         className
       )}
       {...props}

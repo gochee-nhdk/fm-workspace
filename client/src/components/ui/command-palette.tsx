@@ -662,13 +662,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         onClick={handleClose}
       />
 
-      {/* Main Spotlight Dialog with MacBook Fluid Droplet Expansion & Collapse */}
+      {/* Main Spotlight Dialog with Fluid Droplet Expansion & Collapse */}
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Tìm kiếm nhanh Spotlight"
         className={cn(
-          'relative w-full max-w-2xl sm:max-w-[720px] bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-3xl rounded-[24px] shadow-[0_20px_60px_rgba(0,0,0,0.18)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.6)] border border-white/80 dark:border-white/12 overflow-hidden z-10 flex flex-col',
+          'relative w-full max-w-2xl sm:max-w-[720px] bg-white/80 dark:bg-[#141418]/82 backdrop-blur-3xl rounded-[24px] shadow-[0_24px_70px_rgba(0,0,0,0.22),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.65),inset_0_1px_1px_rgba(255,255,255,0.15)] border border-white/70 dark:border-white/15 overflow-hidden z-10 flex flex-col',
           isClosing ? 'liquid-droplet-exit' : 'liquid-droplet-enter'
         )}
       >
@@ -729,7 +729,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           </div>
         </div>
 
-        {/* Category Filter Segmented Control Bar (Apple macOS Liquid Capsule) */}
+        {/* Category Filter Segmented Control Bar (Liquid Capsule) */}
         <div
           onMouseEnter={resetSelectionImmediate}
           className="px-3 sm:px-4 py-2 border-b border-black/[0.05] dark:border-white/8 bg-black/[0.015] dark:bg-white/[0.02]"
@@ -738,7 +738,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             ref={categoryBarRef}
             className="relative w-full flex items-center p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/10 backdrop-blur-md"
           >
-            {/* Liquid Droplet Sliding Indicator Pill (Apple Floating Glass Pill) */}
+            {/* Liquid Droplet Sliding Indicator Pill */}
             {catIndicator.ready && catIndicator.width > 0 && (
               <div
                 className="absolute top-1 bottom-1 rounded-full bg-white dark:bg-[#2c2c2e] shadow-[0_1px_4px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/10 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none"

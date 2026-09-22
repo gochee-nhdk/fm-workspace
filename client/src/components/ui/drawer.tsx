@@ -83,10 +83,10 @@ export const Drawer: React.FC<DrawerProps> = ({
         )}
         onClick={handleClose}
       />
-      {/* Centered Floating Glass Dialog with MacBook Fluid Droplet Motion */}
+      {/* Centered Floating Glass Dialog with Fluid Droplet Motion */}
       <div
         className={cn(
-          'relative w-full bg-white/95 dark:bg-[#1d1d1f]/95 backdrop-blur-3xl shadow-[0_24px_70px_rgba(0,0,0,0.25)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.6)] border border-white/60 dark:border-white/12 rounded-[22px] flex flex-col max-h-[90vh] overflow-hidden z-10',
+          'relative w-full bg-white/80 dark:bg-[#141418]/82 backdrop-blur-3xl shadow-[0_24px_70px_rgba(0,0,0,0.22),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.65),inset_0_1px_1px_rgba(255,255,255,0.15)] border border-white/70 dark:border-white/15 rounded-[22px] flex flex-col max-h-[90vh] overflow-hidden z-10',
           widths[width],
           isClosing ? 'liquid-droplet-exit' : 'liquid-droplet-enter'
         )}

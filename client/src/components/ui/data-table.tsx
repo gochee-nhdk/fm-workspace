@@ -77,10 +77,10 @@ export function DataTable<TData, TValue>({
         </div>
       )}
 
-      <div className="rounded-[18px] border border-[#e0e0e0] dark:border-white/10 bg-white dark:bg-[#1d1d1f] overflow-hidden shadow-xs">
+      <div className="rounded-[20px] border border-white/60 dark:border-white/10 bg-white/70 dark:bg-[#141418]/70 backdrop-blur-2xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
-            <thead className="bg-[#fafafc] dark:bg-[#272729] border-b border-[#e0e0e0] dark:border-white/10 text-[11px] font-semibold text-[#76767b] dark:text-[#a1a1a6] uppercase tracking-wider select-none">
+            <thead className="bg-black/[0.02] dark:bg-white/[0.04] border-b border-black/[0.06] dark:border-white/10 text-[11px] font-semibold text-[#76767b] dark:text-[#a1a1a6] uppercase tracking-wider select-none">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
@@ -140,7 +140,7 @@ export function DataTable<TData, TValue>({
 
         {/* Pagination Controls */}
         {table.getPageCount() > 1 && (
-          <div className="px-5 py-3.5 bg-[#fafafc] dark:bg-[#272729]/60 border-t border-[#e0e0e0]/70 dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-[13px] text-[#76767b] dark:text-[#a1a1a6]">
+          <div className="px-5 py-3.5 bg-black/[0.015] dark:bg-white/[0.02] border-t border-black/[0.06] dark:border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-[13px] text-[#76767b] dark:text-[#a1a1a6]">
             <div>
               Trang <span className="font-semibold text-[#1d1d1f] dark:text-white">{table.getState().pagination.pageIndex + 1}</span> / <span className="font-semibold text-[#1d1d1f] dark:text-white">{table.getPageCount()}</span> ({data.length} mục)
             </div>

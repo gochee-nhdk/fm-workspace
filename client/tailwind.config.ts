@@ -8,10 +8,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"SF Pro Display"', '-apple-system', 'BlinkMacSystemFont', '"Be Vietnam Pro"', 'Inter', 'system-ui', 'sans-serif'],
+        sans: ['"SF Pro Display"', 'system-ui', 'BlinkMacSystemFont', '"Be Vietnam Pro"', 'Inter', 'sans-serif'],
       },
       colors: {
-        apple: {
+        fm: {
           blue: '#0066cc',
           focus: '#0071e3',
           sky: '#2997ff',
@@ -36,10 +36,10 @@ export default {
         }
       },
       borderRadius: {
-        'apple-pill': '9999px',
-        'apple-lg': '18px',
-        'apple-md': '12px',
-        'apple-sm': '8px',
+        'pill': '9999px',
+        'lg-panel': '18px',
+        'md-panel': '12px',
+        'sm-panel': '8px',
       },
       spacing: {
         '4.5': '1.125rem',
@@ -47,12 +47,12 @@ export default {
         '9.5': '2.375rem',
       },
       fontSize: {
-        'apple-body': ['15px', { lineHeight: '1.47', letterSpacing: '-0.24px' }],
-        'apple-display': ['34px', { lineHeight: '1.15', letterSpacing: '-0.3px' }],
-        'apple-hero': ['48px', { lineHeight: '1.08', letterSpacing: '-0.3px' }],
+        'fm-body': ['15px', { lineHeight: '1.47', letterSpacing: '-0.24px' }],
+        'fm-display': ['34px', { lineHeight: '1.15', letterSpacing: '-0.3px' }],
+        'fm-hero': ['48px', { lineHeight: '1.08', letterSpacing: '-0.3px' }],
       },
       boxShadow: {
-        'apple-product': '0 8px 24px rgba(0, 0, 0, 0.08)',
+        'fm-card': '0 8px 24px rgba(0, 0, 0, 0.08)',
         'glass': '0 4px 20px rgba(0, 0, 0, 0.04)',
         'glass-hover': '0 12px 28px -6px rgba(0, 0, 0, 0.08)',
         'glass-dark': '0 8px 32px rgba(0, 0, 0, 0.45)',
@@ -61,9 +61,9 @@ export default {
         'ios-liquid-hover': '0 12px 28px -6px rgba(0, 0, 0, 0.08)',
       },
       transitionTimingFunction: {
-        'apple-spring': 'cubic-bezier(0.16, 1, 0.3, 1)',
-        'apple-fluid': 'cubic-bezier(0.32, 0.72, 0, 1)',
-        'apple-bounce': 'cubic-bezier(0.34, 1.45, 0.64, 1)',
+        'spring': 'cubic-bezier(0.16, 1, 0.3, 1)',
+        'fluid': 'cubic-bezier(0.32, 0.72, 0, 1)',
+        'bounce': 'cubic-bezier(0.34, 1.45, 0.64, 1)',
         'ios-fluid': 'cubic-bezier(0.32, 0.72, 0, 1)',
         'ios-bounce': 'cubic-bezier(0.34, 1.45, 0.64, 1)',
         'ios-smooth': 'cubic-bezier(0.25, 1, 0.5, 1)',

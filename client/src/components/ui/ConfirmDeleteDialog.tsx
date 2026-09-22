@@ -49,7 +49,7 @@ export const ConfirmDeleteDialog: React.FC<ConfirmDeleteDialogProps> = ({
         role="alertdialog"
         aria-modal="true"
         aria-label={title}
-        className="relative bg-white/95 dark:bg-[#1d1d1f]/95 backdrop-blur-3xl rounded-[22px] max-w-md w-full p-6 shadow-[0_24px_70px_rgba(0,0,0,0.25)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.6)] border border-white/60 dark:border-white/12 animate-in fade-in zoom-in-95 duration-220 ease-apple-spring"
+        className="relative bg-white/80 dark:bg-[#141418]/82 backdrop-blur-3xl rounded-[22px] max-w-md w-full p-6 shadow-[0_24px_70px_rgba(0,0,0,0.22),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.65),inset_0_1px_1px_rgba(255,255,255,0.15)] border border-white/70 dark:border-white/15 animate-in fade-in zoom-in-95 duration-220 ease-out"
       >
         <button
           onClick={onClose}

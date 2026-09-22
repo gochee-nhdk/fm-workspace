@@ -119,7 +119,7 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 3 Metric Cards (Apple 3D Liquid Glass Cards) */}
+      {/* 3 Metric Cards (3D Liquid Glass Cards) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 ios-animate-in ios-stagger-1">
         {/* Total Links Card */}
         <div

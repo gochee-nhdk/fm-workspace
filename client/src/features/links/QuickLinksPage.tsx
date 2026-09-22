@@ -160,7 +160,7 @@ export const QuickLinksPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter & Toolbar (Apple Utility Bar) */}
+      {/* Filter & Toolbar (Utility Bar) */}
       <div className="glass-material rounded-[22px] p-3.5 sm:p-4 flex flex-col md:flex-row items-center justify-between gap-3.5 shadow-xs">
         {/* Search */}
         <div className="relative w-full md:w-80 group">
