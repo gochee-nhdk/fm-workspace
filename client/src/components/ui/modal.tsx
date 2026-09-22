@@ -90,7 +90,7 @@ export const Modal: React.FC<ModalProps> = ({
       {/* Fluid Droplet Modal Surface */}
       <div
         className={cn(
-          'relative w-full bg-white/80 dark:bg-[#141418]/82 backdrop-blur-3xl rounded-[22px] shadow-[0_24px_70px_rgba(0,0,0,0.22),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.65),inset_0_1px_1px_rgba(255,255,255,0.15)] border border-white/70 dark:border-white/15 overflow-hidden z-10 max-h-[90vh] flex flex-col',
+          'relative w-full bg-white/95 dark:bg-[#16161c]/95 backdrop-blur-3xl rounded-[24px] shadow-[0_24px_80px_rgba(0,0,0,0.2),inset_0_1.5px_1px_rgba(255,255,255,1),inset_0_-1px_1.5px_rgba(0,0,0,0.08)] dark:shadow-[0_24px_80px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.18)] border border-white/80 dark:border-white/15 overflow-hidden z-10 max-h-[90vh] flex flex-col',
           sizes[size],
           isClosing ? 'liquid-droplet-exit' : 'liquid-droplet-enter'
         )}

@@ -156,30 +156,31 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/45 backdrop-blur-md transition-opacity duration-200"
+        className="fixed inset-0 bg-black/40 dark:bg-black/75 backdrop-blur-2xl transition-opacity duration-200"
         onClick={handleClose}
       />
 
       {/* Modal Dialog */}
-      <div className="relative bg-white/80 dark:bg-[#141418]/82 backdrop-blur-3xl rounded-[24px] max-w-2xl w-full p-6 shadow-[0_24px_70px_rgba(0,0,0,0.18),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.7),inset_0_1px_1px_rgba(255,255,255,0.15)] border border-white/80 dark:border-white/15 animate-in fade-in zoom-in-95 duration-220 ease-out flex flex-col max-h-[90vh]">
+      <div className="relative bg-white/95 dark:bg-[#16161c]/95 backdrop-blur-3xl rounded-[24px] max-w-2xl w-full p-6 shadow-[0_24px_80px_rgba(0,0,0,0.2),inset_0_1.5px_1px_rgba(255,255,255,1),inset_0_-1px_1.5px_rgba(0,0,0,0.08)] dark:shadow-[0_24px_80px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.18)] border border-white/80 dark:border-white/15 animate-in fade-in zoom-in-95 duration-220 ease-out flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-[#e0e0e0] dark:border-white/10 shrink-0">
+        <div className="flex items-center justify-between pb-4 border-b border-black/[0.06] dark:border-white/10 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#0066cc]/10 text-[#0066cc] dark:bg-[#2997ff]/15 dark:text-[#2997ff] rounded-full flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 bg-[#0066cc]/10 text-[#0066cc] dark:bg-[#2997ff]/20 dark:text-[#2997ff] rounded-2xl flex items-center justify-center shrink-0 border border-[#0066cc]/20 dark:border-[#2997ff]/30 shadow-xs">
               <FileSpreadsheet className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-[17px] font-semibold text-[#1d1d1f] dark:text-white">
+              <h3 className="text-[17px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight">
                 Import Dữ Liệu Excel
               </h3>
-              <p className="text-[13px] text-[#86868b] dark:text-[#a1a1a6]">
+              <p className="text-[13px] text-[#76767b] dark:text-[#a1a1a6]">
                 Hỗ trợ file .xlsx, .xls, .csv tự động nhận diện LINK, ACCOUNT, DS CH
               </p>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="w-7 h-7 rounded-full bg-[#f5f5f7] dark:bg-white/10 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white flex items-center justify-center transition-all active:scale-95"
+            className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/10 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white flex items-center justify-center transition-all active:scale-95 border border-black/5 dark:border-white/10 cursor-pointer"
+            title="Đóng (Esc)"
           >
             <X className="w-4 h-4" />
           </button>
@@ -189,10 +190,10 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
         <div className="py-4 overflow-y-auto flex-1 space-y-4">
           {step === 'upload' && (
             <div
-              className={`border-2 border-dashed rounded-[18px] p-8 text-center transition-all ${
+              className={`border-2 border-dashed rounded-[20px] p-8 text-center transition-all ${
                 dragActive
-                  ? 'border-[#0066cc] bg-[#0066cc]/5 scale-[0.99]'
-                  : 'border-[#e0e0e0] dark:border-white/15 hover:border-[#0066cc] bg-[#f5f5f7]/60 dark:bg-white/5'
+                  ? 'border-[#0071e3] bg-[#0071e3]/10 scale-[0.99]'
+                  : 'border-black/10 dark:border-white/15 hover:border-[#0071e3] dark:hover:border-[#2997ff] bg-black/[0.02] dark:bg-white/[0.04]'
               }`}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
@@ -207,15 +208,15 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 onChange={handleFileChange}
               />
 
-              <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-[#0066cc]/10 text-[#0066cc] dark:bg-[#2997ff]/15 dark:text-[#2997ff] flex items-center justify-center shadow-xs">
+              <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-gradient-to-b from-[#2997ff]/20 to-[#0066cc]/20 text-[#0066cc] dark:text-[#2997ff] flex items-center justify-center border border-[#0071e3]/20 dark:border-[#2997ff]/30 shadow-xs">
                 <UploadCloud className="w-7 h-7" />
               </div>
 
-              <h4 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-white">
+              <h4 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
                 Kéo thả file Excel vào đây hoặc bấm để chọn
               </h4>
-              <p className="text-[13px] text-[#86868b] dark:text-[#a1a1a6] mt-1 max-w-sm mx-auto">
-                Tự động nhận diện cấu trúc file: <strong className="text-[#1d1d1f] dark:text-white">FM_FOR WORK.xlsx</strong> với các sheet LINK, ACCOUNT, DS CH
+              <p className="text-[13px] text-[#76767b] dark:text-[#a1a1a6] mt-1.5 max-w-sm mx-auto">
+                Tự động nhận diện cấu trúc file: <strong className="text-[#0071e3] dark:text-[#2997ff] font-semibold">FM_FOR WORK.xlsx</strong> với các sheet LINK, ACCOUNT, DS CH
               </p>
 
               <div className="mt-5">
@@ -231,7 +232,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 </Button>
               </div>
 
-              <div className="mt-6 pt-4 border-t border-[#e0e0e0]/60 dark:border-white/10 flex items-center justify-center gap-6 text-[12px] text-[#86868b] dark:text-[#a1a1a6]">
+              <div className="mt-6 pt-4 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-center gap-6 text-[12px] text-[#76767b] dark:text-[#a1a1a6]">
                 <span>✓ .xlsx, .xls, .csv</span>
                 <span>✓ Kiểm tra trùng lặp</span>
                 <span>✓ Preview trước khi lưu</span>
@@ -393,7 +394,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="pt-4 border-t border-[#e0e0e0] dark:border-white/10 flex items-center justify-between shrink-0">
+        <div className="pt-4 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-between shrink-0">
           {step === 'preview' ? (
             <Button
               type="button"
