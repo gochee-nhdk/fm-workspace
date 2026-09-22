@@ -1072,7 +1072,6 @@ thead th,
   word-break: keep-all !important;
   user-select: none;
   vertical-align: middle;
-  text-overflow: ellipsis;
 }
 
 table td,

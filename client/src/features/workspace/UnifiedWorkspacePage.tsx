@@ -429,11 +429,11 @@ export const UnifiedWorkspacePage: React.FC = () => {
               <thead className="bg-white/80 dark:bg-[#141418]/85 backdrop-blur-md border-b border-black/[0.06] dark:border-white/10 text-[11px] font-semibold text-[#76767b] dark:text-[#a1a1a6] uppercase tracking-wider select-none sticky top-0 z-10">
                 <tr>
                   <th className="px-4 py-3.5 w-12 text-center whitespace-nowrap">⭐</th>
-                  <th className="px-5 py-3.5 whitespace-nowrap min-w-[200px]">Tên Hạng Mục / Phần Mềm</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[140px]">Nhóm / Danh Mục</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[180px]">Ghi Chú</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[160px]">Đường Dẫn (Link)</th>
-                  <th className="px-4 py-3.5 text-right whitespace-nowrap min-w-[90px]">Thao Tác</th>
+                  <th className="px-5 py-3.5 whitespace-nowrap min-w-[160px]">Tên Hạng Mục</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Danh Mục</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[140px]">Ghi Chú</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Đường Dẫn</th>
+                  <th className="pl-4 pr-6 sm:pr-8 py-3.5 text-right whitespace-nowrap min-w-[110px]">Thao Tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.04] dark:divide-white/5">
@@ -518,7 +518,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       </td>
 
                       {/* Actions */}
-                      <td className="px-4 py-3 text-right">
+                      <td className="pl-4 pr-6 sm:pr-8 py-3 text-right whitespace-nowrap">
                         <div className="inline-flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
                           <button
                             type="button"
@@ -563,12 +563,12 @@ export const UnifiedWorkspacePage: React.FC = () => {
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
               <thead className="bg-white/80 dark:bg-[#141418]/85 backdrop-blur-md border-b border-black/[0.06] dark:border-white/10 text-[11px] font-semibold text-[#76767b] dark:text-[#a1a1a6] uppercase tracking-wider select-none sticky top-0 z-10">
                 <tr>
-                  <th className="px-5 py-3.5 whitespace-nowrap min-w-[190px]">Phần Mềm / Hệ Thống</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[210px]">Tên Đăng Nhập (1-Click Copy)</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[210px]">Mật Khẩu (1-Click Copy)</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[150px]">Trang Đăng Nhập</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[180px]">Ghi Chú</th>
-                  <th className="px-4 py-3.5 text-right whitespace-nowrap min-w-[90px]">Thao Tác</th>
+                  <th className="px-5 py-3.5 whitespace-nowrap min-w-[150px]">Phần Mềm</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[150px]">Tên Đăng Nhập</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Mật Khẩu</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Trang Đăng Nhập</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Ghi Chú</th>
+                  <th className="pl-4 pr-6 sm:pr-8 py-3.5 text-right whitespace-nowrap min-w-[110px]">Thao Tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.04] dark:divide-white/5">
@@ -668,7 +668,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       </td>
 
                       {/* Actions */}
-                      <td className="px-4 py-3 text-right">
+                      <td className="pl-4 pr-6 sm:pr-8 py-3 text-right whitespace-nowrap">
                         <div className="inline-flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
                           <button
                             type="button"
@@ -717,11 +717,11 @@ export const UnifiedWorkspacePage: React.FC = () => {
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
               <thead className="bg-white/80 dark:bg-[#141418]/85 backdrop-blur-md border-b border-black/[0.06] dark:border-white/10 text-[11px] font-semibold text-[#76767b] dark:text-[#a1a1a6] uppercase tracking-wider select-none sticky top-0 z-10">
                 <tr>
-                  <th className="px-5 py-3.5 whitespace-nowrap min-w-[130px]">Mã Cửa Hàng</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[300px]">Địa Chỉ Cửa Hàng (1-Click Copy)</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[160px]">Phân Loại / Chi Nhánh</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[190px]">Bản Đồ Chỉ Đường (Google Maps)</th>
-                  <th className="px-4 py-3.5 text-right whitespace-nowrap min-w-[90px]">Thao Tác</th>
+                  <th className="px-5 py-3.5 whitespace-nowrap min-w-[110px]">Mã Cửa Hàng</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[220px]">Địa Chỉ Cửa Hàng</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Khu Vực / Loại</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Google Maps</th>
+                  <th className="pl-4 pr-6 sm:pr-8 py-3.5 text-right whitespace-nowrap min-w-[110px]">Thao Tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.04] dark:divide-white/5">
@@ -788,7 +788,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       </td>
 
                       {/* Actions */}
-                      <td className="px-4 py-3 text-right">
+                      <td className="pl-4 pr-6 sm:pr-8 py-3 text-right whitespace-nowrap">
                         <div className="inline-flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
                           <button
                             type="button"
