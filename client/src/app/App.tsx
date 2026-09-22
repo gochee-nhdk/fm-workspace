@@ -45,7 +45,7 @@ export default function App() {
           gutter={10}
           containerClassName="apple-toaster-container"
           containerStyle={{
-            top: 18,
+            top: 78,
           }}
           toastOptions={{
             duration: 2500,

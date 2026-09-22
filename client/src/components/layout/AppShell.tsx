@@ -278,7 +278,7 @@ export const AppShell: React.FC = () => {
             {/* Global Search Capsule (Spotlight pill) */}
             <button
               onClick={() => setCommandPaletteOpen(true)}
-              className="liquid-lens-pill group relative flex items-center gap-2.5 px-4 py-2 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white text-[13px] w-48 sm:w-72 active:scale-[0.98] cursor-pointer"
+              className="liquid-lens-pill group relative flex items-center gap-2.5 px-3.5 py-2 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white text-[13px] w-44 md:w-52 lg:w-64 active:scale-[0.98] cursor-pointer"
               aria-label="Tìm kiếm nhanh (Ctrl+K)"
             >
               <div className="w-5 h-5 rounded-full bg-[#0071e3]/15 dark:bg-[#2997ff]/20 flex items-center justify-center text-[#0066cc] dark:text-[#2997ff] group-hover:scale-110 transition-transform">

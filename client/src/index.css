@@ -13,6 +13,7 @@
     --border: #e0e0e0;
     --primary: #0066cc;
     --primary-foreground: #ffffff;
+    --sidebar-width: 268px;
     
     /* Liquid Glass Tokens */
     --glass-background: rgba(255, 255, 255, 0.78);
@@ -1084,8 +1085,12 @@ tbody td {
    ========================================================================== */
 .apple-toaster-container {
   pointer-events: none !important;
-  top: 18px !important;
+  top: 78px !important;
   z-index: 99999 !important;
+  left: 0 !important;
+  right: 0 !important;
+  display: flex !important;
+  justify-content: center !important;
 }
 
 @media (min-width: 768px) {
