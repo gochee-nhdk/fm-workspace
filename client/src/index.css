@@ -73,10 +73,17 @@
     margin: 0;
     padding: 0;
     overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Be Vietnam Pro", Inter, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
   body {
     @apply bg-[var(--background)] text-[var(--foreground)] antialiased transition-colors duration-200 relative selection:bg-[#0066cc]/20 selection:text-[#0066cc];
     letter-spacing: -0.011em;
+  }
+  button, input, select, textarea {
+    font-family: inherit;
   }
   .theme {
     --lq-radius: 16px;

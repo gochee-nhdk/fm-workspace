@@ -135,17 +135,17 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
               <button
                 type="button"
                 onClick={() => setShowMapPreview((prev) => !prev)}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:text-amber-700 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-[#0071e3] dark:text-[#2997ff] hover:underline transition-all cursor-pointer"
               >
                 <MapPin className="w-3.5 h-3.5" />
                 <span>{showMapPreview ? 'Ẩn bản đồ xem trước' : 'Xem trước vị trí trên Google Maps'}</span>
               </button>
 
               {showMapPreview && (
-                <div className="mt-2 rounded-2xl overflow-hidden border border-black/10 dark:border-white/15 h-56 bg-black/5 dark:bg-white/5 relative shadow-inner">
+                <div className="mt-2.5 rounded-2xl overflow-hidden border border-black/10 dark:border-white/15 h-56 bg-black/5 dark:bg-white/5 relative shadow-sm">
                   <iframe
                     title="Xem trước bản đồ cửa hàng"
-                    src={getMapEmbedUrl(address, googleMaps)}
+                    src={getMapEmbedUrl(address, googleMaps, storeCode).url}
                     width="100%"
                     height="100%"
                     style={{ border: 0 }}

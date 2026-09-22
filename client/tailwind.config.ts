@@ -8,7 +8,23 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"SF Pro Display"', 'system-ui', 'BlinkMacSystemFont', '"Be Vietnam Pro"', 'Inter', 'sans-serif'],
+        sans: [
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"SF Pro Text"',
+          '"SF Pro Display"',
+          '"Be Vietnam Pro"',
+          'Inter',
+          'sans-serif',
+        ],
+        display: [
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"SF Pro Display"',
+          '"Be Vietnam Pro"',
+          'Inter',
+          'sans-serif',
+        ],
       },
       colors: {
         fm: {

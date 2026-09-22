@@ -1141,21 +1141,23 @@ export const UnifiedWorkspacePage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setPreviewMapStore(item)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/15 to-amber-600/15 hover:from-amber-500/25 hover:to-amber-600/25 text-amber-700 dark:text-amber-300 text-xs font-semibold border border-amber-500/30 shadow-xs active:scale-95 transition-all cursor-pointer group/map"
-                              title="Xem bản đồ trực tiếp trong web app"
+                              className="group/map inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-200 active:scale-[0.97] cursor-pointer bg-white/70 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.16] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.08] dark:border-white/12 shadow-[0_1px_3px_rgba(0,0,0,0.04),inset_0_1px_0.5px_rgba(255,255,255,0.9)] hover:shadow-[0_4px_14px_rgba(0,113,227,0.18)] backdrop-blur-md"
+                              title="Xem trước bản đồ Google Maps trong web app"
                             >
-                              <MapPin className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 group-hover/map:scale-110 transition-transform" />
-                              <span>Xem Map</span>
+                              <span className="w-4 h-4 rounded-full bg-[#0071e3]/12 dark:bg-[#2997ff]/20 flex items-center justify-center text-[#0066cc] dark:text-[#2997ff] group-hover/map:bg-[#0071e3] group-hover/map:text-white transition-all shrink-0">
+                                <MapPin className="w-2.5 h-2.5" />
+                              </span>
+                              <span>Xem bản đồ</span>
                             </button>
                             {item.googleMaps && (
                               <a
                                 href={item.googleMaps}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="p-1 rounded-full text-[#76767b] hover:text-amber-600 dark:hover:text-amber-400 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-                                title="Mở trên trang Google Maps ngoài"
+                                className="w-7 h-7 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                                title="Mở trang Google Maps ngoài tab mới"
                               >
-                                <ExternalLink className="w-3 h-3" />
+                                <ExternalLink className="w-3.5 h-3.5 opacity-70 hover:opacity-100" />
                               </a>
                             )}
                           </div>
