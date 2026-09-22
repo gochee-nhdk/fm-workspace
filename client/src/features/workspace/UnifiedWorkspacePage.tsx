@@ -737,22 +737,24 @@ export const UnifiedWorkspacePage: React.FC = () => {
                               href={item.link}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0066cc]/10 text-[#0066cc] dark:bg-[#2997ff]/15 dark:text-[#2997ff] text-xs font-semibold hover:bg-[#0066cc]/20 transition-all active:scale-95"
+                              className="group/link inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-200 active:scale-[0.97] cursor-pointer bg-white/70 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.16] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.08] dark:border-white/12 shadow-[0_1px_3px_rgba(0,0,0,0.04),inset_0_1px_0.5px_rgba(255,255,255,0.9)] hover:shadow-[0_4px_14px_rgba(0,113,227,0.18)] backdrop-blur-md"
                               title="Mở liên kết trong tab mới"
                             >
                               <span>Mở link</span>
-                              <ExternalLink className="w-3 h-3" />
+                              <span className="w-4 h-4 rounded-full bg-[#0071e3]/12 dark:bg-[#2997ff]/20 flex items-center justify-center text-[#0066cc] dark:text-[#2997ff] group-hover/link:bg-[#0071e3] group-hover/link:text-white transition-all shrink-0">
+                                <ExternalLink className="w-2.5 h-2.5" />
+                              </span>
                             </a>
                             <button
                               type="button"
                               onClick={() => handleCopy(item.link, 'đường dẫn', `link-${item.id}`)}
-                              className="p-1 rounded-full text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white transition-colors"
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/5 dark:hover:bg-white/10 transition-all active:scale-95 cursor-pointer"
                               title="Sao chép link"
                             >
                               {copiedKey === `link-${item.id}` ? (
-                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                <Check className="w-3.5 h-3.5 text-[#34c759]" />
                               ) : (
-                                <Copy className="w-3.5 h-3.5" />
+                                <Copy className="w-3.5 h-3.5 opacity-70 hover:opacity-100" />
                               )}
                             </button>
                           </div>
@@ -955,15 +957,32 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       {/* Link */}
                       <td className="px-4 py-3">
                         {item.link ? (
-                          <a
-                            href={item.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-[#0066cc] dark:text-[#2997ff] hover:underline font-medium"
-                          >
-                            <span>Đăng nhập</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={item.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="group/acc inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-200 active:scale-[0.97] cursor-pointer bg-white/70 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.16] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.08] dark:border-white/12 shadow-[0_1px_3px_rgba(0,0,0,0.04),inset_0_1px_0.5px_rgba(255,255,255,0.9)] hover:shadow-[0_4px_14px_rgba(0,113,227,0.18)] backdrop-blur-md"
+                              title="Mở trang đăng nhập trong tab mới"
+                            >
+                              <span>Đăng nhập</span>
+                              <span className="w-4 h-4 rounded-full bg-[#0071e3]/12 dark:bg-[#2997ff]/20 flex items-center justify-center text-[#0066cc] dark:text-[#2997ff] group-hover/acc:bg-[#0071e3] group-hover/acc:text-white transition-all shrink-0">
+                                <ExternalLink className="w-2.5 h-2.5" />
+                              </span>
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(item.link || '', 'đường dẫn', `acc-link-${item.id}`)}
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/5 dark:hover:bg-white/10 transition-all active:scale-95 cursor-pointer"
+                              title="Sao chép liên kết đăng nhập"
+                            >
+                              {copiedKey === `acc-link-${item.id}` ? (
+                                <Check className="w-3.5 h-3.5 text-[#34c759]" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5 opacity-70 hover:opacity-100" />
+                              )}
+                            </button>
+                          </div>
                         ) : (
                           <span className="text-xs text-[#a1a1a6] opacity-50">—</span>
                         )}
