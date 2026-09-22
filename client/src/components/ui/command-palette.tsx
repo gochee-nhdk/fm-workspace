@@ -212,7 +212,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         id: 'nav-links',
         label: 'Quick Links & Phím tắt',
         sub: 'Danh mục liên kết hệ thống, báo cáo và vận hành',
-        path: '/links',
+        path: '/?tab=links',
         tag: 'Links',
         icon: <LinkIcon className="w-4 h-4" />,
         iconBg: 'bg-sky-500/12 dark:bg-sky-500/20',
@@ -223,7 +223,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         id: 'nav-accounts',
         label: 'Tài khoản & Phần mềm (Vault)',
         sub: 'Két bảo mật thông tin đăng nhập SAP, POS, Bravo...',
-        path: '/accounts',
+        path: '/?tab=accounts',
         tag: 'Account Vault',
         icon: <Shield className="w-4 h-4" />,
         iconBg: 'bg-emerald-500/12 dark:bg-emerald-500/20',
@@ -234,7 +234,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         id: 'nav-stores',
         label: 'Danh mục Cửa hàng (DS CH)',
         sub: 'Tra cứu mã cửa hàng, địa chỉ, vị trí Google Maps',
-        path: '/stores',
+        path: '/?tab=stores',
         tag: 'Cửa hàng',
         icon: <Store className="w-4 h-4" />,
         iconBg: 'bg-amber-500/12 dark:bg-amber-500/20',
@@ -242,20 +242,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       },
       {
         type: 'nav' as const,
-        id: 'nav-data',
-        label: 'Quản lý Dữ liệu & Excel Hub',
-        sub: 'Trung tâm xem, lọc và xuất nhập file Excel',
-        path: '/data-manager',
-        tag: 'Data Hub',
-        icon: <Database className="w-4 h-4" />,
-        iconBg: 'bg-indigo-500/12 dark:bg-indigo-500/20',
-        iconColor: 'text-indigo-600 dark:text-indigo-400',
-      },
-      {
-        type: 'nav' as const,
         id: 'nav-settings',
-        label: 'Cài đặt Workspace & Bộ nhớ',
-        sub: 'Cấu hình bảo mật, kiểm tra dung lượng IndexedDB',
+        label: 'Cài đặt & Dữ liệu Workspace',
+        sub: 'Cấu hình bảo mật, kiểm tra dung lượng, xuất nhập Excel',
         path: '/settings',
         tag: 'Hệ thống',
         icon: <Settings className="w-4 h-4" />,
@@ -325,7 +314,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         iconBg: 'bg-teal-500/12 dark:bg-teal-500/20',
         iconColor: 'text-teal-600 dark:text-teal-400',
         action: () => {
-          navigate('/accounts');
+          navigate('/?tab=accounts');
           handleClose();
         },
       },
@@ -339,7 +328,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         iconBg: 'bg-amber-500/12 dark:bg-amber-500/20',
         iconColor: 'text-amber-600 dark:text-amber-400',
         action: () => {
-          navigate('/stores');
+          navigate('/?tab=stores');
           handleClose();
         },
       },
@@ -633,15 +622,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       if (item.url && /^https?:\/\//i.test(item.url.trim())) {
         window.open(item.url.trim(), '_blank', 'noopener,noreferrer');
       } else {
-        navigate('/links');
+        navigate('/?tab=links');
       }
     } else if (item.type === 'account') {
-      navigate('/accounts');
+      navigate('/?tab=accounts');
     } else if (item.type === 'store') {
       if (item.mapsUrl && /^https?:\/\//i.test(item.mapsUrl.trim())) {
         window.open(item.mapsUrl.trim(), '_blank', 'noopener,noreferrer');
       } else {
-        navigate('/stores');
+        navigate('/?tab=stores');
       }
     } else if (item.type === 'nav') {
       navigate(item.path);

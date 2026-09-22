@@ -550,6 +550,36 @@ class ExcelService {
     await dataService.logActivity('export', dataset, 'export-single', `Xuất Excel tập dữ liệu: ${dataset}`);
   }
 
+  // Download empty template file for offline data entry
+  downloadTemplate(): void {
+    const wb = XLSX.utils.book_new();
+
+    const sampleLinks = [
+      { 'Hạng mục': 'Hệ thống Bravo', 'Đường dẫn (Link)': 'https://bravo.farmersmarket.vn', 'Danh mục': 'ERP & Kế toán', 'Ghi chú': 'Hệ thống ERP nhập chứng từ' },
+      { 'Hạng mục': 'Báo cáo Thu Mua', 'Đường dẫn (Link)': 'https://docs.google.com/spreadsheets/...', 'Danh mục': 'Báo cáo', 'Ghi chú': 'File theo dõi tiến độ' },
+    ];
+    const wsLinks = XLSX.utils.json_to_sheet(sampleLinks);
+    wsLinks['!cols'] = [{ wch: 30 }, { wch: 45 }, { wch: 20 }, { wch: 35 }];
+    XLSX.utils.book_append_sheet(wb, wsLinks, 'LINK');
+
+    const sampleAccounts = [
+      { 'Phần mềm': 'Bravo ERP', 'Tên đăng nhập': 'thumua01', 'Mật khẩu': 'Bravo@2026', 'Đường dẫn': 'https://bravo.farmersmarket.vn', 'Ghi chú': 'Tài khoản duyệt PO' },
+    ];
+    const wsAccs = XLSX.utils.json_to_sheet(sampleAccounts);
+    wsAccs['!cols'] = [{ wch: 25 }, { wch: 25 }, { wch: 20 }, { wch: 40 }, { wch: 30 }];
+    XLSX.utils.book_append_sheet(wb, wsAccs, 'ACCOUNT');
+
+    const sampleStores = [
+      { 'Mã cửa hàng': 'FM01', 'Địa chỉ': '496 Nguyễn Thị Minh Khai, P.2, Q.3', 'Google Maps': 'https://maps.google.com/?q=...', 'Loại cửa hàng': 'Standard' },
+      { 'Mã cửa hàng': 'FM02', 'Địa chỉ': '218 Hai Bà Trưng, P.Tân Định, Q.1', 'Google Maps': 'https://maps.google.com/?q=...', 'Loại cửa hàng': 'Standard' },
+    ];
+    const wsStores = XLSX.utils.json_to_sheet(sampleStores);
+    wsStores['!cols'] = [{ wch: 15 }, { wch: 45 }, { wch: 40 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, wsStores, 'DS CH');
+
+    XLSX.writeFile(wb, 'FM_WORKSPACE_TEMPLATE_MAU.xlsx');
+  }
+
   // Export full workspace to a multi-sheet workbook with Cover Summary + auto-fit columns
   async exportFullWorkspace(): Promise<void> {
     const wb = XLSX.utils.book_new();

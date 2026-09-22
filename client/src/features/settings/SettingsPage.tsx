@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   RefreshCw,
   WifiOff,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { dataService } from '@/services/dataService';
@@ -160,24 +161,70 @@ export const SettingsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Backup & Export */}
+      {/* Data Hub, Excel & Backup */}
       <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-4">
         <h3 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-white flex items-center gap-2">
           <Download className="w-4 h-4 text-[#0066cc]" />
-          Sao Lưu & Xuất Dữ Liệu
+          Trung Tâm Dữ Liệu & Sao Lưu Excel
         </h3>
         <p className="text-[13px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
-          Xuất toàn bộ hệ thống gồm 3 sheets: LINK, ACCOUNT, DS CH ra một file Excel (.xlsx) chuẩn cấu trúc hệ thống để sao lưu hoặc chuyển đổi thiết bị.
+          Nhập file Excel từ máy tính của bạn, tải template mẫu hoặc xuất toàn bộ dữ liệu (LINK, ACCOUNT, DS CH) ra file Excel (.xlsx) bất kỳ lúc nào.
         </p>
-        <div>
+        <div className="flex flex-wrap items-center gap-2.5 pt-1">
+          <Button
+            variant="glassProminent"
+            size="sm"
+            onClick={handleExportBackup}
+            icon={<Download className="w-4 h-4" />}
+          >
+            Xuất Toàn Bộ Workspace (.xlsx)
+          </Button>
+
           <Button
             variant="glass"
             size="sm"
-            onClick={handleExportBackup}
-            icon={<Download className="w-4 h-4 text-[#0066cc]" />}
+            onClick={() => window.dispatchEvent(new CustomEvent('fm:open-import'))}
+            icon={<HardDrive className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
           >
-            Tải về File Excel Toàn Bộ Workspace
+            Nạp File Excel Vào App
           </Button>
+
+          <Button
+            variant="glass"
+            size="sm"
+            onClick={() => {
+              excelService.downloadTemplate();
+              toast.success('Đã tải xuống file template mẫu Excel');
+            }}
+            icon={<FileSpreadsheet className="w-4 h-4 text-[#0066cc] dark:text-[#2997ff]" />}
+          >
+            Tải Template Mẫu (.xlsx)
+          </Button>
+        </div>
+
+        <div className="pt-3 border-t border-black/5 dark:border-white/10 flex items-center gap-2 flex-wrap text-xs text-[#76767b]">
+          <span>Xuất nhanh từng sheet:</span>
+          <button
+            type="button"
+            onClick={() => excelService.exportDataset('LINK')}
+            className="px-2.5 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] hover:bg-[#0066cc]/10 text-[#1d1d1f] dark:text-white font-medium transition-colors"
+          >
+            Sheet LINK ({counts.links})
+          </button>
+          <button
+            type="button"
+            onClick={() => excelService.exportDataset('ACCOUNT')}
+            className="px-2.5 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] hover:bg-emerald-500/10 text-[#1d1d1f] dark:text-white font-medium transition-colors"
+          >
+            Sheet ACCOUNT ({counts.accounts})
+          </button>
+          <button
+            type="button"
+            onClick={() => excelService.exportDataset('STORE')}
+            className="px-2.5 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] hover:bg-amber-500/10 text-[#1d1d1f] dark:text-white font-medium transition-colors"
+          >
+            Sheet DS CH ({counts.stores})
+          </button>
         </div>
       </div>
 

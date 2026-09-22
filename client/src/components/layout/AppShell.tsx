@@ -24,20 +24,13 @@ import { useUiStore } from '@/stores/ui-store';
 import { Button } from '@/components/ui/button';
 
 const navItems = [
-  { to: '/', label: 'Bàn làm việc', icon: <LayoutDashboard className="w-4 h-4" /> },
-  { to: '/links', label: 'Quick Links', icon: <LinkIcon className="w-4 h-4" /> },
-  { to: '/accounts', label: 'Account Vault', icon: <Shield className="w-4 h-4" /> },
-  { to: '/stores', label: 'Danh mục Cửa Hàng', icon: <Store className="w-4 h-4" /> },
-  { to: '/data-manager', label: 'Quản lý Dữ liệu', icon: <Database className="w-4 h-4" /> },
+  { to: '/', label: 'Bàn làm việc chính', icon: <LayoutDashboard className="w-4 h-4" /> },
+  { to: '/settings', label: 'Cài đặt & Dữ liệu', icon: <Settings className="w-4 h-4" /> },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
   '/': 'Bàn làm việc',
-  '/links': 'Quick Links',
-  '/accounts': 'Account Vault',
-  '/stores': 'Danh sách Cửa Hàng',
-  '/data-manager': 'Trung tâm Dữ liệu & Excel',
-  '/settings': 'Cài đặt Workspace',
+  '/settings': 'Cài đặt & Dữ liệu',
 };
 
 export const AppShell: React.FC = () => {
@@ -167,19 +160,7 @@ export const AppShell: React.FC = () => {
             <span>Import / Export Excel</span>
           </button>
 
-          <NavLink
-            to="/settings"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3.5 py-2.5 rounded-full text-[13px] transition-all duration-180 active:scale-[0.98] ${
-                isActive
-                  ? 'liquid-lens-pill font-medium !shadow-xs'
-                  : 'text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
-              }`
-            }
-          >
-            <Settings className="w-4 h-4 text-[#7a7a7a] shrink-0" />
-            <span>Cài đặt & Dữ liệu</span>
-          </NavLink>
+
 
           {/* Privacy status pill */}
           <div className="pt-1.5 px-3 flex items-center justify-between text-[11px] text-[#7a7a7a]">
@@ -349,14 +330,7 @@ export const AppShell: React.FC = () => {
                   <span>Import / Export Excel</span>
                 </button>
 
-                <NavLink
-                  to="/settings"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2.5 px-4 py-2.5 rounded-full text-[13px] font-normal text-[#7a7a7a] hover:bg-black/5"
-                >
-                  <Settings className="w-4 h-4" />
-                  <span>Cài đặt Workspace</span>
-                </NavLink>
+
               </div>
             </div>
           </div>,
