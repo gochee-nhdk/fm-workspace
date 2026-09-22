@@ -61,12 +61,16 @@ export const AppShell: React.FC = () => {
     mainRef.current?.scrollTo({ top: 0, behavior: 'instant' });
   }, [location.pathname]);
 
-  // ✅ Global Ctrl+K / ⌘K listener — opens command palette from any page
+  // ✅ Global Ctrl+K / ⌘K and Ctrl+\ listeners
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
         setCommandPaletteOpen((open) => !open);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === '\\') {
+        e.preventDefault();
+        toggleSidebar();
       }
       if (e.key === 'Escape') {
         setMobileMenuOpen(false);
@@ -113,46 +117,48 @@ export const AppShell: React.FC = () => {
       >
         {/* Workspace Brand Header */}
         <div
-          className={`p-3.5 border-b border-black/[0.06] dark:border-white/10 flex items-center ${
-            isSidebarCollapsed ? 'flex-col gap-2 justify-center' : 'justify-between'
+          className={`border-b border-black/[0.06] dark:border-white/10 flex items-center ${
+            isSidebarCollapsed
+              ? 'py-3.5 px-2 flex-col gap-2.5 justify-center'
+              : 'h-16 px-4 justify-between gap-2.5'
           }`}
         >
           <button
             type="button"
             onClick={handleLogoClick}
             className={`flex items-center ${
-              isSidebarCollapsed ? 'justify-center' : 'gap-3 text-left w-full'
+              isSidebarCollapsed ? 'justify-center' : 'gap-3 text-left min-w-0 flex-1'
             } group cursor-pointer focus:outline-none select-none`}
-            title="Nhấn để về trang chủ"
+            title="Về trang chủ"
           >
             {/* Big, clear, crisp circular logo */}
-            <div className="w-12 h-12 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-[0_4px_12px_rgba(250,196,38,0.35)] border-2 border-white/80 dark:border-white/20 shrink-0 group-hover:scale-105 group-active:scale-95 transition-all duration-200">
+            <div className="w-11 h-11 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-[0_3px_12px_rgba(250,196,38,0.35)] border-2 border-white/90 dark:border-white/20 shrink-0 group-hover:scale-105 group-active:scale-95 transition-all duration-200 ring-2 ring-[#FAC426]/20">
               <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover rounded-full" />
             </div>
             {!isSidebarCollapsed && (
               <div className="min-w-0 flex-1">
-                <div className="font-bold text-[14.5px] tracking-tight text-[#1d1d1f] dark:text-white truncate group-hover:text-[#0066cc] dark:group-hover:text-[#2997ff] transition-colors">
+                <div className="font-bold text-[14px] leading-tight tracking-tight text-[#1d1d1f] dark:text-white truncate group-hover:text-[#0066cc] dark:group-hover:text-[#2997ff] transition-colors">
                   FARMERS MARKET
                 </div>
-                <span className="text-[10.5px] text-[#0066cc] dark:text-[#2997ff] font-semibold tracking-wide uppercase">
+                <span className="text-[10px] text-[#0066cc] dark:text-[#2997ff] font-semibold tracking-wider uppercase">
                   FM Workspace OS
                 </span>
               </div>
             )}
           </button>
 
-          {/* Toggle sidebar button */}
+          {/* Elegant Single Liquid-Glass Sidebar Toggle Button */}
           <button
             type="button"
             onClick={toggleSidebar}
-            className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#76767b] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-all cursor-pointer shrink-0"
-            title={isSidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-[#76767b] hover:text-[#0066cc] dark:text-[#a1a1a6] dark:hover:text-[#2997ff] bg-black/[0.03] dark:bg-white/[0.06] hover:bg-[#0066cc]/10 dark:hover:bg-[#2997ff]/15 border border-black/[0.06] dark:border-white/[0.1] shadow-2xs hover:shadow-xs active:scale-90 transition-all duration-200 cursor-pointer shrink-0 group/toggle"
+            title={isSidebarCollapsed ? 'Mở rộng thanh bên (Ctrl+\\)' : 'Thu gọn thanh bên (Ctrl+\\)'}
             aria-label={isSidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
           >
             {isSidebarCollapsed ? (
-              <PanelLeftOpen className="w-4 h-4" />
+              <PanelLeftOpen className="w-4 h-4 stroke-[1.8] group-hover/toggle:scale-110 transition-transform" />
             ) : (
-              <PanelLeftClose className="w-4 h-4" />
+              <PanelLeftClose className="w-4 h-4 stroke-[1.8] group-hover/toggle:scale-110 transition-transform" />
             )}
           </button>
         </div>
@@ -232,21 +238,6 @@ export const AppShell: React.FC = () => {
         {/* Topbar: Translucent Liquid Glass Bar */}
         <header className="h-16 shrink-0 px-4 sm:px-6 bg-white/35 dark:bg-[#0e0e12]/45 backdrop-blur-3xl border-b border-white/60 dark:border-white/10 flex items-center justify-between z-20 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
           <div className="flex items-center gap-3.5">
-            {/* Desktop Sidebar Toggle Button */}
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              className="hidden md:flex p-2 rounded-full text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-              title={isSidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
-              aria-label="Thu gọn hoặc mở rộng thanh bên"
-            >
-              {isSidebarCollapsed ? (
-                <PanelLeftOpen className="w-4 h-4" />
-              ) : (
-                <PanelLeftClose className="w-4 h-4" />
-              )}
-            </button>
-
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileMenuOpen(true)}
