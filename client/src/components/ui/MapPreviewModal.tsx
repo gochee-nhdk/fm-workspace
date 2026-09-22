@@ -201,7 +201,7 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
     if (!textToCopy) return;
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
-    toast.success('Đã sao chép địa chỉ cửa hàng!');
+    toast.success('Đã sao chép địa chỉ cửa hàng!', { id: 'copy-address' });
     setTimeout(() => setCopied(false), 2000);
   };
 

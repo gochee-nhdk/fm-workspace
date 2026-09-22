@@ -220,10 +220,12 @@ export const UnifiedWorkspacePage: React.FC = () => {
       const updated = await dataService.toggleFavoriteLink(id);
       if (updated) {
         setLinks((prev) => prev.map((l) => (l.id === id ? updated : l)));
-        toast.success(updated.favorite ? 'Đã thêm vào yêu thích' : 'Đã bỏ yêu thích');
+        toast.success(updated.favorite ? 'Đã thêm vào yêu thích' : 'Đã bỏ yêu thích', {
+          id: 'favorite-status',
+        });
       }
     } catch (err) {
-      toast.error('Lỗi khi cập nhật trạng thái');
+      toast.error('Lỗi khi cập nhật trạng thái', { id: 'favorite-status' });
     }
   };
 
@@ -238,11 +240,11 @@ export const UnifiedWorkspacePage: React.FC = () => {
       } else if (deleteTarget.type === 'stores') {
         await dataService.deleteStore(deleteTarget.id);
       }
-      toast.success(`Đã xóa "${deleteTarget.label}"`);
+      toast.success(`Đã xóa "${deleteTarget.label}"`, { id: 'delete-status' });
       setDeleteTarget(null);
       await loadData();
     } catch (err) {
-      toast.error('Lỗi khi xóa mục này');
+      toast.error('Lỗi khi xóa mục này', { id: 'delete-status' });
     }
   };
 
@@ -1218,10 +1220,10 @@ export const UnifiedWorkspacePage: React.FC = () => {
         onSave={async (data) => {
           if (editingLink) {
             await dataService.updateLink(editingLink.id, data);
-            toast.success('Đã cập nhật link');
+            toast.success('Đã cập nhật link', { id: 'save-drawer-status' });
           } else {
             await dataService.createLink(data);
-            toast.success('Đã tạo link mới');
+            toast.success('Đã tạo link mới', { id: 'save-drawer-status' });
           }
           await loadData();
         }}
@@ -1234,10 +1236,10 @@ export const UnifiedWorkspacePage: React.FC = () => {
         onSave={async (data) => {
           if (editingAccount) {
             await dataService.updateAccount(editingAccount.id, data);
-            toast.success('Đã cập nhật tài khoản');
+            toast.success('Đã cập nhật tài khoản', { id: 'save-drawer-status' });
           } else {
             await dataService.createAccount(data);
-            toast.success('Đã tạo tài khoản mới');
+            toast.success('Đã tạo tài khoản mới', { id: 'save-drawer-status' });
           }
           await loadData();
         }}
@@ -1250,10 +1252,10 @@ export const UnifiedWorkspacePage: React.FC = () => {
         onSave={async (data) => {
           if (editingStore) {
             await dataService.updateStore(editingStore.id, data);
-            toast.success('Đã cập nhật cửa hàng');
+            toast.success('Đã cập nhật cửa hàng', { id: 'save-drawer-status' });
           } else {
             await dataService.createStore(data);
-            toast.success('Đã thêm cửa hàng mới');
+            toast.success('Đã thêm cửa hàng mới', { id: 'save-drawer-status' });
           }
           await loadData();
         }}

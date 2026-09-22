@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
-import { Toaster, resolveValue } from 'react-hot-toast';
+import toast, { Toaster, resolveValue, useToasterStore } from 'react-hot-toast';
 import { Suspense, useEffect } from 'react';
 import { Check, AlertCircle, Loader2, Info } from 'lucide-react';
 import RoutesConfig from './routes';
@@ -32,11 +32,29 @@ function ThemeSync() {
   return null;
 }
 
+/**
+ * Ensures only 1 toast is visible at any given moment, strictly mirroring Apple's HUD/Dynamic Island UX
+ * and preventing any overlapping toast popups.
+ */
+function ToastLimiter() {
+  const { toasts } = useToasterStore();
+
+  useEffect(() => {
+    toasts
+      .filter((t) => t.visible)
+      .filter((_, i) => i >= 1)
+      .forEach((t) => toast.dismiss(t.id));
+  }, [toasts]);
+
+  return null;
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <ThemeSync />
+        <ToastLimiter />
         <Suspense fallback={null}>
           <RoutesConfig />
         </Suspense>
@@ -48,7 +66,7 @@ export default function App() {
             bottom: 32,
           }}
           toastOptions={{
-            duration: 2400,
+            duration: 2200,
           }}
         >
           {(t) => {
@@ -58,7 +76,12 @@ export default function App() {
 
             return (
               <div
-                className="liquid-glass-macos27-toast group"
+                onClick={() => toast.dismiss(t.id)}
+                className={`liquid-glass-macos27-toast group transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer ${
+                  t.visible
+                    ? 'opacity-100 scale-100 translate-y-0'
+                    : 'opacity-0 scale-90 translate-y-3 pointer-events-none'
+                }`}
                 style={{
                   ...t.style,
                 }}
