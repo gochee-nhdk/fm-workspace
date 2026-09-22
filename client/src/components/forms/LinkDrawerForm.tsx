@@ -127,8 +127,8 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
     >
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-            Tên Hạng mục / Công cụ <span className="text-rose-500">*</span>
+          <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
+            Tên Hạng mục / Công cụ <span className="text-[#ff3b30] font-bold ml-0.5">*</span>
           </label>
           <Input
             placeholder="vd: SAP, POS Bán Hàng, Báo Date Thiên Lương..."
@@ -143,7 +143,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+          <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
             Đường dẫn (URL)
           </label>
           <div className="relative">
@@ -167,7 +167,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+            <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
               Phân nhóm
             </label>
             <div className="relative">
@@ -212,7 +212,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#86868b] dark:text-[#a1a1a6] uppercase tracking-wider mb-1.5">
+            <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
               Thứ tự (STT)
             </label>
             <Input
@@ -225,7 +225,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#86868b] dark:text-[#a1a1a6] uppercase tracking-wider mb-1.5">
+          <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
             Ghi chú / Hướng dẫn
           </label>
           <textarea

@@ -80,7 +80,7 @@ export function DataTable<TData, TValue>({
       <div className="rounded-[20px] border border-white/60 dark:border-white/10 bg-white/70 dark:bg-[#141418]/70 backdrop-blur-2xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
-            <thead className="bg-black/[0.02] dark:bg-white/[0.04] border-b border-black/[0.06] dark:border-white/10 text-[11px] font-semibold text-[#76767b] dark:text-[#a1a1a6] uppercase tracking-wider select-none">
+            <thead className="bg-black/[0.03] dark:bg-white/[0.06] border-b border-black/[0.08] dark:border-white/[0.12] text-[11.5px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider select-none">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (

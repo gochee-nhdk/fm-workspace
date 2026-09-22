@@ -84,8 +84,8 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-semibold text-[#86868b] dark:text-[#a1a1a6] uppercase tracking-wider mb-1.5">
-            Mã Cửa Hàng <span className="text-rose-500">*</span>
+          <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
+            Mã Cửa Hàng <span className="text-[#ff3b30] font-bold ml-0.5">*</span>
           </label>
           <Input
             placeholder="vd: FM01, FM09, FM-DISTRICT7..."
@@ -100,8 +100,8 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#86868b] dark:text-[#a1a1a6] uppercase tracking-wider mb-1.5">
-            Địa chỉ chi tiết <span className="text-rose-500">*</span>
+          <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
+            Địa chỉ chi tiết <span className="text-[#ff3b30] font-bold ml-0.5">*</span>
           </label>
           <textarea
             rows={3}
@@ -117,7 +117,7 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#86868b] dark:text-[#a1a1a6] uppercase tracking-wider mb-1.5">
+          <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
             Link Google Maps
           </label>
           <Input
@@ -129,7 +129,7 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-[#86868b] dark:text-[#a1a1a6] uppercase tracking-wider mb-1.5">
+          <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
             Phân loại Cửa Hàng
           </label>
           <select

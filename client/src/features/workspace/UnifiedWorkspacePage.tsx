@@ -607,7 +607,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
         {activeTab === 'links' && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
-              <thead className="bg-white/80 dark:bg-[#141418]/85 backdrop-blur-md border-b border-black/[0.06] dark:border-white/10 text-[11px] font-semibold text-[#76767b] dark:text-[#a1a1a6] uppercase tracking-wider select-none sticky top-0 z-10">
+              <thead className="bg-white/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[11.5px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider select-none sticky top-0 z-10 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                 <tr>
                   <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]">
                     <GripVertical className="w-3.5 h-3.5 mx-auto opacity-30" />
@@ -803,7 +803,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
         {activeTab === 'accounts' && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
-              <thead className="bg-white/80 dark:bg-[#141418]/85 backdrop-blur-md border-b border-black/[0.06] dark:border-white/10 text-[11px] font-semibold text-[#76767b] dark:text-[#a1a1a6] uppercase tracking-wider select-none sticky top-0 z-10">
+              <thead className="bg-white/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[11.5px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider select-none sticky top-0 z-10 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                 <tr>
                   <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]">
                     <GripVertical className="w-3.5 h-3.5 mx-auto opacity-30" />
@@ -1018,7 +1018,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
         {activeTab === 'stores' && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
-              <thead className="bg-white/80 dark:bg-[#141418]/85 backdrop-blur-md border-b border-black/[0.06] dark:border-white/10 text-[11px] font-semibold text-[#76767b] dark:text-[#a1a1a6] uppercase tracking-wider select-none sticky top-0 z-10">
+              <thead className="bg-white/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[11.5px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider select-none sticky top-0 z-10 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                 <tr>
                   <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]">
                     <GripVertical className="w-3.5 h-3.5 mx-auto opacity-30" />
