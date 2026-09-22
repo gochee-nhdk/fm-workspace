@@ -24,6 +24,7 @@ export interface AccountItem {
 
 export interface StoreItem {
   id: string;
+  stt?: number | null;
   storeCode: string;
   address: string;
   googleMaps?: string;

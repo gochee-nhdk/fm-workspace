@@ -138,11 +138,31 @@ class DataService {
     }
   }
 
+  async reorderLinks(items: LinkItem[]): Promise<void> {
+    await this.ensureInitialized();
+    const updated = items.map((item, index) => ({
+      ...item,
+      stt: index + 1,
+      updatedAt: new Date().toISOString(),
+    }));
+    await idbBulkPut(STORES.LINKS, updated);
+  }
+
   // ==================== ACCOUNTS ====================
   async getAccounts(): Promise<AccountItem[]> {
     await this.ensureInitialized();
     const items = await idbGetAll<AccountItem>(STORES.ACCOUNTS);
     return items.sort((a, b) => (a.stt ?? 999999) - (b.stt ?? 999999));
+  }
+
+  async reorderAccounts(items: AccountItem[]): Promise<void> {
+    await this.ensureInitialized();
+    const updated = items.map((item, index) => ({
+      ...item,
+      stt: index + 1,
+      updatedAt: new Date().toISOString(),
+    }));
+    await idbBulkPut(STORES.ACCOUNTS, updated);
   }
 
   async createAccount(data: Omit<AccountItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<AccountItem> {
@@ -189,7 +209,22 @@ class DataService {
   async getStores(): Promise<StoreItem[]> {
     await this.ensureInitialized();
     const items = await idbGetAll<StoreItem>(STORES.STORES);
-    return items.sort((a, b) => a.storeCode.localeCompare(b.storeCode));
+    return items.sort((a, b) => {
+      if (a.stt != null && b.stt != null) return a.stt - b.stt;
+      if (a.stt != null) return -1;
+      if (b.stt != null) return 1;
+      return a.storeCode.localeCompare(b.storeCode);
+    });
+  }
+
+  async reorderStores(items: StoreItem[]): Promise<void> {
+    await this.ensureInitialized();
+    const updated = items.map((item, index) => ({
+      ...item,
+      stt: index + 1,
+      updatedAt: new Date().toISOString(),
+    }));
+    await idbBulkPut(STORES.STORES, updated);
   }
 
   async createStore(data: Omit<StoreItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<StoreItem> {

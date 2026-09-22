@@ -23,6 +23,7 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   Layers,
+  GripVertical,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { dataService } from '@/services/dataService';
@@ -75,6 +76,80 @@ export const UnifiedWorkspacePage: React.FC = () => {
     id: string;
     label: string;
   } | null>(null);
+
+  // Drag and drop reordering states
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [dropPosition, setDropPosition] = useState<'top' | 'bottom' | null>(null);
+
+  // Reorder handler without needing STT input
+  const handleReorder = async (
+    type: TabType,
+    sourceId: string,
+    targetId: string,
+    position: 'top' | 'bottom'
+  ) => {
+    if (!sourceId || !targetId || sourceId === targetId) return;
+
+    if (type === 'accounts') {
+      const sourceIndex = accounts.findIndex((a) => a.id === sourceId);
+      const targetIndex = accounts.findIndex((a) => a.id === targetId);
+      if (sourceIndex === -1 || targetIndex === -1) return;
+
+      const updated = [...accounts];
+      const [moved] = updated.splice(sourceIndex, 1);
+      const newTargetIndex = updated.findIndex((a) => a.id === targetId);
+      const insertIndex = position === 'bottom' ? newTargetIndex + 1 : newTargetIndex;
+      updated.splice(insertIndex, 0, moved);
+
+      setAccounts(updated);
+      try {
+        await dataService.reorderAccounts(updated);
+        toast.success('Đã lưu thứ tự mới!', { id: 'reorder-toast', duration: 1200 });
+      } catch (err) {
+        toast.error('Không thể lưu thứ tự');
+        loadData();
+      }
+    } else if (type === 'links') {
+      const sourceIndex = links.findIndex((l) => l.id === sourceId);
+      const targetIndex = links.findIndex((l) => l.id === targetId);
+      if (sourceIndex === -1 || targetIndex === -1) return;
+
+      const updated = [...links];
+      const [moved] = updated.splice(sourceIndex, 1);
+      const newTargetIndex = updated.findIndex((l) => l.id === targetId);
+      const insertIndex = position === 'bottom' ? newTargetIndex + 1 : newTargetIndex;
+      updated.splice(insertIndex, 0, moved);
+
+      setLinks(updated);
+      try {
+        await dataService.reorderLinks(updated);
+        toast.success('Đã lưu thứ tự mới!', { id: 'reorder-toast', duration: 1200 });
+      } catch (err) {
+        toast.error('Không thể lưu thứ tự');
+        loadData();
+      }
+    } else if (type === 'stores') {
+      const sourceIndex = stores.findIndex((s) => s.id === sourceId);
+      const targetIndex = stores.findIndex((s) => s.id === targetId);
+      if (sourceIndex === -1 || targetIndex === -1) return;
+
+      const updated = [...stores];
+      const [moved] = updated.splice(sourceIndex, 1);
+      const newTargetIndex = updated.findIndex((s) => s.id === targetId);
+      const insertIndex = position === 'bottom' ? newTargetIndex + 1 : newTargetIndex;
+      updated.splice(insertIndex, 0, moved);
+
+      setStores(updated);
+      try {
+        await dataService.reorderStores(updated);
+        toast.success('Đã lưu thứ tự mới!', { id: 'reorder-toast', duration: 1200 });
+      } catch (err) {
+        toast.error('Không thể lưu thứ tự');
+        loadData();
+      }
+    }
+  };
 
   // Sync activeTab with URL params
   const handleTabChange = (tab: TabType) => {
@@ -428,7 +503,10 @@ export const UnifiedWorkspacePage: React.FC = () => {
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
               <thead className="bg-white/80 dark:bg-[#141418]/85 backdrop-blur-md border-b border-black/[0.06] dark:border-white/10 text-[11px] font-semibold text-[#76767b] dark:text-[#a1a1a6] uppercase tracking-wider select-none sticky top-0 z-10">
                 <tr>
-                  <th className="px-4 py-3.5 w-12 text-center whitespace-nowrap">⭐</th>
+                  <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]">
+                    <GripVertical className="w-3.5 h-3.5 mx-auto opacity-30" />
+                  </th>
+                  <th className="px-2 py-3.5 w-10 text-center whitespace-nowrap">⭐</th>
                   <th className="px-5 py-3.5 whitespace-nowrap min-w-[160px]">Tên Hạng Mục</th>
                   <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Danh Mục</th>
                   <th className="px-4 py-3.5 whitespace-nowrap min-w-[140px]">Ghi Chú</th>
@@ -441,10 +519,68 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   filteredLinks.map((item) => (
                     <tr
                       key={item.id}
-                      className="hover:bg-black/[0.025] dark:hover:bg-white/[0.04] transition-colors group"
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', item.id);
+                        e.dataTransfer.effectAllowed = 'move';
+                        setDraggedId(item.id);
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        if (!draggedId || draggedId === item.id) return;
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const isBottom = e.clientY > rect.top + rect.height / 2;
+                        const pos = isBottom ? 'bottom' : 'top';
+                        if (dragOverId !== item.id || dropPosition !== pos) {
+                          setDragOverId(item.id);
+                          setDropPosition(pos);
+                        }
+                      }}
+                      onDragLeave={(e) => {
+                        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                        if (dragOverId === item.id) {
+                          setDragOverId(null);
+                          setDropPosition(null);
+                        }
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (draggedId && draggedId !== item.id && dropPosition) {
+                          handleReorder('links', draggedId, item.id, dropPosition);
+                        }
+                        setDraggedId(null);
+                        setDragOverId(null);
+                        setDropPosition(null);
+                      }}
+                      onDragEnd={() => {
+                        setDraggedId(null);
+                        setDragOverId(null);
+                        setDropPosition(null);
+                      }}
+                      className={`transition-colors group relative ${
+                        draggedId === item.id
+                          ? 'opacity-30 bg-[#0066cc]/5 dark:bg-[#2997ff]/5'
+                          : 'hover:bg-black/[0.025] dark:hover:bg-white/[0.04]'
+                      } ${
+                        dragOverId === item.id && draggedId !== item.id
+                          ? dropPosition === 'top'
+                            ? 'shadow-[inset_0_2px_0_#0066cc] dark:shadow-[inset_0_2px_0_#2997ff] bg-[#0066cc]/[0.04] dark:bg-[#2997ff]/[0.06]'
+                            : 'shadow-[inset_0_-2px_0_#0066cc] dark:shadow-[inset_0_-2px_0_#2997ff] bg-[#0066cc]/[0.04] dark:bg-[#2997ff]/[0.06]'
+                          : ''
+                      }`}
                     >
+                      {/* Drag Handle */}
+                      <td className="w-9 pl-3 pr-1 py-3 text-center cursor-grab active:cursor-grabbing text-[#8e8e93] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-colors select-none">
+                        <div
+                          className="inline-flex items-center justify-center p-1 rounded hover:bg-black/5 dark:hover:bg-white/10"
+                          title="Kéo thả để sắp xếp thứ tự tùy ý"
+                        >
+                          <GripVertical className="w-3.5 h-3.5 opacity-35 group-hover:opacity-90 transition-opacity" />
+                        </div>
+                      </td>
+
                       {/* Star */}
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-2 py-3 text-center">
                         <button
                           type="button"
                           onClick={(e) => handleToggleFavorite(item.id, e)}
@@ -547,7 +683,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-[#76767b]">
+                    <td colSpan={7} className="py-12 text-center text-[#76767b]">
                       Không tìm thấy liên kết nào thỏa mãn điều kiện lọc.
                     </td>
                   </tr>
@@ -563,6 +699,9 @@ export const UnifiedWorkspacePage: React.FC = () => {
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
               <thead className="bg-white/80 dark:bg-[#141418]/85 backdrop-blur-md border-b border-black/[0.06] dark:border-white/10 text-[11px] font-semibold text-[#76767b] dark:text-[#a1a1a6] uppercase tracking-wider select-none sticky top-0 z-10">
                 <tr>
+                  <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]">
+                    <GripVertical className="w-3.5 h-3.5 mx-auto opacity-30" />
+                  </th>
                   <th className="px-5 py-3.5 whitespace-nowrap min-w-[150px]">Phần Mềm</th>
                   <th className="px-4 py-3.5 whitespace-nowrap min-w-[150px]">Tên Đăng Nhập</th>
                   <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Mật Khẩu</th>
@@ -576,8 +715,66 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   filteredAccounts.map((item) => (
                     <tr
                       key={item.id}
-                      className="hover:bg-black/[0.025] dark:hover:bg-white/[0.04] transition-colors group"
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', item.id);
+                        e.dataTransfer.effectAllowed = 'move';
+                        setDraggedId(item.id);
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        if (!draggedId || draggedId === item.id) return;
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const isBottom = e.clientY > rect.top + rect.height / 2;
+                        const pos = isBottom ? 'bottom' : 'top';
+                        if (dragOverId !== item.id || dropPosition !== pos) {
+                          setDragOverId(item.id);
+                          setDropPosition(pos);
+                        }
+                      }}
+                      onDragLeave={(e) => {
+                        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                        if (dragOverId === item.id) {
+                          setDragOverId(null);
+                          setDropPosition(null);
+                        }
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (draggedId && draggedId !== item.id && dropPosition) {
+                          handleReorder('accounts', draggedId, item.id, dropPosition);
+                        }
+                        setDraggedId(null);
+                        setDragOverId(null);
+                        setDropPosition(null);
+                      }}
+                      onDragEnd={() => {
+                        setDraggedId(null);
+                        setDragOverId(null);
+                        setDropPosition(null);
+                      }}
+                      className={`transition-colors group relative ${
+                        draggedId === item.id
+                          ? 'opacity-30 bg-[#0066cc]/5 dark:bg-[#2997ff]/5'
+                          : 'hover:bg-black/[0.025] dark:hover:bg-white/[0.04]'
+                      } ${
+                        dragOverId === item.id && draggedId !== item.id
+                          ? dropPosition === 'top'
+                            ? 'shadow-[inset_0_2px_0_#0066cc] dark:shadow-[inset_0_2px_0_#2997ff] bg-[#0066cc]/[0.04] dark:bg-[#2997ff]/[0.06]'
+                            : 'shadow-[inset_0_-2px_0_#0066cc] dark:shadow-[inset_0_-2px_0_#2997ff] bg-[#0066cc]/[0.04] dark:bg-[#2997ff]/[0.06]'
+                          : ''
+                      }`}
                     >
+                      {/* Drag Handle */}
+                      <td className="w-9 pl-3 pr-1 py-3 text-center cursor-grab active:cursor-grabbing text-[#8e8e93] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-colors select-none">
+                        <div
+                          className="inline-flex items-center justify-center p-1 rounded hover:bg-black/5 dark:hover:bg-white/10"
+                          title="Kéo thả để sắp xếp thứ tự tùy ý"
+                        >
+                          <GripVertical className="w-3.5 h-3.5 opacity-35 group-hover:opacity-90 transition-opacity" />
+                        </div>
+                      </td>
+
                       {/* Software */}
                       <td className="px-5 py-3 font-semibold text-[#1d1d1f] dark:text-white">
                         <div className="flex items-center gap-2">
@@ -701,7 +898,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-[#76767b]">
+                    <td colSpan={7} className="py-12 text-center text-[#76767b]">
                       Không tìm thấy tài khoản nào phù hợp.
                     </td>
                   </tr>
@@ -717,6 +914,9 @@ export const UnifiedWorkspacePage: React.FC = () => {
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
               <thead className="bg-white/80 dark:bg-[#141418]/85 backdrop-blur-md border-b border-black/[0.06] dark:border-white/10 text-[11px] font-semibold text-[#76767b] dark:text-[#a1a1a6] uppercase tracking-wider select-none sticky top-0 z-10">
                 <tr>
+                  <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]">
+                    <GripVertical className="w-3.5 h-3.5 mx-auto opacity-30" />
+                  </th>
                   <th className="px-5 py-3.5 whitespace-nowrap min-w-[110px]">Mã Cửa Hàng</th>
                   <th className="px-4 py-3.5 whitespace-nowrap min-w-[220px]">Địa Chỉ Cửa Hàng</th>
                   <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Khu Vực / Loại</th>
@@ -729,8 +929,66 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   filteredStores.map((item) => (
                     <tr
                       key={item.id}
-                      className="hover:bg-black/[0.025] dark:hover:bg-white/[0.04] transition-colors group"
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', item.id);
+                        e.dataTransfer.effectAllowed = 'move';
+                        setDraggedId(item.id);
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        if (!draggedId || draggedId === item.id) return;
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const isBottom = e.clientY > rect.top + rect.height / 2;
+                        const pos = isBottom ? 'bottom' : 'top';
+                        if (dragOverId !== item.id || dropPosition !== pos) {
+                          setDragOverId(item.id);
+                          setDropPosition(pos);
+                        }
+                      }}
+                      onDragLeave={(e) => {
+                        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                        if (dragOverId === item.id) {
+                          setDragOverId(null);
+                          setDropPosition(null);
+                        }
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (draggedId && draggedId !== item.id && dropPosition) {
+                          handleReorder('stores', draggedId, item.id, dropPosition);
+                        }
+                        setDraggedId(null);
+                        setDragOverId(null);
+                        setDropPosition(null);
+                      }}
+                      onDragEnd={() => {
+                        setDraggedId(null);
+                        setDragOverId(null);
+                        setDropPosition(null);
+                      }}
+                      className={`transition-colors group relative ${
+                        draggedId === item.id
+                          ? 'opacity-30 bg-[#0066cc]/5 dark:bg-[#2997ff]/5'
+                          : 'hover:bg-black/[0.025] dark:hover:bg-white/[0.04]'
+                      } ${
+                        dragOverId === item.id && draggedId !== item.id
+                          ? dropPosition === 'top'
+                            ? 'shadow-[inset_0_2px_0_#0066cc] dark:shadow-[inset_0_2px_0_#2997ff] bg-[#0066cc]/[0.04] dark:bg-[#2997ff]/[0.06]'
+                            : 'shadow-[inset_0_-2px_0_#0066cc] dark:shadow-[inset_0_-2px_0_#2997ff] bg-[#0066cc]/[0.04] dark:bg-[#2997ff]/[0.06]'
+                          : ''
+                      }`}
                     >
+                      {/* Drag Handle */}
+                      <td className="w-9 pl-3 pr-1 py-3 text-center cursor-grab active:cursor-grabbing text-[#8e8e93] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-colors select-none">
+                        <div
+                          className="inline-flex items-center justify-center p-1 rounded hover:bg-black/5 dark:hover:bg-white/10"
+                          title="Kéo thả để sắp xếp thứ tự tùy ý"
+                        >
+                          <GripVertical className="w-3.5 h-3.5 opacity-35 group-hover:opacity-90 transition-opacity" />
+                        </div>
+                      </td>
+
                       {/* Store Code */}
                       <td className="px-5 py-3 font-mono font-bold text-[#0066cc] dark:text-[#2997ff]">
                         <span className="px-2.5 py-1 rounded-md bg-[#0066cc]/10 dark:bg-[#2997ff]/15">
@@ -821,7 +1079,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="py-12 text-center text-[#76767b]">
+                    <td colSpan={6} className="py-12 text-center text-[#76767b]">
                       Không tìm thấy cửa hàng nào.
                     </td>
                   </tr>

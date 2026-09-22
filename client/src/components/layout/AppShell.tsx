@@ -17,6 +17,8 @@ import {
   Command,
   Plus,
   ExternalLink,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { CommandPalette } from '@/components/ui/command-palette';
 import { ExcelImportModal } from '@/components/excel/ExcelImportModal';
@@ -37,6 +39,18 @@ export const AppShell: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem('fm_sidebar_collapsed') === 'true';
+  });
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('fm_sidebar_collapsed', String(next));
+      return next;
+    });
+  };
+
   const { theme, toggleTheme } = useUiStore();
   const location = useLocation();
   const navigate = useNavigate();
@@ -92,42 +106,75 @@ export const AppShell: React.FC = () => {
       <div className="ambient-glow-violet" />
 
       {/* ─────────────────── visionOS Desktop Sidebar (Image 2) ─────────────────── */}
-      <aside className="hidden md:flex flex-col w-64 vision-glass-sidebar shrink-0 h-full select-none z-30 transition-all duration-300">
+      <aside
+        className={`hidden md:flex flex-col ${
+          isSidebarCollapsed ? 'w-[72px]' : 'w-64'
+        } vision-glass-sidebar shrink-0 h-full select-none z-30 transition-all duration-300 relative`}
+      >
         {/* Workspace Brand Header */}
-        <div className="p-5 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between">
+        <div
+          className={`p-3.5 border-b border-black/[0.06] dark:border-white/10 flex items-center ${
+            isSidebarCollapsed ? 'flex-col gap-2 justify-center' : 'justify-between'
+          }`}
+        >
           <button
             type="button"
             onClick={handleLogoClick}
-            className="flex items-center gap-3 text-left w-full group cursor-pointer focus:outline-none select-none"
+            className={`flex items-center ${
+              isSidebarCollapsed ? 'justify-center' : 'gap-3 text-left w-full'
+            } group cursor-pointer focus:outline-none select-none`}
             title="Nhấn để về trang chủ"
           >
-            <div className="w-10 h-10 rounded-2xl overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-xs border border-black/5 dark:border-white/20 shrink-0 group-hover:scale-105 group-active:scale-95 transition-all duration-200">
-              <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover" />
+            {/* Big, clear, crisp circular logo */}
+            <div className="w-12 h-12 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-[0_4px_12px_rgba(250,196,38,0.35)] border-2 border-white/80 dark:border-white/20 shrink-0 group-hover:scale-105 group-active:scale-95 transition-all duration-200">
+              <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover rounded-full" />
             </div>
-            <div>
-              <div className="font-semibold text-[15px] tracking-tight text-[#1d1d1f] dark:text-white flex items-center gap-1.5 group-hover:text-[#0066cc] dark:group-hover:text-[#2997ff] transition-colors">
-                FARMERS MARKET
+            {!isSidebarCollapsed && (
+              <div className="min-w-0 flex-1">
+                <div className="font-bold text-[14.5px] tracking-tight text-[#1d1d1f] dark:text-white truncate group-hover:text-[#0066cc] dark:group-hover:text-[#2997ff] transition-colors">
+                  FARMERS MARKET
+                </div>
+                <span className="text-[10.5px] text-[#0066cc] dark:text-[#2997ff] font-semibold tracking-wide uppercase">
+                  FM Workspace OS
+                </span>
               </div>
-              <span className="text-[11px] text-[#0066cc] dark:text-[#2997ff] font-medium tracking-wide uppercase">
-                FM Workspace OS
-              </span>
-            </div>
+            )}
+          </button>
+
+          {/* Toggle sidebar button */}
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#76767b] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-all cursor-pointer shrink-0"
+            title={isSidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
+            aria-label={isSidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
+          >
+            {isSidebarCollapsed ? (
+              <PanelLeftOpen className="w-4 h-4" />
+            ) : (
+              <PanelLeftClose className="w-4 h-4" />
+            )}
           </button>
         </div>
 
         {/* Navigation Items with Fluid Active Indicator */}
-        <nav className="p-3 space-y-1.5 flex-1 overflow-y-auto">
-          <div className="px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#76767b] dark:text-[#98989d]">
-            Không gian làm việc
-          </div>
+        <nav className="p-2.5 space-y-1.5 flex-1 overflow-y-auto">
+          {!isSidebarCollapsed && (
+            <div className="px-3.5 py-1 text-[10.5px] font-semibold uppercase tracking-wider text-[#76767b] dark:text-[#98989d]">
+              Không gian làm việc
+            </div>
+          )}
 
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.to === '/'}
+              title={isSidebarCollapsed ? item.label : undefined}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3.5 py-2.5 rounded-full text-[13.5px] transition-all duration-200 ease-out active:scale-[0.98] ${
+                `flex items-center ${
+                  isSidebarCollapsed ? 'justify-center w-11 h-11 mx-auto px-0' : 'gap-3 px-3.5 py-2.5'
+                } rounded-full text-[13.5px] transition-all duration-200 ease-out active:scale-[0.98] ${
                   isActive
                     ? 'liquid-lens-pill !bg-[#0071e3] !border-[#2997ff]/40 text-white font-semibold !shadow-[0_4px_16px_rgba(0,113,227,0.4),inset_0_1.5px_1px_rgba(255,255,255,0.7)]'
                     : 'text-[#555558] dark:text-[#a1a1a6] hover:bg-black/[0.04] dark:hover:bg-white/[0.08] hover:text-[#1d1d1f] dark:hover:text-white hover:translate-x-0.5'
@@ -137,13 +184,15 @@ export const AppShell: React.FC = () => {
               {({ isActive }) => (
                 <>
                   <span
-                    className={`p-1 rounded-lg transition-colors ${
+                    className={`p-1 rounded-lg transition-colors shrink-0 ${
                       isActive ? 'text-white' : 'text-[#76767b] dark:text-[#a1a1a6]'
                     }`}
                   >
                     {item.icon}
                   </span>
-                  <span className="truncate whitespace-nowrap font-medium">{item.label}</span>
+                  {!isSidebarCollapsed && (
+                    <span className="truncate whitespace-nowrap font-medium">{item.label}</span>
+                  )}
                 </>
               )}
             </NavLink>
@@ -151,24 +200,29 @@ export const AppShell: React.FC = () => {
         </nav>
 
         {/* Sidebar Bottom Controls */}
-        <div className="p-3 border-t border-black/[0.06] dark:border-white/10 space-y-2 shrink-0 bg-white/30 dark:bg-black/30 backdrop-blur-xl">
+        <div className="p-2.5 border-t border-black/[0.06] dark:border-white/10 space-y-2 shrink-0 bg-white/30 dark:bg-black/30 backdrop-blur-xl">
           <button
             onClick={() => setImportModalOpen(true)}
-            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-full text-[13px] font-medium text-[#0066cc] dark:text-[#2997ff] bg-[#0066cc]/10 dark:bg-[#2997ff]/15 hover:bg-[#0066cc]/20 border border-[#0066cc]/20 dark:border-[#2997ff]/30 shadow-2xs transition-all duration-180 active:scale-[0.98]"
+            title={isSidebarCollapsed ? 'Import / Export Excel' : undefined}
+            className={`w-full flex items-center ${
+              isSidebarCollapsed ? 'justify-center w-11 h-11 mx-auto px-0' : 'gap-3 px-3.5 py-2.5'
+            } rounded-full text-[13px] font-medium text-[#0066cc] dark:text-[#2997ff] bg-[#0066cc]/10 dark:bg-[#2997ff]/15 hover:bg-[#0066cc]/20 border border-[#0066cc]/20 dark:border-[#2997ff]/30 shadow-2xs transition-all duration-180 active:scale-[0.98] cursor-pointer`}
           >
             <FileSpreadsheet className="w-4 h-4 shrink-0 text-[#0066cc] dark:text-[#2997ff]" />
-            <span>Import / Export Excel</span>
+            {!isSidebarCollapsed && <span>Import / Export Excel</span>}
           </button>
 
-
-
           {/* Privacy status pill */}
-          <div className="pt-1.5 px-3 flex items-center justify-between text-[11px] text-[#7a7a7a]">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#0071e3] shadow-xs shadow-[#0071e3]/60 animate-pulse" />
-              <span className="text-[11px] font-normal">IndexedDB Local</span>
+          <div
+            className={`pt-1 px-2 flex items-center ${
+              isSidebarCollapsed ? 'justify-center' : 'justify-between'
+            } text-[11px] text-[#7a7a7a]`}
+          >
+            <div className="flex items-center gap-1.5" title="IndexedDB Local - Dữ liệu bảo mật trên máy">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#0071e3] shadow-xs shadow-[#0071e3]/60 animate-pulse" />
+              {!isSidebarCollapsed && <span className="text-[11px] font-normal">IndexedDB Local</span>}
             </div>
-            <span className="text-[10px] font-mono opacity-70">Liquid 3D v2.0</span>
+            {!isSidebarCollapsed && <span className="text-[10px] font-mono opacity-70">Liquid 3D v2.0</span>}
           </div>
         </div>
       </aside>
@@ -178,6 +232,22 @@ export const AppShell: React.FC = () => {
         {/* Topbar: Translucent Liquid Glass Bar */}
         <header className="h-16 shrink-0 px-4 sm:px-6 bg-white/35 dark:bg-[#0e0e12]/45 backdrop-blur-3xl border-b border-white/60 dark:border-white/10 flex items-center justify-between z-20 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
           <div className="flex items-center gap-3.5">
+            {/* Desktop Sidebar Toggle Button */}
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="hidden md:flex p-2 rounded-full text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              title={isSidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
+              aria-label="Thu gọn hoặc mở rộng thanh bên"
+            >
+              {isSidebarCollapsed ? (
+                <PanelLeftOpen className="w-4 h-4" />
+              ) : (
+                <PanelLeftClose className="w-4 h-4" />
+              )}
+            </button>
+
+            {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileMenuOpen(true)}
               className="md:hidden p-2 rounded-full text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
@@ -187,13 +257,14 @@ export const AppShell: React.FC = () => {
               <Menu className="w-5 h-5" />
             </button>
 
+            {/* Mobile Circular Logo */}
             <button
               type="button"
               onClick={handleLogoClick}
-              className="md:hidden w-8 h-8 rounded-lg overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-xs border border-black/5 dark:border-white/20 shrink-0 active:scale-95 transition-transform cursor-pointer focus:outline-none"
+              className="md:hidden w-10 h-10 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-xs border-2 border-white/80 dark:border-white/20 shrink-0 active:scale-95 transition-transform cursor-pointer focus:outline-none"
               title="Về trang chủ"
             >
-              <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover" />
+              <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover rounded-full" />
             </button>
 
             <div className="flex items-center gap-2">
@@ -281,8 +352,8 @@ export const AppShell: React.FC = () => {
                   className="flex items-center gap-2.5 text-left cursor-pointer group focus:outline-none select-none"
                   title="Về trang chủ"
                 >
-                  <div className="w-9 h-9 rounded-xl overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-xs border border-black/5 dark:border-white/20 shrink-0 group-hover:scale-105 group-active:scale-95 transition-all duration-200">
-                    <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover" />
+                  <div className="w-11 h-11 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-md border-2 border-white/80 dark:border-white/20 shrink-0 group-hover:scale-105 group-active:scale-95 transition-all duration-200">
+                    <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover rounded-full" />
                   </div>
                   <span className="font-semibold text-[15px] text-[#1d1d1f] dark:text-white group-hover:text-[#0066cc] dark:group-hover:text-[#2997ff] transition-colors">
                     FARMERS MARKET
