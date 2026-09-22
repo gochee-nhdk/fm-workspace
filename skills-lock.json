@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "liquid-glass-design": {
+      "source": "affaan-m/everything-claude-code",
+      "skill": "liquid-glass-design",
+      "installedAt": "2026-09-21T13:36:11.623Z"
+    }
+  }
+}

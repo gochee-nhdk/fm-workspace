@@ -1,0 +1,46 @@
+{
+  "name": "ai-procurement-client",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "postinstall": "node -e \"const fs=require('fs');const p='node_modules/@liqui-design/glass/dist/glass.css';if(fs.existsSync(p)){let c=fs.readFileSync(p,'utf8');c=c.replace('@layer base {','').replace(/}\\s*\\n\\s*\\n\\.liqui-glass--elevated/,'\\n.liqui-glass--elevated');fs.writeFileSync(p,c);}\"",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.8.0",
+    "@hookform/resolvers": "^3.3.4",
+    "@liqui-design/glass": "^0.4.0",
+    "@tanstack/react-query": "^5.28.4",
+    "@tanstack/react-table": "^8.15.0",
+    "axios": "^1.6.8",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.0",
+    "date-fns": "^3.6.0",
+    "lucide-react": "^0.363.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hook-form": "^7.51.1",
+    "react-hot-toast": "^2.4.1",
+    "react-router-dom": "^7.0.0",
+    "recharts": "^2.12.3",
+    "tailwind-merge": "^2.2.2",
+    "xlsx": "^0.18.5",
+    "zod": "^3.22.4",
+    "zustand": "^4.5.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.7",
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3",
+    "typescript": "^5.2.2",
+    "vite": "^5.2.0"
+  }
+}

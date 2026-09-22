@@ -1,0 +1,822 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #f5f5f7;
+    --foreground: #1d1d1f;
+    --surface: #ffffff;
+    --surface-elevated: #fafafc;
+    --muted: #f0f0f2;
+    --muted-foreground: #76767b;
+    --border: #e0e0e0;
+    --primary: #0066cc;
+    --primary-foreground: #ffffff;
+    
+    /* Apple Liquid Glass Tokens */
+    --glass-background: rgba(255, 255, 255, 0.78);
+    --glass-background-elevated: rgba(255, 255, 255, 0.92);
+    --glass-border: rgba(0, 0, 0, 0.08);
+    --glass-highlight: rgba(255, 255, 255, 0.9);
+    --glass-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    --lq-text: rgba(28, 28, 40, 0.95);
+    --lq-text-dim: rgba(28, 28, 40, 0.55);
+    --lq-tint: rgba(255, 255, 255, 0.48);
+    --lq-tint-deep: rgba(255, 255, 255, 0.14);
+    --lq-rim-hi: rgba(255, 255, 255, 0.85);
+    --lq-rim-lo: rgba(255, 255, 255, 0.28);
+    --lq-shadow: 0 24px 60px rgba(10, 15, 40, 0.35), 0 4px 14px rgba(10, 15, 40, 0.18);
+    --lq-highlight: rgba(255, 255, 255, 0.5);
+    --lq-control: rgba(255, 255, 255, 0.72);
+    --lq-control-rim: rgba(28, 28, 40, 0.16);
+    --lq-accent: #2f6bff;
+    --lq-danger: #e5484d;
+    --lq-danger-text: #c1272c;
+    --lq-scrim: rgba(12, 14, 28, 0.32);
+  }
+  .dark {
+    --background: #000000;
+    --foreground: #f5f5f7;
+    --surface: #1d1d1f;
+    --surface-elevated: #272729;
+    --muted: #222224;
+    --muted-foreground: #a1a1a6;
+    --border: rgba(255, 255, 255, 0.12);
+    --primary: #2997ff;
+    --primary-foreground: #ffffff;
+    
+    /* Dark Liquid Glass Tokens */
+    --glass-background: rgba(29, 29, 31, 0.78);
+    --glass-background-elevated: rgba(39, 39, 41, 0.92);
+    --glass-border: rgba(255, 255, 255, 0.12);
+    --glass-highlight: rgba(255, 255, 255, 0.16);
+    --glass-shadow: 0 10px 36px rgba(0, 0, 0, 0.45);
+    --lq-text: rgba(245, 246, 255, 0.96);
+    --lq-text-dim: rgba(245, 246, 255, 0.55);
+    --lq-tint: rgba(30, 32, 46, 0.62);
+    --lq-tint-deep: rgba(18, 20, 32, 0.4);
+    --lq-rim-hi: rgba(255, 255, 255, 0.5);
+    --lq-rim-lo: rgba(255, 255, 255, 0.12);
+    --lq-shadow: 0 24px 60px rgba(0, 0, 5, 0.55), 0 4px 14px rgba(0, 0, 5, 0.35);
+    --lq-highlight: rgba(255, 255, 255, 0.18);
+    --lq-control: rgba(126, 128, 146, 0.3);
+    --lq-control-rim: rgba(255, 255, 255, 0.22);
+    --lq-accent: #6f9dff;
+    --lq-danger: #ff7076;
+    --lq-danger-text: #ff7076;
+    --lq-scrim: rgba(0, 0, 6, 0.48);
+  }
+  html, body, #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+  body {
+    @apply bg-[var(--background)] text-[var(--foreground)] antialiased transition-colors duration-200 relative selection:bg-[#0066cc]/20 selection:text-[#0066cc];
+    letter-spacing: -0.011em;
+  }
+  .theme {
+    --lq-radius: 16px;
+  }
+}
+
+/* Apple Liquid Glass Utility Styles - Refined 2026 Edition */
+.liquid-glass,
+.ios-glass-panel,
+.glass-material {
+  background: rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(36px) saturate(210%) brightness(104%);
+  -webkit-backdrop-filter: blur(36px) saturate(210%) brightness(104%);
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  box-shadow: 
+    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.03),
+    0 8px 26px -4px rgba(0, 0, 0, 0.05),
+    0 2px 6px -1px rgba(0, 0, 0, 0.02);
+}
+
+.dark .liquid-glass,
+.dark .ios-glass-panel,
+.dark .glass-material {
+  background: rgba(26, 26, 30, 0.75);
+  backdrop-filter: blur(36px) saturate(220%) brightness(105%);
+  -webkit-backdrop-filter: blur(36px) saturate(220%) brightness(105%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.6),
+    0 16px 40px -8px rgba(0, 0, 0, 0.65),
+    0 4px 12px -2px rgba(0, 0, 0, 0.45);
+}
+
+/* 3D Liquid Glass Bevel & Specular Highlight Layer */
+.liquid-glass-3d,
+.glass-material-interactive {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(36px) saturate(220%) brightness(105%);
+  -webkit-backdrop-filter: blur(36px) saturate(220%) brightness(105%);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  box-shadow: 
+    inset 0 1.5px 2px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.04),
+    0 10px 30px -4px rgba(0, 0, 0, 0.06),
+    0 2px 8px -1px rgba(0, 0, 0, 0.03);
+  position: relative;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+}
+
+.dark .liquid-glass-3d,
+.dark .glass-material-interactive {
+  background: rgba(28, 28, 32, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 
+    inset 0 1.5px 1.5px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.6),
+    0 18px 46px -8px rgba(0, 0, 0, 0.7),
+    0 6px 16px -2px rgba(0, 0, 0, 0.5);
+}
+
+/* Apple Frosted Glass Input Field */
+.glass-input {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  box-shadow: 
+    inset 0 1.5px 2.5px 0 rgba(0, 0, 0, 0.04),
+    0 1px 1px 0 rgba(255, 255, 255, 0.8);
+  color: #1d1d1f;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-input:focus {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: #0071e3;
+  box-shadow: 
+    0 0 0 3px rgba(0, 113, 227, 0.18),
+    inset 0 1px 1.5px 0 rgba(0, 0, 0, 0.02);
+  outline: none;
+}
+
+.dark .glass-input {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    inset 0 1.5px 3px 0 rgba(0, 0, 0, 0.4),
+    0 1px 1px 0 rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+}
+
+.dark .glass-input:focus {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: #2997ff;
+  box-shadow: 
+    0 0 0 3px rgba(41, 151, 255, 0.22),
+    inset 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  outline: none;
+}
+
+/* GlassEffectContainer Pattern (Apple iOS 26) - Grouping wrapper for toolbar & controls */
+.glass-container {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(36px) saturate(220%) brightness(105%);
+  -webkit-backdrop-filter: blur(36px) saturate(220%) brightness(105%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 
+    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.9),
+    0 8px 24px -4px rgba(0, 0, 0, 0.04);
+  border-radius: 20px;
+}
+.dark .glass-container {
+  background: rgba(29, 29, 31, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.16),
+    0 16px 40px -8px rgba(0, 0, 0, 0.5);
+}
+
+/* Glass Buttons (.buttonStyle(.glass) & .buttonStyle(.glassProminent)) */
+.glass-btn {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 
+    inset 0 1px 1px rgba(255, 255, 255, 0.95),
+    0 2px 6px rgba(0, 0, 0, 0.04);
+  color: #1d1d1f;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-btn:hover {
+  background: rgba(255, 255, 255, 0.92);
+  transform: translateY(-1px);
+  box-shadow: 
+    inset 0 1px 1.5px rgba(255, 255, 255, 1),
+    0 6px 14px rgba(0, 0, 0, 0.06);
+}
+.glass-btn:active {
+  transform: scale(0.975);
+}
+.dark .glass-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+.dark .glass-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.glass-btn-prominent {
+  background: linear-gradient(180deg, #0077ed 0%, #0066cc 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 
+    inset 0 1px 1px rgba(255, 255, 255, 0.6),
+    0 4px 16px -2px rgba(0, 102, 204, 0.35);
+  color: #ffffff;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glass-btn-prominent:hover {
+  background: linear-gradient(180deg, #0082fb 0%, #0071e3 100%);
+  transform: translateY(-1px);
+  box-shadow: 
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.8),
+    0 6px 20px -2px rgba(0, 102, 204, 0.45);
+}
+.glass-btn-prominent:active {
+  transform: scale(0.975);
+}
+
+/* ==========================================================================
+   Apple 3D Liquid Glass Segmented Controls & Toggles (iOS 26 / visionOS)
+   ========================================================================== */
+.liquid-glass-segmented-track {
+  background: rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 
+    inset 0 1px 3px 0 rgba(0, 0, 0, 0.08),
+    0 1px 1px 0 rgba(255, 255, 255, 0.8);
+  border-radius: 9999px;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark .liquid-glass-segmented-track {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    inset 0 2px 5px 0 rgba(0, 0, 0, 0.55),
+    0 1px 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.liquid-glass-segmented-item {
+  position: relative;
+  border-radius: 9999px;
+  padding: 7px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid transparent;
+  color: #6e6e73;
+}
+
+.dark .liquid-glass-segmented-item {
+  color: #98989d;
+}
+
+.liquid-glass-segmented-item:hover:not(.is-active) {
+  color: #1d1d1f;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.dark .liquid-glass-segmented-item:hover:not(.is-active) {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Active 3D Liquid Glass Pill - Light Mode */
+.liquid-glass-segmented-item.is-active {
+  color: #1d1d1f;
+  font-weight: 600;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 
+    0 2px 8px -1px rgba(0, 0, 0, 0.12),
+    0 1px 3px 0 rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 0 rgba(255, 255, 255, 1);
+}
+
+/* Active 3D Liquid Glass Pill - Dark Mode (Clean frosted glass with high contrast) */
+.dark .liquid-glass-segmented-item.is-active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow: 
+    0 3px 12px 0 rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.35);
+}
+
+/* 3D Liquid Glass Header Toggle Button */
+.liquid-glass-toggle-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 
+    0 2px 6px -1px rgba(0, 0, 0, 0.08),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 1);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.liquid-glass-toggle-btn:hover {
+  transform: translateY(-1px) scale(1.04);
+  background: #ffffff;
+  box-shadow: 
+    0 4px 12px -2px rgba(0, 0, 0, 0.12),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 1);
+}
+
+.liquid-glass-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+.dark .liquid-glass-toggle-btn {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 2px 8px 0 rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
+}
+
+.dark .liquid-glass-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 4px 14px 0 rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.35);
+}
+
+.dark .liquid-glass-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+/* Apple Liquid Glass Interactive Card - Restrained & Calm */
+.liquid-glass-card,
+.ios-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  transform-style: preserve-3d;
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.24s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+  will-change: transform, box-shadow;
+}
+
+.liquid-glass-card::after,
+.ios-card::after {
+  content: '';
+  position: absolute;
+  top: -60%;
+  left: -70%;
+  width: 50%;
+  height: 220%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.22) 50%,
+    transparent 100%
+  );
+  transform: rotate(25deg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.dark .liquid-glass-card::after,
+.dark .ios-card::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+}
+
+.liquid-glass-card:hover,
+.ios-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 14px 32px -6px rgba(0, 102, 204, 0.08),
+    0 4px 12px -2px rgba(0, 0, 0, 0.04);
+}
+
+.liquid-glass-card:hover::after,
+.ios-card:hover::after {
+  opacity: 1;
+  animation: iosCausticSweep 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.dark .liquid-glass-card:hover,
+.dark .ios-card:hover {
+  box-shadow: 
+    0 18px 42px -6px rgba(0, 0, 0, 0.65),
+    0 6px 18px -2px rgba(41, 151, 255, 0.12);
+}
+
+.liquid-glass-card:active,
+.ios-card:active {
+  transform: scale(0.985) translateY(0.5px);
+  transition-duration: 90ms;
+}
+
+/* 3D Liquid Tilt Card with Mouse Radial Specular Beam */
+.liquid-tilt-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.liquid-tilt-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    500px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(255, 255, 255, 0.22),
+    transparent 50%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  z-index: 2;
+}
+
+.dark .liquid-tilt-card::before {
+  background: radial-gradient(
+    500px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(255, 255, 255, 0.1),
+    transparent 50%
+  );
+}
+
+.liquid-tilt-card:hover::before {
+  opacity: 1;
+}
+
+.liquid-tilt-card:hover {
+  box-shadow: 
+    0 16px 36px -8px rgba(0, 102, 204, 0.12),
+    0 6px 18px -4px rgba(0, 0, 0, 0.05);
+}
+
+.dark .liquid-tilt-card:hover {
+  box-shadow: 
+    0 20px 48px -10px rgba(0, 0, 0, 0.7),
+    0 8px 24px -4px rgba(41, 151, 255, 0.15);
+}
+
+@keyframes iosCausticSweep {
+  0% {
+    left: -70%;
+  }
+  100% {
+    left: 170%;
+  }
+}
+
+/* iOS Tactile Touch Response (Micro-press 0.98) */
+.ios-touch {
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+.ios-touch:active {
+  transform: scale(0.98) translateY(0.5px);
+  transition-duration: 80ms;
+}
+
+/* Apple Liquid Spring Button */
+.liquid-btn {
+  @apply transition-all duration-200 ease-apple-spring active:scale-[0.98] select-none;
+}
+
+/* Apple Primary Pill CTA (#0066cc Action Blue) */
+.apple-btn-primary {
+  background-color: #0066cc;
+  color: #ffffff;
+  border-radius: 9999px;
+  padding: 8px 20px;
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: -0.015em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 4px rgba(0, 102, 204, 0.25);
+  user-select: none;
+}
+.apple-btn-primary:hover {
+  background-color: #0071e3;
+  transform: translateY(-0.5px);
+  box-shadow: 0 3px 10px rgba(0, 102, 204, 0.35);
+}
+.apple-btn-primary:active {
+  transform: scale(0.98) translateY(0.5px);
+}
+.apple-btn-primary:focus-visible {
+  outline: 2px solid #0071e3;
+  outline-offset: 2px;
+}
+
+/* Apple Secondary Pill CTA */
+.apple-btn-secondary {
+  background-color: #fafafc;
+  color: #1d1d1f;
+  border: 1px solid #e0e0e0;
+  border-radius: 9999px;
+  padding: 8px 18px;
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: -0.015em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+.apple-btn-secondary:hover {
+  background-color: #f5f5f7;
+  border-color: #d2d2d7;
+  transform: translateY(-0.5px);
+}
+.apple-btn-secondary:active {
+  transform: scale(0.98) translateY(0.5px);
+}
+.dark .apple-btn-secondary {
+  background-color: #272729;
+  color: #f5f5f7;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.dark .apple-btn-secondary:hover {
+  background-color: #2a2a2c;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Liquid Pill Control */
+.liquid-pill {
+  background: var(--glass-background);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+/* Ambient glow background spheres - Fluid Floating Orbs */
+@keyframes floatOrb1 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-35px, 45px) scale(1.08);
+  }
+}
+
+@keyframes floatOrb2 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(45px, -35px) scale(1.06);
+  }
+}
+
+.ambient-glow-teal {
+  position: fixed;
+  width: 580px;
+  height: 580px;
+  top: -100px;
+  right: -60px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(0, 102, 204, 0.09) 0%, rgba(41, 151, 255, 0.03) 45%, transparent 70%);
+  filter: blur(85px);
+  pointer-events: none;
+  z-index: 0;
+  animation: floatOrb1 18s ease-in-out infinite;
+}
+
+.ambient-glow-indigo {
+  position: fixed;
+  width: 620px;
+  height: 620px;
+  bottom: -120px;
+  left: 8%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(234, 153, 53, 0.07) 0%, rgba(0, 102, 204, 0.025) 50%, transparent 70%);
+  filter: blur(95px);
+  pointer-events: none;
+  z-index: 0;
+  animation: floatOrb2 22s ease-in-out infinite;
+}
+
+/* iOS Stagger Entrance Animations with 3D Spatial Spring */
+@keyframes iosEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ios-animate-in {
+  animation: iosEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.ios-stagger-1 { animation-delay: 30ms; }
+.ios-stagger-2 { animation-delay: 60ms; }
+.ios-stagger-3 { animation-delay: 90ms; }
+.ios-stagger-4 { animation-delay: 120ms; }
+.ios-stagger-5 { animation-delay: 150ms; }
+.ios-stagger-6 { animation-delay: 180ms; }
+
+/* Apple macOS 27 Spatial Glide Page Transition */
+.page-transition-enter,
+.page-glide-enter {
+  animation: pageGlideIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity, filter;
+}
+
+@keyframes pageGlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+  }
+}
+
+/* ==========================================================================
+   MacBook Liquid Droplet Motion & Tab Open/Close Physics
+   ========================================================================== */
+
+@keyframes liquidDropletOpen {
+  0% {
+    opacity: 0;
+    transform: scale(0.93) translateY(-12px);
+    filter: blur(8px);
+  }
+  65% {
+    transform: scale(1.008) translateY(-1px);
+    filter: blur(0.5px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0px);
+  }
+}
+
+@keyframes liquidDropletClose {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.93) translateY(-10px);
+    filter: blur(8px);
+  }
+}
+
+@keyframes liquidBackdropFadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+}
+
+@keyframes liquidBackdropFadeOut {
+  from {
+    opacity: 1;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+  to {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+}
+
+@keyframes liquidTabContentGlide {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.995);
+    filter: blur(3px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+  }
+}
+
+.liquid-droplet-enter {
+  animation: liquidDropletOpen 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity, filter;
+}
+
+.liquid-droplet-exit {
+  animation: liquidDropletClose 0.18s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  will-change: transform, opacity, filter;
+}
+
+.liquid-backdrop-enter {
+  animation: liquidBackdropFadeIn 0.25s ease-out forwards;
+}
+
+.liquid-backdrop-exit {
+  animation: liquidBackdropFadeOut 0.18s ease-in forwards;
+}
+
+.liquid-tab-enter {
+  animation: liquidTabContentGlide 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity, filter;
+}
+
+/* Reduced motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* iOS Minimalist Frosted Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.14);
+  border-radius: 9999px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 102, 204, 0.4);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(41, 151, 255, 0.4);
+}
