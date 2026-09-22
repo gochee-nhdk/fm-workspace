@@ -1061,3 +1061,21 @@
 .dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(41, 151, 255, 0.4);
 }
+
+/* ==========================================================================
+   Universal Table Header & Cell Rules: Lock Single Line & Prevent Header Jumps
+   ========================================================================== */
+table th,
+thead th,
+[role="columnheader"] {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  user-select: none;
+  vertical-align: middle;
+  text-overflow: ellipsis;
+}
+
+table td,
+tbody td {
+  vertical-align: middle;
+}

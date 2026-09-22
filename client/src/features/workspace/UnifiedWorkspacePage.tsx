@@ -426,14 +426,14 @@ export const UnifiedWorkspacePage: React.FC = () => {
         {activeTab === 'links' && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
-              <thead className="bg-black/[0.02] dark:bg-white/[0.04] border-b border-black/[0.06] dark:border-white/10 text-[11px] font-semibold text-[#76767b] dark:text-[#a1a1a6] uppercase tracking-wider select-none">
+              <thead className="bg-white/80 dark:bg-[#141418]/85 backdrop-blur-md border-b border-black/[0.06] dark:border-white/10 text-[11px] font-semibold text-[#76767b] dark:text-[#a1a1a6] uppercase tracking-wider select-none sticky top-0 z-10">
                 <tr>
-                  <th className="px-4 py-3 w-10 text-center">⭐</th>
-                  <th className="px-5 py-3">Tên Hạng Mục / Phần Mềm</th>
-                  <th className="px-4 py-3">Nhóm / Danh Mục</th>
-                  <th className="px-4 py-3">Ghi Chú</th>
-                  <th className="px-4 py-3">Đường Dẫn (Link)</th>
-                  <th className="px-4 py-3 text-right">Thao Tác</th>
+                  <th className="px-4 py-3.5 w-12 text-center whitespace-nowrap">⭐</th>
+                  <th className="px-5 py-3.5 whitespace-nowrap min-w-[200px]">Tên Hạng Mục / Phần Mềm</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[140px]">Nhóm / Danh Mục</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[180px]">Ghi Chú</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[160px]">Đường Dẫn (Link)</th>
+                  <th className="px-4 py-3.5 text-right whitespace-nowrap min-w-[90px]">Thao Tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.04] dark:divide-white/5">
@@ -561,14 +561,14 @@ export const UnifiedWorkspacePage: React.FC = () => {
         {activeTab === 'accounts' && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
-              <thead className="bg-black/[0.02] dark:bg-white/[0.04] border-b border-black/[0.06] dark:border-white/10 text-[11px] font-semibold text-[#76767b] dark:text-[#a1a1a6] uppercase tracking-wider select-none">
+              <thead className="bg-white/80 dark:bg-[#141418]/85 backdrop-blur-md border-b border-black/[0.06] dark:border-white/10 text-[11px] font-semibold text-[#76767b] dark:text-[#a1a1a6] uppercase tracking-wider select-none sticky top-0 z-10">
                 <tr>
-                  <th className="px-5 py-3">Phần Mềm / Hệ Thống</th>
-                  <th className="px-4 py-3">Tên Đăng Nhập (1-Click Copy)</th>
-                  <th className="px-4 py-3">Mật Khẩu (1-Click Copy)</th>
-                  <th className="px-4 py-3">Trang Đăng Nhập</th>
-                  <th className="px-4 py-3">Ghi Chú</th>
-                  <th className="px-4 py-3 text-right">Thao Tác</th>
+                  <th className="px-5 py-3.5 whitespace-nowrap min-w-[190px]">Phần Mềm / Hệ Thống</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[210px]">Tên Đăng Nhập (1-Click Copy)</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[210px]">Mật Khẩu (1-Click Copy)</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[150px]">Trang Đăng Nhập</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[180px]">Ghi Chú</th>
+                  <th className="px-4 py-3.5 text-right whitespace-nowrap min-w-[90px]">Thao Tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.04] dark:divide-white/5">
@@ -715,13 +715,13 @@ export const UnifiedWorkspacePage: React.FC = () => {
         {activeTab === 'stores' && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
-              <thead className="bg-black/[0.02] dark:bg-white/[0.04] border-b border-black/[0.06] dark:border-white/10 text-[11px] font-semibold text-[#76767b] dark:text-[#a1a1a6] uppercase tracking-wider select-none">
+              <thead className="bg-white/80 dark:bg-[#141418]/85 backdrop-blur-md border-b border-black/[0.06] dark:border-white/10 text-[11px] font-semibold text-[#76767b] dark:text-[#a1a1a6] uppercase tracking-wider select-none sticky top-0 z-10">
                 <tr>
-                  <th className="px-5 py-3">Mã Cửa Hàng</th>
-                  <th className="px-4 py-3">Địa Chỉ Cửa Hàng (1-Click Copy)</th>
-                  <th className="px-4 py-3">Phân Loại / Chi Nhánh</th>
-                  <th className="px-4 py-3">Bản Đồ Chỉ Đường (Google Maps)</th>
-                  <th className="px-4 py-3 text-right">Thao Tác</th>
+                  <th className="px-5 py-3.5 whitespace-nowrap min-w-[130px]">Mã Cửa Hàng</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[300px]">Địa Chỉ Cửa Hàng (1-Click Copy)</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[160px]">Phân Loại / Chi Nhánh</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[190px]">Bản Đồ Chỉ Đường (Google Maps)</th>
+                  <th className="px-4 py-3.5 text-right whitespace-nowrap min-w-[90px]">Thao Tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.04] dark:divide-white/5">
