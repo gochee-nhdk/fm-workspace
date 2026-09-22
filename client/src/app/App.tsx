@@ -41,18 +41,27 @@ export default function App() {
           <RoutesConfig />
         </Suspense>
         <Toaster
-          position="top-right"
+          position="top-center"
+          gutter={10}
+          containerStyle={{
+            top: 22,
+          }}
           toastOptions={{
-            duration: 3000,
-            style: {
-              borderRadius: '12px',
-              background: 'rgba(255,255,255,0.85)',
-              backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(0,0,0,0.08)',
-              boxShadow: '0 4px 24px rgba(0,0,0,0.10)',
-              color: '#1d1d1f',
-              fontSize: '13.5px',
-              fontWeight: 500,
+            duration: 2500,
+            className: 'apple-hud-toast',
+            success: {
+              duration: 2200,
+              iconTheme: {
+                primary: '#34c759',
+                secondary: '#ffffff',
+              },
+            },
+            error: {
+              duration: 3500,
+              iconTheme: {
+                primary: '#ff3b30',
+                secondary: '#ffffff',
+              },
             },
           }}
         />
