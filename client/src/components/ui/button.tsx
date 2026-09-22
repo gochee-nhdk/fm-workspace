@@ -1,7 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
-import { LiquiGlass, type LiquiGlassProps } from '@liqui-design/glass';
 export { LiquiButton, type LiquiButtonProps } from './liqui-button';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -18,7 +17,6 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   size?: 'sm' | 'md' | 'lg' | 'icon';
   loading?: boolean;
   icon?: React.ReactNode;
-  glass?: Partial<LiquiGlassProps>;
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -31,55 +29,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       icon,
       children,
       disabled,
-      glass,
       style,
       ...props
     },
     ref
   ) => {
-    // If explicitly requested as liquiGlass refraction component from liqui.design
-    if (variant === 'liquiGlass') {
-      const LIQUI_DEFAULTS: Partial<LiquiGlassProps> = {
-        radius: 14,
-        blur: 1,
-        refraction: 45,
-        bezel: 11,
-      };
-
-      return (
-        <button
-          ref={ref}
-          disabled={disabled || loading}
-          aria-busy={loading ? 'true' : undefined}
-          style={style}
-          className={cn(
-            'group inline-flex cursor-pointer select-none outline-none transition-[transform,box-shadow] duration-150 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed',
-            className
-          )}
-          {...props}
-        >
-          <LiquiGlass
-            {...LIQUI_DEFAULTS}
-            {...glass}
-            contentClassName={cn(
-              'inline-flex items-center justify-center rounded-[inherit] font-medium leading-tight whitespace-nowrap group-hover:bg-[color-mix(in_srgb,var(--lq-highlight)_40%,transparent)]',
-              size === 'sm' && 'gap-1.5 px-3 py-1.5 text-xs',
-              size === 'md' && 'gap-2 px-4 py-2 text-[13.5px]',
-              size === 'lg' && 'gap-2.5 px-6 py-2.5 text-[15px]',
-              size === 'icon' && 'p-2 w-9 h-9 justify-center'
-            )}
-          >
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin text-current shrink-0" />
-            ) : icon ? (
-              <span className="shrink-0">{icon}</span>
-            ) : null}
-            {children}
-          </LiquiGlass>
-        </button>
-      );
-    }
-
     const baseStyles =
       'inline-flex items-center justify-center font-medium transition-all duration-180 ease-apple-spring focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]/50 focus-visible:ring-offset-1 disabled:opacity-40 disabled:cursor-not-allowed select-none active:scale-[0.98] active:translate-y-[0.5px] tracking-tight relative overflow-hidden shrink-0';
 
@@ -98,6 +52,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         'bg-[#34c759] text-white hover:bg-emerald-600 active:bg-emerald-700 rounded-full border border-transparent shadow-xs',
       glass: 'glass-btn rounded-full',
       glassProminent: 'glass-btn-prominent rounded-full',
+      liquiGlass:
+        'liquid-lens-pill text-[#1d1d1f] dark:text-white hover:scale-[1.02] active:scale-[0.96] border border-white/60 dark:border-white/15',
     };
 
     const sizes = {
