@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Link as LinkIcon,
@@ -24,6 +24,7 @@ import {
   CheckCircle2,
   Layers,
   GripVertical,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { dataService } from '@/services/dataService';
@@ -54,6 +55,19 @@ export const UnifiedWorkspacePage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close category dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setCategoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Inline Password reveal state
   const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({});
@@ -450,34 +464,110 @@ export const UnifiedWorkspacePage: React.FC = () => {
         {/* Secondary Filters for Links */}
         {activeTab === 'links' && (
           <div className="flex items-center gap-2.5 w-full md:w-auto justify-between md:justify-end flex-wrap">
+            {/* Yêu thích Filter Button */}
             <button
               type="button"
               onClick={() => setOnlyFavorites((prev) => !prev)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[12.5px] transition-all duration-200 cursor-pointer select-none active:scale-95 ${
                 onlyFavorites
-                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-semibold'
-                  : 'bg-black/[0.04] dark:bg-white/[0.06] text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white border border-transparent'
+                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/35 shadow-[0_2px_10px_rgba(245,158,11,0.2)] font-semibold'
+                  : 'bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.07] dark:hover:bg-white/[0.1] text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white border border-black/[0.05] dark:border-white/[0.08]'
               }`}
             >
-              <Star className={`w-3.5 h-3.5 ${onlyFavorites ? 'fill-amber-500 text-amber-500' : ''}`} />
+              <Star className={`w-3.5 h-3.5 transition-transform ${onlyFavorites ? 'fill-amber-500 text-amber-500 scale-110' : 'text-[#8e8e93]'}`} />
               <span>Chỉ mục Yêu thích</span>
+              {links.filter((l) => l.favorite).length > 0 && (
+                <span
+                  className={`px-1.5 py-0.5 rounded-md text-[10.5px] font-mono leading-none ${
+                    onlyFavorites
+                      ? 'bg-amber-500/25 text-amber-700 dark:text-amber-300 font-bold'
+                      : 'bg-black/5 dark:bg-white/10 text-[#76767b]'
+                  }`}
+                >
+                  {links.filter((l) => l.favorite).length}
+                </span>
+              )}
             </button>
 
+            {/* Custom Liquid Glass Category Dropdown */}
             {categories.length > 0 && (
-              <div className="flex items-center gap-1 text-[13px] text-[#76767b] dark:text-[#a1a1a6]">
-                <Filter className="w-3.5 h-3.5 opacity-60" />
-                <select
-                  className="glass-input text-[12.5px] rounded-full pl-3 pr-7 py-1.5 cursor-pointer font-medium"
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
+              <div className="relative" ref={categoryDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+                  className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[12.5px] font-medium transition-all duration-200 cursor-pointer select-none border active:scale-95 ${
+                    selectedCategory !== 'ALL'
+                      ? 'bg-[#0066cc]/10 dark:bg-[#2997ff]/15 text-[#0066cc] dark:text-[#2997ff] border-[#0066cc]/30 shadow-[0_2px_8px_rgba(0,102,204,0.15)] font-semibold'
+                      : 'bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.07] dark:hover:bg-white/[0.1] text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white border-black/[0.05] dark:border-white/[0.08]'
+                  }`}
                 >
-                  <option value="ALL">Tất cả nhóm ({links.length})</option>
-                  {categories.map((c) => (
-                    <option key={c} value={c}>
-                      {c} ({links.filter((l) => l.category === c).length})
-                    </option>
-                  ))}
-                </select>
+                  <Filter className={`w-3.5 h-3.5 ${selectedCategory !== 'ALL' ? 'text-[#0066cc] dark:text-[#2997ff]' : 'text-[#8e8e93]'}`} />
+                  <span>
+                    {selectedCategory === 'ALL'
+                      ? `Tất cả nhóm (${links.length})`
+                      : `${selectedCategory} (${links.filter((l) => l.category === selectedCategory).length})`}
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-[#8e8e93] transition-transform duration-200 ${categoryDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Floating Liquid-Glass Popover Menu */}
+                {categoryDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white/95 dark:bg-[#1a1a20]/95 backdrop-blur-2xl border border-white/80 dark:border-white/15 p-1.5 shadow-[0_16px_36px_-6px_rgba(0,0,0,0.15),0_4px_12px_rgba(0,0,0,0.06)] z-50 animate-in fade-in zoom-in-95 duration-150 space-y-0.5">
+                    <div className="px-3 py-1.5 text-[10px] font-semibold text-[#8e8e93] uppercase tracking-wider">
+                      Phân loại danh mục
+                    </div>
+                    {/* Option: ALL */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategory('ALL');
+                        setCategoryDropdownOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[12.5px] transition-colors cursor-pointer text-left ${
+                        selectedCategory === 'ALL'
+                          ? 'bg-[#0066cc]/10 dark:bg-[#2997ff]/15 text-[#0066cc] dark:text-[#2997ff] font-semibold'
+                          : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-[#0066cc] dark:bg-[#2997ff]" />
+                        <span>Tất cả nhóm</span>
+                      </span>
+                      <span className="text-[11px] font-mono px-1.5 py-0.5 rounded-md bg-black/5 dark:bg-white/10 text-[#76767b]">
+                        {links.length}
+                      </span>
+                    </button>
+
+                    {/* Dynamic categories */}
+                    {categories.map((c) => {
+                      const count = links.filter((l) => l.category === c).length;
+                      const isSelected = selectedCategory === c;
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCategory(c);
+                            setCategoryDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-[12.5px] transition-colors cursor-pointer text-left ${
+                            isSelected
+                              ? 'bg-[#0066cc]/10 dark:bg-[#2997ff]/15 text-[#0066cc] dark:text-[#2997ff] font-semibold'
+                              : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
+                          }`}
+                        >
+                          <span className="flex items-center gap-2 truncate">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#8e8e93]" />
+                            <span className="truncate">{c}</span>
+                          </span>
+                          <span className="text-[11px] font-mono px-1.5 py-0.5 rounded-md bg-black/5 dark:bg-white/10 text-[#76767b] shrink-0">
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
