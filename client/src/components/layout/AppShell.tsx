@@ -112,7 +112,7 @@ export const AppShell: React.FC = () => {
       {/* ─────────────────── visionOS Desktop Sidebar (Image 2) ─────────────────── */}
       <aside
         className={`hidden md:flex flex-col ${
-          isSidebarCollapsed ? 'w-[72px]' : 'w-[260px]'
+          isSidebarCollapsed ? 'w-[72px]' : 'w-[268px]'
         } vision-glass-sidebar shrink-0 h-full select-none z-30 transition-all duration-300 relative`}
       >
         {/* Workspace Brand Header */}
@@ -120,7 +120,7 @@ export const AppShell: React.FC = () => {
           className={`border-b border-black/[0.06] dark:border-white/10 flex items-center ${
             isSidebarCollapsed
               ? 'py-3.5 px-2 flex-col gap-2.5 justify-center'
-              : 'h-[72px] px-3.5 justify-between gap-2'
+              : 'h-[74px] px-3.5 justify-between gap-2.5'
           }`}
         >
           <button
@@ -131,27 +131,27 @@ export const AppShell: React.FC = () => {
             } group cursor-pointer outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 border-none select-none [-webkit-tap-highlight-color:transparent]`}
             title="Về trang chủ"
           >
-            {/* Crisp circular logo (46px) with clean 3D border */}
-            <div className="w-[46px] h-[46px] rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.08),0_1px_4px_rgba(250,196,38,0.3)] border-2 border-white dark:border-white/20 shrink-0 group-hover:scale-105 group-active:scale-95 transition-all duration-200">
+            {/* Apple-grade crisp circular 3D glass logo (48px) */}
+            <div className="w-12 h-12 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-[0_4px_14px_rgba(250,196,38,0.38),0_1px_3px_rgba(0,0,0,0.06)] border-2 border-white dark:border-white/20 shrink-0 group-hover:scale-105 group-active:scale-95 transition-all duration-200">
               <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover rounded-full pointer-events-none" />
             </div>
             {!isSidebarCollapsed && (
               <div className="min-w-0 flex-1 flex flex-col justify-center select-none">
-                <span className="font-extrabold text-[14px] leading-tight tracking-tight text-[#1d1d1f] dark:text-white whitespace-nowrap group-hover:text-[#FAC426] group-active:text-[#E5B01E] dark:group-hover:text-[#FAC426] transition-colors duration-150">
+                <span className="font-extrabold text-[14.5px] leading-tight tracking-tight text-[#1d1d1f] dark:text-white whitespace-nowrap group-hover:text-[#FAC426] group-active:text-[#E5B01E] dark:group-hover:text-[#FAC426] transition-colors duration-150">
                   FARMERS MARKET
                 </span>
-                <span className="text-[10px] leading-tight font-bold text-[#86868b] dark:text-[#98989d] group-hover:text-[#FAC426] group-active:text-[#E5B01E] dark:group-hover:text-[#FAC426] transition-colors duration-150 tracking-wider uppercase mt-0.5 whitespace-nowrap">
+                <span className="text-[10px] leading-tight font-bold text-[#007aff] dark:text-[#2997ff] group-hover:text-[#FAC426] group-active:text-[#E5B01E] dark:group-hover:text-[#FAC426] transition-colors duration-150 tracking-wider uppercase mt-1 whitespace-nowrap">
                   FM WORKSPACE OS
                 </span>
               </div>
             )}
           </button>
 
-          {/* Elegant Squircle Toggle Button (Refined OS-grade control) */}
+          {/* Authentic Apple Liquid Glass Circular Toggle Button */}
           <button
             type="button"
             onClick={toggleSidebar}
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-[#76767b] hover:text-[#1d1d1f] dark:text-[#a1a1a6] dark:hover:text-white bg-black/[0.03] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] border border-black/[0.06] dark:border-white/[0.1] shadow-2xs active:scale-95 transition-all duration-150 cursor-pointer shrink-0 outline-none focus:outline-none"
+            className="liquid-lens-circle !w-8 !h-8 text-[#555558] hover:text-[#007aff] dark:text-[#a1a1a6] dark:hover:text-[#2997ff] shrink-0 outline-none focus:outline-none"
             title={isSidebarCollapsed ? 'Mở rộng thanh bên (Ctrl+\\)' : 'Thu gọn thanh bên (Ctrl+\\)'}
             aria-label={isSidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
           >
@@ -164,9 +164,9 @@ export const AppShell: React.FC = () => {
         </div>
 
         {/* Navigation Items with Fluid Active Indicator */}
-        <nav className="p-2.5 space-y-1 flex-1 overflow-y-auto">
+        <nav className="p-3 space-y-1.5 flex-1 overflow-y-auto">
           {!isSidebarCollapsed && (
-            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#8e8e93] dark:text-[#98989d]">
+            <div className="px-3.5 py-1 text-[10.5px] font-semibold uppercase tracking-wider text-[#86868b] dark:text-[#98989d]">
               Không gian làm việc
             </div>
           )}
@@ -179,18 +179,18 @@ export const AppShell: React.FC = () => {
               title={isSidebarCollapsed ? item.label : undefined}
               className={({ isActive }) =>
                 `flex items-center ${
-                  isSidebarCollapsed ? 'justify-center w-11 h-11 mx-auto px-0' : 'gap-3 px-3 py-2.5'
-                } rounded-xl text-[13.5px] transition-all duration-150 ease-out active:scale-[0.98] ${
+                  isSidebarCollapsed ? 'justify-center w-11 h-11 mx-auto px-0' : 'gap-3 px-3.5 py-2.5'
+                } rounded-full text-[13.5px] transition-all duration-200 ease-out active:scale-[0.98] ${
                   isActive
-                    ? 'bg-[#0071e3] text-white font-semibold shadow-[0_3px_12px_rgba(0,113,227,0.32)] border border-[#2997ff]/30'
-                    : 'text-[#555558] dark:text-[#a1a1a6] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] hover:text-[#1d1d1f] dark:hover:text-white'
+                    ? 'bg-gradient-to-b from-[#007aff] to-[#0062cc] text-white font-semibold shadow-[0_6px_20px_rgba(0,122,255,0.4),inset_0_1.5px_1px_rgba(255,255,255,0.65),inset_0_-1px_1.5px_rgba(0,0,0,0.2)] border border-white/30 backdrop-blur-xl'
+                    : 'text-[#555558] dark:text-[#a1a1a6] hover:bg-white/60 dark:hover:bg-white/[0.08] hover:text-[#1d1d1f] dark:hover:text-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.04),inset_0_1px_1px_rgba(255,255,255,0.8)] backdrop-blur-md'
                 }`
               }
             >
               {({ isActive }) => (
                 <>
                   <span
-                    className={`p-0.5 rounded-lg transition-colors shrink-0 ${
+                    className={`p-1 rounded-lg transition-colors shrink-0 ${
                       isActive ? 'text-white' : 'text-[#76767b] dark:text-[#a1a1a6]'
                     }`}
                   >
@@ -206,13 +206,13 @@ export const AppShell: React.FC = () => {
         </nav>
 
         {/* Sidebar Bottom Controls */}
-        <div className="p-2.5 border-t border-black/[0.06] dark:border-white/10 space-y-2 shrink-0 bg-white/30 dark:bg-black/30 backdrop-blur-xl">
+        <div className="p-3 border-t border-black/[0.06] dark:border-white/10 space-y-2 shrink-0 bg-white/30 dark:bg-black/30 backdrop-blur-xl">
           <button
             onClick={() => setImportModalOpen(true)}
             title={isSidebarCollapsed ? 'Import / Export Excel' : undefined}
             className={`w-full flex items-center ${
-              isSidebarCollapsed ? 'justify-center w-11 h-11 mx-auto px-0' : 'gap-3 px-3 py-2.5'
-            } rounded-xl text-[13px] font-medium text-[#0066cc] dark:text-[#2997ff] bg-[#0066cc]/10 dark:bg-[#2997ff]/15 hover:bg-[#0066cc]/20 border border-[#0066cc]/20 dark:border-[#2997ff]/30 shadow-2xs transition-all duration-150 active:scale-[0.98] cursor-pointer`}
+              isSidebarCollapsed ? 'justify-center w-11 h-11 mx-auto px-0' : 'gap-3 px-4 py-2.5'
+            } rounded-full text-[13px] font-medium text-[#0066cc] dark:text-[#2997ff] liquid-lens-pill hover:!bg-white/80 dark:hover:!bg-white/[0.14] transition-all duration-200 active:scale-[0.98] cursor-pointer`}
           >
             <FileSpreadsheet className="w-4 h-4 shrink-0 text-[#0066cc] dark:text-[#2997ff]" />
             {!isSidebarCollapsed && <span>Import / Export Excel</span>}
