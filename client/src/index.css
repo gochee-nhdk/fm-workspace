@@ -82,46 +82,179 @@
   }
 }
 
-/* Apple Liquid Glass Utility Styles - Refined 2026 Edition */
+/* ==========================================================================
+   Apple iOS 26 / visionOS Liquid Glass 3D Breakthrough System
+   Directly matching reference: Thick optical meniscus, double-rim specular highlights,
+   sub-surface ambient illumination, and convex lens refraction.
+   ========================================================================== */
+
+/* 1. Authentic Liquid Glass 3D Lens Pill (Image 1 floating toolbar) */
+.liquid-lens-pill {
+  background: rgba(255, 255, 255, 0.52);
+  backdrop-filter: blur(44px) saturate(210%) contrast(102%) brightness(104%);
+  -webkit-backdrop-filter: blur(44px) saturate(210%) contrast(102%) brightness(104%);
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  box-shadow: 
+    /* Top specular highlight arc */
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.95),
+    /* Sub-surface volumetric illumination */
+    inset 0 0 18px 0 rgba(255, 255, 255, 0.35),
+    /* Bottom meniscus refraction shadow */
+    inset 0 -2px 2.5px 0 rgba(0, 0, 0, 0.12),
+    /* Outer subtle optical halo stroke */
+    0 0 0 0.5px rgba(255, 255, 255, 0.45),
+    /* Fluid ambient cushion drop shadow */
+    0 16px 36px -8px rgba(0, 0, 0, 0.14),
+    0 6px 14px -2px rgba(0, 0, 0, 0.06);
+  position: relative;
+  transition: all 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark .liquid-lens-pill {
+  background: rgba(30, 30, 38, 0.55);
+  backdrop-filter: blur(48px) saturate(220%) contrast(105%);
+  -webkit-backdrop-filter: blur(48px) saturate(220%) contrast(105%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 0 20px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -2px 3px 0 rgba(0, 0, 0, 0.55),
+    0 0 0 0.5px rgba(255, 255, 255, 0.12),
+    0 20px 48px -10px rgba(0, 0, 0, 0.75),
+    0 8px 20px -3px rgba(0, 0, 0, 0.5);
+}
+
+/* 2. Authentic Liquid Glass 3D Circular Button (Image 1 floating action button) */
+.liquid-lens-circle {
+  background: rgba(255, 255, 255, 0.58);
+  backdrop-filter: blur(44px) saturate(210%) contrast(102%) brightness(104%);
+  -webkit-backdrop-filter: blur(44px) saturate(210%) contrast(102%) brightness(104%);
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow: 
+    inset 0 2px 1.5px 0 rgba(255, 255, 255, 0.98),
+    inset 0 0 14px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 2px 0 rgba(0, 0, 0, 0.14),
+    0 0 0 0.5px rgba(255, 255, 255, 0.5),
+    0 16px 36px -8px rgba(0, 0, 0, 0.15),
+    0 6px 14px -2px rgba(0, 0, 0, 0.08);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease;
+}
+
+.liquid-lens-circle:hover {
+  transform: translateY(-2px) scale(1.05);
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 
+    inset 0 2px 1.5px 0 rgba(255, 255, 255, 1),
+    inset 0 0 18px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -2px 2px 0 rgba(0, 0, 0, 0.16),
+    0 0 0 1px rgba(255, 255, 255, 0.7),
+    0 22px 42px -8px rgba(0, 0, 0, 0.2),
+    0 8px 18px -2px rgba(0, 0, 0, 0.1);
+}
+
+.liquid-lens-circle:active {
+  transform: scale(0.91);
+  transition-duration: 90ms;
+}
+
+.dark .liquid-lens-circle {
+  background: rgba(36, 36, 44, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 0 16px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -2px 2px 0 rgba(0, 0, 0, 0.6),
+    0 0 0 0.5px rgba(255, 255, 255, 0.14),
+    0 20px 48px -10px rgba(0, 0, 0, 0.8),
+    0 8px 20px -3px rgba(0, 0, 0, 0.5);
+}
+
+.dark .liquid-lens-circle:hover {
+  background: rgba(46, 46, 56, 0.72);
+  box-shadow: 
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 0 20px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -2px 2px 0 rgba(0, 0, 0, 0.65),
+    0 24px 52px -8px rgba(0, 0, 0, 0.85);
+}
+
+.dark .liquid-lens-circle:active {
+  transform: scale(0.91);
+}
+
+/* 3. visionOS Frosted Floating Sidebar Panel (Image 2) */
+.vision-glass-sidebar {
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(50px) saturate(210%) brightness(103%);
+  -webkit-backdrop-filter: blur(50px) saturate(210%) brightness(103%);
+  border-right: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 
+    inset -1px 0 1.5px 0 rgba(255, 255, 255, 0.8),
+    inset 1px 0 1.5px 0 rgba(255, 255, 255, 0.6),
+    4px 0 28px -4px rgba(0, 0, 0, 0.04);
+}
+
+.dark .vision-glass-sidebar {
+  background: rgba(20, 20, 24, 0.68);
+  backdrop-filter: blur(56px) saturate(220%) brightness(105%);
+  -webkit-backdrop-filter: blur(56px) saturate(220%) brightness(105%);
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    inset -1px 0 1px 0 rgba(255, 255, 255, 0.15),
+    6px 0 32px -4px rgba(0, 0, 0, 0.6);
+}
+
+/* 4. Enhanced Glass Material & Panels */
 .liquid-glass,
 .ios-glass-panel,
 .glass-material {
-  background: rgba(255, 255, 255, 0.76);
-  backdrop-filter: blur(36px) saturate(210%) brightness(104%);
-  -webkit-backdrop-filter: blur(36px) saturate(210%) brightness(104%);
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(40px) saturate(210%) brightness(104%);
+  -webkit-backdrop-filter: blur(40px) saturate(210%) brightness(104%);
   border: 1px solid rgba(255, 255, 255, 0.82);
   box-shadow: 
-    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95),
-    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.03),
-    0 8px 26px -4px rgba(0, 0, 0, 0.05),
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 0 12px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -1.5px 1px 0 rgba(0, 0, 0, 0.05),
+    0 12px 32px -6px rgba(0, 0, 0, 0.06),
     0 2px 6px -1px rgba(0, 0, 0, 0.02);
 }
 
 .dark .liquid-glass,
 .dark .ios-glass-panel,
 .dark .glass-material {
-  background: rgba(26, 26, 30, 0.75);
-  backdrop-filter: blur(36px) saturate(220%) brightness(105%);
-  -webkit-backdrop-filter: blur(36px) saturate(220%) brightness(105%);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(24, 24, 28, 0.72);
+  backdrop-filter: blur(40px) saturate(220%) brightness(105%);
+  -webkit-backdrop-filter: blur(40px) saturate(220%) brightness(105%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   box-shadow: 
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.6),
-    0 16px 40px -8px rgba(0, 0, 0, 0.65),
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 0 14px 0 rgba(255, 255, 255, 0.04),
+    inset 0 -1.5px 1px 0 rgba(0, 0, 0, 0.65),
+    0 18px 44px -8px rgba(0, 0, 0, 0.7),
     0 4px 12px -2px rgba(0, 0, 0, 0.45);
 }
 
-/* 3D Liquid Glass Bevel & Specular Highlight Layer */
+/* 5. 3D Liquid Glass Interactive Elements */
 .liquid-glass-3d,
 .glass-material-interactive {
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(36px) saturate(220%) brightness(105%);
-  -webkit-backdrop-filter: blur(36px) saturate(220%) brightness(105%);
+  background: rgba(255, 255, 255, 0.70);
+  backdrop-filter: blur(40px) saturate(215%) brightness(105%);
+  -webkit-backdrop-filter: blur(40px) saturate(215%) brightness(105%);
   border: 1px solid rgba(255, 255, 255, 0.88);
   box-shadow: 
     inset 0 1.5px 2px 0 rgba(255, 255, 255, 1),
-    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.04),
-    0 10px 30px -4px rgba(0, 0, 0, 0.06),
+    inset 0 0 16px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1.5px 1.5px 0 rgba(0, 0, 0, 0.06),
+    0 14px 34px -6px rgba(0, 0, 0, 0.08),
     0 2px 8px -1px rgba(0, 0, 0, 0.03);
   position: relative;
   overflow: hidden;
@@ -131,12 +264,13 @@
 
 .dark .liquid-glass-3d,
 .dark .glass-material-interactive {
-  background: rgba(28, 28, 32, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(26, 26, 32, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow: 
-    inset 0 1.5px 1.5px 0 rgba(255, 255, 255, 0.28),
-    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.6),
-    0 18px 46px -8px rgba(0, 0, 0, 0.7),
+    inset 0 1.5px 1.5px 0 rgba(255, 255, 255, 0.32),
+    inset 0 0 18px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -1.5px 1px 0 rgba(0, 0, 0, 0.65),
+    0 20px 48px -8px rgba(0, 0, 0, 0.75),
     0 6px 16px -2px rgba(0, 0, 0, 0.5);
 }
 
@@ -621,32 +755,98 @@
   }
 }
 
-.ambient-glow-teal {
+/* Chromatic Ambient Refraction Canvas (Creates the optical depth seen in Image 1 & 2) */
+@keyframes floatSunsetOrb {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(-50px, 35px) scale(1.12);
+  }
+  66% {
+    transform: translate(25px, -40px) scale(0.95);
+  }
+}
+
+@keyframes floatAzureOrb {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(45px, -45px) scale(1.08);
+  }
+  66% {
+    transform: translate(-30px, 25px) scale(1.04);
+  }
+}
+
+@keyframes floatVioletOrb {
+  0%, 100% {
+    transform: translate(0, 0) scale(0.96);
+  }
+  50% {
+    transform: translate(35px, 45px) scale(1.1);
+  }
+}
+
+/* Orb 1: Warm Joshua Tree Sunset Peach (recreates Image 1's warm liquid tint) */
+.ambient-glow-sunset {
   position: fixed;
-  width: 580px;
-  height: 580px;
-  top: -100px;
-  right: -60px;
+  width: 680px;
+  height: 680px;
+  bottom: -140px;
+  right: -80px;
   border-radius: 9999px;
-  background: radial-gradient(circle, rgba(0, 102, 204, 0.09) 0%, rgba(41, 151, 255, 0.03) 45%, transparent 70%);
+  background: radial-gradient(circle, rgba(255, 140, 100, 0.18) 0%, rgba(255, 185, 140, 0.10) 40%, rgba(255, 220, 190, 0.04) 60%, transparent 75%);
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+  animation: floatSunsetOrb 20s ease-in-out infinite;
+}
+
+.dark .ambient-glow-sunset {
+  background: radial-gradient(circle, rgba(220, 80, 140, 0.15) 0%, rgba(130, 40, 180, 0.08) 45%, transparent 70%);
+  filter: blur(100px);
+}
+
+/* Orb 2: Mount Fuji Azure & Pacific Sapphire (recreates Image 2's sky depth) */
+.ambient-glow-azure {
+  position: fixed;
+  width: 720px;
+  height: 720px;
+  top: -120px;
+  left: -100px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(0, 113, 227, 0.15) 0%, rgba(41, 151, 255, 0.08) 42%, rgba(120, 200, 255, 0.03) 65%, transparent 75%);
   filter: blur(85px);
   pointer-events: none;
   z-index: 0;
-  animation: floatOrb1 18s ease-in-out infinite;
+  animation: floatAzureOrb 24s ease-in-out infinite;
 }
 
-.ambient-glow-indigo {
+.dark .ambient-glow-azure {
+  background: radial-gradient(circle, rgba(0, 100, 220, 0.22) 0%, rgba(20, 40, 100, 0.12) 50%, transparent 75%);
+  filter: blur(110px);
+}
+
+/* Orb 3: Radiant Sakura Violet Ambient */
+.ambient-glow-violet {
   position: fixed;
-  width: 620px;
-  height: 620px;
-  bottom: -120px;
-  left: 8%;
+  width: 560px;
+  height: 560px;
+  top: 35%;
+  right: 25%;
   border-radius: 9999px;
-  background: radial-gradient(circle, rgba(234, 153, 53, 0.07) 0%, rgba(0, 102, 204, 0.025) 50%, transparent 70%);
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.09) 0%, rgba(236, 72, 153, 0.04) 45%, transparent 70%);
   filter: blur(95px);
   pointer-events: none;
   z-index: 0;
-  animation: floatOrb2 22s ease-in-out infinite;
+  animation: floatVioletOrb 28s ease-in-out infinite;
+}
+
+.dark .ambient-glow-violet {
+  background: radial-gradient(circle, rgba(147, 51, 234, 0.14) 0%, rgba(79, 70, 229, 0.08) 50%, transparent 70%);
+  filter: blur(100px);
 }
 
 /* iOS Stagger Entrance Animations with 3D Spatial Spring */
