@@ -279,66 +279,12 @@ export const AppShell: React.FC = () => {
         </header>
 
         {/* Page Content Viewport */}
-        <main ref={mainRef} className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto overflow-x-hidden scroll-smooth pb-28">
+        <main ref={mainRef} className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto overflow-x-hidden scroll-smooth">
           <div key={location.pathname} className="page-glide-enter">
             <Outlet />
           </div>
         </main>
       </div>
-
-      {/* ─────────────────── Authentic 3D Liquid Glass Floating Bottom Dock (Directly from Image 1!) ─────────────────── */}
-      <aside
-        aria-label="Thanh công cụ kính lỏng 3D"
-        className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3.5 pointer-events-auto ios-animate-in select-none"
-      >
-        {/* Left Floating Pill Bar with Liquid Meniscus Refraction */}
-        <div className="liquid-lens-pill px-3 py-1.5 flex items-center gap-1.5 shadow-[0_16px_40px_-8px_rgba(0,0,0,0.22),0_4px_16px_rgba(0,0,0,0.08)]">
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.to || (item.to === '/' && location.pathname === '');
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.to === '/'}
-                title={item.label}
-                aria-label={item.label}
-                className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ease-apple-spring active:scale-90 ${
-                  isActive
-                    ? 'bg-gradient-to-b from-[#0077ed] to-[#0066cc] text-white shadow-[0_2px_10px_rgba(0,102,204,0.45),inset_0_1px_1px_rgba(255,255,255,0.7)] scale-105'
-                    : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10'
-                }`}
-              >
-                {item.icon}
-                {isActive && (
-                  <span className="absolute -bottom-1 w-1.5 h-1.5 rounded-full bg-white shadow-xs" />
-                )}
-              </NavLink>
-            );
-          })}
-
-          <div className="w-[1px] h-5 bg-black/10 dark:bg-white/15 mx-1" />
-
-          {/* Quick Excel Action */}
-          <button
-            onClick={() => setImportModalOpen(true)}
-            className="w-10 h-10 rounded-full flex items-center justify-center text-[#0066cc] dark:text-[#2997ff] hover:bg-[#0066cc]/10 dark:hover:bg-[#2997ff]/15 transition-all active:scale-90"
-            title="Import / Export Excel"
-            aria-label="Import / Export Excel"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Right Floating Circular 3D Liquid Lens Button (Image 1 Circular Compose Button) */}
-        <button
-          onClick={() => setCommandPaletteOpen(true)}
-          className="liquid-lens-circle w-[52px] h-[52px] shadow-[0_18px_40px_-6px_rgba(0,0,0,0.25),0_6px_16px_rgba(0,0,0,0.1)] text-[#1d1d1f] dark:text-white"
-          title="Tìm kiếm nhanh & Lệnh tác nghiệp (Ctrl+K)"
-          aria-label="Mở tìm kiếm nhanh"
-        >
-          <Search className="w-5 h-5 text-[#0071e3] dark:text-[#2997ff] filter drop-shadow-[0_0_6px_rgba(0,113,227,0.4)]" />
-        </button>
-      </aside>
 
       {/* ─────────────────── Mobile Drawer Menu ─────────────────── */}
       {mobileMenuOpen &&
