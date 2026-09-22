@@ -43,12 +43,13 @@ export default function App() {
         <Toaster
           position="top-center"
           gutter={10}
+          containerClassName="apple-toaster-container"
           containerStyle={{
-            top: 22,
+            top: 18,
           }}
           toastOptions={{
             duration: 2500,
-            className: 'apple-hud-toast',
+            className: 'liquid-glass-macos27-toast',
             success: {
               duration: 2200,
               iconTheme: {

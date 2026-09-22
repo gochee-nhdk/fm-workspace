@@ -56,6 +56,14 @@ export const AppShell: React.FC = () => {
   const navigate = useNavigate();
   const mainRef = useRef<HTMLElement>(null);
 
+  // ✅ Synchronize CSS variable --sidebar-width for exact visual centering of toasts & modals
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      '--sidebar-width',
+      isSidebarCollapsed ? '72px' : '268px'
+    );
+  }, [isSidebarCollapsed]);
+
   // Scroll to top on route change
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0, behavior: 'instant' });
