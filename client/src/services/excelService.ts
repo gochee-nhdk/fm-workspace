@@ -582,7 +582,7 @@ class ExcelService {
       },
       {
         'DANH MỤC HỆ THỐNG': 'Giao diện & Kiến trúc',
-        'THÔNG SỐ / SỐ LƯỢNG': 'Apple Liquid Glass OS',
+        'THÔNG SỐ / SỐ LƯỢNG': 'FM Workspace OS v2.0',
         'CHI TIẾT & HƯỚNG DẪN': 'Lưu trữ IndexedDB cục bộ, bảo mật đa tầng, không lưu cloud',
       },
       {

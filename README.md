@@ -1,7 +1,7 @@
 # 🌿 Farmers Market — FM Workspace OS v2.0
 
 > **Hệ thống Trợ Lý Thu Mua & Quản Trị Tác Nghiệp Nội Bộ**  
-> Thiết kế chuẩn **Apple iOS 26 / visionOS Liquid Glass 3D** với công nghệ lưu trữ cục bộ bảo mật cao (Zero-Cloud Privacy).
+> Thiết kế chuẩn **Kính Lỏng 3D (Liquid Glass)** với công nghệ lưu trữ cục bộ bảo mật cao (Zero-Cloud Privacy).
 
 ---
 
@@ -26,11 +26,11 @@
 ### 4. 📊 Trung Tâm Quản Lý Dữ Liệu & Excel Engine
 - **Import / Export 2 chiều**: Tương thích hoàn hảo với file Excel mẫu nội bộ gồm 3 sheets: `LINK`, `ACCOUNT`, `DS CH`.
 - **Chống Spreadsheet Formula Injection**: Tự động chuẩn hóa và bảo vệ trước các ký tự nguy hiểm (`=`, `+`, `-`, `@`).
-- **Làm đẹp & căn chỉnh ô Excel tự động**: Header màu thương hiệu FM, border mảnh, font Apple Segoe UI, tự tính độ rộng cột.
+- **Làm đẹp & căn chỉnh ô Excel tự động**: Header màu thương hiệu FM, border mảnh, font Segoe UI, tự tính độ rộng cột.
 - **Tự động sửa chữa IndexedDB (Self-Healing)**: Tự động khôi phục kết nối cơ sở dữ liệu nếu trình duyệt gặp gián đoạn.
 
-### 5. 🎨 Giao Diện Apple Liquid Glass 3D Thế Hệ Mới
-- Hiệu ứng khúc xạ ánh sáng động (Dynamic Optical Refraction & Specular Bevel) theo chuẩn Apple iOS 26.
+### 5. 🎨 Giao Diện Kính Lỏng 3D (Liquid Glass) Thế Hệ Mới
+- Hiệu ứng khúc xạ ánh sáng động (Dynamic Optical Refraction & Specular Bevel) sang trọng.
 - **Hỗ trợ Chế độ Sáng / Tối hoàn hảo** (Light Mode / Dark Mode) tự động lưu sở thích người dùng.
 - **Command Palette Spotlight (`Ctrl+K` / `⌘K`)**: Tìm kiếm tức thì từ bất kỳ màn hình nào.
 

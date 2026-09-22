@@ -93,7 +93,7 @@ export const SettingsPage: React.FC = () => {
           Cài Đặt & Quản Trị Hệ Thống
         </h1>
         <p className="text-[14px] text-[#86868b] dark:text-[#a1a1a6] mt-1">
-          Quản lý dung lượng lưu trữ cục bộ, sao lưu dự phòng và tùy chỉnh giao diện theo tiêu chuẩn Apple.
+          Quản lý dung lượng lưu trữ cục bộ, sao lưu dự phòng và tùy chỉnh giao diện theo tiêu chuẩn hiện đại.
         </p>
       </div>
 
@@ -167,7 +167,7 @@ export const SettingsPage: React.FC = () => {
           Sao Lưu & Xuất Dữ Liệu
         </h3>
         <p className="text-[13px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
-          Xuất toàn bộ hệ thống gồm 3 sheets: LINK, ACCOUNT, DS CH ra một file Excel (.xlsx) chuẩn cấu trúc Apple để sao lưu hoặc chuyển đổi thiết bị.
+          Xuất toàn bộ hệ thống gồm 3 sheets: LINK, ACCOUNT, DS CH ra một file Excel (.xlsx) chuẩn cấu trúc hệ thống để sao lưu hoặc chuyển đổi thiết bị.
         </p>
         <div>
           <Button
@@ -190,7 +190,7 @@ export const SettingsPage: React.FC = () => {
               Chế Độ Hiển Thị Giao Diện
             </h3>
             <p className="text-[13px] text-[#86868b] dark:text-[#a1a1a6] mt-0.5">
-              Tùy chọn phong cách hiển thị Apple Clean (Sáng) hoặc Pro Charcoal (Tối) với hiệu ứng kính lỏng Liquid Glass 3D.
+              Tùy chọn phong cách hiển thị Tinh gọn (Sáng) hoặc Chuyên nghiệp (Tối) với hiệu ứng kính lỏng 3D.
             </p>
           </div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-medium bg-[#0066cc]/10 dark:bg-[#2997ff]/15 text-[#0066cc] dark:text-[#2997ff] border border-[#0066cc]/20 dark:border-[#2997ff]/30">
@@ -217,7 +217,7 @@ export const SettingsPage: React.FC = () => {
             </span>
             <div className="flex flex-col text-left leading-tight">
               <span className="font-medium text-[13px]">Light Mode</span>
-              <span className="text-[10.5px] opacity-70">Apple Clean</span>
+              <span className="text-[10.5px] opacity-70">Giao diện Sáng</span>
             </div>
           </button>
 
@@ -238,7 +238,7 @@ export const SettingsPage: React.FC = () => {
             </span>
             <div className="flex flex-col text-left leading-tight">
               <span className="font-medium text-[13px]">Dark Mode</span>
-              <span className="text-[10.5px] opacity-70">Pro Charcoal</span>
+              <span className="text-[10.5px] opacity-70">Giao diện Tối</span>
             </div>
           </button>
         </div>

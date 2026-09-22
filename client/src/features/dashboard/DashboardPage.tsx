@@ -93,7 +93,7 @@ export const DashboardPage: React.FC = () => {
               Bàn làm việc Tổng hợp
             </h1>
             <p className="text-[15px] sm:text-[17px] text-[#7a7a7a] mt-1 max-w-xl leading-[1.47]">
-              Mọi phím tắt hệ thống, thông tin tài khoản và danh sách cửa hàng tập trung tại một nơi với giao diện tối giản theo chuẩn Apple.
+              Mọi phím tắt hệ thống, thông tin tài khoản và danh sách cửa hàng tập trung tại một nơi với giao diện tối giản, tiện lợi và hiện đại.
             </p>
           </div>
         </div>

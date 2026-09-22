@@ -16,7 +16,6 @@ import {
   Sun,
   Command,
   Plus,
-  Sparkles,
   ExternalLink,
 } from 'lucide-react';
 import { CommandPalette } from '@/components/ui/command-palette';
@@ -220,10 +219,6 @@ export const AppShell: React.FC = () => {
               <h2 className="text-[17px] font-semibold text-[#1d1d1f] dark:text-white tracking-tight">
                 {pageTitle}
               </h2>
-              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-medium bg-[#0071e3]/10 text-[#0066cc] dark:bg-[#2997ff]/20 dark:text-[#2997ff] border border-[#0071e3]/20">
-                <Sparkles className="w-3 h-3" />
-                <span>Liquid 3D</span>
-              </span>
             </div>
           </div>
 

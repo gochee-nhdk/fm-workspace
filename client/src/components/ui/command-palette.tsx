@@ -291,7 +291,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         type: 'action' as const,
         id: 'act-theme',
         label: `Chuyển sang giao diện ${theme === 'dark' ? 'Sáng (Light Mode)' : 'Tối (Dark Mode)'}`,
-        sub: 'Chuyển đổi tông màu giao diện Apple Liquid Glass',
+        sub: 'Chuyển đổi tông màu giao diện Sáng / Tối',
         tag: 'Giao diện',
         icon: theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />,
         iconBg: 'bg-violet-500/12 dark:bg-violet-500/20',
