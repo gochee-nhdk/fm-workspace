@@ -1378,3 +1378,52 @@ tbody td {
     background-position: -200% 0;
   }
 }
+
+/* ==========================================================================
+   Apple Notes Pure Liquid Glass Canvas
+   Completely override @tailwindcss/forms plugin borders, outlines, & tw-rings
+   ========================================================================== */
+.apple-note-canvas input,
+.apple-note-canvas input[type="text"],
+.apple-note-canvas textarea {
+  border: 0 !important;
+  border-width: 0px !important;
+  border-style: none !important;
+  border-color: transparent !important;
+  outline: none !important;
+  outline-width: 0px !important;
+  outline-style: none !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  --tw-ring-inset: var(--tw-empty,/*!*/ /*!*/);
+  --tw-ring-offset-width: 0px !important;
+  --tw-ring-offset-color: transparent !important;
+  --tw-ring-color: transparent !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-shadow: 0 0 #0000 !important;
+  background-color: transparent !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+}
+
+.apple-note-canvas input:focus,
+.apple-note-canvas input[type="text"]:focus,
+.apple-note-canvas textarea:focus,
+.apple-note-canvas input:focus-visible,
+.apple-note-canvas input[type="text"]:focus-visible,
+.apple-note-canvas textarea:focus-visible {
+  border: 0 !important;
+  border-width: 0px !important;
+  border-style: none !important;
+  border-color: transparent !important;
+  outline: none !important;
+  outline-width: 0px !important;
+  outline-style: none !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-shadow: 0 0 #0000 !important;
+}
