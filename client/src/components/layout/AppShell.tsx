@@ -377,7 +377,7 @@ export const AppShell: React.FC = () => {
         </header>
 
         {/* Page Content Viewport */}
-        <main ref={mainRef} className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto overflow-x-hidden scroll-smooth">
+        <main ref={mainRef} className="flex-1 p-4 sm:p-5 lg:p-6 overflow-y-auto overflow-x-hidden scroll-smooth">
           <div key={location.pathname} className="page-glide-enter">
             <Outlet />
           </div>

@@ -326,7 +326,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5 max-w-7xl mx-auto pb-12">
+    <div className="space-y-5 max-w-7xl mx-auto pb-12 w-full">
       {/* ─────────────────── Top Bar: Sheet Tabs & Action Bar ─────────────────── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         {/* Liquid Glass Segmented Sheet Tabs */}
@@ -606,10 +606,13 @@ export const UnifiedWorkspacePage: React.FC = () => {
       </div>
 
       {/* ─────────────────── Spreadsheet Table Section ─────────────────── */}
-      <div className="rounded-[22px] border border-white/60 dark:border-white/10 bg-white/70 dark:bg-[#141418]/70 backdrop-blur-2xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
+      <div className="relative rounded-[22px] border border-white/60 dark:border-white/10 bg-white/70 dark:bg-[#141418]/70 backdrop-blur-2xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
+        {/* Specular reflection line on top border */}
+        <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/80 dark:via-white/20 to-transparent pointer-events-none z-30" />
+
         {/* 1. SHEET: QUICK LINKS */}
         {activeTab === 'links' && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-thin">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
               <thead className="bg-white/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[11.5px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider select-none sticky top-0 z-10 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                 <tr>
@@ -617,11 +620,13 @@ export const UnifiedWorkspacePage: React.FC = () => {
                     <GripVertical className="w-3.5 h-3.5 mx-auto opacity-30" />
                   </th>
                   <th className="px-2 py-3.5 w-10 text-center whitespace-nowrap">⭐</th>
-                  <th className="px-5 py-3.5 whitespace-nowrap min-w-[160px]">Tên Hạng Mục</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Danh Mục</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[140px]">Ghi Chú</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Đường Dẫn</th>
-                  <th className="pl-4 pr-6 sm:pr-8 py-3.5 text-right whitespace-nowrap min-w-[110px]">Thao Tác</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px] max-w-[200px]">Tên Hạng Mục</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[110px]">Danh Mục</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[120px] max-w-[220px]">Ghi Chú</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px]">Đường Dẫn</th>
+                  <th className="sticky right-0 z-20 px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#181820]/95 backdrop-blur-2xl shadow-[-8px_0_16px_rgba(0,0,0,0.04)] dark:shadow-[-8px_0_16px_rgba(0,0,0,0.35)]">
+                    Thao Tác
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.04] dark:divide-white/5">
@@ -706,17 +711,17 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       </td>
 
                       {/* Hang Muc */}
-                      <td className="px-5 py-3 font-semibold text-[#1d1d1f] dark:text-white">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-[#0066cc] dark:bg-[#2997ff]" />
-                          <span>{item.hangMuc}</span>
+                      <td className="px-4 py-3 font-semibold text-[#1d1d1f] dark:text-white min-w-[130px] max-w-[200px]">
+                        <div className="flex items-center gap-2 truncate">
+                          <span className="w-2 h-2 rounded-full bg-[#0066cc] dark:bg-[#2997ff] shrink-0" />
+                          <span className="truncate" title={item.hangMuc}>{item.hangMuc}</span>
                         </div>
                       </td>
 
                       {/* Category */}
-                      <td className="px-4 py-3">
+                      <td className="px-3.5 py-3 min-w-[110px]">
                         {item.category ? (
-                          <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] text-[#76767b] dark:text-[#a1a1a6] font-medium border border-black/5 dark:border-white/10">
+                          <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] text-[#76767b] dark:text-[#a1a1a6] font-medium border border-black/5 dark:border-white/10 truncate inline-block max-w-[140px]" title={item.category}>
                             {item.category}
                           </span>
                         ) : (
@@ -725,30 +730,32 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       </td>
 
                       {/* Note */}
-                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-xs truncate">
-                        {item.note || <span className="opacity-40 text-xs">—</span>}
+                      <td className="px-3.5 py-3 text-slate-500 dark:text-slate-400 min-w-[120px] max-w-[220px]">
+                        <span className="truncate block" title={item.note || ''}>
+                          {item.note || <span className="opacity-40 text-xs">—</span>}
+                        </span>
                       </td>
 
                       {/* Link 1-Click Action */}
-                      <td className="px-4 py-3">
+                      <td className="px-3.5 py-3 min-w-[130px]">
                         {item.link ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <a
                               href={item.link}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="group/link inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-200 active:scale-[0.97] cursor-pointer bg-white/70 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.16] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.08] dark:border-white/12 shadow-[0_1px_3px_rgba(0,0,0,0.04),inset_0_1px_0.5px_rgba(255,255,255,0.9)] hover:shadow-[0_4px_14px_rgba(0,113,227,0.18)] backdrop-blur-md"
+                              className="group/link inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold transition-all duration-200 active:scale-[0.97] cursor-pointer bg-white/70 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.16] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.08] dark:border-white/12 shadow-[0_1px_3px_rgba(0,0,0,0.04),inset_0_1px_0.5px_rgba(255,255,255,0.9)] hover:shadow-[0_4px_14px_rgba(0,113,227,0.18)] backdrop-blur-md"
                               title="Mở liên kết trong tab mới"
                             >
                               <span>Mở link</span>
-                              <span className="w-4 h-4 rounded-full bg-[#0071e3]/12 dark:bg-[#2997ff]/20 flex items-center justify-center text-[#0066cc] dark:text-[#2997ff] group-hover/link:bg-[#0071e3] group-hover/link:text-white transition-all shrink-0">
-                                <ExternalLink className="w-2.5 h-2.5" />
+                              <span className="w-3.5 h-3.5 rounded-full bg-[#0071e3]/12 dark:bg-[#2997ff]/20 flex items-center justify-center text-[#0066cc] dark:text-[#2997ff] group-hover/link:bg-[#0071e3] group-hover/link:text-white transition-all shrink-0">
+                                <ExternalLink className="w-2 h-2" />
                               </span>
                             </a>
                             <button
                               type="button"
                               onClick={() => handleCopy(item.link, 'đường dẫn', `link-${item.id}`)}
-                              className="w-7 h-7 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/5 dark:hover:bg-white/10 transition-all active:scale-95 cursor-pointer"
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/5 dark:hover:bg-white/10 transition-all active:scale-95 cursor-pointer shrink-0"
                               title="Sao chép link"
                             >
                               {copiedKey === `link-${item.id}` ? (
@@ -766,8 +773,8 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       </td>
 
                       {/* Actions */}
-                      <td className="pl-4 pr-6 sm:pr-8 py-3 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                      <td className="sticky right-0 z-10 px-4 py-3 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#141418]/95 group-hover:bg-[#f6f7fa] dark:group-hover:bg-[#1c1c24] backdrop-blur-xl shadow-[-8px_0_16px_rgba(0,0,0,0.04)] dark:shadow-[-8px_0_16px_rgba(0,0,0,0.35)] transition-colors">
+                        <div className="inline-flex items-center justify-end gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
                           <button
                             type="button"
                             onClick={() => {
@@ -807,19 +814,21 @@ export const UnifiedWorkspacePage: React.FC = () => {
 
         {/* 2. SHEET: ACCOUNT VAULT */}
         {activeTab === 'accounts' && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-thin">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
               <thead className="bg-white/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[11.5px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider select-none sticky top-0 z-10 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                 <tr>
                   <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]">
                     <GripVertical className="w-3.5 h-3.5 mx-auto opacity-30" />
                   </th>
-                  <th className="px-5 py-3.5 whitespace-nowrap min-w-[150px]">Phần Mềm</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[150px]">Tên Đăng Nhập</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Mật Khẩu</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Trang Đăng Nhập</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Ghi Chú</th>
-                  <th className="pl-4 pr-6 sm:pr-8 py-3.5 text-right whitespace-nowrap min-w-[110px]">Thao Tác</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[120px] max-w-[160px]">Phần Mềm</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px] max-w-[210px]">Tên Đăng Nhập</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[120px]">Mật Khẩu</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px]">Trang Đăng Nhập</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[120px] max-w-[240px]">Ghi Chú</th>
+                  <th className="sticky right-0 z-20 px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#181820]/95 backdrop-blur-2xl shadow-[-8px_0_16px_rgba(0,0,0,0.04)] dark:shadow-[-8px_0_16px_rgba(0,0,0,0.35)]">
+                    Thao Tác
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.04] dark:divide-white/5">
@@ -888,48 +897,48 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       </td>
 
                       {/* Software */}
-                      <td className="px-5 py-3 font-semibold text-[#1d1d1f] dark:text-white">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                          <span>{item.software}</span>
+                      <td className="px-4 py-3 font-semibold text-[#1d1d1f] dark:text-white min-w-[120px] max-w-[160px]">
+                        <div className="flex items-center gap-2 truncate">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                          <span className="truncate" title={item.software}>{item.software}</span>
                         </div>
                       </td>
 
                       {/* Username (1-Click Copy Badge) */}
-                      <td className="px-4 py-3">
+                      <td className="px-3.5 py-3 min-w-[130px] max-w-[210px]">
                         <button
                           type="button"
                           onClick={() => handleCopy(item.username, 'tài khoản', `user-${item.id}`)}
-                          className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.07] hover:bg-[#0066cc]/10 dark:hover:bg-[#2997ff]/15 font-mono text-[13px] font-medium transition-colors cursor-pointer group/user"
-                          title="Bấm để sao chép Tên Đăng Nhập"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.07] hover:bg-[#0066cc]/10 dark:hover:bg-[#2997ff]/15 font-mono text-[13px] font-medium transition-colors cursor-pointer group/user max-w-full"
+                          title={`Bấm để sao chép Tên Đăng Nhập: ${item.username}`}
                         >
-                          <span className="group-hover/user:text-[#0066cc] dark:group-hover/user:text-[#2997ff]">
+                          <span className="truncate max-w-[150px] group-hover/user:text-[#0066cc] dark:group-hover/user:text-[#2997ff]">
                             {item.username}
                           </span>
                           {copiedKey === `user-${item.id}` ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                           ) : (
-                            <Copy className="w-3 h-3 text-[#76767b] opacity-40 group-hover/user:opacity-100" />
+                            <Copy className="w-3 h-3 text-[#76767b] opacity-40 group-hover/user:opacity-100 shrink-0" />
                           )}
                         </button>
                       </td>
 
                       {/* Password (1-Click Copy + Reveal) */}
-                      <td className="px-4 py-3">
+                      <td className="px-3.5 py-3 min-w-[120px]">
                         <div className="inline-flex items-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => handleCopy(item.password || '', 'mật khẩu', `pass-${item.id}`)}
-                            className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.07] hover:bg-emerald-500/10 font-mono text-[13px] font-medium transition-colors cursor-pointer group/pass"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.07] hover:bg-emerald-500/10 font-mono text-[13px] font-medium transition-colors cursor-pointer group/pass"
                             title="Bấm để sao chép Mật Khẩu"
                           >
                             <span className="group-hover/pass:text-emerald-600 dark:group-hover/pass:text-emerald-400">
                               {showPasswordMap[item.id] ? item.password : '••••••••'}
                             </span>
                             {copiedKey === `pass-${item.id}` ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                             ) : (
-                              <Copy className="w-3 h-3 text-[#76767b] opacity-40 group-hover/pass:opacity-100" />
+                              <Copy className="w-3 h-3 text-[#76767b] opacity-40 group-hover/pass:opacity-100 shrink-0" />
                             )}
                           </button>
 
@@ -942,7 +951,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                                 [item.id]: !prev[item.id],
                               }))
                             }
-                            className="p-1 rounded-full text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white transition-colors"
+                            className="p-1 rounded-full text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white transition-colors shrink-0"
                             title={showPasswordMap[item.id] ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                           >
                             {showPasswordMap[item.id] ? (
@@ -955,31 +964,31 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       </td>
 
                       {/* Link */}
-                      <td className="px-4 py-3">
+                      <td className="px-3.5 py-3 min-w-[130px]">
                         {item.link ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <a
                               href={item.link}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="group/acc inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-200 active:scale-[0.97] cursor-pointer bg-white/70 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.16] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.08] dark:border-white/12 shadow-[0_1px_3px_rgba(0,0,0,0.04),inset_0_1px_0.5px_rgba(255,255,255,0.9)] hover:shadow-[0_4px_14px_rgba(0,113,227,0.18)] backdrop-blur-md"
+                              className="group/acc inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold transition-all duration-200 active:scale-[0.97] cursor-pointer bg-white/70 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.16] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.08] dark:border-white/12 shadow-[0_1px_3px_rgba(0,0,0,0.04),inset_0_1px_0.5px_rgba(255,255,255,0.9)] hover:shadow-[0_4px_14px_rgba(0,113,227,0.18)] backdrop-blur-md"
                               title="Mở trang đăng nhập trong tab mới"
                             >
                               <span>Đăng nhập</span>
-                              <span className="w-4 h-4 rounded-full bg-[#0071e3]/12 dark:bg-[#2997ff]/20 flex items-center justify-center text-[#0066cc] dark:text-[#2997ff] group-hover/acc:bg-[#0071e3] group-hover/acc:text-white transition-all shrink-0">
-                                <ExternalLink className="w-2.5 h-2.5" />
+                              <span className="w-3.5 h-3.5 rounded-full bg-[#0071e3]/12 dark:bg-[#2997ff]/20 flex items-center justify-center text-[#0066cc] dark:text-[#2997ff] group-hover/acc:bg-[#0071e3] group-hover/acc:text-white transition-all shrink-0">
+                                <ExternalLink className="w-2 h-2" />
                               </span>
                             </a>
                             <button
                               type="button"
                               onClick={() => handleCopy(item.link || '', 'đường dẫn', `acc-link-${item.id}`)}
-                              className="w-7 h-7 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/5 dark:hover:bg-white/10 transition-all active:scale-95 cursor-pointer"
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/5 dark:hover:bg-white/10 transition-all active:scale-95 cursor-pointer shrink-0"
                               title="Sao chép liên kết đăng nhập"
                             >
                               {copiedKey === `acc-link-${item.id}` ? (
                                 <Check className="w-3.5 h-3.5 text-[#34c759]" />
                               ) : (
-                                <Copy className="w-3.5 h-3.5 opacity-70 hover:opacity-100" />
+                                <Copy className="w-3 h-3 opacity-70 hover:opacity-100" />
                               )}
                             </button>
                           </div>
@@ -989,13 +998,15 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       </td>
 
                       {/* Note */}
-                      <td className="px-4 py-3 text-slate-500 dark:text-slate-400 max-w-xs truncate">
-                        {item.note || <span className="opacity-40 text-xs">—</span>}
+                      <td className="px-3.5 py-3 text-slate-500 dark:text-slate-400 min-w-[120px] max-w-[240px]">
+                        <span className="truncate block" title={item.note || ''}>
+                          {item.note || <span className="opacity-40 text-xs">—</span>}
+                        </span>
                       </td>
 
                       {/* Actions */}
-                      <td className="pl-4 pr-6 sm:pr-8 py-3 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                      <td className="sticky right-0 z-10 px-4 py-3 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#141418]/95 group-hover:bg-[#f6f7fa] dark:group-hover:bg-[#1c1c24] backdrop-blur-xl shadow-[-8px_0_16px_rgba(0,0,0,0.04)] dark:shadow-[-8px_0_16px_rgba(0,0,0,0.35)] transition-colors">
+                        <div className="inline-flex items-center justify-end gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
                           <button
                             type="button"
                             onClick={() => {
@@ -1039,18 +1050,20 @@ export const UnifiedWorkspacePage: React.FC = () => {
 
         {/* 3. SHEET: STORE DIRECTORY */}
         {activeTab === 'stores' && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-thin">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
               <thead className="bg-white/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[11.5px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider select-none sticky top-0 z-10 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                 <tr>
                   <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]">
                     <GripVertical className="w-3.5 h-3.5 mx-auto opacity-30" />
                   </th>
-                  <th className="px-5 py-3.5 whitespace-nowrap min-w-[110px]">Mã Cửa Hàng</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[220px]">Địa Chỉ Cửa Hàng</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Khu Vực / Loại</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px]">Google Maps</th>
-                  <th className="pl-4 pr-6 sm:pr-8 py-3.5 text-right whitespace-nowrap min-w-[110px]">Thao Tác</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[100px]">Mã Cửa Hàng</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[180px] max-w-[320px]">Địa Chỉ Cửa Hàng</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[110px]">Khu Vực / Loại</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px]">Google Maps</th>
+                  <th className="sticky right-0 z-20 px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#181820]/95 backdrop-blur-2xl shadow-[-8px_0_16px_rgba(0,0,0,0.04)] dark:shadow-[-8px_0_16px_rgba(0,0,0,0.35)]">
+                    Thao Tác
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.04] dark:divide-white/5">
@@ -1119,21 +1132,21 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       </td>
 
                       {/* Store Code */}
-                      <td className="px-5 py-3 font-mono font-bold text-[#0066cc] dark:text-[#2997ff]">
-                        <span className="px-2.5 py-1 rounded-md bg-[#0066cc]/10 dark:bg-[#2997ff]/15">
+                      <td className="px-4 py-3 font-mono font-bold text-[#0066cc] dark:text-[#2997ff] min-w-[100px]">
+                        <span className="px-2 py-0.5 rounded-md bg-[#0066cc]/10 dark:bg-[#2997ff]/15">
                           {item.storeCode}
                         </span>
                       </td>
 
                       {/* Address (1-Click Copy Badge) */}
-                      <td className="px-4 py-3 font-medium text-[#1d1d1f] dark:text-white">
+                      <td className="px-3.5 py-3 font-medium text-[#1d1d1f] dark:text-white min-w-[180px] max-w-[320px]">
                         <button
                           type="button"
                           onClick={() => handleCopy(item.address || '', 'địa chỉ', `store-${item.id}`)}
-                          className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.07] hover:bg-amber-500/10 transition-colors text-left cursor-pointer group/store"
-                          title="Bấm để sao chép Địa chỉ cửa hàng"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.07] hover:bg-amber-500/10 transition-colors text-left cursor-pointer group/store max-w-full"
+                          title={`Bấm để sao chép Địa chỉ: ${item.address}`}
                         >
-                          <span className="group-hover/store:text-amber-600 dark:group-hover/store:text-amber-400">
+                          <span className="truncate max-w-[240px] group-hover/store:text-amber-600 dark:group-hover/store:text-amber-400">
                             {item.address}
                           </span>
                           {copiedKey === `store-${item.id}` ? (
@@ -1145,7 +1158,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       </td>
 
                       {/* Type */}
-                      <td className="px-4 py-3">
+                      <td className="px-3.5 py-3 min-w-[110px]">
                         {item.type ? (
                           <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] text-[#76767b] dark:text-[#a1a1a6] font-medium">
                             {item.type}
@@ -1156,17 +1169,17 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       </td>
 
                       {/* Google Maps Link / In-app Preview */}
-                      <td className="px-4 py-3">
+                      <td className="px-3.5 py-3 min-w-[130px]">
                         {item.googleMaps || item.address ? (
                           <div className="inline-flex items-center gap-1.5">
                             <button
                               type="button"
                               onClick={() => setPreviewMapStore(item)}
-                              className="group/map inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-200 active:scale-[0.97] cursor-pointer bg-white/70 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.16] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.08] dark:border-white/12 shadow-[0_1px_3px_rgba(0,0,0,0.04),inset_0_1px_0.5px_rgba(255,255,255,0.9)] hover:shadow-[0_4px_14px_rgba(0,113,227,0.18)] backdrop-blur-md"
+                              className="group/map inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold transition-all duration-200 active:scale-[0.97] cursor-pointer bg-white/70 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.16] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.08] dark:border-white/12 shadow-[0_1px_3px_rgba(0,0,0,0.04),inset_0_1px_0.5px_rgba(255,255,255,0.9)] hover:shadow-[0_4px_14px_rgba(0,113,227,0.18)] backdrop-blur-md"
                               title="Xem trước bản đồ Google Maps trong web app"
                             >
-                              <span className="w-4 h-4 rounded-full bg-[#0071e3]/12 dark:bg-[#2997ff]/20 flex items-center justify-center text-[#0066cc] dark:text-[#2997ff] group-hover/map:bg-[#0071e3] group-hover/map:text-white transition-all shrink-0">
-                                <MapPin className="w-2.5 h-2.5" />
+                              <span className="w-3.5 h-3.5 rounded-full bg-[#0071e3]/12 dark:bg-[#2997ff]/20 flex items-center justify-center text-[#0066cc] dark:text-[#2997ff] group-hover/map:bg-[#0071e3] group-hover/map:text-white transition-all shrink-0">
+                                <MapPin className="w-2 h-2" />
                               </span>
                               <span>Xem bản đồ</span>
                             </button>
@@ -1175,10 +1188,10 @@ export const UnifiedWorkspacePage: React.FC = () => {
                                 href={item.googleMaps}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="w-7 h-7 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                                className="w-6 h-6 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/5 dark:hover:bg-white/10 transition-colors shrink-0"
                                 title="Mở trang Google Maps ngoài tab mới"
                               >
-                                <ExternalLink className="w-3.5 h-3.5 opacity-70 hover:opacity-100" />
+                                <ExternalLink className="w-3 h-3 opacity-70 hover:opacity-100" />
                               </a>
                             )}
                           </div>
@@ -1188,8 +1201,8 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       </td>
 
                       {/* Actions */}
-                      <td className="pl-4 pr-6 sm:pr-8 py-3 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                      <td className="sticky right-0 z-10 px-4 py-3 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#141418]/95 group-hover:bg-[#f6f7fa] dark:group-hover:bg-[#1c1c24] backdrop-blur-xl shadow-[-8px_0_16px_rgba(0,0,0,0.04)] dark:shadow-[-8px_0_16px_rgba(0,0,0,0.35)] transition-colors">
+                        <div className="inline-flex items-center justify-end gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
                           <button
                             type="button"
                             onClick={() => {
