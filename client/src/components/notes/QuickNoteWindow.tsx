@@ -1152,8 +1152,14 @@ export const QuickNoteWindow: React.FC = () => {
 
           {/* ─────────────────── Individual Task Reminder Mini Popover ─────────────────── */}
           {taskReminderPopover && (
-            <div className="absolute inset-0 z-40 bg-black/40 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-150">
-              <div className="w-full max-w-sm bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-3xl rounded-[24px] border border-white/80 dark:border-white/15 shadow-[0_24px_70px_rgba(0,0,0,0.3)] p-5 space-y-4 text-left animate-in zoom-in-95 duration-150">
+            <div
+              onClick={() => setTaskReminderPopover(null)}
+              className="absolute inset-0 z-40 bg-black/25 dark:bg-black/55 flex items-center justify-center p-4 animate-in fade-in duration-150"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-sm bg-white dark:bg-[#1c1c24] rounded-[24px] border border-black/10 dark:border-white/15 shadow-[0_24px_70px_rgba(0,0,0,0.3)] p-5 space-y-4 text-left animate-in zoom-in-95 duration-150"
+              >
                 <div className="flex items-center justify-between pb-2.5 border-b border-black/[0.06] dark:border-white/10">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
@@ -1286,8 +1292,14 @@ export const QuickNoteWindow: React.FC = () => {
 
           {/* ─────────────────── Apple Liquid Glass Master Reminder Modal ─────────────────── */}
           {showReminderModal && (
-            <div className="absolute inset-0 z-30 bg-black/25 dark:bg-black/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 rounded-[28px] animate-in fade-in duration-150">
-              <div className="w-full max-w-[440px] max-h-[500px] flex flex-col bg-white dark:bg-[#1c1c24] rounded-[24px] border border-black/10 dark:border-white/15 shadow-[0_24px_70px_rgba(0,0,0,0.25)] overflow-hidden text-left animate-in zoom-in-95 duration-150">
+            <div
+              onClick={() => setShowReminderModal(false)}
+              className="absolute inset-0 z-30 bg-black/20 dark:bg-black/50 flex items-center justify-center p-3 sm:p-4 rounded-[28px] animate-in fade-in duration-150"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-[440px] max-h-[500px] flex flex-col bg-white dark:bg-[#1c1c24] rounded-[24px] border border-black/10 dark:border-white/15 shadow-[0_24px_70px_rgba(0,0,0,0.25)] overflow-hidden text-left animate-in zoom-in-95 duration-150"
+              >
                 {/* Fixed Header */}
                 <div className="p-4 sm:px-5 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between shrink-0 bg-white/40 dark:bg-white/[0.02]">
                   <div className="flex items-center gap-2.5 min-w-0">
