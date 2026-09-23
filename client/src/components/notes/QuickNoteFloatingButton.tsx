@@ -5,8 +5,8 @@ import { SquarePen } from 'lucide-react';
 export const QuickNoteFloatingButton: React.FC = () => {
   const { isOpen, isMinimized, toggleNote, notes } = useNoteStore();
 
-  // If window is actively open (and not minimized), hide floating button to prevent clutter
-  if (isOpen && !isMinimized) {
+  // When note window is open (either expanded or minimized), hide this launcher button
+  if (isOpen) {
     return null;
   }
 

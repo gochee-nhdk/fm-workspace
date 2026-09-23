@@ -76,18 +76,12 @@ export const noteService = {
 
     const existing = isNew ? null : await this.getNoteById(id);
 
-    // Auto-generate title from first line if title is blank (classic Apple Notes UX)
-    let autoTitle = data.title?.trim();
-    if (!autoTitle && data.content) {
-      const firstLine = data.content.split('\n')[0].replace(/^#+\s*/, '').trim();
-      autoTitle = firstLine ? firstLine.slice(0, 48) : 'Ghi chú mới';
-    } else if (!autoTitle) {
-      autoTitle = 'Ghi chú mới';
-    }
+    // Preserve user title (allows clearing title completely while user is editing)
+    const titleToSave = data.title !== undefined ? data.title : (existing?.title ?? 'Ghi chú mới');
 
     const noteToSave: QuickNoteItem = {
       id,
-      title: autoTitle,
+      title: titleToSave,
       content: data.content ?? existing?.content ?? '',
       pinned: data.pinned ?? existing?.pinned ?? false,
       color: data.color ?? existing?.color ?? 'amber',

@@ -80,6 +80,12 @@ export const QuickNoteWindow: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const contentRef = useRef<HTMLTextAreaElement>(null);
 
+  // Local drafts for instant typing, smooth Vietnamese Telex / IME & zero cursor jumping
+  const [localTitle, setLocalTitle] = useState('');
+  const [localContent, setLocalContent] = useState('');
+  const activeNoteIdRef = useRef<string | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Initial load
   useEffect(() => {
     loadNotes();
@@ -89,22 +95,58 @@ export const QuickNoteWindow: React.FC = () => {
 
   const activeNote = notes.find((n) => n.id === activeNoteId) || notes[0];
 
+  // Sync local draft when active note switches
+  useEffect(() => {
+    if (activeNote) {
+      if (activeNoteIdRef.current !== activeNote.id) {
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+          debounceTimerRef.current = null;
+        }
+        activeNoteIdRef.current = activeNote.id;
+        setLocalTitle(activeNote.title || '');
+        setLocalContent(activeNote.content || '');
+      }
+    }
+  }, [activeNote?.id, activeNote?.title, activeNote?.content]);
+
+  // Clean up debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
   // Filter notes by search
   const filteredNotes = notes.filter((n) => {
     if (!searchTerm.trim()) return true;
     const q = searchTerm.toLowerCase();
     return (
-      n.title.toLowerCase().includes(q) ||
-      n.content.toLowerCase().includes(q)
+      (n.title || '').toLowerCase().includes(q) ||
+      (n.content || '').toLowerCase().includes(q)
     );
   });
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateActiveNote({ title: e.target.value });
+    const val = e.target.value;
+    setLocalTitle(val); // Instant local update, allowing empty string
+
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      updateActiveNote({ title: val });
+    }, 250);
   };
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    updateActiveNote({ content: e.target.value });
+    const val = e.target.value;
+    setLocalContent(val); // Instant local update
+
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      updateActiveNote({ content: val });
+    }, 300);
   };
 
   // Add a checklist task at cursor
@@ -113,11 +155,13 @@ export const QuickNoteWindow: React.FC = () => {
     const textarea = contentRef.current;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
-    const currentText = activeNote.content;
+    const currentText = localContent;
 
     const prefix = start > 0 && currentText[start - 1] !== '\n' ? '\n- [ ] ' : '- [ ] ';
     const newContent = currentText.substring(0, start) + prefix + currentText.substring(end);
 
+    setLocalContent(newContent);
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     updateActiveNote({ content: newContent });
 
     // Focus & position cursor after inserted prefix
@@ -130,7 +174,8 @@ export const QuickNoteWindow: React.FC = () => {
   // 1-Click copy whole note
   const handleCopyNote = () => {
     if (!activeNote) return;
-    const text = `${activeNote.title}\n\n${activeNote.content}`;
+    const title = localTitle.trim() || activeNote.title || 'Ghi chú';
+    const text = `${title}\n\n${localContent}`;
     navigator.clipboard.writeText(text.trim());
     setCopied(true);
     toast.success('Đã sao chép nội dung ghi chú!', { id: 'note-copied' });
@@ -154,7 +199,7 @@ export const QuickNoteWindow: React.FC = () => {
             <FileText className="w-3.5 h-3.5 drop-shadow-xs" />
           </div>
           <span className="text-[13px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] max-w-[160px] truncate">
-            {activeNote?.title || 'Ghi chú nhanh'}
+            {localTitle.trim() || activeNote?.title || 'Ghi chú mới'}
           </span>
           <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-[#76767b] dark:text-[#a1a1a6]">
             {notes.length}
@@ -369,7 +414,7 @@ export const QuickNoteWindow: React.FC = () => {
               <div className="mb-1 shrink-0">
                 <input
                   type="text"
-                  value={activeNote.title}
+                  value={localTitle}
                   onChange={handleTitleChange}
                   placeholder="Tiêu đề ghi chú..."
                   style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
@@ -385,7 +430,7 @@ export const QuickNoteWindow: React.FC = () => {
                       hour: '2-digit',
                       minute: '2-digit',
                     })}{' '}
-                    • {activeNote.content.length} ký tự
+                    • {localContent.length} ký tự
                   </span>
                   <span className="text-[#34c759] inline-flex items-center gap-1 font-medium shrink-0">
                     <Sparkles className="w-3 h-3 text-[#34c759]" /> Tự động lưu
@@ -411,7 +456,7 @@ export const QuickNoteWindow: React.FC = () => {
               {/* Editor Textarea - Seamless Flowing Writing Canvas */}
               <textarea
                 ref={contentRef}
-                value={activeNote.content}
+                value={localContent}
                 onChange={handleContentChange}
                 placeholder="Gõ ghi chú, danh sách việc cần làm, thông tin cần nhớ..."
                 style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
