@@ -91,8 +91,6 @@ export const QuickNoteWindow: React.FC = () => {
     loadNotes();
   }, [loadNotes]);
 
-  if (!isOpen) return null;
-
   const activeNote = notes.find((n) => n.id === activeNoteId) || notes[0];
 
   // Sync local draft when active note switches
@@ -181,6 +179,9 @@ export const QuickNoteWindow: React.FC = () => {
     toast.success('Đã sao chép nội dung ghi chú!', { id: 'note-copied' });
     setTimeout(() => setCopied(false), 2000);
   };
+
+  // Only render if opened
+  if (!isOpen) return null;
 
   // Minimized Floating Pill View
   if (isMinimized) {
