@@ -679,40 +679,6 @@ export const QuickNoteWindow: React.FC = () => {
               </button>
             </div>
 
-            {/* Mode Switcher: Text vs Interactive Checklist */}
-            {activeNote && (
-              <div className="hidden sm:flex items-center p-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.08]">
-                <button
-                  type="button"
-                  onClick={() => setEditorMode('text')}
-                  className={`px-3 py-1 rounded-full text-[11.5px] font-medium transition-all ${
-                    editorMode === 'text'
-                      ? 'bg-white dark:bg-zinc-800 text-[#1d1d1f] dark:text-white shadow-xs'
-                      : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
-                  }`}
-                >
-                  Văn bản
-                </button>
-                <button
-                  type="button"
-                  onClick={handleActivateChecklistMode}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11.5px] font-medium transition-all ${
-                    editorMode === 'checklist'
-                      ? 'bg-white dark:bg-zinc-800 text-amber-700 dark:text-amber-300 shadow-xs'
-                      : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
-                  }`}
-                >
-                  <CheckSquare className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Checklist</span>
-                  {checklistTotal > 0 && (
-                    <span className="text-[9.5px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400">
-                      {checklistCompleted}/{checklistTotal}
-                    </span>
-                  )}
-                </button>
-              </div>
-            )}
-
             {/* Right Window Controls: Reminder, Pin, Minimize, Close */}
             <div className="flex items-center gap-1.5 shrink-0 pl-2">
               {/* Reminder / Scheduling button */}
@@ -980,47 +946,65 @@ export const QuickNoteWindow: React.FC = () => {
                 </div>
               ) : (
                 /* Seamless Flowing Writing Canvas */
-                <textarea
-                  ref={contentRef}
-                  value={localContent}
-                  onChange={handleContentChange}
-                  placeholder="Gõ ghi chú, kế hoạch thu mua, thông tin cần nhớ... (Phím tắt Alt + N)"
-                  style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
-                  className="flex-1 w-full bg-transparent !border-0 !border-none !outline-none !shadow-none !ring-0 focus:!ring-0 focus:!outline-none focus:!border-none resize-none font-sans text-[14.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] placeholder:text-[#86868b]/50 dark:placeholder:text-[#636366]/60 p-0 selection:bg-amber-500/20 selection:text-amber-800 dark:selection:text-amber-200"
-                />
+                <div className="flex-1 flex flex-col min-h-0">
+                  {checklistTotal > 0 && (
+                    <div className="flex items-center justify-between px-3.5 py-2 mb-2.5 rounded-2xl bg-amber-500/[0.08] dark:bg-amber-400/[0.1] border border-amber-500/20 text-[12px] text-amber-900 dark:text-amber-200 shrink-0 animate-in fade-in duration-150">
+                      <div className="flex items-center gap-2">
+                        <CheckSquare className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                        <span>Ghi chú này có <strong>{checklistTotal} mục việc cần làm</strong></span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEditorMode('checklist')}
+                        className="font-semibold text-[#0071e3] dark:text-[#2997ff] hover:underline cursor-pointer flex items-center gap-1"
+                      >
+                        <span>Mở hộp Checklist</span> →
+                      </button>
+                    </div>
+                  )}
+                  <textarea
+                    ref={contentRef}
+                    value={localContent}
+                    onChange={handleContentChange}
+                    placeholder="Gõ ghi chú, kế hoạch thu mua, thông tin cần nhớ... (Phím tắt Alt + N)"
+                    style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
+                    className="flex-1 w-full bg-transparent !border-0 !border-none !outline-none !shadow-none !ring-0 focus:!ring-0 focus:!outline-none focus:!border-none resize-none font-sans text-[14.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] placeholder:text-[#86868b]/50 dark:placeholder:text-[#636366]/60 p-0 selection:bg-amber-500/20 selection:text-amber-800 dark:selection:text-amber-200"
+                  />
+                </div>
               )}
 
-              {/* Bottom Quick Tools Bar */}
-              <div className="pt-3 border-t border-black/[0.04] dark:border-white/[0.06] flex items-center justify-between gap-2 shrink-0">
-                <div className="flex items-center gap-2 shrink-0">
-                  {/* Insert / Toggle Checklist button */}
+              {/* Bottom Quick Tools Bar - Apple Liquid Glass Dock */}
+              <div className="pt-3 border-t border-black/[0.04] dark:border-white/[0.06] flex items-center justify-between gap-3 shrink-0">
+                {/* The ONE and ONLY Mode Switcher: Ghi chú vs Checklist */}
+                <div className="inline-flex items-center p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] backdrop-blur-xl shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setEditorMode('text')}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all duration-200 cursor-pointer whitespace-nowrap ${
+                      editorMode === 'text'
+                        ? 'bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-white shadow-[0_2px_8px_rgba(0,0,0,0.08),inset_0_1px_0.5px_rgba(255,255,255,0.9)] scale-[1.01]'
+                        : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5 text-[#0071e3] dark:text-[#2997ff]" />
+                    <span>Ghi chú</span>
+                  </button>
                   <button
                     type="button"
                     onClick={handleActivateChecklistMode}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-medium transition-all cursor-pointer active:scale-95 border ${
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-medium transition-all duration-200 cursor-pointer whitespace-nowrap ${
                       editorMode === 'checklist'
-                        ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30'
-                        : 'bg-black/[0.03] dark:bg-white/[0.06] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-[#1d1d1f] dark:text-[#f5f5f7] border-black/[0.04] dark:border-white/[0.08]'
+                        ? 'bg-white dark:bg-[#2c2c2e] text-amber-700 dark:text-amber-300 shadow-[0_2px_8px_rgba(0,0,0,0.08),inset_0_1px_0.5px_rgba(255,255,255,0.9)] scale-[1.01]'
+                        : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
                     }`}
-                    title="Mở hộp checklist việc cần làm tương tác"
                   >
-                    <CheckSquare className="w-3.5 h-3.5 text-[#0071e3] dark:text-[#2997ff]" />
+                    <CheckSquare className="w-3.5 h-3.5 text-amber-500" />
                     <span>Checklist</span>
-                  </button>
-
-                  {/* Pin note in list */}
-                  <button
-                    type="button"
-                    onClick={() => togglePinNote(activeNote.id)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-medium transition-all cursor-pointer border ${
-                      activeNote.pinned
-                        ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
-                        : 'bg-black/[0.03] dark:bg-white/[0.06] text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white border-black/[0.04] dark:border-white/[0.08]'
-                    }`}
-                    title={activeNote.pinned ? 'Bỏ ghim ghi chú' : 'Ghim ghi chú lên đầu'}
-                  >
-                    <Pin className="w-3 h-3" />
-                    <span>{activeNote.pinned ? 'Đã ghim' : 'Ghim'}</span>
+                    {checklistTotal > 0 && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 ml-0.5">
+                        {checklistCompleted}/{checklistTotal}
+                      </span>
+                    )}
                   </button>
                 </div>
 
