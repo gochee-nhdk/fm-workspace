@@ -274,25 +274,7 @@ class ReminderService {
 
     playAppleChime();
 
-    const targetEmail = note.reminderEmail || this.getPreferredEmail();
-
-    // 1. Send automated email in background if configured
-    if (note.reminderNotifyEmail && targetEmail) {
-      this.sendAutomatedEmail({
-        to: targetEmail,
-        noteTitle: note.title || 'Ghi chú công việc',
-        content: note.content,
-      }).then((res) => {
-        if (res.success) {
-          toast.success(`✉️ Hệ thống đã gửi email thông báo tới ${targetEmail}`, {
-            id: `email-sent-${note.id}`,
-            duration: 6000,
-          });
-        }
-      });
-    }
-
-    // 2. Desktop Notification
+    // 1. Desktop Notification
     if (note.reminderNotifyDesktop !== false && 'Notification' in window && Notification.permission === 'granted') {
       try {
         const notif = new Notification(`⏰ Nhắc nhở: ${note.title || 'Ghi chú công việc'}`, {
@@ -306,7 +288,7 @@ class ReminderService {
       } catch (_) {}
     }
 
-    // 3. In-App Apple HUD Alert
+    // 2. In-App Apple HUD Alert
     toast(
       (t) => (
         <div className="flex items-center gap-3 p-1">
@@ -322,11 +304,6 @@ class ReminderService {
             </p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            {note.reminderNotifyEmail && targetEmail && (
-              <span className="px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                ✉️ Đã báo mail
-              </span>
-            )}
             <button
               onClick={() => {
                 toast.dismiss(t.id);
@@ -352,26 +329,7 @@ class ReminderService {
   async fireTaskReminder(note: QuickNoteItem, task: TaskReminder): Promise<void> {
     playAppleChime();
 
-    const targetEmail = note.reminderEmail || this.getPreferredEmail();
-
-    // 1. Send automated email in background if configured
-    if (note.reminderNotifyEmail && targetEmail) {
-      this.sendAutomatedEmail({
-        to: targetEmail,
-        noteTitle: note.title || 'Ghi chú công việc',
-        taskText: task.taskText,
-        content: note.content,
-      }).then((res) => {
-        if (res.success) {
-          toast.success(`✉️ Hệ thống đã gửi email nhắc việc "${task.taskText}" tới ${targetEmail}`, {
-            id: `email-task-${note.id}-${task.id}`,
-            duration: 6000,
-          });
-        }
-      });
-    }
-
-    // 2. Desktop Notification
+    // 1. Desktop Notification
     if (note.reminderNotifyDesktop !== false && 'Notification' in window && Notification.permission === 'granted') {
       try {
         const notif = new Notification(`⏰ Nhắc việc: ${task.taskText}`, {
@@ -404,11 +362,6 @@ class ReminderService {
             </p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            {note.reminderNotifyEmail && targetEmail && (
-              <span className="px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                ✉️ Đã báo mail
-              </span>
-            )}
             <button
               onClick={() => {
                 toast.dismiss(t.id);

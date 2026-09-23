@@ -1,34 +1,25 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  FileText,
-  Plus,
-  Pin,
-  PinOff,
-  Minus,
-  X,
-  Trash2,
-  Copy,
-  Check,
-  PanelLeftClose,
-  PanelLeft,
-  Search,
-  CheckSquare,
-  Sparkles,
-  Clock,
-  Bell,
-  BellRing,
-  Mail,
-  Calendar,
-  Send,
-  ListTodo,
-  CheckCircle2,
-  Circle,
-  AlertCircle,
-  ExternalLink,
-} from 'lucide-react';
+  SFDocument,
+  SFPlus,
+  SFPin,
+  SFPinSlash,
+  SFMinus,
+  SFXmark,
+  SFTrash,
+  SFSquareOnSquare,
+  SFCheckmark,
+  SFSidebarLeft,
+  SFMagnifyingglass,
+  SFCheckmarkSquare,
+  SFSparkles,
+  SFClock,
+  SFBell,
+  SFBellBadge,
+} from 'sf-symbols-lib';
 import { useNoteStore } from '@/stores/note-store';
-import { QuickNoteColor, QuickNoteItem, TaskReminder, EmailProviderType } from '@/types/workspace';
+import { QuickNoteColor, QuickNoteItem, TaskReminder } from '@/types/workspace';
 import { reminderService, playAppleChime } from '@/services/reminderService';
 import toast from 'react-hot-toast';
 
@@ -154,22 +145,8 @@ export const QuickNoteWindow: React.FC = () => {
 
   // Main reminder modal state
   const [showReminderModal, setShowReminderModal] = useState(false);
-  const [reminderScope, setReminderScope] = useState<'note' | 'checklist'>('note');
   const [reminderDate, setReminderDate] = useState('');
   const [reminderDesktop, setReminderDesktop] = useState(true);
-  const [reminderEmail, setReminderEmail] = useState(false);
-  const [reminderEmailInput, setReminderEmailInput] = useState('');
-  const [reminderProvider, setReminderProvider] = useState<EmailProviderType>('gmail');
-  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
-
-  // SMTP configuration state
-  const [smtpConfigured, setSmtpConfigured] = useState<boolean | null>(null);
-  const [smtpSenderUser, setSmtpSenderUser] = useState<string>('');
-  const [showSmtpSetup, setShowSmtpSetup] = useState<boolean>(false);
-  const [smtpInputUser, setSmtpInputUser] = useState<string>('');
-  const [smtpInputPass, setSmtpInputPass] = useState<string>('');
-  const [smtpInputSenderName, setSmtpInputSenderName] = useState<string>('Trợ Lý Thu Mua');
-  const [isVerifyingSmtp, setIsVerifyingSmtp] = useState<boolean>(false);
 
   // Individual task reminder popover state
   const [taskReminderPopover, setTaskReminderPopover] = useState<{
@@ -222,9 +199,6 @@ export const QuickNoteWindow: React.FC = () => {
           setReminderDate('');
         }
         setReminderDesktop(activeNote.reminderNotifyDesktop ?? true);
-        setReminderEmail(activeNote.reminderNotifyEmail ?? false);
-        setReminderEmailInput(activeNote.reminderEmail || reminderService.getPreferredEmail() || '');
-        setReminderProvider(activeNote.emailProvider || reminderService.getPreferredProvider() || 'gmail');
       }
     }
   }, [activeNote]);
@@ -474,7 +448,6 @@ export const QuickNoteWindow: React.FC = () => {
 
   // ──────── Main Note Reminder Handlers ────────
   const handleOpenReminderModal = () => {
-    setReminderScope('note');
     if (activeNote?.reminderAt) {
       try {
         setReminderDate(toDatetimeLocal(new Date(activeNote.reminderAt)));
@@ -485,20 +458,7 @@ export const QuickNoteWindow: React.FC = () => {
       setReminderDate(toDatetimeLocal(new Date(Date.now() + 30 * 60 * 1000)));
     }
     setReminderDesktop(activeNote?.reminderNotifyDesktop ?? true);
-    setReminderEmail(activeNote?.reminderNotifyEmail ?? false);
-    const initialEmail = activeNote?.reminderEmail || reminderService.getPreferredEmail() || 'kaka.nhdk@gmail.com';
-    setReminderEmailInput(initialEmail);
-    setReminderProvider(activeNote?.emailProvider || reminderService.getPreferredProvider() || 'gmail');
     setShowReminderModal(true);
-
-    // Fetch live SMTP configuration status
-    reminderService.getSmtpStatus().then((status) => {
-      setSmtpConfigured(status.configured);
-      setSmtpSenderUser(status.fullUser || status.smtpUser || '');
-      if (!smtpInputUser) {
-        setSmtpInputUser(status.fullUser || initialEmail);
-      }
-    });
   };
 
   const handleApplyPreset = (minutesAhead: number) => {
@@ -541,18 +501,10 @@ export const QuickNoteWindow: React.FC = () => {
       }
     }
 
-    const emailToSave = reminderEmailInput.trim() || reminderService.getPreferredEmail() || 'kaka.nhdk@gmail.com';
-    if (reminderEmail && emailToSave) {
-      reminderService.setPreferredEmail(emailToSave);
-    }
-    reminderService.setPreferredProvider(reminderProvider);
-
     updateActiveNote({
       reminderAt: reminderIso,
       reminderNotifyDesktop: reminderDesktop,
-      reminderNotifyEmail: reminderEmail,
-      reminderEmail: emailToSave,
-      emailProvider: reminderProvider,
+      reminderNotifyEmail: false,
       reminderCompleted: false,
     });
 
@@ -578,72 +530,6 @@ export const QuickNoteWindow: React.FC = () => {
     toast.success('Đã hủy lịch nhắc nhở toàn bộ ghi chú', { id: 'reminder-removed' });
   };
 
-  const handleSaveSmtpConfig = async () => {
-    if (!smtpInputUser.trim() || !smtpInputPass.trim()) {
-      toast.error('Vui lòng nhập Email Gmail và Mật khẩu ứng dụng 16 ký tự');
-      return;
-    }
-    setIsVerifyingSmtp(true);
-    try {
-      const res = await reminderService.configureSmtp({
-        user: smtpInputUser.trim(),
-        pass: smtpInputPass.trim(),
-        senderName: smtpInputSenderName.trim() || 'Trợ Lý Thu Mua Farmers Market',
-      });
-      if (res.success) {
-        setSmtpConfigured(true);
-        setSmtpSenderUser(smtpInputUser.trim());
-        setShowSmtpSetup(false);
-        toast.success('🎉 Đã xác thực & kết nối máy chủ gửi mail Google SMTP thành công!');
-      } else {
-        toast.error(res.message, { duration: 6500 });
-      }
-    } finally {
-      setIsVerifyingSmtp(false);
-    }
-  };
-
-  const handleSendTestEmail = async () => {
-    if (!activeNote) return;
-    const target = reminderEmailInput.trim() || reminderService.getPreferredEmail();
-    if (!target) {
-      toast.error('Vui lòng nhập địa chỉ email người nhận trước');
-      return;
-    }
-
-    if (smtpConfigured === false) {
-      setShowSmtpSetup(true);
-      toast('Vui lòng thiết lập tài khoản Gmail SMTP trước để hệ thống có thể gửi email thực tế.', { icon: '⚙️', duration: 5000 });
-      return;
-    }
-
-    setIsSendingTestEmail(true);
-    try {
-      const res = await reminderService.sendAutomatedEmail({
-        to: target,
-        noteTitle: localTitle || activeNote.title || 'Ghi chú công việc',
-        content: localContent,
-        taskText: reminderScope === 'checklist' ? 'Kiểm tra thông báo checklist' : undefined,
-      });
-
-      if (res.success) {
-        reminderService.setPreferredEmail(target);
-        toast.success(`✉️ Hệ thống đã gửi email thực tế tới ${target}! Kiểm tra hộp thư đến (hoặc thư mục Spam).`, {
-          id: 'test-email-sent',
-          duration: 6000,
-        });
-      } else {
-        if (res.configured === false) {
-          setSmtpConfigured(false);
-          setShowSmtpSetup(true);
-        }
-        toast.error(res.message || 'Không thể gửi email tự động', { id: 'test-email-error', duration: 7000 });
-      }
-    } finally {
-      setIsSendingTestEmail(false);
-    }
-  };
-
   // Only render if opened
   if (!isOpen) return null;
 
@@ -661,7 +547,7 @@ export const QuickNoteWindow: React.FC = () => {
           title="Mở rộng cửa sổ ghi chú"
         >
           <div className="w-6 h-6 rounded-full bg-gradient-to-b from-[#ffd60a] to-[#ff9f0a] flex items-center justify-center text-white shadow-xs">
-            <FileText className="w-3.5 h-3.5 drop-shadow-xs" />
+            <SFDocument size={14} className="drop-shadow-xs" />
           </div>
           <span className="text-[13px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] max-w-[160px] truncate">
             {localTitle.trim() || activeNote?.title || 'Ghi chú mới'}
@@ -720,7 +606,7 @@ export const QuickNoteWindow: React.FC = () => {
             {/* Sidebar Search Bar */}
             <div className="p-3 border-b border-black/[0.06] dark:border-white/10">
               <div className="relative">
-                <Search className="w-3.5 h-3.5 text-[#86868b] absolute left-3 top-2.5 pointer-events-none" />
+                <SFMagnifyingglass size={14} className="text-[#86868b] absolute left-3 top-2.5 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Tìm ghi chú..."
@@ -765,11 +651,11 @@ export const QuickNoteWindow: React.FC = () => {
                       <div className="flex items-center gap-1 shrink-0">
                         {(hasNoteReminder || hasTaskReminder) && (
                           <span title="Có lịch nhắc việc">
-                            <Clock className="w-3 h-3 text-amber-500 fill-amber-500/20" />
+                            <SFClock size={12} className="text-amber-500 fill-amber-500/20" />
                           </span>
                         )}
                         {note.pinned && (
-                          <Pin className="w-3 h-3 text-amber-500 fill-amber-500" />
+                          <SFPin size={12} className="text-amber-500 fill-amber-500" />
                         )}
                       </div>
                     </div>
@@ -794,7 +680,7 @@ export const QuickNoteWindow: React.FC = () => {
                         className="opacity-0 group-hover:opacity-100 hover:text-rose-600 transition-opacity p-0.5"
                         title="Xóa ghi chú"
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <SFTrash size={12} />
                       </button>
                     </div>
                   </div>
@@ -820,16 +706,12 @@ export const QuickNoteWindow: React.FC = () => {
                 }`}
                 title={showSidebar ? 'Ẩn danh sách ghi chú' : 'Hiện danh sách ghi chú'}
               >
-                {showSidebar ? (
-                  <PanelLeftClose className="w-4 h-4" />
-                ) : (
-                  <PanelLeft className="w-4 h-4" />
-                )}
+                <SFSidebarLeft size={16} />
               </button>
 
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-full bg-gradient-to-b from-[#ffd60a] to-[#ff9f0a] flex items-center justify-center text-white shadow-xs">
-                  <FileText className="w-3.5 h-3.5" />
+                  <SFDocument size={14} />
                 </div>
                 <span className="text-[13px] font-bold text-[#1d1d1f] dark:text-white hidden sm:inline">
                   Ghi Chú Nhanh
@@ -842,7 +724,7 @@ export const QuickNoteWindow: React.FC = () => {
                 className="w-7 h-7 rounded-full bg-[#0071e3]/10 dark:bg-[#2997ff]/15 text-[#0066cc] dark:text-[#2997ff] hover:bg-[#0071e3] hover:text-white transition-all flex items-center justify-center cursor-pointer active:scale-90 ml-1"
                 title="Tạo ghi chú mới"
               >
-                <Plus className="w-4 h-4" />
+                <SFPlus size={16} />
               </button>
             </div>
 
@@ -859,7 +741,7 @@ export const QuickNoteWindow: React.FC = () => {
                 }`}
                 title={isPinned ? 'Bỏ chế độ ghim nổi (PiP)' : 'Ghim nổi trên cùng khi làm việc'}
               >
-                {isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
+                {isPinned ? <SFPinSlash size={14} /> : <SFPin size={14} />}
               </button>
 
               {/* Minimize to capsule */}
@@ -869,7 +751,7 @@ export const QuickNoteWindow: React.FC = () => {
                 className="w-7 h-7 rounded-full text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center transition-colors cursor-pointer"
                 title="Thu nhỏ xuống thanh nổi"
               >
-                <Minus className="w-3.5 h-3.5" />
+                <SFMinus size={14} />
               </button>
 
               {/* Close window */}
@@ -879,7 +761,7 @@ export const QuickNoteWindow: React.FC = () => {
                 className="w-7 h-7 rounded-full text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center transition-colors cursor-pointer"
                 title="Đóng (Esc)"
               >
-                <X className="w-3.5 h-3.5" />
+                <SFXmark size={14} />
               </button>
             </div>
           </div>
@@ -910,7 +792,7 @@ export const QuickNoteWindow: React.FC = () => {
                     • {localContent.length} ký tự
                   </span>
                   <span className="text-[#34c759] inline-flex items-center gap-1 font-medium shrink-0">
-                    <Sparkles className="w-3 h-3 text-[#34c759]" /> Tự động lưu
+                    <SFSparkles size={12} className="text-[#34c759]" /> Tự động lưu
                   </span>
                 </div>
 
@@ -924,7 +806,7 @@ export const QuickNoteWindow: React.FC = () => {
                       title="Nhấp để đổi giờ hoặc hủy nhắc hẹn cho ghi chú này"
                     >
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-                      <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                      <SFClock size={12} className="text-amber-600 dark:text-amber-400" />
                       <span>
                         {new Date(activeNote.reminderAt).toLocaleTimeString('vi-VN', {
                           hour: '2-digit',
@@ -935,16 +817,15 @@ export const QuickNoteWindow: React.FC = () => {
                           month: '2-digit',
                         })}
                       </span>
-                      {activeNote.reminderNotifyEmail && <span className="opacity-75">✉️</span>}
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={handleOpenReminderModal}
                       className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-black/[0.03] dark:bg-white/[0.05] hover:bg-amber-500/10 text-[#76767b] hover:text-amber-600 dark:hover:text-amber-400 border border-black/[0.04] dark:border-white/[0.06] transition-all cursor-pointer"
-                      title="Cài đặt lịch nhắc & gửi email cho ghi chú này"
+                      title="Cài đặt lịch nhắc cho ghi chú này"
                     >
-                      <Bell className="w-3 h-3" />
+                      <SFBell size={12} />
                       <span>Hẹn giờ nhắc</span>
                     </button>
                   )}
@@ -1027,7 +908,7 @@ export const QuickNoteWindow: React.FC = () => {
                           }`}
                           title={row.completed ? 'Đánh dấu chưa xong' : 'Đánh dấu đã hoàn thành'}
                         >
-                          {row.completed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                          {row.completed && <SFCheckmark size={14} className="stroke-[3]" />}
                         </button>
 
                         {/* Direct Editable Task Text Input */}
@@ -1068,7 +949,7 @@ export const QuickNoteWindow: React.FC = () => {
                             title="Nhấp để đổi giờ hoặc hủy nhắc cho việc này"
                           >
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                            <Clock className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                            <SFClock size={12} className="text-amber-600 dark:text-amber-400" />
                             <span>{formatReminderBadge(row.reminderAt)}</span>
                           </button>
                         ) : (
@@ -1085,7 +966,7 @@ export const QuickNoteWindow: React.FC = () => {
                             className="opacity-0 group-hover:opacity-100 p-1 text-[#86868b] hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-500/10 rounded-full transition-all cursor-pointer shrink-0"
                             title="Hẹn giờ nhắc riêng cho mục việc này"
                           >
-                            <Clock className="w-3.5 h-3.5" />
+                            <SFClock size={14} />
                           </button>
                         )}
 
@@ -1096,7 +977,7 @@ export const QuickNoteWindow: React.FC = () => {
                           className="opacity-0 group-hover:opacity-100 hover:text-rose-600 transition-opacity p-1 text-[#86868b] cursor-pointer shrink-0"
                           title="Xóa dòng này"
                         >
-                          <X className="w-3.5 h-3.5" />
+                          <SFXmark size={14} />
                         </button>
                       </div>
                     ))}
@@ -1107,7 +988,7 @@ export const QuickNoteWindow: React.FC = () => {
                       onClick={() => handleInsertChecklistRowAfter()}
                       className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border border-dashed border-black/15 dark:border-white/15 hover:border-amber-500/50 hover:bg-amber-500/[0.04] text-[13px] text-[#76767b] hover:text-amber-600 dark:hover:text-amber-400 transition-all cursor-pointer mt-2"
                     >
-                      <Plus className="w-4 h-4 text-amber-500" />
+                      <SFPlus size={16} className="text-amber-500" />
                       <span>Thêm mục mới... (Nhấn Enter)</span>
                     </button>
                   </div>
@@ -1139,7 +1020,7 @@ export const QuickNoteWindow: React.FC = () => {
                         : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
                     }`}
                   >
-                    <FileText className="w-3.5 h-3.5 text-[#0071e3] dark:text-[#2997ff]" />
+                    <SFDocument size={14} className="text-[#0071e3] dark:text-[#2997ff]" />
                     <span>Ghi chú</span>
                   </button>
                   <button
@@ -1151,7 +1032,7 @@ export const QuickNoteWindow: React.FC = () => {
                         : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
                     }`}
                   >
-                    <CheckSquare className="w-3.5 h-3.5 text-amber-500" />
+                    <SFCheckmarkSquare size={14} className="text-amber-500" />
                     <span>Checklist</span>
                     {checklistTotal > 0 && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 ml-0.5">
@@ -1171,12 +1052,12 @@ export const QuickNoteWindow: React.FC = () => {
                   >
                     {copied ? (
                       <>
-                        <Check className="w-3.5 h-3.5 text-[#34c759]" />
+                        <SFCheckmark size={14} className="text-[#34c759]" />
                         <span className="text-[#34c759] font-medium">Đã chép</span>
                       </>
                     ) : (
                       <>
-                        <Copy className="w-3.5 h-3.5 text-[#76767b] dark:text-[#a1a1a6]" />
+                        <SFSquareOnSquare size={14} className="text-[#76767b] dark:text-[#a1a1a6]" />
                         <span>Sao chép</span>
                       </>
                     )}
@@ -1188,14 +1069,14 @@ export const QuickNoteWindow: React.FC = () => {
                     className="w-8 h-8 rounded-full hover:bg-rose-500/10 text-[#76767b] hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
                     title="Xóa ghi chú này"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <SFTrash size={14} />
                   </button>
                 </div>
               </div>
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-[#76767b]">
-              <FileText className="w-10 h-10 opacity-30 mb-2" />
+              <SFDocument size={40} className="opacity-30 mb-2" />
               <p className="text-sm font-medium">Chưa có ghi chú nào</p>
               <button
                 type="button"
@@ -1220,7 +1101,7 @@ export const QuickNoteWindow: React.FC = () => {
                 <div className="flex items-center justify-between pb-2.5 border-b border-black/[0.06] dark:border-white/10">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                      <Clock className="w-3.5 h-3.5" />
+                      <SFClock size={14} />
                     </div>
                     <div>
                       <h4 className="font-bold text-[13.5px] text-[#1d1d1f] dark:text-white">
@@ -1236,7 +1117,7 @@ export const QuickNoteWindow: React.FC = () => {
                     onClick={() => setTaskReminderPopover(null)}
                     className="w-6 h-6 rounded-full hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center text-[#76767b] cursor-pointer"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <SFXmark size={14} />
                   </button>
                 </div>
 
@@ -1361,11 +1242,11 @@ export const QuickNoteWindow: React.FC = () => {
                 <div className="p-4 sm:px-5 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between shrink-0 bg-white/40 dark:bg-white/[0.02]">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-8 h-8 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                      <BellRing className="w-4 h-4" />
+                      <SFBellBadge size={16} />
                     </div>
                     <div className="min-w-0">
                       <h4 className="font-bold text-[14px] text-[#1d1d1f] dark:text-white truncate">
-                        Cài Lịch Nhắc Nhở & Email
+                        Cài Lịch Nhắc Nhở
                       </h4>
                       <p className="text-[11px] text-[#86868b] dark:text-[#a1a1a6] truncate">
                         {activeNote.title ? `Cho "${activeNote.title}"` : 'Hẹn giờ thông báo tự động'}
@@ -1377,7 +1258,7 @@ export const QuickNoteWindow: React.FC = () => {
                     onClick={() => setShowReminderModal(false)}
                     className="w-7 h-7 rounded-full hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center text-[#76767b] cursor-pointer shrink-0"
                   >
-                    <X className="w-4 h-4" />
+                    <SFXmark size={16} />
                   </button>
                 </div>
 
@@ -1489,14 +1370,14 @@ export const QuickNoteWindow: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Section 4: Notification Channels & Automated Email */}
+                  {/* Section 4: Notification Channels */}
                   <div className="space-y-2 pt-3 border-t border-black/[0.06] dark:border-white/10">
                     <label className="text-[11px] font-semibold text-[#86868b] dark:text-[#a1a1a6] uppercase tracking-wider block">
                       Kênh nhận thông báo
                     </label>
 
                     {/* Desktop Push Notification Toggle */}
-                    <label className="flex items-center gap-3 p-2.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.04] dark:border-white/[0.06] cursor-pointer hover:bg-black/[0.04]">
+                    <label className="flex items-center gap-3 p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.04] dark:border-white/[0.06] cursor-pointer hover:bg-black/[0.04] transition-colors">
                       <input
                         type="checkbox"
                         checked={reminderDesktop}
@@ -1505,182 +1386,13 @@ export const QuickNoteWindow: React.FC = () => {
                       />
                       <div className="flex-1 text-[12.5px]">
                         <span className="font-semibold text-[#1d1d1f] dark:text-white">
-                          Thông báo màn hình Desktop & Chuông kính Apple
-                        </span>
-                        <p className="text-[11px] text-[#86868b] dark:text-[#a1a1a6]">
-                          Hiển thị pop-up trên máy tính và phát âm thanh chuông tinh thể
-                        </p>
-                      </div>
-                    </label>
-
-                    {/* Automated Email Notification Toggle */}
-                    <label className="flex items-start gap-3 p-2.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.04] dark:border-white/[0.06] cursor-pointer hover:bg-black/[0.04]">
-                      <input
-                        type="checkbox"
-                        checked={reminderEmail}
-                        onChange={(e) => setReminderEmail(e.target.checked)}
-                        className="w-4 h-4 mt-0.5 rounded text-[#0071e3] accent-[#0071e3] cursor-pointer"
-                      />
-                      <div className="flex-1 text-[12.5px]">
-                        <span className="font-semibold text-[#1d1d1f] dark:text-white">
-                          Hệ thống tự động gửi thông báo qua Email
+                          Thông báo màn hình & Chuông kính Apple
                         </span>
                         <p className="text-[11px] text-[#86868b] dark:text-[#a1a1a6] mt-0.5">
-                          Hệ thống tự động gửi email thông báo về hòm thư khi đến giờ hẹn mà bạn không cần thao tác
+                          Hiển thị pop-up trên màn hình máy tính và phát âm thanh chuông tinh thể khi đến hạn
                         </p>
                       </div>
                     </label>
-
-                    {/* Email Recipient & Automated Test Send */}
-                    {reminderEmail && (
-                      <div className="pl-6 space-y-2.5 animate-in fade-in duration-150">
-                        <div>
-                          <label className="text-[11px] font-medium text-[#76767b] dark:text-[#a1a1a6] block mb-1">
-                            Địa chỉ Email nhận thông báo:
-                          </label>
-                          <input
-                            type="email"
-                            placeholder="kaka.nhdk@gmail.com"
-                            value={reminderEmailInput}
-                            onChange={(e) => setReminderEmailInput(e.target.value)}
-                            className="w-full px-3 py-1.5 rounded-xl text-[12.5px] bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 text-[#1d1d1f] dark:text-white placeholder:text-[#86868b] focus:border-[#0071e3] outline-none"
-                          />
-                        </div>
-
-                        {/* SMTP Status Indicator */}
-                        {smtpConfigured === false && (
-                          <div className="p-3 rounded-2xl bg-amber-500/[0.08] border border-amber-500/25 space-y-2 text-left">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1.5 text-[12px] font-semibold text-amber-800 dark:text-amber-300">
-                                <span>⚠️ Chưa kết nối tài khoản gửi mail (SMTP)</span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => setShowSmtpSetup(!showSmtpSetup)}
-                                className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-600 text-white hover:bg-amber-700 cursor-pointer transition-colors shadow-2xs shrink-0"
-                              >
-                                {showSmtpSetup ? 'Thu gọn' : '⚙️ Cấu hình gửi Gmail'}
-                              </button>
-                            </div>
-                            <p className="text-[11px] text-[#76767b] dark:text-[#a1a1a6] leading-relaxed">
-                              Hệ thống cần tài khoản Gmail & Mật khẩu ứng dụng (App Password) để gửi email thực tế đến hòm thư của bạn.
-                            </p>
-                          </div>
-                        )}
-
-                        {smtpConfigured === true && (
-                          <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/20 text-[11.5px] text-emerald-800 dark:text-emerald-300">
-                            <span className="flex items-center gap-1.5 truncate">
-                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                              <span>Đã kết nối gửi mail: <strong className="font-semibold">{smtpSenderUser || 'Gmail SMTP'}</strong></span>
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setShowSmtpSetup(!showSmtpSetup)}
-                              className="text-[11px] text-[#0071e3] dark:text-[#2997ff] hover:underline cursor-pointer ml-2 shrink-0 font-medium"
-                            >
-                              {showSmtpSetup ? 'Đóng' : 'Đổi tài khoản'}
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Inline SMTP Setup Form */}
-                        {showSmtpSetup && (
-                          <div className="p-3.5 rounded-2xl bg-white dark:bg-[#25252d] border border-black/10 dark:border-white/15 shadow-sm space-y-3 animate-in fade-in slide-in-from-top-2 duration-150 text-left">
-                            <div className="flex items-center justify-between pb-2 border-b border-black/[0.06] dark:border-white/10">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm">📧</span>
-                                <span className="text-[12.5px] font-bold text-[#1d1d1f] dark:text-white">
-                                  Thiết lập tài khoản gửi Gmail SMTP
-                                </span>
-                              </div>
-                              <a
-                                href="https://myaccount.google.com/apppasswords"
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-[11px] text-[#0071e3] dark:text-[#2997ff] hover:underline cursor-pointer font-medium"
-                              >
-                                Tạo App Password ↗
-                              </a>
-                            </div>
-
-                            <div className="space-y-2">
-                              <div>
-                                <label className="text-[11px] font-medium text-[#76767b] dark:text-[#a1a1a6] block mb-1">
-                                  Tài khoản Gmail gửi đi (Email của bạn):
-                                </label>
-                                <input
-                                  type="email"
-                                  placeholder="vd: kaka.nhdk@gmail.com"
-                                  value={smtpInputUser}
-                                  onChange={(e) => setSmtpInputUser(e.target.value)}
-                                  className="w-full px-3 py-1.5 rounded-xl text-[12px] bg-black/[0.02] dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none focus:border-[#0071e3] text-[#1d1d1f] dark:text-white"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="text-[11px] font-medium text-[#76767b] dark:text-[#a1a1a6] block mb-1">
-                                  Mật khẩu ứng dụng (Google App Password 16 chữ cái):
-                                </label>
-                                <input
-                                  type="password"
-                                  placeholder="vd: abcd efgh ijkl mnop"
-                                  value={smtpInputPass}
-                                  onChange={(e) => setSmtpInputPass(e.target.value)}
-                                  className="w-full px-3 py-1.5 rounded-xl text-[12px] bg-black/[0.02] dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none focus:border-[#0071e3] text-[#1d1d1f] dark:text-white tracking-widest font-mono"
-                                />
-                                <p className="text-[10px] text-[#86868b] dark:text-[#a1a1a6] mt-1 leading-normal">
-                                  * Không phải mật khẩu Gmail thường. Bật xác minh 2 bước và tạo tại <span className="font-mono text-[#0071e3]">myaccount.google.com/apppasswords</span>.
-                                </p>
-                              </div>
-
-                              <div>
-                                <label className="text-[11px] font-medium text-[#76767b] dark:text-[#a1a1a6] block mb-1">
-                                  Tên người gửi hiển thị:
-                                </label>
-                                <input
-                                  type="text"
-                                  placeholder="Trợ Lý Thu Mua • Farmers Market"
-                                  value={smtpInputSenderName}
-                                  onChange={(e) => setSmtpInputSenderName(e.target.value)}
-                                  className="w-full px-3 py-1.5 rounded-xl text-[12px] bg-black/[0.02] dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none focus:border-[#0071e3] text-[#1d1d1f] dark:text-white"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="pt-2 flex items-center justify-end gap-2 border-t border-black/[0.06] dark:border-white/10">
-                              <button
-                                type="button"
-                                onClick={() => setShowSmtpSetup(false)}
-                                className="px-3 py-1.5 rounded-full text-[11.5px] text-[#76767b] hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
-                              >
-                                Đóng
-                              </button>
-                              <button
-                                type="button"
-                                onClick={handleSaveSmtpConfig}
-                                disabled={isVerifyingSmtp}
-                                className="px-3.5 py-1.5 rounded-full text-[11.5px] font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-xs"
-                              >
-                                {isVerifyingSmtp ? 'Đang kiểm tra kết nối...' : 'Lưu & Kiểm tra kết nối'}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-amber-500/[0.06] border border-amber-500/20 text-[11.5px] text-amber-800 dark:text-amber-200">
-                          <span className="truncate">⚡ Tự động gửi email khi đến giờ hẹn</span>
-                          <button
-                            type="button"
-                            onClick={handleSendTestEmail}
-                            disabled={isSendingTestEmail}
-                            className="px-3 py-1 rounded-full text-[11px] font-semibold bg-[#0071e3] text-white hover:bg-[#0077ed] transition-colors cursor-pointer disabled:opacity-50 shrink-0"
-                          >
-                            {isSendingTestEmail ? 'Đang gửi...' : 'Gửi thử 1 mail ngay'}
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
 

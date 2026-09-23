@@ -1,0 +1,28 @@
+{
+  "name": "Farmers Market - Personal Work OS",
+  "short_name": "FM Workspace",
+  "description": "Trợ lý thu mua & Quản lý vận hành hàng hóa Farmers Market theo chuẩn Apple Liquid Glass",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f5f7",
+  "theme_color": "#0071e3",
+  "icons": [
+    {
+      "src": "/apple-app-icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "48x48 32x32 16x16",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

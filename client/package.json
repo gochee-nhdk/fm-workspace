@@ -27,6 +27,7 @@
     "react-hot-toast": "^2.4.1",
     "react-router-dom": "^7.0.0",
     "recharts": "^2.12.3",
+    "sf-symbols-lib": "^2.0.1",
     "tailwind-merge": "^2.2.2",
     "xlsx": "^0.18.5",
     "zod": "^3.22.4",

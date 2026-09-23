@@ -2,7 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import toast, { Toaster, resolveValue, useToasterStore } from 'react-hot-toast';
 import { Suspense, useEffect } from 'react';
-import { Check, AlertCircle, Loader2, Info } from 'lucide-react';
+import { SFCheckmarkCircleFill, SFExclamationmarkCircle, SFInfoCircle } from 'sf-symbols-lib';
+import { Loader2 } from 'lucide-react';
 import RoutesConfig from './routes';
 import { useUiStore } from '@/stores/ui-store';
 
@@ -64,9 +65,16 @@ export default function App() {
           containerClassName="apple-toaster-container"
           containerStyle={{
             bottom: 32,
+            left: 0,
+            right: 0,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            pointerEvents: 'none',
+            zIndex: 99999,
           }}
           toastOptions={{
-            duration: 2200,
+            duration: 2500,
           }}
         >
           {(t) => {
@@ -101,14 +109,14 @@ export default function App() {
                       : 'bg-gradient-to-b from-[#5856d6] to-[#3634a3] text-white border-white/60 shadow-[0_2px_8px_rgba(88,86,214,0.5)]'
                   }`}
                 >
-                  {isSuccess && <Check className="w-3.5 h-3.5 stroke-[2.8]" />}
-                  {isError && <AlertCircle className="w-3.5 h-3.5 stroke-[2.5]" />}
+                  {isSuccess && <SFCheckmarkCircleFill size={15} />}
+                  {isError && <SFExclamationmarkCircle size={15} />}
                   {isLoading && <Loader2 className="w-3.5 h-3.5 stroke-[2.5] animate-spin" />}
-                  {!isSuccess && !isError && !isLoading && <Info className="w-3.5 h-3.5 stroke-[2.5]" />}
+                  {!isSuccess && !isError && !isLoading && <SFInfoCircle size={15} />}
                 </div>
 
                 {/* Apple Typography Message Label */}
-                <span className="text-[13px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight whitespace-nowrap z-10">
+                <span className="text-[13px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight z-10 break-words line-clamp-2 text-center sm:text-left">
                   {resolveValue(t.message, t)}
                 </span>
               </div>

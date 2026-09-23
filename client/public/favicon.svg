@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="fav-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0071e3" />
+      <stop offset="55%" stop-color="#00a389" />
+      <stop offset="100%" stop-color="#34c759" />
+    </linearGradient>
+    <linearGradient id="fav-specular" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.8" />
+      <stop offset="40%" stop-color="#ffffff" stop-opacity="0.1" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.0" />
+    </linearGradient>
+  </defs>
+
+  <!-- Apple Squircle Background -->
+  <path
+    d="M 115 16
+       C 38 16 16 38 16 115
+       L 16 397
+       C 16 474 38 496 115 496
+       L 397 496
+       C 474 496 496 474 496 397
+       L 496 115
+       C 496 38 474 16 397 16
+       Z"
+    fill="url(#fav-bg)"
+  />
+
+  <!-- Top Glass Highlight -->
+  <path
+    d="M 115 18
+       C 40 18 20 40 18 115
+       L 18 135
+       C 20 60 60 20 135 18
+       L 377 18
+       C 452 20 492 60 494 135
+       L 494 115
+       C 492 40 472 18 397 18
+       Z"
+    fill="url(#fav-specular)"
+  />
+
+  <!-- Central High-Contrast Tote Bag & Leaf -->
+  <path
+    d="M 166 210
+       C 166 198 176 188 188 188
+       L 324 188
+       C 336 188 346 198 346 210
+       L 362 368
+       C 364 388 348 406 328 406
+       L 184 406
+       C 164 406 148 388 150 368
+       Z"
+    fill="#ffffff"
+  />
+
+  <path
+    d="M 206 188
+       L 206 148
+       C 206 120 228 98 256 98
+       C 284 98 306 120 306 148
+       L 306 188"
+    fill="none"
+    stroke="#ffffff"
+    stroke-width="26"
+    stroke-linecap="round"
+  />
+
+  <!-- Leaf Silhouette -->
+  <path
+    d="M 256 236
+       C 290 236 314 262 314 295
+       C 314 336 274 356 256 364
+       C 238 356 198 336 198 295
+       C 198 262 222 236 256 236
+       Z"
+    fill="#00966b"
+  />
+
+  <!-- Star Sparkle -->
+  <g transform="translate(360, 126)">
+    <path
+      d="M 0 -38
+         C 0 -11 11 0 38 0
+         C 11 0 0 11 0 38
+         C 0 11 -11 0 -38 0
+         C -11 0 0 -11 0 -38
+         Z"
+      fill="#ffffff"
+    />
+  </g>
+</svg>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNoteStore } from '@/stores/note-store';
-import { SquarePen } from 'lucide-react';
+import { SFSquareAndPencil } from 'sf-symbols-lib';
 
 export const QuickNoteFloatingButton: React.FC = () => {
   const { isOpen, isMinimized, toggleNote, notes } = useNoteStore();
@@ -35,7 +35,7 @@ export const QuickNoteFloatingButton: React.FC = () => {
 
         {/* Icon */}
         <div className="relative flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-tr from-amber-500 to-amber-400 text-white shadow-sm shadow-amber-500/30 group-hover:rotate-[-6deg] transition-transform duration-300">
-          <SquarePen className="w-3.5 h-3.5" />
+          <SFSquareAndPencil size={15} />
         </div>
 
         {/* Label */}
