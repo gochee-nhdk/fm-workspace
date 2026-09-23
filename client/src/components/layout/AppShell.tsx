@@ -28,6 +28,7 @@ import { QuickNoteFloatingButton } from '@/components/notes/QuickNoteFloatingBut
 import { useUiStore } from '@/stores/ui-store';
 import { useNoteStore } from '@/stores/note-store';
 import { Button } from '@/components/ui/button';
+import { reminderService } from '@/services/reminderService';
 
 const navItems = [
   { to: '/', label: 'Bàn làm việc chính', icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -108,6 +109,14 @@ export const AppShell: React.FC = () => {
     const handleOpenImport = () => setImportModalOpen(true);
     window.addEventListener('fm:open-import', handleOpenImport);
     return () => window.removeEventListener('fm:open-import', handleOpenImport);
+  }, []);
+
+  // Background reminder notifications monitor
+  useEffect(() => {
+    const stop = reminderService.startMonitoring();
+    return () => {
+      stop();
+    };
   }, []);
 
   // Logo click: go home via React Router
@@ -226,28 +235,6 @@ export const AppShell: React.FC = () => {
               )}
             </NavLink>
           ))}
-
-          {/* Quick Note Item */}
-          <button
-            type="button"
-            onClick={() => openNote()}
-            title={isSidebarCollapsed ? 'Ghi chú nhanh (⌥N hoặc Ctrl+J)' : undefined}
-            className={`w-full flex items-center ${
-              isSidebarCollapsed ? 'justify-center w-11 h-11 mx-auto px-0' : 'gap-3 px-3.5 py-2.5'
-            } rounded-full text-[13.5px] transition-all duration-200 ease-out active:scale-[0.98] text-[#555558] dark:text-[#a1a1a6] hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 hover:shadow-[0_2px_8px_rgba(245,158,11,0.08)] cursor-pointer group`}
-          >
-            <span className="p-1 rounded-lg text-amber-500 dark:text-amber-400 shrink-0 group-hover:scale-110 transition-transform">
-              <SquarePen className="w-4 h-4" />
-            </span>
-            {!isSidebarCollapsed && (
-              <div className="flex items-center justify-between flex-1 min-w-0">
-                <span className="truncate whitespace-nowrap font-medium">Ghi chú nhanh</span>
-                <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 text-slate-400 group-hover:text-amber-500 transition-colors">
-                  ⌥N
-                </kbd>
-              </div>
-            )}
-          </button>
         </nav>
 
         {/* Sidebar Bottom Controls */}
@@ -325,7 +312,7 @@ export const AppShell: React.FC = () => {
                 Tìm nhanh link, CH, tài khoản...
               </span>
               <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono rounded-md bg-white/80 dark:bg-white/10 border border-black/10 dark:border-white/10 text-[#76767b] dark:text-[#a1a1a6] shadow-2xs group-hover:border-[#0071e3]/30 transition-colors">
-                <Command className="w-2.5 h-2.5" /> K
+                Ctrl + K
               </kbd>
             </button>
 
@@ -344,7 +331,7 @@ export const AppShell: React.FC = () => {
             <button
               onClick={() => openNote()}
               className="liquid-lens-circle w-10 h-10 group relative"
-              title="Ghi chú nhanh (⌥N hoặc Ctrl+J)"
+              title="Ghi chú nhanh (Alt + N hoặc Ctrl + J)"
               aria-label="Mở ghi chú nhanh"
             >
               <SquarePen className="w-4 h-4 text-amber-500 dark:text-amber-400 group-hover:scale-110 transition-transform duration-200" />
@@ -438,21 +425,6 @@ export const AppShell: React.FC = () => {
                     <span>{item.label}</span>
                   </NavLink>
                 ))}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    openNote();
-                  }}
-                  className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-full text-[14px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/15 cursor-pointer transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <SquarePen className="w-4 h-4" />
-                    <span>Ghi chú nhanh</span>
-                  </div>
-                  <span className="text-[11px] font-mono opacity-80">⌥N</span>
-                </button>
               </nav>
 
               <div className="pt-4 border-t border-[#e0e0e0] dark:border-white/10 space-y-2">

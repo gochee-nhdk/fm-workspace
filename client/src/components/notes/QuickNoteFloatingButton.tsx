@@ -16,7 +16,7 @@ export const QuickNoteFloatingButton: React.FC = () => {
     <div className="fixed bottom-6 right-6 z-40 print:hidden">
       <button
         onClick={toggleNote}
-        title="Ghi chú nhanh (⌥N hoặc Ctrl+J)"
+        title="Ghi chú nhanh (Alt + N hoặc Ctrl + J)"
         className={`group relative flex items-center gap-2.5 px-4 py-2.5 rounded-full
           backdrop-blur-2xl bg-white/75 dark:bg-[#1c1c1e]/75
           border border-white/60 dark:border-white/15
@@ -44,7 +44,7 @@ export const QuickNoteFloatingButton: React.FC = () => {
             Ghi chú
           </span>
           <span className="text-[10px] font-mono text-slate-400 dark:text-slate-400 mt-0.5">
-            ⌥N
+            Alt+N
           </span>
         </div>
 

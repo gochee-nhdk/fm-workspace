@@ -79,6 +79,12 @@ export interface QuickNoteItem {
   pinned?: boolean;
   color?: QuickNoteColor;
   tags?: string[];
+  reminderAt?: string | null;
+  reminderEmail?: string | null;
+  reminderNotifyDesktop?: boolean;
+  reminderNotifyEmail?: boolean;
+  reminderCompleted?: boolean;
   createdAt: string;
   updatedAt: string;
 }
+

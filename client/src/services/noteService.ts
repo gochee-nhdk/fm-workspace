@@ -86,6 +86,11 @@ export const noteService = {
       pinned: data.pinned ?? existing?.pinned ?? false,
       color: data.color ?? existing?.color ?? 'amber',
       tags: data.tags ?? existing?.tags ?? [],
+      reminderAt: data.reminderAt !== undefined ? data.reminderAt : (existing?.reminderAt ?? null),
+      reminderEmail: data.reminderEmail !== undefined ? data.reminderEmail : (existing?.reminderEmail ?? null),
+      reminderNotifyDesktop: data.reminderNotifyDesktop !== undefined ? data.reminderNotifyDesktop : (existing?.reminderNotifyDesktop ?? true),
+      reminderNotifyEmail: data.reminderNotifyEmail !== undefined ? data.reminderNotifyEmail : (existing?.reminderNotifyEmail ?? false),
+      reminderCompleted: data.reminderCompleted !== undefined ? data.reminderCompleted : (existing?.reminderCompleted ?? false),
       createdAt: existing?.createdAt || now,
       updatedAt: now,
     };

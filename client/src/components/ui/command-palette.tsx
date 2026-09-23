@@ -264,7 +264,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         type: 'action' as const,
         id: 'act-quick-note',
         label: 'Mở cửa sổ Ghi chú nhanh (Quick Note)',
-        sub: 'Tạo hoặc xem các ghi chú công việc nhanh (phím tắt ⌥N hoặc Ctrl+J)',
+        sub: 'Tạo hoặc xem các ghi chú công việc nhanh (phím tắt Alt + N hoặc Ctrl + J)',
         tag: 'Ghi chú',
         icon: <SquarePen className="w-4 h-4" />,
         iconBg: 'bg-amber-500/12 dark:bg-amber-500/20',
