@@ -229,6 +229,28 @@
   button, input, select, textarea {
     font-family: inherit;
   }
+
+  /* Apple Notes Seamless Paper Canvas - Zero harsh browser rectangular frames */
+  .apple-note-canvas input,
+  .apple-note-canvas textarea {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    background: transparent !important;
+  }
+  .apple-note-canvas input:focus,
+  .apple-note-canvas textarea:focus,
+  .apple-note-canvas input:focus-visible,
+  .apple-note-canvas textarea:focus-visible {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    outline-offset: 0 !important;
+  }
+
   .theme {
     --lq-radius: 16px;
   }

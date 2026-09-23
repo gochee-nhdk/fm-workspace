@@ -189,9 +189,12 @@ export const QuickNoteWindow: React.FC = () => {
       <div
         className={`pointer-events-auto relative w-full ${
           isPinned ? 'max-w-[440px] sm:max-w-[480px]' : 'max-w-2xl'
-        } h-[540px] max-h-[88vh] bg-white/95 dark:bg-[#16161c]/95 backdrop-blur-3xl rounded-[26px] border border-white/80 dark:border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.22),inset_0_1.5px_1px_rgba(255,255,255,1),inset_0_-1px_1.5px_rgba(0,0,0,0.08)] dark:shadow-[0_28px_90px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.18)] flex overflow-hidden z-10 transition-all duration-220 ease-out`}
+        } h-[540px] max-h-[88vh] bg-white/95 dark:bg-[#16161c]/95 backdrop-blur-3xl rounded-[28px] border border-white/80 dark:border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.18),inset_0_1.5px_1px_rgba(255,255,255,1),inset_0_-1px_1.5px_rgba(0,0,0,0.06)] dark:shadow-[0_28px_90px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.18)] flex overflow-hidden z-10 transition-all duration-220 ease-out`}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Top Meniscus Specular Reflection */}
+        <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/90 dark:via-white/25 to-transparent pointer-events-none z-20" />
+
         {/* ───────── Collapsible Notes List Sidebar ───────── */}
         {showSidebar && (
           <div className="w-60 sm:w-64 border-r border-black/[0.06] dark:border-white/10 flex flex-col bg-black/[0.02] dark:bg-white/[0.02] shrink-0 animate-in slide-in-from-left duration-200">
@@ -353,24 +356,24 @@ export const QuickNoteWindow: React.FC = () => {
             </div>
           </div>
 
-          {/* Note Editor Area */}
+          {/* Note Editor Area - Pure Seamless Apple Notes Canvas */}
           {activeNote ? (
-            <div className="flex-1 flex flex-col p-4 sm:p-5 overflow-hidden">
-              {/* Title input */}
-              <div className="flex items-center gap-2 mb-2">
+            <div className="flex-1 flex flex-col p-5 sm:p-6 overflow-hidden apple-note-canvas">
+              {/* Title input - Apple Large Headline Typography */}
+              <div className="mb-1">
                 <input
                   type="text"
                   value={activeNote.title}
                   onChange={handleTitleChange}
                   placeholder="Tiêu đề ghi chú..."
-                  className="w-full text-[17px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] bg-transparent outline-none placeholder:text-[#a1a1a6] tracking-tight"
+                  className="w-full text-[21px] sm:text-[23px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] bg-transparent !border-0 !border-none !outline-none !shadow-none !ring-0 focus:!ring-0 focus:!outline-none focus:!border-none placeholder:text-[#86868b]/40 tracking-tight p-0 selection:bg-amber-500/20 selection:text-amber-800 dark:selection:text-amber-200"
                 />
               </div>
 
               {/* Timestamp & Auto-save status */}
-              <div className="flex items-center justify-between text-[11px] text-[#86868b] dark:text-[#76767b] pb-3 border-b border-black/[0.06] dark:border-white/10 mb-3">
+              <div className="flex items-center justify-between text-[11px] text-[#86868b] dark:text-[#76767b] pb-2.5 pt-1 border-b border-black/[0.04] dark:border-white/[0.06] mb-3">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono">
+                  <span className="font-medium text-[#86868b] dark:text-[#a1a1a6]">
                     {new Date(activeNote.updatedAt).toLocaleTimeString('vi-VN', {
                       hour: '2-digit',
                       minute: '2-digit',
@@ -378,19 +381,19 @@ export const QuickNoteWindow: React.FC = () => {
                     • {activeNote.content.length} ký tự
                   </span>
                   <span className="text-[#34c759] flex items-center gap-1 font-medium">
-                    <Sparkles className="w-3 h-3" /> Tự động lưu
+                    <Sparkles className="w-3 h-3 text-[#34c759]" /> Tự động lưu
                   </span>
                 </div>
 
                 {/* Quick Note Color Tag Selector */}
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 p-1 rounded-full bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.03] dark:border-white/[0.05]">
                   {(['amber', 'blue', 'emerald', 'purple', 'rose'] as QuickNoteColor[]).map((c) => (
                     <button
                       key={c}
                       type="button"
                       onClick={() => changeColorNote(activeNote.id, c)}
                       className={`w-3.5 h-3.5 rounded-full ${COLOR_MAP[c].dot} transition-transform ${
-                        activeNote.color === c ? 'scale-125 ring-2 ring-black/20 dark:ring-white/30' : 'opacity-60 hover:opacity-100'
+                        activeNote.color === c ? 'scale-110 ring-2 ring-black/20 dark:ring-white/40 shadow-xs' : 'opacity-60 hover:opacity-100 hover:scale-105'
                       }`}
                       title={`Màu ${c}`}
                     />
@@ -398,23 +401,23 @@ export const QuickNoteWindow: React.FC = () => {
                 </div>
               </div>
 
-              {/* Editor Textarea */}
+              {/* Editor Textarea - Seamless Flowing Writing Canvas */}
               <textarea
                 ref={contentRef}
                 value={activeNote.content}
                 onChange={handleContentChange}
                 placeholder="Gõ ghi chú, danh sách việc cần làm, thông tin cần nhớ..."
-                className="flex-1 w-full bg-transparent resize-none outline-none font-sans text-[13.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] placeholder:text-[#86868b] dark:placeholder:text-[#636366]"
+                className="flex-1 w-full bg-transparent !border-0 !border-none !outline-none !shadow-none !ring-0 focus:!ring-0 focus:!outline-none focus:!border-none resize-none font-sans text-[14.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] placeholder:text-[#86868b]/50 dark:placeholder:text-[#636366]/60 p-0 selection:bg-amber-500/20 selection:text-amber-800 dark:selection:text-amber-200"
               />
 
               {/* Bottom Quick Tools Bar */}
-              <div className="pt-3 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-between shrink-0">
+              <div className="pt-3 border-t border-black/[0.04] dark:border-white/[0.06] flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
                   {/* Insert Checklist button */}
                   <button
                     type="button"
                     onClick={handleInsertChecklist}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/10 dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] transition-all cursor-pointer active:scale-95 border border-black/5 dark:border-white/10"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-[#1d1d1f] dark:text-[#f5f5f7] transition-all cursor-pointer active:scale-95 border border-black/[0.04] dark:border-white/[0.08]"
                     title="Chèn dòng danh sách việc cần làm [ ]"
                   >
                     <CheckSquare className="w-3.5 h-3.5 text-[#0071e3] dark:text-[#2997ff]" />
@@ -425,10 +428,10 @@ export const QuickNoteWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => togglePinNote(activeNote.id)}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all cursor-pointer border ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-medium transition-all cursor-pointer border ${
                       activeNote.pinned
                         ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
-                        : 'bg-black/[0.04] dark:bg-white/[0.08] text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white border-transparent'
+                        : 'bg-black/[0.03] dark:bg-white/[0.06] text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white border-black/[0.04] dark:border-white/[0.08]'
                     }`}
                     title={activeNote.pinned ? 'Bỏ ghim ghi chú' : 'Ghim ghi chú lên đầu'}
                   >
@@ -442,17 +445,17 @@ export const QuickNoteWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleCopyNote}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/70 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] transition-all cursor-pointer active:scale-95 border border-black/[0.08] dark:border-white/12 shadow-2xs"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12.5px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-[#1d1d1f] dark:text-[#f5f5f7] transition-all cursor-pointer active:scale-95 border border-black/[0.04] dark:border-white/[0.08]"
                     title="Sao chép toàn bộ ghi chú"
                   >
                     {copied ? (
                       <>
                         <Check className="w-3.5 h-3.5 text-[#34c759]" />
-                        <span className="text-[#34c759]">Đã chép</span>
+                        <span className="text-[#34c759] font-medium">Đã chép</span>
                       </>
                     ) : (
                       <>
-                        <Copy className="w-3.5 h-3.5" />
+                        <Copy className="w-3.5 h-3.5 text-[#76767b] dark:text-[#a1a1a6]" />
                         <span>Sao chép</span>
                       </>
                     )}
@@ -462,7 +465,7 @@ export const QuickNoteWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => deleteNote(activeNote.id)}
-                    className="p-1.5 rounded-full hover:bg-rose-500/10 text-[#76767b] hover:text-rose-600 transition-colors cursor-pointer"
+                    className="w-8 h-8 rounded-full hover:bg-rose-500/10 text-[#76767b] hover:text-rose-600 flex items-center justify-center transition-colors cursor-pointer"
                     title="Xóa ghi chú này"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
