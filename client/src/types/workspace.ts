@@ -72,6 +72,15 @@ export interface WorkspaceSummary {
 
 export type QuickNoteColor = 'amber' | 'blue' | 'emerald' | 'purple' | 'rose';
 
+export interface TaskReminder {
+  id: string; // unique task identifier (e.g. task-0, or hash)
+  taskText: string;
+  reminderAt: string; // ISO datetime string
+  reminderCompleted?: boolean;
+}
+
+export type EmailProviderType = 'gmail' | 'outlook' | 'mailto';
+
 export interface QuickNoteItem {
   id: string;
   title: string;
@@ -84,6 +93,8 @@ export interface QuickNoteItem {
   reminderNotifyDesktop?: boolean;
   reminderNotifyEmail?: boolean;
   reminderCompleted?: boolean;
+  taskReminders?: TaskReminder[];
+  emailProvider?: EmailProviderType;
   createdAt: string;
   updatedAt: string;
 }

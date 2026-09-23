@@ -91,6 +91,8 @@ export const noteService = {
       reminderNotifyDesktop: data.reminderNotifyDesktop !== undefined ? data.reminderNotifyDesktop : (existing?.reminderNotifyDesktop ?? true),
       reminderNotifyEmail: data.reminderNotifyEmail !== undefined ? data.reminderNotifyEmail : (existing?.reminderNotifyEmail ?? false),
       reminderCompleted: data.reminderCompleted !== undefined ? data.reminderCompleted : (existing?.reminderCompleted ?? false),
+      taskReminders: data.taskReminders !== undefined ? data.taskReminders : (existing?.taskReminders ?? []),
+      emailProvider: data.emailProvider !== undefined ? data.emailProvider : (existing?.emailProvider ?? 'gmail'),
       createdAt: existing?.createdAt || now,
       updatedAt: now,
     };
