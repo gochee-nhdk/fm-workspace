@@ -465,6 +465,7 @@ export const QuickNoteWindow: React.FC = () => {
 
   // ──────── Main Note Reminder Handlers ────────
   const handleOpenReminderModal = () => {
+    setReminderScope('note');
     if (activeNote?.reminderAt) {
       try {
         setReminderDate(toDatetimeLocal(new Date(activeNote.reminderAt)));
@@ -476,7 +477,7 @@ export const QuickNoteWindow: React.FC = () => {
     }
     setReminderDesktop(activeNote?.reminderNotifyDesktop ?? true);
     setReminderEmail(activeNote?.reminderNotifyEmail ?? false);
-    setReminderEmailInput(activeNote?.reminderEmail || reminderService.getPreferredEmail() || '');
+    setReminderEmailInput(activeNote?.reminderEmail || reminderService.getPreferredEmail() || 'kaka.nhdk@gmail.com');
     setReminderProvider(activeNote?.emailProvider || reminderService.getPreferredProvider() || 'gmail');
     setShowReminderModal(true);
   };
@@ -508,61 +509,44 @@ export const QuickNoteWindow: React.FC = () => {
   const handleSaveReminder = async () => {
     if (!activeNote) return;
 
-    if (reminderScope === 'note') {
-      if (!reminderDate) {
-        toast.error('Vui lòng chọn thời gian nhắc nhở');
-        return;
-      }
-      const reminderIso = new Date(reminderDate).toISOString();
-
-      if (reminderDesktop) {
-        const granted = await reminderService.requestNotificationPermission();
-        if (!granted) {
-          toast('Hãy cấp quyền thông báo trên trình duyệt để nhận chuông nhắc', { icon: '🔔' });
-        }
-      }
-
-      if (reminderEmail && reminderEmailInput.trim()) {
-        reminderService.setPreferredEmail(reminderEmailInput.trim());
-      }
-      reminderService.setPreferredProvider(reminderProvider);
-
-      updateActiveNote({
-        reminderAt: reminderIso,
-        reminderNotifyDesktop: reminderDesktop,
-        reminderNotifyEmail: reminderEmail,
-        reminderEmail: reminderEmailInput.trim() || null,
-        emailProvider: reminderProvider,
-        reminderCompleted: false,
-      });
-
-      setShowReminderModal(false);
-      toast.success(
-        `⏰ Đã đặt lịch nhắc: ${new Date(reminderIso).toLocaleString('vi-VN', {
-          hour: '2-digit',
-          minute: '2-digit',
-          day: '2-digit',
-          month: '2-digit',
-        })}`,
-        { id: 'reminder-saved' }
-      );
-    } else {
-      // Just save email and desktop settings
-      if (reminderEmail && reminderEmailInput.trim()) {
-        reminderService.setPreferredEmail(reminderEmailInput.trim());
-      }
-      reminderService.setPreferredProvider(reminderProvider);
-
-      updateActiveNote({
-        reminderNotifyDesktop: reminderDesktop,
-        reminderNotifyEmail: reminderEmail,
-        reminderEmail: reminderEmailInput.trim() || null,
-        emailProvider: reminderProvider,
-      });
-
-      setShowReminderModal(false);
-      toast.success('Đã lưu cấu hình nhắc nhở cho từng mục checklist!', { id: 'checklist-reminder-saved' });
+    if (!reminderDate) {
+      toast.error('Vui lòng chọn thời gian nhắc nhở');
+      return;
     }
+    const reminderIso = new Date(reminderDate).toISOString();
+
+    if (reminderDesktop) {
+      const granted = await reminderService.requestNotificationPermission();
+      if (!granted) {
+        toast('Hãy cấp quyền thông báo trên trình duyệt để nhận chuông nhắc', { icon: '🔔' });
+      }
+    }
+
+    const emailToSave = reminderEmailInput.trim() || reminderService.getPreferredEmail() || 'kaka.nhdk@gmail.com';
+    if (reminderEmail && emailToSave) {
+      reminderService.setPreferredEmail(emailToSave);
+    }
+    reminderService.setPreferredProvider(reminderProvider);
+
+    updateActiveNote({
+      reminderAt: reminderIso,
+      reminderNotifyDesktop: reminderDesktop,
+      reminderNotifyEmail: reminderEmail,
+      reminderEmail: emailToSave,
+      emailProvider: reminderProvider,
+      reminderCompleted: false,
+    });
+
+    setShowReminderModal(false);
+    toast.success(
+      `⏰ Đã đặt lịch nhắc: ${new Date(reminderIso).toLocaleString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+      })}`,
+      { id: 'reminder-saved' }
+    );
   };
 
   const handleRemoveNoteReminder = () => {
@@ -1302,196 +1286,143 @@ export const QuickNoteWindow: React.FC = () => {
 
           {/* ─────────────────── Apple Liquid Glass Master Reminder Modal ─────────────────── */}
           {showReminderModal && (
-            <div className="absolute inset-0 z-30 bg-black/40 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
-              <div className="w-full max-w-md max-h-[520px] flex flex-col bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-3xl rounded-[26px] border border-white/80 dark:border-white/15 shadow-[0_24px_70px_rgba(0,0,0,0.35)] overflow-hidden text-left animate-in zoom-in-95 duration-150">
+            <div className="absolute inset-0 z-30 bg-black/25 dark:bg-black/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 rounded-[28px] animate-in fade-in duration-150">
+              <div className="w-full max-w-[440px] max-h-[500px] flex flex-col bg-white dark:bg-[#1c1c24] rounded-[24px] border border-black/10 dark:border-white/15 shadow-[0_24px_70px_rgba(0,0,0,0.25)] overflow-hidden text-left animate-in zoom-in-95 duration-150">
                 {/* Fixed Header */}
                 <div className="p-4 sm:px-5 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between shrink-0 bg-white/40 dark:bg-white/[0.02]">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
                       <BellRing className="w-4 h-4" />
                     </div>
-                    <div>
-                      <h4 className="font-bold text-[14px] text-[#1d1d1f] dark:text-white">
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-[14px] text-[#1d1d1f] dark:text-white truncate">
                         Cài Lịch Nhắc Nhở & Email
                       </h4>
-                      <p className="text-[11px] text-[#86868b] dark:text-[#a1a1a6]">
-                        Tùy chọn hẹn giờ cho ghi chú này hoặc từng việc trong Checklist
+                      <p className="text-[11px] text-[#86868b] dark:text-[#a1a1a6] truncate">
+                        {activeNote.title ? `Cho "${activeNote.title}"` : 'Hẹn giờ thông báo tự động'}
                       </p>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowReminderModal(false)}
-                    className="w-7 h-7 rounded-full hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center text-[#76767b] cursor-pointer"
+                    className="w-7 h-7 rounded-full hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center text-[#76767b] cursor-pointer shrink-0"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                {/* Scrollable Body */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
-                  {/* Reminder Scope Switcher: Toàn bộ ghi chú vs Từng mục Checklist */}
-                  <div className="flex items-center p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08]">
-                    <button
-                      type="button"
-                      onClick={() => setReminderScope('note')}
-                      className={`flex-1 py-1.5 rounded-full text-[12px] font-medium transition-all text-center cursor-pointer ${
-                        reminderScope === 'note'
-                          ? 'bg-white dark:bg-[#2c2c2e] text-[#1d1d1f] dark:text-white shadow-xs font-semibold'
-                          : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
-                      }`}
-                    >
-                      📋 Toàn bộ ghi chú
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setReminderScope('checklist')}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-full text-[12px] font-medium transition-all text-center cursor-pointer ${
-                        reminderScope === 'checklist'
-                          ? 'bg-white dark:bg-[#2c2c2e] text-amber-700 dark:text-amber-300 shadow-xs font-semibold'
-                          : 'text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white'
-                      }`}
-                    >
-                      <CheckSquare className="w-3.5 h-3.5 text-amber-500" />
-                      <span>Từng việc Checklist</span>
-                      {activeTaskRemindersCount > 0 && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300">
-                          {activeTaskRemindersCount}
-                        </span>
-                      )}
-                    </button>
+                {/* Scrollable Body with Ultra-Thin Apple Scrollbar */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-black/25">
+                  {/* Section 1: Quick Presets */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-[#86868b] dark:text-[#a1a1a6] uppercase tracking-wider block">
+                      Gợi ý thời gian nhanh
+                    </label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleApplyPreset(30)}
+                        className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.05] hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 transition-colors text-left border border-black/[0.04] dark:border-white/[0.06] cursor-pointer"
+                      >
+                        ⚡ Sau 30 phút nữa
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyPresetTime(15, 0)}
+                        className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.05] hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 transition-colors text-left border border-black/[0.04] dark:border-white/[0.06] cursor-pointer"
+                      >
+                        ☀️ Chiều nay 15:00
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyPresetTime(9, 0, true)}
+                        className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.05] hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 transition-colors text-left border border-black/[0.04] dark:border-white/[0.06] cursor-pointer"
+                      >
+                        🌅 Sáng mai 09:00
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleApplyNextMonday}
+                        className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.05] hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 transition-colors text-left border border-black/[0.04] dark:border-white/[0.06] cursor-pointer"
+                      >
+                        📅 Thứ Hai tới 08:30
+                      </button>
+                    </div>
                   </div>
 
-                  {/* ──── Scope 1: Toàn bộ ghi chú ──── */}
-                  {reminderScope === 'note' ? (
-                    <div className="space-y-3">
-                      {/* Quick Presets */}
-                      <div className="space-y-1.5">
-                        <label className="text-[11px] font-semibold text-[#86868b] dark:text-[#a1a1a6] uppercase tracking-wider">
-                          Gợi ý thời gian nhanh
-                        </label>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleApplyPreset(30)}
-                            className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.05] hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 transition-colors text-left border border-black/[0.04] dark:border-white/[0.06] cursor-pointer"
-                          >
-                            ⚡ Sau 30 phút nữa
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleApplyPresetTime(15, 0)}
-                            className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.05] hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 transition-colors text-left border border-black/[0.04] dark:border-white/[0.06] cursor-pointer"
-                          >
-                            ☀️ Chiều nay 15:00
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleApplyPresetTime(9, 0, true)}
-                            className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.05] hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 transition-colors text-left border border-black/[0.04] dark:border-white/[0.06] cursor-pointer"
-                          >
-                            🌅 Sáng mai 09:00
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleApplyNextMonday}
-                            className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.05] hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 transition-colors text-left border border-black/[0.04] dark:border-white/[0.06] cursor-pointer"
-                          >
-                            📅 Thứ Hai tới 08:30
-                          </button>
-                        </div>
-                      </div>
+                  {/* Section 2: Custom Date & Time Picker */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold text-[#86868b] dark:text-[#a1a1a6] uppercase tracking-wider block">
+                      Thời gian nhắc hẹn cụ thể
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={reminderDate}
+                      onChange={(e) => setReminderDate(e.target.value)}
+                      className="w-full px-3.5 py-2 rounded-xl text-[13px] font-medium bg-black/[0.02] dark:bg-white/10 border border-black/15 dark:border-white/15 focus:border-[#0071e3] outline-none text-[#1d1d1f] dark:text-white"
+                    />
+                  </div>
 
-                      {/* Custom Date & Time Picker */}
-                      <div className="space-y-1.5">
+                  {/* Section 3: Checklist Tasks List (ONLY if this note actually has checklist rows!) */}
+                  {checklistRows.length > 0 && (
+                    <div className="pt-3 border-t border-black/[0.06] dark:border-white/10 space-y-2">
+                      <div className="flex items-center justify-between">
                         <label className="text-[11px] font-semibold text-[#86868b] dark:text-[#a1a1a6] uppercase tracking-wider">
-                          Chọn thời gian cụ thể
+                          Hoặc hẹn giờ riêng từng mục việc ({checklistRows.length} việc)
                         </label>
-                        <input
-                          type="datetime-local"
-                          value={reminderDate}
-                          onChange={(e) => setReminderDate(e.target.value)}
-                          className="w-full px-3.5 py-2 rounded-xl text-[13px] font-medium bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 focus:border-[#0071e3] outline-none text-[#1d1d1f] dark:text-white"
-                        />
                       </div>
-                    </div>
-                  ) : (
-                    /* ──── Scope 2: Từng mục trong Checklist ──── */
-                    <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
-                      <p className="text-[11.5px] text-[#76767b] dark:text-[#a1a1a6]">
-                        Bấm vào từng mục để hẹn giờ nhắc việc cụ thể:
-                      </p>
-                      {checklistRows.length === 0 ? (
-                        <div className="p-4 rounded-xl text-center text-[12.5px] text-[#86868b] bg-black/[0.02] dark:bg-white/[0.02]">
-                          Ghi chú này chưa có danh sách checklist.
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowReminderModal(false);
-                              handleActivateChecklistMode();
-                            }}
-                            className="block mx-auto mt-2 text-[#0071e3] dark:text-[#2997ff] font-semibold hover:underline cursor-pointer"
-                          >
-                            Tạo Checklist ngay →
-                          </button>
-                        </div>
-                      ) : (
-                        checklistRows.map((row) => (
+                      <div className="space-y-1 max-h-[140px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-black/15 [&::-webkit-scrollbar-thumb]:rounded-full">
+                        {checklistRows.map((row) => (
                           <div
                             key={`modal-task-${row.lineIndex}`}
-                            className="flex items-center justify-between p-2 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.04] dark:border-white/[0.06] text-[12.5px]"
+                            className="flex items-center justify-between p-2 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.04] dark:border-white/[0.06] text-[12px]"
                           >
-                            <div className="flex items-center gap-2 min-w-0 flex-1 pr-2">
-                              <span className={row.completed ? 'text-emerald-500' : 'text-slate-400'}>
-                                {row.completed ? '☑' : '☐'}
-                              </span>
-                              <span className={`truncate ${row.completed ? 'line-through text-[#86868b]' : 'text-[#1d1d1f] dark:text-white'}`}>
-                                {row.text || '(Chưa nhập tên việc)'}
-                              </span>
-                            </div>
-
-                            <div className="shrink-0 flex items-center gap-1.5">
-                              {row.reminderAt ? (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setTaskReminderPopover({
-                                      lineIndex: row.lineIndex,
-                                      taskId: row.taskId,
-                                      taskText: row.text,
-                                      reminderAt: toDatetimeLocal(new Date(row.reminderAt!)),
-                                    })
-                                  }
-                                  className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-colors cursor-pointer"
-                                >
-                                  ⏰ {formatReminderBadge(row.reminderAt)}
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setTaskReminderPopover({
-                                      lineIndex: row.lineIndex,
-                                      taskId: row.taskId,
-                                      taskText: row.text,
-                                      reminderAt: toDatetimeLocal(new Date(Date.now() + 30 * 60 * 1000)),
-                                    })
-                                  }
-                                  className="px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-black/[0.04] dark:bg-white/[0.08] hover:bg-amber-500/10 hover:text-amber-600 text-[#76767b] transition-colors cursor-pointer"
-                                >
-                                  + Hẹn giờ
-                                </button>
-                              )}
-                            </div>
+                            <span className="truncate flex-1 pr-2 text-[#1d1d1f] dark:text-[#f5f5f7]">
+                              {row.completed ? '☑ ' : '☐ '} {row.text || '(Mục việc chưa đặt tên)'}
+                            </span>
+                            {row.reminderAt ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowReminderModal(false);
+                                  setTaskReminderPopover({
+                                    lineIndex: row.lineIndex,
+                                    taskId: row.taskId,
+                                    taskText: row.text,
+                                    reminderAt: toDatetimeLocal(new Date(row.reminderAt!)),
+                                  });
+                                }}
+                                className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 shrink-0 cursor-pointer"
+                              >
+                                ⏰ {formatReminderBadge(row.reminderAt)}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowReminderModal(false);
+                                  setTaskReminderPopover({
+                                    lineIndex: row.lineIndex,
+                                    taskId: row.taskId,
+                                    taskText: row.text,
+                                    reminderAt: toDatetimeLocal(new Date(Date.now() + 30 * 60 * 1000)),
+                                  });
+                                }}
+                                className="px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-black/[0.04] dark:bg-white/[0.08] hover:bg-amber-500/10 hover:text-amber-600 text-[#76767b] shrink-0 cursor-pointer"
+                              >
+                                + Hẹn giờ
+                              </button>
+                            )}
                           </div>
-                        ))
-                      )}
+                        ))}
+                      </div>
                     </div>
                   )}
 
-                  {/* ──── Notification Channels & Automated Email Dispatch ──── */}
-                  <div className="space-y-2 pt-2 border-t border-black/[0.06] dark:border-white/10">
-                    <label className="text-[11px] font-semibold text-[#86868b] dark:text-[#a1a1a6] uppercase tracking-wider">
+                  {/* Section 4: Notification Channels & Automated Email */}
+                  <div className="space-y-2 pt-3 border-t border-black/[0.06] dark:border-white/10">
+                    <label className="text-[11px] font-semibold text-[#86868b] dark:text-[#a1a1a6] uppercase tracking-wider block">
                       Kênh nhận thông báo
                     </label>
 
@@ -1508,7 +1439,7 @@ export const QuickNoteWindow: React.FC = () => {
                           Thông báo màn hình Desktop & Chuông kính Apple
                         </span>
                         <p className="text-[11px] text-[#86868b] dark:text-[#a1a1a6]">
-                          Hiển thị banner máy tính và phát âm thanh chuông tinh thể
+                          Hiển thị pop-up trên máy tính và phát âm thanh chuông tinh thể
                         </p>
                       </div>
                     </label>
@@ -1565,7 +1496,7 @@ export const QuickNoteWindow: React.FC = () => {
 
                 {/* Fixed Pinned Footer */}
                 <div className="p-3.5 sm:px-5 border-t border-black/[0.06] dark:border-white/10 shrink-0 bg-black/[0.02] dark:bg-white/[0.02] flex items-center justify-between gap-2">
-                  {reminderScope === 'note' && activeNote.reminderAt ? (
+                  {activeNote.reminderAt ? (
                     <button
                       type="button"
                       onClick={handleRemoveNoteReminder}
