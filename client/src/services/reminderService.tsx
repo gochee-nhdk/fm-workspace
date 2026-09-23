@@ -2,10 +2,12 @@ import React from 'react';
 import { noteService } from './noteService';
 import { QuickNoteItem, TaskReminder, EmailProviderType } from '@/types/workspace';
 import { useNoteStore } from '@/stores/note-store';
+import { api } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 const PREFERRED_EMAIL_KEY = 'fm_user_preferred_reminder_email';
 const PREFERRED_PROVIDER_KEY = 'fm_user_preferred_email_provider';
+const DEFAULT_REMINDER_EMAIL = 'kaka.nhdk@gmail.com';
 
 /**
  * Synthesizes a subtle Apple visionOS / iOS glass bell chime using Web Audio API
@@ -63,13 +65,13 @@ class ReminderService {
   }
 
   /**
-   * Get user's preferred email from storage
+   * Get user's preferred email from storage (defaults to user's specified email)
    */
   getPreferredEmail(): string {
     try {
-      return localStorage.getItem(PREFERRED_EMAIL_KEY) || '';
+      return localStorage.getItem(PREFERRED_EMAIL_KEY) || DEFAULT_REMINDER_EMAIL;
     } catch (_) {
-      return '';
+      return DEFAULT_REMINDER_EMAIL;
     }
   }
 
@@ -83,7 +85,7 @@ class ReminderService {
   }
 
   /**
-   * Get preferred email client provider (gmail, outlook, mailto)
+   * Get preferred email client provider (stored for compatibility)
    */
   getPreferredProvider(): EmailProviderType {
     try {
@@ -103,84 +105,28 @@ class ReminderService {
   }
 
   /**
-   * Open email client with prefilled subject, body and recipient
-   * Supports Gmail Web, Outlook 365 Web, and Native Mailto without leaving empty tabs
+   * Send automated system email notification via backend
+   * No user manual clicking or external webmail window required!
    */
-  composeEmailReminder(
-    note: QuickNoteItem,
-    options?: {
-      targetEmail?: string;
-      taskText?: string;
-      provider?: EmailProviderType;
-    }
-  ): void {
-    const to = options?.targetEmail || note.reminderEmail || this.getPreferredEmail() || '';
-    const provider = options?.provider || note.emailProvider || this.getPreferredProvider() || 'gmail';
-
-    const subjectText = options?.taskText
-      ? `[Farmers Market] Nhắc việc: ${options.taskText}`
-      : `[Farmers Market] Nhắc nhở công việc: ${note.title || 'Ghi chú mới'}`;
-
-    const formattedDate = new Date().toLocaleString('vi-VN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-
-    const bodyContent = options?.taskText
-      ? [
-          `Kính gửi,`,
-          ``,
-          `Đây là thông báo nhắc nhở việc cần làm từ hệ thống Trợ Lý Thu Mua - Farmers Market.`,
-          `----------------------------------------------------`,
-          `📋 MỤC VIỆC CẦN LÀM: ${options.taskText}`,
-          `📂 TỪ GHI CHÚ: ${note.title || 'Ghi chú mới'}`,
-          `⏰ THỜI GIAN NHẮC HẸN: ${formattedDate}`,
-          `----------------------------------------------------`,
-          `📝 NỘI DUNG CHI TIẾT GHI CHÚ:`,
-          `${note.content || '(Không có nội dung)'}`,
-          ``,
-          `----------------------------------------------------`,
-          `Trân trọng,`,
-          `Hệ thống Trợ Lý Thu Mua FM Workspace`,
-        ].join('\n')
-      : [
-          `Kính gửi,`,
-          ``,
-          `Đây là thông báo nhắc nhở lịch hẹn công việc từ hệ thống Trợ Lý Thu Mua - Farmers Market.`,
-          `----------------------------------------------------`,
-          `📋 TIÊU ĐỀ: ${note.title || 'Ghi chú mới'}`,
-          `⏰ THỜI GIAN NHẮC HẸN: ${formattedDate}`,
-          `----------------------------------------------------`,
-          `📝 NỘI DUNG CHI TIẾT:`,
-          `${note.content || '(Không có nội dung)'}`,
-          ``,
-          `----------------------------------------------------`,
-          `Trân trọng,`,
-          `Hệ thống Trợ Lý Thu Mua FM Workspace`,
-        ].join('\n');
-
-    if (provider === 'gmail') {
-      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subjectText)}&body=${encodeURIComponent(bodyContent)}`;
-      window.open(gmailUrl, '_blank', 'noopener,noreferrer');
-    } else if (provider === 'outlook') {
-      const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subjectText)}&body=${encodeURIComponent(bodyContent)}`;
-      window.open(outlookUrl, '_blank', 'noopener,noreferrer');
-    } else {
-      // mailto via virtual anchor (no blank about:blank tabs left behind)
-      const mailtoUrl = `mailto:${to}?subject=${encodeURIComponent(subjectText)}&body=${encodeURIComponent(bodyContent)}`;
-      const a = document.createElement('a');
-      a.href = mailtoUrl;
-      a.target = '_self';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        try {
-          document.body.removeChild(a);
-        } catch (_) {}
-      }, 150);
+  async sendAutomatedEmail(options: {
+    to: string;
+    subject?: string;
+    content?: string;
+    noteTitle?: string;
+    taskText?: string;
+  }): Promise<{ success: boolean; message?: string }> {
+    try {
+      const res = await api.post('/notifications/send-reminder-email', options);
+      return {
+        success: res.data?.success ?? true,
+        message: res.data?.message || 'Đã gửi email thông báo thành công',
+      };
+    } catch (err: any) {
+      console.warn('sendAutomatedEmail backend dispatch error:', err);
+      return {
+        success: false,
+        message: err.response?.data?.message || 'Không thể kết nối máy chủ gửi email',
+      };
     }
   }
 
@@ -274,7 +220,25 @@ class ReminderService {
 
     playAppleChime();
 
-    // Desktop Notification
+    const targetEmail = note.reminderEmail || this.getPreferredEmail();
+
+    // 1. Send automated email in background if configured
+    if (note.reminderNotifyEmail && targetEmail) {
+      this.sendAutomatedEmail({
+        to: targetEmail,
+        noteTitle: note.title || 'Ghi chú công việc',
+        content: note.content,
+      }).then((res) => {
+        if (res.success) {
+          toast.success(`✉️ Hệ thống đã gửi email thông báo tới ${targetEmail}`, {
+            id: `email-sent-${note.id}`,
+            duration: 6000,
+          });
+        }
+      });
+    }
+
+    // 2. Desktop Notification
     if (note.reminderNotifyDesktop !== false && 'Notification' in window && Notification.permission === 'granted') {
       try {
         const notif = new Notification(`⏰ Nhắc nhở: ${note.title || 'Ghi chú công việc'}`, {
@@ -288,8 +252,7 @@ class ReminderService {
       } catch (_) {}
     }
 
-    // In-App Apple HUD Alert
-    const targetEmail = note.reminderEmail || this.getPreferredEmail();
+    // 3. In-App Apple HUD Alert
     toast(
       (t) => (
         <div className="flex items-center gap-3 p-1">
@@ -306,22 +269,16 @@ class ReminderService {
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             {note.reminderNotifyEmail && targetEmail && (
-              <button
-                onClick={() => {
-                  this.composeEmailReminder(note);
-                }}
-                className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-colors"
-                title="Mở gửi email nhắc việc này"
-              >
-                ✉️ Email
-              </button>
+              <span className="px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                ✉️ Đã báo mail
+              </span>
             )}
             <button
               onClick={() => {
                 toast.dismiss(t.id);
                 useNoteStore.getState().openNote(note.id);
               }}
-              className="px-3 py-1 rounded-full text-[11.5px] font-semibold bg-[#0071e3] text-white hover:bg-[#0077ed] transition-colors"
+              className="px-3 py-1 rounded-full text-[11.5px] font-semibold bg-[#0071e3] text-white hover:bg-[#0077ed] transition-colors cursor-pointer"
             >
               Mở xem
             </button>
@@ -341,7 +298,26 @@ class ReminderService {
   async fireTaskReminder(note: QuickNoteItem, task: TaskReminder): Promise<void> {
     playAppleChime();
 
-    // Desktop Notification
+    const targetEmail = note.reminderEmail || this.getPreferredEmail();
+
+    // 1. Send automated email in background if configured
+    if (note.reminderNotifyEmail && targetEmail) {
+      this.sendAutomatedEmail({
+        to: targetEmail,
+        noteTitle: note.title || 'Ghi chú công việc',
+        taskText: task.taskText,
+        content: note.content,
+      }).then((res) => {
+        if (res.success) {
+          toast.success(`✉️ Hệ thống đã gửi email nhắc việc "${task.taskText}" tới ${targetEmail}`, {
+            id: `email-task-${note.id}-${task.id}`,
+            duration: 6000,
+          });
+        }
+      });
+    }
+
+    // 2. Desktop Notification
     if (note.reminderNotifyDesktop !== false && 'Notification' in window && Notification.permission === 'granted') {
       try {
         const notif = new Notification(`⏰ Nhắc việc: ${task.taskText}`, {
@@ -355,8 +331,7 @@ class ReminderService {
       } catch (_) {}
     }
 
-    // In-App Apple HUD Alert
-    const targetEmail = note.reminderEmail || this.getPreferredEmail();
+    // 3. In-App Apple HUD Alert
     toast(
       (t) => (
         <div className="flex items-center gap-3 p-1">
@@ -376,22 +351,16 @@ class ReminderService {
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             {note.reminderNotifyEmail && targetEmail && (
-              <button
-                onClick={() => {
-                  this.composeEmailReminder(note, { taskText: task.taskText });
-                }}
-                className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-colors"
-                title="Mở gửi email nhắc việc này"
-              >
-                ✉️ Email
-              </button>
+              <span className="px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                ✉️ Đã báo mail
+              </span>
             )}
             <button
               onClick={() => {
                 toast.dismiss(t.id);
                 useNoteStore.getState().openNote(note.id);
               }}
-              className="px-3 py-1 rounded-full text-[11.5px] font-semibold bg-[#0071e3] text-white hover:bg-[#0077ed] transition-colors"
+              className="px-3 py-1 rounded-full text-[11.5px] font-semibold bg-[#0071e3] text-white hover:bg-[#0077ed] transition-colors cursor-pointer"
             >
               Mở note
             </button>
