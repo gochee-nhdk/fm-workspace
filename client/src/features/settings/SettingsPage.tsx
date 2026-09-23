@@ -13,10 +13,13 @@ import {
   RefreshCw,
   WifiOff,
   FileSpreadsheet,
+  Mail,
+  Send,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { dataService } from '@/services/dataService';
 import { excelService } from '@/services/excelService';
+import { reminderService } from '@/services/reminderService';
 import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import { useUiStore } from '@/stores/ui-store';
 import { formatBytes } from '@/lib/utils';
@@ -28,6 +31,31 @@ export const SettingsPage: React.FC = () => {
   const [storageBytes, setStorageBytes] = useState<number>(0);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [isRepairing, setIsRepairing] = useState(false);
+
+  // SMTP Settings State
+  const [smtpStatus, setSmtpStatus] = useState<{
+    configured: boolean;
+    smtpHost?: string;
+    smtpPort?: number;
+    smtpUser?: string | null;
+    fullUser?: string | null;
+    senderName?: string;
+  }>({ configured: false });
+  const [smtpEmail, setSmtpEmail] = useState('');
+  const [smtpPassword, setSmtpPassword] = useState('');
+  const [smtpSenderName, setSmtpSenderName] = useState('Trợ Lý Thu Mua • Farmers Market');
+  const [isSavingSmtp, setIsSavingSmtp] = useState(false);
+  const [testRecipient, setTestRecipient] = useState('kaka.nhdk@gmail.com');
+  const [isSendingTest, setIsSendingTest] = useState(false);
+
+  const loadSmtp = async () => {
+    try {
+      const res = await reminderService.getSmtpStatus();
+      setSmtpStatus(res);
+      if (res.fullUser) setSmtpEmail(res.fullUser);
+      if (res.senderName) setSmtpSenderName(res.senderName);
+    } catch (_) {}
+  };
 
   const loadStats = async () => {
     try {
@@ -51,7 +79,54 @@ export const SettingsPage: React.FC = () => {
 
   useEffect(() => {
     loadStats();
+    loadSmtp();
   }, []);
+
+  const handleSaveSmtp = async () => {
+    if (!smtpEmail.trim() || !smtpPassword.trim()) {
+      toast.error('Vui lòng nhập Email Gmail và Mật khẩu ứng dụng (App Password 16 ký tự)');
+      return;
+    }
+    setIsSavingSmtp(true);
+    try {
+      const res = await reminderService.configureSmtp({
+        user: smtpEmail.trim(),
+        pass: smtpPassword.trim(),
+        senderName: smtpSenderName.trim(),
+      });
+      if (res.success) {
+        toast.success('🎉 Cấu hình SMTP thành công! Máy chủ đã sẵn sàng gửi email thực tế.');
+        setSmtpPassword('');
+        await loadSmtp();
+      } else {
+        toast.error(res.message, { duration: 6500 });
+      }
+    } finally {
+      setIsSavingSmtp(false);
+    }
+  };
+
+  const handleTestSendFromSettings = async () => {
+    if (!testRecipient.trim()) {
+      toast.error('Vui lòng nhập email người nhận thử nghiệm');
+      return;
+    }
+    setIsSendingTest(true);
+    try {
+      const res = await reminderService.sendAutomatedEmail({
+        to: testRecipient.trim(),
+        noteTitle: 'Kiểm tra hệ thống gửi mail tự động',
+        content: 'Xin chào! Đây là email kiểm tra tính năng thông báo tự động từ Hệ Thống Trợ Lý Thu Mua Farmers Market.',
+      });
+      if (res.success) {
+        toast.success(`✉️ Đã gửi email thực tế tới ${testRecipient}! Hãy kiểm tra hộp thư đến (hoặc thư mục Spam).`, { duration: 6500 });
+      } else {
+        toast.error(res.message || 'Lỗi gửi mail', { duration: 6500 });
+      }
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
 
   const handleExportBackup = async () => {
     try {
@@ -294,6 +369,126 @@ export const SettingsPage: React.FC = () => {
           <span className="w-1.5 h-1.5 rounded-full bg-[#0066cc] dark:bg-[#2997ff]" />
           Tùy chọn giao diện được lưu tự động và nhớ qua các lần tải lại trang.
         </p>
+      </div>
+
+      {/* Automated Email & SMTP Settings */}
+      <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-5">
+        <div className="flex items-center justify-between pb-3.5 border-b border-[#e0e0e0] dark:border-white/10 flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Mail className="w-5 h-5 text-[#0066cc]" />
+            <h3 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-white">
+              Cấu Hình Gửi Mail Tự Động (Gmail SMTP)
+            </h3>
+          </div>
+          <div className="flex items-center gap-2">
+            {smtpStatus.configured ? (
+              <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Đã kết nối: {smtpStatus.fullUser || smtpStatus.smtpUser}</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-semibold px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
+                <span>⚠️ Chưa cấu hình</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <p className="text-[13px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
+          Hệ thống sử dụng máy chủ SMTP của Google để gửi thông báo nhắc việc và email trực tiếp đến hòm thư của bạn. Để sử dụng, bạn chỉ cần nhập tài khoản Gmail và Mật khẩu ứng dụng (App Password 16 chữ cái).
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] block mb-1">
+              Tài khoản Gmail gửi thư:
+            </label>
+            <input
+              type="email"
+              placeholder="vd: kaka.nhdk@gmail.com"
+              value={smtpEmail}
+              onChange={(e) => setSmtpEmail(e.target.value)}
+              className="w-full px-3.5 py-2 rounded-xl text-[13px] bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none focus:border-[#0071e3] text-[#1d1d1f] dark:text-white"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7]">
+                Mật khẩu ứng dụng (Google App Password):
+              </label>
+              <a
+                href="https://myaccount.google.com/apppasswords"
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11px] text-[#0071e3] dark:text-[#2997ff] hover:underline"
+              >
+                Tạo App Password ↗
+              </a>
+            </div>
+            <input
+              type="password"
+              placeholder="16 ký tự (vd: abcd efgh ijkl mnop)"
+              value={smtpPassword}
+              onChange={(e) => setSmtpPassword(e.target.value)}
+              className="w-full px-3.5 py-2 rounded-xl text-[13px] bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none focus:border-[#0071e3] text-[#1d1d1f] dark:text-white font-mono tracking-wider"
+            />
+          </div>
+
+          <div>
+            <label className="text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] block mb-1">
+              Tên người gửi hiển thị:
+            </label>
+            <input
+              type="text"
+              placeholder="Trợ Lý Thu Mua • Farmers Market"
+              value={smtpSenderName}
+              onChange={(e) => setSmtpSenderName(e.target.value)}
+              className="w-full px-3.5 py-2 rounded-xl text-[13px] bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none focus:border-[#0071e3] text-[#1d1d1f] dark:text-white"
+            />
+          </div>
+
+          <div>
+            <label className="text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] block mb-1">
+              Máy chủ & Cổng SMTP:
+            </label>
+            <div className="w-full px-3.5 py-2 rounded-xl text-[13px] bg-black/[0.03] dark:bg-white/5 border border-black/10 dark:border-white/10 text-[#76767b] dark:text-[#a1a1a6]">
+              smtp.gmail.com : 587 (TLS / STARTTLS)
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+          <div className="flex items-center gap-2 flex-1 min-w-[260px] max-w-md">
+            <input
+              type="email"
+              placeholder="Nhập email nhận thử (vd: kaka.nhdk@gmail.com)"
+              value={testRecipient}
+              onChange={(e) => setTestRecipient(e.target.value)}
+              className="flex-1 px-3 py-1.5 rounded-xl text-[12px] bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none focus:border-[#0071e3] text-[#1d1d1f] dark:text-white"
+            />
+            <Button
+              variant="glass"
+              size="sm"
+              onClick={handleTestSendFromSettings}
+              disabled={isSendingTest || !smtpStatus.configured}
+              icon={<Send className="w-3.5 h-3.5" />}
+              className="shrink-0 text-xs"
+            >
+              {isSendingTest ? 'Đang gửi...' : 'Gửi thử nghiệm'}
+            </Button>
+          </div>
+
+          <Button
+            variant="glassProminent"
+            size="sm"
+            onClick={handleSaveSmtp}
+            disabled={isSavingSmtp}
+            className="rounded-full px-5 py-2 active:scale-95 font-medium shrink-0"
+          >
+            {isSavingSmtp ? 'Đang kiểm tra kết nối...' : 'Lưu & Kiểm Tra Kết Nối'}
+          </Button>
+        </div>
       </div>
 
       {/* Danger Zone */}

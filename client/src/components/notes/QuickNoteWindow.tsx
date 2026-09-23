@@ -162,6 +162,15 @@ export const QuickNoteWindow: React.FC = () => {
   const [reminderProvider, setReminderProvider] = useState<EmailProviderType>('gmail');
   const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
 
+  // SMTP configuration state
+  const [smtpConfigured, setSmtpConfigured] = useState<boolean | null>(null);
+  const [smtpSenderUser, setSmtpSenderUser] = useState<string>('');
+  const [showSmtpSetup, setShowSmtpSetup] = useState<boolean>(false);
+  const [smtpInputUser, setSmtpInputUser] = useState<string>('');
+  const [smtpInputPass, setSmtpInputPass] = useState<string>('');
+  const [smtpInputSenderName, setSmtpInputSenderName] = useState<string>('Trợ Lý Thu Mua');
+  const [isVerifyingSmtp, setIsVerifyingSmtp] = useState<boolean>(false);
+
   // Individual task reminder popover state
   const [taskReminderPopover, setTaskReminderPopover] = useState<{
     lineIndex: number;
@@ -477,9 +486,19 @@ export const QuickNoteWindow: React.FC = () => {
     }
     setReminderDesktop(activeNote?.reminderNotifyDesktop ?? true);
     setReminderEmail(activeNote?.reminderNotifyEmail ?? false);
-    setReminderEmailInput(activeNote?.reminderEmail || reminderService.getPreferredEmail() || 'kaka.nhdk@gmail.com');
+    const initialEmail = activeNote?.reminderEmail || reminderService.getPreferredEmail() || 'kaka.nhdk@gmail.com';
+    setReminderEmailInput(initialEmail);
     setReminderProvider(activeNote?.emailProvider || reminderService.getPreferredProvider() || 'gmail');
     setShowReminderModal(true);
+
+    // Fetch live SMTP configuration status
+    reminderService.getSmtpStatus().then((status) => {
+      setSmtpConfigured(status.configured);
+      setSmtpSenderUser(status.fullUser || status.smtpUser || '');
+      if (!smtpInputUser) {
+        setSmtpInputUser(status.fullUser || initialEmail);
+      }
+    });
   };
 
   const handleApplyPreset = (minutesAhead: number) => {
@@ -559,11 +578,42 @@ export const QuickNoteWindow: React.FC = () => {
     toast.success('Đã hủy lịch nhắc nhở toàn bộ ghi chú', { id: 'reminder-removed' });
   };
 
+  const handleSaveSmtpConfig = async () => {
+    if (!smtpInputUser.trim() || !smtpInputPass.trim()) {
+      toast.error('Vui lòng nhập Email Gmail và Mật khẩu ứng dụng 16 ký tự');
+      return;
+    }
+    setIsVerifyingSmtp(true);
+    try {
+      const res = await reminderService.configureSmtp({
+        user: smtpInputUser.trim(),
+        pass: smtpInputPass.trim(),
+        senderName: smtpInputSenderName.trim() || 'Trợ Lý Thu Mua Farmers Market',
+      });
+      if (res.success) {
+        setSmtpConfigured(true);
+        setSmtpSenderUser(smtpInputUser.trim());
+        setShowSmtpSetup(false);
+        toast.success('🎉 Đã xác thực & kết nối máy chủ gửi mail Google SMTP thành công!');
+      } else {
+        toast.error(res.message, { duration: 6500 });
+      }
+    } finally {
+      setIsVerifyingSmtp(false);
+    }
+  };
+
   const handleSendTestEmail = async () => {
     if (!activeNote) return;
     const target = reminderEmailInput.trim() || reminderService.getPreferredEmail();
     if (!target) {
       toast.error('Vui lòng nhập địa chỉ email người nhận trước');
+      return;
+    }
+
+    if (smtpConfigured === false) {
+      setShowSmtpSetup(true);
+      toast('Vui lòng thiết lập tài khoản Gmail SMTP trước để hệ thống có thể gửi email thực tế.', { icon: '⚙️', duration: 5000 });
       return;
     }
 
@@ -578,9 +628,16 @@ export const QuickNoteWindow: React.FC = () => {
 
       if (res.success) {
         reminderService.setPreferredEmail(target);
-        toast.success(`✉️ Đã gửi email thông báo tự động tới ${target}!`, { id: 'test-email-sent' });
+        toast.success(`✉️ Hệ thống đã gửi email thực tế tới ${target}! Kiểm tra hộp thư đến (hoặc thư mục Spam).`, {
+          id: 'test-email-sent',
+          duration: 6000,
+        });
       } else {
-        toast.error(res.message || 'Không thể gửi email tự động', { id: 'test-email-error' });
+        if (res.configured === false) {
+          setSmtpConfigured(false);
+          setShowSmtpSetup(true);
+        }
+        toast.error(res.message || 'Không thể gửi email tự động', { id: 'test-email-error', duration: 7000 });
       }
     } finally {
       setIsSendingTestEmail(false);
@@ -1489,6 +1546,127 @@ export const QuickNoteWindow: React.FC = () => {
                             className="w-full px-3 py-1.5 rounded-xl text-[12.5px] bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 text-[#1d1d1f] dark:text-white placeholder:text-[#86868b] focus:border-[#0071e3] outline-none"
                           />
                         </div>
+
+                        {/* SMTP Status Indicator */}
+                        {smtpConfigured === false && (
+                          <div className="p-3 rounded-2xl bg-amber-500/[0.08] border border-amber-500/25 space-y-2 text-left">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-1.5 text-[12px] font-semibold text-amber-800 dark:text-amber-300">
+                                <span>⚠️ Chưa kết nối tài khoản gửi mail (SMTP)</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setShowSmtpSetup(!showSmtpSetup)}
+                                className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-600 text-white hover:bg-amber-700 cursor-pointer transition-colors shadow-2xs shrink-0"
+                              >
+                                {showSmtpSetup ? 'Thu gọn' : '⚙️ Cấu hình gửi Gmail'}
+                              </button>
+                            </div>
+                            <p className="text-[11px] text-[#76767b] dark:text-[#a1a1a6] leading-relaxed">
+                              Hệ thống cần tài khoản Gmail & Mật khẩu ứng dụng (App Password) để gửi email thực tế đến hòm thư của bạn.
+                            </p>
+                          </div>
+                        )}
+
+                        {smtpConfigured === true && (
+                          <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/20 text-[11.5px] text-emerald-800 dark:text-emerald-300">
+                            <span className="flex items-center gap-1.5 truncate">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                              <span>Đã kết nối gửi mail: <strong className="font-semibold">{smtpSenderUser || 'Gmail SMTP'}</strong></span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setShowSmtpSetup(!showSmtpSetup)}
+                              className="text-[11px] text-[#0071e3] dark:text-[#2997ff] hover:underline cursor-pointer ml-2 shrink-0 font-medium"
+                            >
+                              {showSmtpSetup ? 'Đóng' : 'Đổi tài khoản'}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Inline SMTP Setup Form */}
+                        {showSmtpSetup && (
+                          <div className="p-3.5 rounded-2xl bg-white dark:bg-[#25252d] border border-black/10 dark:border-white/15 shadow-sm space-y-3 animate-in fade-in slide-in-from-top-2 duration-150 text-left">
+                            <div className="flex items-center justify-between pb-2 border-b border-black/[0.06] dark:border-white/10">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm">📧</span>
+                                <span className="text-[12.5px] font-bold text-[#1d1d1f] dark:text-white">
+                                  Thiết lập tài khoản gửi Gmail SMTP
+                                </span>
+                              </div>
+                              <a
+                                href="https://myaccount.google.com/apppasswords"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[11px] text-[#0071e3] dark:text-[#2997ff] hover:underline cursor-pointer font-medium"
+                              >
+                                Tạo App Password ↗
+                              </a>
+                            </div>
+
+                            <div className="space-y-2">
+                              <div>
+                                <label className="text-[11px] font-medium text-[#76767b] dark:text-[#a1a1a6] block mb-1">
+                                  Tài khoản Gmail gửi đi (Email của bạn):
+                                </label>
+                                <input
+                                  type="email"
+                                  placeholder="vd: kaka.nhdk@gmail.com"
+                                  value={smtpInputUser}
+                                  onChange={(e) => setSmtpInputUser(e.target.value)}
+                                  className="w-full px-3 py-1.5 rounded-xl text-[12px] bg-black/[0.02] dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none focus:border-[#0071e3] text-[#1d1d1f] dark:text-white"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="text-[11px] font-medium text-[#76767b] dark:text-[#a1a1a6] block mb-1">
+                                  Mật khẩu ứng dụng (Google App Password 16 chữ cái):
+                                </label>
+                                <input
+                                  type="password"
+                                  placeholder="vd: abcd efgh ijkl mnop"
+                                  value={smtpInputPass}
+                                  onChange={(e) => setSmtpInputPass(e.target.value)}
+                                  className="w-full px-3 py-1.5 rounded-xl text-[12px] bg-black/[0.02] dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none focus:border-[#0071e3] text-[#1d1d1f] dark:text-white tracking-widest font-mono"
+                                />
+                                <p className="text-[10px] text-[#86868b] dark:text-[#a1a1a6] mt-1 leading-normal">
+                                  * Không phải mật khẩu Gmail thường. Bật xác minh 2 bước và tạo tại <span className="font-mono text-[#0071e3]">myaccount.google.com/apppasswords</span>.
+                                </p>
+                              </div>
+
+                              <div>
+                                <label className="text-[11px] font-medium text-[#76767b] dark:text-[#a1a1a6] block mb-1">
+                                  Tên người gửi hiển thị:
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="Trợ Lý Thu Mua • Farmers Market"
+                                  value={smtpInputSenderName}
+                                  onChange={(e) => setSmtpInputSenderName(e.target.value)}
+                                  className="w-full px-3 py-1.5 rounded-xl text-[12px] bg-black/[0.02] dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none focus:border-[#0071e3] text-[#1d1d1f] dark:text-white"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="pt-2 flex items-center justify-end gap-2 border-t border-black/[0.06] dark:border-white/10">
+                              <button
+                                type="button"
+                                onClick={() => setShowSmtpSetup(false)}
+                                className="px-3 py-1.5 rounded-full text-[11.5px] text-[#76767b] hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
+                              >
+                                Đóng
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleSaveSmtpConfig}
+                                disabled={isVerifyingSmtp}
+                                className="px-3.5 py-1.5 rounded-full text-[11.5px] font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-xs"
+                              >
+                                {isVerifyingSmtp ? 'Đang kiểm tra kết nối...' : 'Lưu & Kiểm tra kết nối'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
 
                         <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-amber-500/[0.06] border border-amber-500/20 text-[11.5px] text-amber-800 dark:text-amber-200">
                           <span className="truncate">⚡ Tự động gửi email khi đến giờ hẹn</span>

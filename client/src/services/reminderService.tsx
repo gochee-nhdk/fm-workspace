@@ -105,6 +105,58 @@ class ReminderService {
   }
 
   /**
+   * Get SMTP configuration status
+   */
+  async getSmtpStatus(): Promise<{
+    configured: boolean;
+    smtpHost?: string;
+    smtpPort?: number;
+    smtpUser?: string | null;
+    fullUser?: string | null;
+    senderName?: string;
+  }> {
+    try {
+      const res = await api.get('/notifications/smtp-status');
+      return {
+        configured: Boolean(res.data?.configured),
+        smtpHost: res.data?.smtpHost,
+        smtpPort: res.data?.smtpPort,
+        smtpUser: res.data?.smtpUser,
+        fullUser: res.data?.fullUser,
+        senderName: res.data?.senderName,
+      };
+    } catch (err) {
+      console.warn('getSmtpStatus error:', err);
+      return { configured: false };
+    }
+  }
+
+  /**
+   * Save and verify SMTP configuration
+   */
+  async configureSmtp(config: {
+    user: string;
+    pass: string;
+    host?: string;
+    port?: number;
+    senderName?: string;
+  }): Promise<{ success: boolean; message: string; configured?: boolean }> {
+    try {
+      const res = await api.post('/notifications/smtp-config', config);
+      return {
+        success: res.data?.success ?? true,
+        message: res.data?.message || 'Cấu hình SMTP thành công',
+        configured: res.data?.configured ?? true,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.response?.data?.message || err.message || 'Lỗi khi kết nối máy chủ SMTP',
+      };
+    }
+  }
+
+  /**
    * Send automated system email notification via backend
    * No user manual clicking or external webmail window required!
    */
@@ -114,17 +166,19 @@ class ReminderService {
     content?: string;
     noteTitle?: string;
     taskText?: string;
-  }): Promise<{ success: boolean; message?: string }> {
+  }): Promise<{ success: boolean; message?: string; configured?: boolean }> {
     try {
       const res = await api.post('/notifications/send-reminder-email', options);
       return {
         success: res.data?.success ?? true,
         message: res.data?.message || 'Đã gửi email thông báo thành công',
+        configured: res.data?.configured ?? true,
       };
     } catch (err: any) {
       console.warn('sendAutomatedEmail backend dispatch error:', err);
       return {
         success: false,
+        configured: err.response?.data?.configured ?? false,
         message: err.response?.data?.message || 'Không thể kết nối máy chủ gửi email',
       };
     }
