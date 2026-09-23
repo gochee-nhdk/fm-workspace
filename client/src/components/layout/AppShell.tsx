@@ -19,10 +19,14 @@ import {
   ExternalLink,
   PanelLeftClose,
   PanelLeftOpen,
+  SquarePen,
 } from 'lucide-react';
 import { CommandPalette } from '@/components/ui/command-palette';
 import { ExcelImportModal } from '@/components/excel/ExcelImportModal';
+import { QuickNoteWindow } from '@/components/notes/QuickNoteWindow';
+import { QuickNoteFloatingButton } from '@/components/notes/QuickNoteFloatingButton';
 import { useUiStore } from '@/stores/ui-store';
+import { useNoteStore } from '@/stores/note-store';
 import { Button } from '@/components/ui/button';
 
 const navItems = [
@@ -52,9 +56,15 @@ export const AppShell: React.FC = () => {
   };
 
   const { theme, toggleTheme } = useUiStore();
+  const { loadNotes, openNote, toggleNote, notes } = useNoteStore();
   const location = useLocation();
   const navigate = useNavigate();
   const mainRef = useRef<HTMLElement>(null);
+
+  // ✅ Initialize notes on app startup
+  useEffect(() => {
+    loadNotes();
+  }, [loadNotes]);
 
   // ✅ Synchronize CSS variable --sidebar-width for exact visual centering of toasts & modals
   useEffect(() => {
@@ -69,7 +79,7 @@ export const AppShell: React.FC = () => {
     mainRef.current?.scrollTo({ top: 0, behavior: 'instant' });
   }, [location.pathname]);
 
-  // ✅ Global Ctrl+K / ⌘K and Ctrl+\ listeners
+  // ✅ Global Ctrl+K / ⌘K, Ctrl+\, and Alt+N / Ctrl+J listeners
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -80,13 +90,18 @@ export const AppShell: React.FC = () => {
         e.preventDefault();
         toggleSidebar();
       }
+      // Alt + N (⌥N) or Ctrl + J (⌘J) for Quick Notes
+      if ((e.altKey && e.key.toLowerCase() === 'n') || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'j')) {
+        e.preventDefault();
+        toggleNote();
+      }
       if (e.key === 'Escape') {
         setMobileMenuOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [toggleNote]);
 
   // ✅ Listen for fm:open-import event dispatched from any child page
   useEffect(() => {
@@ -211,6 +226,28 @@ export const AppShell: React.FC = () => {
               )}
             </NavLink>
           ))}
+
+          {/* Quick Note Item */}
+          <button
+            type="button"
+            onClick={() => openNote()}
+            title={isSidebarCollapsed ? 'Ghi chú nhanh (⌥N hoặc Ctrl+J)' : undefined}
+            className={`w-full flex items-center ${
+              isSidebarCollapsed ? 'justify-center w-11 h-11 mx-auto px-0' : 'gap-3 px-3.5 py-2.5'
+            } rounded-full text-[13.5px] transition-all duration-200 ease-out active:scale-[0.98] text-[#555558] dark:text-[#a1a1a6] hover:bg-amber-500/10 hover:text-amber-600 dark:hover:text-amber-400 hover:shadow-[0_2px_8px_rgba(245,158,11,0.08)] cursor-pointer group`}
+          >
+            <span className="p-1 rounded-lg text-amber-500 dark:text-amber-400 shrink-0 group-hover:scale-110 transition-transform">
+              <SquarePen className="w-4 h-4" />
+            </span>
+            {!isSidebarCollapsed && (
+              <div className="flex items-center justify-between flex-1 min-w-0">
+                <span className="truncate whitespace-nowrap font-medium">Ghi chú nhanh</span>
+                <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/10 text-slate-400 group-hover:text-amber-500 transition-colors">
+                  ⌥N
+                </kbd>
+              </div>
+            )}
+          </button>
         </nav>
 
         {/* Sidebar Bottom Controls */}
@@ -303,6 +340,21 @@ export const AppShell: React.FC = () => {
               Import Excel
             </Button>
 
+            {/* Quick Note Button — Liquid Lens Circle */}
+            <button
+              onClick={() => openNote()}
+              className="liquid-lens-circle w-10 h-10 group relative"
+              title="Ghi chú nhanh (⌥N hoặc Ctrl+J)"
+              aria-label="Mở ghi chú nhanh"
+            >
+              <SquarePen className="w-4 h-4 text-amber-500 dark:text-amber-400 group-hover:scale-110 transition-transform duration-200" />
+              {notes.length > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 text-[9.5px] font-bold bg-amber-500 text-white rounded-full flex items-center justify-center shadow-xs border border-white dark:border-zinc-900 pointer-events-none">
+                  {notes.length}
+                </span>
+              )}
+            </button>
+
             {/* Theme Toggle — 3D Liquid Lens Circle Button (Image 1 style) */}
             <button
               onClick={toggleTheme}
@@ -386,6 +438,21 @@ export const AppShell: React.FC = () => {
                     <span>{item.label}</span>
                   </NavLink>
                 ))}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    openNote();
+                  }}
+                  className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-full text-[14px] font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/15 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <SquarePen className="w-4 h-4" />
+                    <span>Ghi chú nhanh</span>
+                  </div>
+                  <span className="text-[11px] font-mono opacity-80">⌥N</span>
+                </button>
               </nav>
 
               <div className="pt-4 border-t border-[#e0e0e0] dark:border-white/10 space-y-2">
@@ -399,8 +466,6 @@ export const AppShell: React.FC = () => {
                   <FileSpreadsheet className="w-4 h-4" />
                   <span>Import / Export Excel</span>
                 </button>
-
-
               </div>
             </div>
           </div>,
@@ -423,6 +488,10 @@ export const AppShell: React.FC = () => {
           window.location.reload();
         }}
       />
+
+      {/* Quick Note Floating Capsule & Interactive Window */}
+      <QuickNoteWindow />
+      <QuickNoteFloatingButton />
     </div>
   );
 };

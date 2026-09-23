@@ -69,3 +69,16 @@ export interface WorkspaceSummary {
   recentStores: StoreItem[];
   recentActivities: ActivityLogItem[];
 }
+
+export type QuickNoteColor = 'amber' | 'blue' | 'emerald' | 'purple' | 'rose';
+
+export interface QuickNoteItem {
+  id: string;
+  title: string;
+  content: string;
+  pinned?: boolean;
+  color?: QuickNoteColor;
+  tags?: string[];
+  createdAt: string;
+  updatedAt: string;
+}

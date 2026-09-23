@@ -21,10 +21,12 @@ import {
   Clock,
   Compass,
   Layers,
+  SquarePen,
 } from 'lucide-react';
 import { dataService } from '@/services/dataService';
 import { LinkItem, AccountItem, StoreItem } from '@/types/workspace';
 import { useUiStore } from '@/stores/ui-store';
+import { useNoteStore } from '@/stores/note-store';
 import { cn } from '@/lib/utils';
 
 export interface CommandPaletteProps {
@@ -258,6 +260,34 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   // Quick System Actions
   const systemActions = useMemo(
     () => [
+      {
+        type: 'action' as const,
+        id: 'act-quick-note',
+        label: 'Mở cửa sổ Ghi chú nhanh (Quick Note)',
+        sub: 'Tạo hoặc xem các ghi chú công việc nhanh (phím tắt ⌥N hoặc Ctrl+J)',
+        tag: 'Ghi chú',
+        icon: <SquarePen className="w-4 h-4" />,
+        iconBg: 'bg-amber-500/12 dark:bg-amber-500/20',
+        iconColor: 'text-amber-600 dark:text-amber-400',
+        action: () => {
+          handleClose();
+          useNoteStore.getState().openNote();
+        },
+      },
+      {
+        type: 'action' as const,
+        id: 'act-new-note',
+        label: 'Tạo ghi chú mới ngay lập tức',
+        sub: 'Mở trình soạn thảo tạo ghi chú mới',
+        tag: 'Ghi chú',
+        icon: <SquarePen className="w-4 h-4" />,
+        iconBg: 'bg-amber-500/12 dark:bg-amber-500/20',
+        iconColor: 'text-amber-600 dark:text-amber-400',
+        action: () => {
+          handleClose();
+          useNoteStore.getState().createNote();
+        },
+      },
       {
         type: 'action' as const,
         id: 'act-import',
