@@ -2258,114 +2258,81 @@ tbody td {
   vertical-align: middle;
   border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(0, 0, 0, 0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dark .apple-img-wrapper {
   border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
 }
 
 .apple-img-wrapper:hover {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
 }
 
-/* Quick Action Bar on Image - Apple Liquid Glass Capsule */
-.apple-img-action-bar {
+/* Apple Liquid Glass Quick Delete Button on Image */
+.apple-img-wrapper .apple-img-delete-btn {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 6px;
-  border-radius: 20px;
-  background: rgba(18, 18, 24, 0.72);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
-  z-index: 10;
-  opacity: 0.92;
-  transition: opacity 0.18s ease, transform 0.18s ease, background 0.18s ease;
-}
-
-.apple-img-wrapper:hover .apple-img-action-bar {
-  opacity: 1 !important;
-  transform: scale(1.02);
-  background: rgba(15, 15, 20, 0.88);
-}
-
-.apple-img-action-bar button,
-.apple-img-action-bar a {
-  display: inline-flex !important;
-  align-items: center;
-  justify-content: center;
+  top: 8px;
+  right: 8px;
   width: 24px;
   height: 24px;
   border-radius: 50%;
+  background: rgba(22, 22, 26, 0.52);
+  backdrop-filter: blur(20px) saturate(190%);
+  -webkit-backdrop-filter: blur(20px) saturate(190%);
+  color: #ffffff;
+  border: 0.5px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  font-size: 11px;
-  font-weight: 600;
   padding: 0;
   outline: none;
-  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background 0.15s ease, box-shadow 0.15s ease;
+  z-index: 10;
   user-select: none;
 }
 
-.apple-img-action-bar .apple-img-zoom-btn {
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  border: none;
+.apple-img-wrapper:hover .apple-img-delete-btn,
+.apple-img-wrapper:focus-within .apple-img-delete-btn {
+  opacity: 1 !important;
+  transform: scale(1) !important;
 }
 
-.apple-img-action-bar .apple-img-zoom-btn:hover {
-  background: #0071e3 !important;
-  color: #ffffff !important;
-  transform: scale(1.15) !important;
-  box-shadow: 0 2px 8px rgba(0, 113, 227, 0.45);
-}
-
-.apple-img-action-bar .apple-img-download-btn {
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  border: none;
-  text-decoration: none;
-}
-
-.apple-img-action-bar .apple-img-download-btn:hover {
-  background: rgba(255, 255, 255, 0.4) !important;
-  transform: scale(1.15) !important;
-}
-
-/* Quick Delete Button for Images */
-.apple-img-action-bar .apple-img-delete-btn,
-.apple-img-wrapper .apple-img-delete-btn {
-  background: rgba(239, 68, 68, 0.88);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-}
-
-.apple-img-action-bar .apple-img-delete-btn:hover,
 .apple-img-wrapper .apple-img-delete-btn:hover {
-  background: #dc2626 !important;
+  background: #ef4444 !important;
   border-color: rgba(255, 255, 255, 0.6) !important;
-  transform: scale(1.15) !important;
+  transform: scale(1.1) !important;
   box-shadow: 0 2px 10px rgba(239, 68, 68, 0.5) !important;
 }
 
-/* Quick Delete Button for File Attachments */
-.apple-file-attachment .apple-file-delete-btn {
-  transition: all 0.15s ease;
+/* Apple File Attachment Card Buttons (Preview, Download, Delete) */
+.apple-file-attachment button,
+.apple-file-attachment a {
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.apple-file-attachment .apple-file-preview-btn:hover {
+  background: rgba(0, 113, 227, 0.22) !important;
+  transform: scale(1.08);
+}
+
+.apple-file-attachment .apple-file-download-btn:hover {
+  filter: brightness(1.12);
+  transform: scale(1.08);
 }
 
 .apple-file-attachment .apple-file-delete-btn:hover {
   background: #ef4444 !important;
   color: #ffffff !important;
   border-color: #ef4444 !important;
-  transform: scale(1.12);
+  transform: scale(1.08);
   box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
 }
 
