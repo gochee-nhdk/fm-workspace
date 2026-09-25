@@ -1,7 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { SFArrowClockwise } from 'sf-symbols-lib';
-export { LiquiButton, type LiquiButtonProps } from './liqui-button';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?:
