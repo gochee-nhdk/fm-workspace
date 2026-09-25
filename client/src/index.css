@@ -2253,14 +2253,30 @@ tbody td {
 /* Apple Note Media & Attachments Inline Controls */
 .apple-img-wrapper {
   position: relative;
-  display: inline-block;
-  margin: 8px 0;
+  display: inline-flex !important;
+  line-height: 0 !important;
+  font-size: 0 !important;
+  padding: 0 !important;
+  margin: 6px 0 !important;
   vertical-align: middle;
   border-radius: 14px;
   overflow: hidden;
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(0, 0, 0, 0.08);
+  background: transparent !important;
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.apple-img-wrapper img,
+.apple-img-wrapper .apple-note-inline-img {
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 13px !important;
+  vertical-align: top !important;
+  line-height: 0 !important;
 }
 
 .dark .apple-img-wrapper {
