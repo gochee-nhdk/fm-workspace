@@ -232,8 +232,21 @@ const ensureHtml = (content: string): string => {
     .replace(/<p>\s*<p>/gi, '<p>')
     .replace(/<\/p>\s*<\/p>/gi, '</p>');
 
+  // Tự động chuẩn hóa các hình ảnh chưa có wrapper thành thẻ chuẩn có Quick Action Pill (Xóa nhanh, Phóng to, Tải xuống)
+  if (cleaned.includes('<img') && !cleaned.includes('apple-img-action-bar')) {
+    cleaned = cleaned.replace(/<img\b([^>]*?)src=["']([^"']+)["']([^>]*?)>/gi, (match, before, src, after) => {
+      // Nếu đã nằm trong apple-img-wrapper rồi thì không bọc lại
+      if (before.includes('apple-note-inline-img') && match.includes('apple-img-action-bar')) {
+        return match;
+      }
+      const altMatch = (before + after).match(/alt=["']([^"']+)["']/i);
+      const alt = altMatch ? altMatch[1] : 'Hình ảnh';
+      return `<span class="apple-img-wrapper" contenteditable="false" data-media-type="image" style="position: relative; display: inline-block; margin: 8px 0; max-width: 100%; vertical-align: middle; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.08);"><img src="${src}" alt="${alt}" class="apple-note-inline-img" style="max-width: 320px; max-height: 220px; width: auto; height: auto; object-fit: contain; border-radius: 13px; display: block; cursor: zoom-in;" title="Nhấp vào ảnh để phóng to hoặc bấm nút xóa phía trên" /><span class="apple-img-action-bar" style="position: absolute; top: 6px; right: 6px; display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: 20px; background: rgba(18, 18, 24, 0.72); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 2px 8px rgba(0,0,0,0.3); z-index: 10;"><button type="button" class="apple-img-zoom-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,0.18); color: #ffffff; border: none; cursor: pointer; font-size: 11px; padding: 0; outline: none;" title="Phóng to ảnh (Quick Look)">🔍</button><a href="${src}" download="${alt}" class="apple-img-download-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,0.18); color: #ffffff; border: none; text-decoration: none; font-size: 11px; cursor: pointer;" title="Tải ảnh về máy">↓</a><button type="button" class="apple-img-delete-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: rgba(239,68,68,0.9); color: #ffffff; border: 1px solid rgba(255,255,255,0.35); cursor: pointer; font-size: 11px; font-weight: bold; padding: 0; outline: none;" title="Xóa nhanh hình ảnh này">✕</button></span></span>`;
+    });
+  }
+
   // If already contains HTML tags
-  if (/<(p|div|h[1-6]|ul|ol|li|b|strong|i|em|u|s|strike|br)\b[^>]*>/i.test(cleaned)) {
+  if (/<(p|div|h[1-6]|ul|ol|li|b|strong|i|em|u|s|strike|br|span|img)\b[^>]*>/i.test(cleaned)) {
     return cleaned.replace(/^#\s+(.*?)$/gm, '<h2>$1</h2>');
   }
   return cleaned
@@ -568,7 +581,14 @@ const escapeRegex = (str: string): string => {
 };
 
 const generateInlineImageHtml = (dataUrl: string, name: string): string => {
-  return `<p><span class="apple-img-wrapper" contenteditable="false" style="position: relative; display: inline-block; margin: 8px 0; max-width: 100%;"><img src="${dataUrl}" alt="${name}" class="apple-note-inline-img" style="max-width: 320px; max-height: 220px; width: auto; height: auto; object-fit: contain; border-radius: 12px; display: block; cursor: zoom-in; box-shadow: 0 4px 14px rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.08);" title="Nhấp vào ảnh để phóng to" /><button type="button" class="apple-img-delete-btn" style="position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,0.65); color: #ffffff; border: 1px solid rgba(255,255,255,0.4); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; font-weight: bold; padding: 0; outline: none; z-index: 10;" title="Xóa hình ảnh này">✕</button></span></p><p><br></p>`;
+  return `<p><span class="apple-img-wrapper" contenteditable="false" data-media-type="image" style="position: relative; display: inline-block; margin: 8px 0; max-width: 100%; vertical-align: middle; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.08);">
+    <img src="${dataUrl}" alt="${name}" class="apple-note-inline-img" style="max-width: 320px; max-height: 220px; width: auto; height: auto; object-fit: contain; border-radius: 13px; display: block; cursor: zoom-in;" title="Nhấp vào ảnh để phóng to hoặc bấm nút xóa phía trên" />
+    <span class="apple-img-action-bar" style="position: absolute; top: 6px; right: 6px; display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: 20px; background: rgba(18, 18, 24, 0.72); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.25); box-shadow: 0 2px 8px rgba(0,0,0,0.3); z-index: 10;">
+      <button type="button" class="apple-img-zoom-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,0.18); color: #ffffff; border: none; cursor: pointer; font-size: 11px; padding: 0; outline: none;" title="Phóng to ảnh (Quick Look)">🔍</button>
+      <a href="${dataUrl}" download="${name}" class="apple-img-download-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,0.18); color: #ffffff; border: none; text-decoration: none; font-size: 11px; cursor: pointer;" title="Tải ảnh về máy">↓</a>
+      <button type="button" class="apple-img-delete-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: rgba(239,68,68,0.9); color: #ffffff; border: 1px solid rgba(255,255,255,0.35); cursor: pointer; font-size: 11px; font-weight: bold; padding: 0; outline: none;" title="Xóa nhanh hình ảnh này">✕</button>
+    </span>
+  </span></p><p><br></p>`;
 };
 
 const generateFileCardHtml = (fileDataUrl: string, fileName: string, ext: string, sizeStr: string): string => {
@@ -581,7 +601,7 @@ const generateFileCardHtml = (fileDataUrl: string, fileName: string, ext: string
   else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) { badgeColor = '#805ad5'; }
   else if (['txt', 'md', 'json'].includes(ext)) { badgeColor = '#718096'; }
 
-  return `<p><span class="apple-file-attachment" contenteditable="false" data-file-url="${fileDataUrl}" data-file-name="${fileName}" data-file-ext="${ext}" data-file-size="${sizeStr}" style="display: inline-flex; align-items: center; gap: 10px; padding: 7px 12px; margin: 6px 0; border-radius: 16px; background: rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.08); font-size: 13px; font-weight: 500; text-decoration: none; user-select: none; box-shadow: 0 2px 6px rgba(0,0,0,0.03); vertical-align: middle; max-width: 100%;">
+  return `<p><span class="apple-file-attachment" contenteditable="false" data-media-type="file" data-file-url="${fileDataUrl}" data-file-name="${fileName}" data-file-ext="${ext}" data-file-size="${sizeStr}" style="display: inline-flex; align-items: center; gap: 10px; padding: 7px 12px; margin: 6px 0; border-radius: 16px; background: rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.08); font-size: 13px; font-weight: 500; text-decoration: none; user-select: none; box-shadow: 0 2px 6px rgba(0,0,0,0.03); vertical-align: middle; max-width: 100%;">
     ${docSvg}
     <span style="display: flex; flex-direction: column; min-width: 0; max-width: 220px; line-height: 1.25;">
       <span style="font-weight: 600; color: #1d1d1f; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px;" title="${fileName}">${fileName}</span>
@@ -590,7 +610,7 @@ const generateFileCardHtml = (fileDataUrl: string, fileName: string, ext: string
     <span style="display: inline-flex; align-items: center; gap: 4px; margin-left: 6px;">
       <button type="button" class="apple-file-preview-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,113,227,0.12); color: #0071e3; border: 1px solid rgba(0,113,227,0.2); cursor: pointer; font-size: 12px; padding: 0; outline: none;" title="Xem trước tệp (Quick Look)">👁</button>
       <a href="${fileDataUrl}" download="${fileName}" class="apple-file-download-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: ${badgeColor}; color: white; border: none; text-decoration: none; font-size: 12px; font-weight: bold; cursor: pointer;" title="Tải xuống tệp ${fileName}">↓</a>
-      <button type="button" class="apple-file-delete-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); cursor: pointer; font-size: 11px; font-weight: bold; padding: 0; outline: none;" title="Xóa tệp đính kèm">✕</button>
+      <button type="button" class="apple-file-delete-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(239,68,68,0.14); color: #ef4444; border: 1px solid rgba(239,68,68,0.28); cursor: pointer; font-size: 11px; font-weight: bold; padding: 0; outline: none;" title="Xóa tệp đính kèm">✕</button>
     </span>
   </span></p><p><br></p>`;
 };
@@ -1682,11 +1702,13 @@ export const QuickNoteWindow: React.FC = () => {
     if (editorRef.current) {
       const imgs = Array.from(editorRef.current.querySelectorAll('img'));
       imgs.forEach((img) => {
-        const src = img.getAttribute('src');
-        if (src === imageUrl || (imageId && img.getAttribute('data-image-id') === imageId)) {
+        const src = img.getAttribute('src') || '';
+        const matches = (imageUrl && (src === imageUrl || src.includes(imageUrl.substring(0, 80)))) ||
+                        (imageId && img.getAttribute('data-image-id') === imageId);
+        if (matches) {
           const wrapper = img.closest('.apple-img-wrapper') || img;
-          const parentP = wrapper.closest('p') || wrapper.parentElement;
-          if (parentP && parentP.tagName === 'P' && (parentP.children.length <= 1 || parentP.textContent?.trim() === '')) {
+          const parentP = wrapper.closest('p');
+          if (parentP && (parentP.children.length <= 1 || parentP.textContent?.trim() === '')) {
             parentP.remove();
           } else {
             wrapper.remove();
@@ -1696,11 +1718,12 @@ export const QuickNoteWindow: React.FC = () => {
     }
 
     let updatedHtml = editorRef.current?.innerHTML;
-    if (updatedHtml === undefined) {
+    if (updatedHtml === undefined || (imageUrl && updatedHtml.includes(imageUrl))) {
       let cur = localContentRef.current || activeNote.content || '';
       if (imageUrl) {
-        cur = cur.replace(new RegExp(`<p>[^<]*<img[^>]*src=["']${escapeRegex(imageUrl)}["'][^>]*>[^<]*<\\/p>`, 'g'), '');
+        cur = cur.replace(new RegExp(`<p>[^<]*<span class=["']apple-img-wrapper["'][^>]*>[\\s\\S]*?src=["']${escapeRegex(imageUrl)}["'][\\s\\S]*?<\\/span>[^<]*<\\/p>`, 'g'), '');
         cur = cur.replace(new RegExp(`<span class=["']apple-img-wrapper["'][^>]*>[\\s\\S]*?src=["']${escapeRegex(imageUrl)}["'][\\s\\S]*?<\\/span>`, 'g'), '');
+        cur = cur.replace(new RegExp(`<p>[^<]*<img[^>]*src=["']${escapeRegex(imageUrl)}["'][^>]*>[^<]*<\\/p>`, 'g'), '');
         cur = cur.replace(new RegExp(`<img[^>]*src=["']${escapeRegex(imageUrl)}["'][^>]*>`, 'g'), '');
       }
       updatedHtml = cur;
@@ -1712,6 +1735,7 @@ export const QuickNoteWindow: React.FC = () => {
     if (activeNoteIdRef.current) {
       await updateNote(activeNoteIdRef.current, { images: updatedImages, content: updatedHtml });
     }
+    playPopSound();
     toast.success('Đã xóa hình ảnh khỏi ghi chú', { id: 'note-img-del' });
   };
 
@@ -1722,8 +1746,8 @@ export const QuickNoteWindow: React.FC = () => {
         const u = badge.getAttribute('data-file-url');
         const n = badge.getAttribute('data-file-name');
         if ((fileUrl && u === fileUrl) || (fileName && n === fileName)) {
-          const parentP = badge.closest('p') || badge.parentElement;
-          if (parentP && parentP.tagName === 'P' && (parentP.children.length <= 1 || parentP.textContent?.trim() === '')) {
+          const parentP = badge.closest('p');
+          if (parentP && (parentP.children.length <= 1 || parentP.textContent?.trim() === badge.textContent?.trim())) {
             parentP.remove();
           } else {
             badge.remove();
@@ -1732,7 +1756,16 @@ export const QuickNoteWindow: React.FC = () => {
       });
     }
 
-    const updatedHtml = editorRef.current?.innerHTML || '';
+    let updatedHtml = editorRef.current?.innerHTML;
+    if (updatedHtml === undefined || (fileUrl && updatedHtml.includes(fileUrl))) {
+      let cur = localContentRef.current || activeNote?.content || '';
+      if (fileUrl) {
+        cur = cur.replace(new RegExp(`<p>[^<]*<span class=["']apple-file-attachment["'][^>]*data-file-url=["']${escapeRegex(fileUrl)}["'][\\s\\S]*?<\\/span>[^<]*<\\/p>`, 'g'), '');
+        cur = cur.replace(new RegExp(`<span class=["']apple-file-attachment["'][^>]*data-file-url=["']${escapeRegex(fileUrl)}["'][\\s\\S]*?<\\/span>`, 'g'), '');
+      }
+      updatedHtml = cur;
+    }
+
     setLocalContent(updatedHtml);
     localContentRef.current = updatedHtml;
     if (activeNoteIdRef.current) {
@@ -2218,6 +2251,17 @@ export const QuickNoteWindow: React.FC = () => {
     }
   };
 
+  const handleEditorMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    const isInteractive = target.closest(
+      '.apple-file-delete-btn, .apple-img-delete-btn, .apple-img-zoom-btn, .apple-file-preview-btn, .apple-img-download-btn, .apple-file-download-btn'
+    );
+    if (isInteractive) {
+      // Ngăn browser contenteditable selection can thiệp làm mất sự kiện click
+      e.stopPropagation();
+    }
+  };
+
   const handleEditorClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
 
@@ -2226,10 +2270,11 @@ export const QuickNoteWindow: React.FC = () => {
     if (fileDeleteBtn) {
       e.preventDefault();
       e.stopPropagation();
-      const badge = fileDeleteBtn.closest('.apple-file-attachment');
+      const badge = fileDeleteBtn.closest('.apple-file-attachment') as HTMLElement | null;
       if (badge) {
-        const parentP = badge.closest('p') || badge.parentElement;
-        if (parentP && parentP.tagName === 'P' && (parentP.children.length <= 1 || parentP.textContent?.trim() === '')) {
+        const fileName = badge.getAttribute('data-file-name') || 'tệp đính kèm';
+        const parentP = badge.closest('p');
+        if (parentP && (parentP.children.length <= 1 || parentP.textContent?.trim() === badge.textContent?.trim())) {
           parentP.remove();
         } else {
           badge.remove();
@@ -2241,21 +2286,24 @@ export const QuickNoteWindow: React.FC = () => {
           updateNote(activeNoteIdRef.current, { content: updated });
         }
         playPopSound();
-        toast.success('Đã xóa tệp đính kèm khỏi văn bản!', { id: 'file-del-badge' });
+        toast.success(`Đã xóa tệp "${fileName}" khỏi ghi chú!`, { id: 'file-del-badge' });
       }
       return;
     }
 
-    // 2. Nhấp vào nút Xóa hình ảnh trực tiếp trong văn bản (✕)
+    // 2. Nhấp vào nút Xóa nhanh hình ảnh trực tiếp (✕) - 1 CLICK XÓA NGAY KHÔNG CẦN PHÓNG TO
     const imgDeleteBtn = target.closest('.apple-img-delete-btn');
     if (imgDeleteBtn) {
       e.preventDefault();
       e.stopPropagation();
       const wrapper = imgDeleteBtn.closest('.apple-img-wrapper') || imgDeleteBtn.parentElement;
-      const imgSrc = wrapper?.querySelector('img')?.getAttribute('src') || '';
+      const imgEl = wrapper?.querySelector('img');
+      const imgSrc = imgEl?.getAttribute('src') || '';
+      const imgAlt = imgEl?.getAttribute('alt') || 'hình ảnh';
+
       if (wrapper) {
-        const parentP = wrapper.closest('p') || wrapper.parentElement;
-        if (parentP && parentP.tagName === 'P' && (parentP.children.length <= 1 || parentP.textContent?.trim() === '')) {
+        const parentP = wrapper.closest('p');
+        if (parentP && (parentP.children.length <= 1 || parentP.textContent?.trim() === '')) {
           parentP.remove();
         } else {
           wrapper.remove();
@@ -2274,11 +2322,35 @@ export const QuickNoteWindow: React.FC = () => {
         updateNote(activeNoteIdRef.current, { content: updatedHtml, images: updatedImages });
       }
       playPopSound();
-      toast.success('Đã xóa hình ảnh khỏi ghi chú!', { id: 'img-del-inline' });
+      toast.success(`Đã xóa ${imgAlt} khỏi ghi chú!`, { id: 'img-del-inline' });
       return;
     }
 
-    // 3. Nhấp vào nút Xem trước (Preview) hoặc click vào thẻ tệp đính kèm
+    // 3. Nhấp vào nút Phóng to ảnh (🔍) trên thanh tác vụ ảnh
+    const imgZoomBtn = target.closest('.apple-img-zoom-btn');
+    if (imgZoomBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const wrapper = imgZoomBtn.closest('.apple-img-wrapper') || imgZoomBtn.parentElement;
+      const imgEl = wrapper?.querySelector('img');
+      const src = imgEl?.getAttribute('src') || '';
+      const alt = imgEl?.getAttribute('alt') || 'Ảnh chi tiết';
+      if (src) {
+        const matched = activeNote?.images?.find((img) => img.url === src);
+        setLightboxImage({
+          id: matched?.id || ('img_zoom_' + Date.now()),
+          url: src,
+          name: matched?.name || alt,
+          size: matched?.size,
+          createdAt: matched?.createdAt || new Date().toISOString(),
+        });
+        setLightboxZoom(1);
+        playPopSound();
+      }
+      return;
+    }
+
+    // 4. Nhấp vào nút Xem trước (Preview) hoặc click vào thẻ tệp đính kèm
     const previewBtn = target.closest('.apple-file-preview-btn');
     const badge = target.closest('.apple-file-attachment') as HTMLElement | null;
     if (previewBtn || (badge && !target.closest('.apple-file-delete-btn') && !target.closest('a'))) {
@@ -2298,9 +2370,15 @@ export const QuickNoteWindow: React.FC = () => {
       return;
     }
 
-    // 4. Nhấp vào ảnh để phóng to Lightbox (loại trừ khi bấm trúng nút xóa ảnh)
+    // 5. Nhấp vào ảnh để phóng to Lightbox (loại trừ khi bấm trúng các nút tác vụ xóa/phóng to/tải về)
     const imgEl = target.closest('img');
-    if (imgEl && editorRef.current?.contains(imgEl) && !target.closest('.apple-img-delete-btn')) {
+    if (
+      imgEl &&
+      editorRef.current?.contains(imgEl) &&
+      !target.closest('.apple-img-delete-btn') &&
+      !target.closest('.apple-img-zoom-btn') &&
+      !target.closest('.apple-img-download-btn')
+    ) {
       e.preventDefault();
       e.stopPropagation();
       const src = imgEl.getAttribute('src') || '';
@@ -4138,6 +4216,7 @@ export const QuickNoteWindow: React.FC = () => {
                     suppressContentEditableWarning
                     onInput={handleEditorInput}
                     onSelect={handleEditorSelect}
+                    onMouseDown={handleEditorMouseDown}
                     onMouseUp={handleEditorSelect}
                     onKeyUp={handleEditorSelect}
                     onScroll={handleEditorSelect}
