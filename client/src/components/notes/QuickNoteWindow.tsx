@@ -237,13 +237,43 @@ const ensureHtml = (content: string): string => {
     cleaned = cleaned.replace(/<span class=["']apple-img-action-bar["'][^>]*>[\s\S]*?<\/span>/gi, '');
   }
 
-  // Tự động chuẩn hóa các hình ảnh chưa có nút xóa Apple thành thẻ chuẩn gọn gàng khít 100% với ảnh
-  if (cleaned.includes('<img') && !cleaned.includes('apple-img-delete-btn')) {
-    cleaned = cleaned.replace(/<img\b([^>]*?)src=["']([^"']+)["']([^>]*?)>/gi, (match, before, src, after) => {
-      const altMatch = (before + after).match(/alt=["']([^"']+)["']/i);
-      const alt = altMatch ? altMatch[1] : 'Hình ảnh';
-      return `<span class="apple-img-wrapper" contenteditable="false" data-media-type="image" style="position: relative; display: inline-flex; line-height: 0; font-size: 0; padding: 0; margin: 6px 0; max-width: 100%; vertical-align: middle; border-radius: 14px; overflow: hidden; box-shadow: 0 3px 12px rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.08); background: transparent;"><img src="${src}" alt="${alt}" class="apple-note-inline-img" style="max-width: 320px; max-height: 220px; width: auto; height: auto; object-fit: contain; border-radius: 13px; display: block; margin: 0; padding: 0; border: none; box-shadow: none; vertical-align: top; line-height: 0; cursor: zoom-in;" title="Nhấp để xem ảnh đầy đủ" /><button type="button" class="apple-img-delete-btn" style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; background: rgba(22,22,26,0.52); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #ffffff; border: 0.5px solid rgba(255,255,255,0.35); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; outline: none; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.25);" title="Xóa hình ảnh này"><svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg></button></span>`;
-    });
+  // Tự động chuẩn hóa tất cả các hình ảnh chưa có nút xóa Apple thành thẻ chuẩn gọn gàng khít 100% với ảnh
+  if (typeof document !== 'undefined' && cleaned.includes('<img')) {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(cleaned, 'text/html');
+      let modified = false;
+      const imgs = Array.from(doc.querySelectorAll('img'));
+      imgs.forEach((img) => {
+        if (!img.closest('.apple-img-wrapper')) {
+          modified = true;
+          const src = img.getAttribute('src') || '';
+          const alt = img.getAttribute('alt') || 'Hình ảnh';
+          const span = document.createElement('span');
+          span.className = 'apple-img-wrapper';
+          span.setAttribute('contenteditable', 'false');
+          span.setAttribute('data-media-type', 'image');
+          span.setAttribute('style', 'position: relative; display: inline-flex; line-height: 0; font-size: 0; padding: 0; margin: 6px 0; max-width: 100%; vertical-align: middle; border-radius: 14px; overflow: hidden; box-shadow: 0 3px 12px rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.08); background: transparent;');
+          span.innerHTML = `<img src="${src}" alt="${alt}" class="apple-note-inline-img" style="max-width: 320px; max-height: 220px; width: auto; height: auto; object-fit: contain; border-radius: 13px; display: block; margin: 0; padding: 0; border: none; box-shadow: none; vertical-align: top; line-height: 0; cursor: zoom-in;" title="Nhấp để xem ảnh đầy đủ" /><button type="button" class="apple-img-delete-btn" style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; background: rgba(22,22,26,0.52); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #ffffff; border: 0.5px solid rgba(255,255,255,0.35); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; outline: none; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.25);" title="Xóa hình ảnh này"><svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg></button>`;
+          img.replaceWith(span);
+        } else {
+          const wrapper = img.closest('.apple-img-wrapper');
+          if (wrapper && !wrapper.querySelector('.apple-img-delete-btn')) {
+            modified = true;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'apple-img-delete-btn';
+            btn.setAttribute('style', 'position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; background: rgba(22,22,26,0.52); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #ffffff; border: 0.5px solid rgba(255,255,255,0.35); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; outline: none; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.25);');
+            btn.setAttribute('title', 'Xóa hình ảnh này');
+            btn.innerHTML = `<svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>`;
+            wrapper.appendChild(btn);
+          }
+        }
+      });
+      if (modified) {
+        cleaned = doc.body.innerHTML;
+      }
+    } catch (_) {}
   }
 
   // If already contains HTML tags
@@ -678,7 +708,6 @@ export const QuickNoteWindow: React.FC = () => {
   const [showLockNewPassword, setShowLockNewPassword] = useState(false);
 
   const editorRef = useRef<HTMLDivElement>(null);
-  const compactEditorRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // Mode: Main fixed tab (isCompactWindow === false, default) vs Compact draggable floating window (isCompactWindow === true)
@@ -942,7 +971,7 @@ export const QuickNoteWindow: React.FC = () => {
 
   // ──────── Helper: Chèn HTML trực tiếp vào khung soạn thảo tại con trỏ ────────
   const insertHtmlIntoEditor = useCallback((html: string) => {
-    const targetEl = (isMinimized ? compactEditorRef.current : editorRef.current) || editorRef.current || compactEditorRef.current;
+    const targetEl = editorRef.current;
     if (!targetEl) return;
     targetEl.focus();
 
@@ -1216,7 +1245,7 @@ export const QuickNoteWindow: React.FC = () => {
           updateNote(activeNoteIdRef.current, { content: newContent });
         }
       } else {
-        const targetEl = (isMinimized ? compactEditorRef.current : editorRef.current) || editorRef.current || compactEditorRef.current;
+        const targetEl = editorRef.current;
         if (targetEl) {
           targetEl.focus();
           if (aiDraft.isSelectionOnly && aiDraft.originalText) {
@@ -1319,7 +1348,6 @@ export const QuickNoteWindow: React.FC = () => {
       // Restore nội dung text từ localContentRef (không đụng đến checklist)
       const html = ensureHtml(localContentRef.current || activeNote.content || '');
       if (editorRef.current) editorRef.current.innerHTML = html;
-      if (compactEditorRef.current) compactEditorRef.current.innerHTML = html;
       if (activeNoteIdRef.current) {
         updateNote(activeNoteIdRef.current, { noteType: 'note' });
       }
@@ -1567,7 +1595,7 @@ export const QuickNoteWindow: React.FC = () => {
   const handleApplyFormat = (
     format: 'bold' | 'italic' | 'underline' | 'strike' | 'bullet' | 'number' | 'heading'
   ) => {
-    const targetEl = (isMinimized ? compactEditorRef.current : editorRef.current) || editorRef.current || compactEditorRef.current;
+    const targetEl = editorRef.current;
     if (!targetEl) return;
     targetEl.focus();
 
@@ -1689,6 +1717,11 @@ export const QuickNoteWindow: React.FC = () => {
     e?.stopPropagation();
     if (!activeNote) return;
 
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+
     // 1. Lọc trong mảng activeNote.images
     const currentImages = activeNote.images || [];
     const updatedImages = currentImages.filter(
@@ -1737,6 +1770,10 @@ export const QuickNoteWindow: React.FC = () => {
   };
 
   const handleDeleteFileFromPreview = (fileUrl: string, fileName?: string) => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
     if (editorRef.current) {
       const attachments = Array.from(editorRef.current.querySelectorAll('.apple-file-attachment'));
       attachments.forEach((badge) => {
@@ -2113,27 +2150,16 @@ export const QuickNoteWindow: React.FC = () => {
     }
   }, [activeNote, savePendingDraft]);
 
-  // Ensure editorRef.current has the content when mounted, switching to text mode, or unminimized
+  // Ensure editorRef.current has the content when mounted, switching to text mode, or active note changes
   useEffect(() => {
-    if (isOpen && !isMinimized && editorMode === 'text' && editorRef.current) {
+    if (isOpen && editorMode === 'text' && editorRef.current) {
       const source = localContentRef.current || activeNote?.content || '';
       const html = ensureHtml(source);
       if (editorRef.current.innerHTML !== html) {
         editorRef.current.innerHTML = html;
       }
     }
-  }, [isOpen, isMinimized, editorMode, activeNote?.id]);
-
-  // Ensure compactEditorRef.current has the content when in compact mode
-  useEffect(() => {
-    if (isOpen && isMinimized && editorMode === 'text' && compactEditorRef.current) {
-      const source = localContentRef.current || activeNote?.content || '';
-      const html = ensureHtml(source);
-      if (compactEditorRef.current.innerHTML !== html) {
-        compactEditorRef.current.innerHTML = html;
-      }
-    }
-  }, [isOpen, isMinimized, editorMode, activeNote?.id]);
+  }, [isOpen, editorMode, activeNote?.id]);
 
   // Clean up and flush draft on unmount
   useEffect(() => {
@@ -2267,6 +2293,10 @@ export const QuickNoteWindow: React.FC = () => {
     if (fileDeleteBtn) {
       e.preventDefault();
       e.stopPropagation();
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
       const badge = fileDeleteBtn.closest('.apple-file-attachment') as HTMLElement | null;
       if (badge) {
         const fileName = badge.getAttribute('data-file-name') || 'tệp đính kèm';
@@ -2293,6 +2323,10 @@ export const QuickNoteWindow: React.FC = () => {
     if (imgDeleteBtn) {
       e.preventDefault();
       e.stopPropagation();
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
       const wrapper = imgDeleteBtn.closest('.apple-img-wrapper') || imgDeleteBtn.parentElement;
       const imgEl = wrapper?.querySelector('img');
       const imgSrc = imgEl?.getAttribute('src') || '';

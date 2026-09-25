@@ -2328,6 +2328,13 @@ tbody td {
   box-shadow: 0 2px 10px rgba(239, 68, 68, 0.5) !important;
 }
 
+@media (hover: none) {
+  .apple-img-wrapper .apple-img-delete-btn {
+    opacity: 0.9 !important;
+    transform: scale(1) !important;
+  }
+}
+
 /* Apple File Attachment Card Buttons (Preview, Download, Delete) */
 .apple-file-attachment button,
 .apple-file-attachment a {
