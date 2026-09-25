@@ -57,7 +57,7 @@ export const Tabs: React.FC<TabsProps> = ({
       {indicatorStyle.ready && indicatorStyle.width > 0 && (
         <div
           className={cn(
-            'absolute transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none',
+            'absolute transition-[transform,width] duration-260 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none will-change-[transform,width]',
             variant === 'underline'
               ? 'bottom-0 h-0.5 bg-[#0066cc] dark:bg-[#2997ff] rounded-full'
               : 'top-1 bottom-1 rounded-full bg-white dark:bg-[#1d1d1f] shadow-xs border border-black/[0.04] dark:border-white/10'
@@ -78,7 +78,7 @@ export const Tabs: React.FC<TabsProps> = ({
               data-tab-id={tab.id}
               onClick={() => onChange(tab.id)}
               className={cn(
-                'inline-flex items-center gap-2 py-1.5 px-3.5 text-[13px] rounded-full transition-colors duration-200 select-none active:scale-[0.97] cursor-pointer',
+                'inline-flex items-center gap-2 py-1.5 px-3.5 text-[13px] rounded-full transition-colors duration-160 select-none active:scale-[0.975] cursor-pointer',
                 variant === 'underline'
                   ? isActive
                     ? 'text-[#0066cc] dark:text-[#2997ff] font-semibold'

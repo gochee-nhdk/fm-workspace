@@ -3,7 +3,7 @@ import { Drawer } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LinkItem } from '@/types/workspace';
-import { Star, Link as LinkIcon, AlertCircle, ChevronDown } from 'lucide-react';
+import { SFStar, SFStarFill, SFLink, SFExclamationmarkCircle, SFChevronDown } from 'sf-symbols-lib';
 import toast from 'react-hot-toast';
 
 interface LinkDrawerFormProps {
@@ -73,21 +73,27 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
     setErrors({});
   }, [initialData, isOpen]);
 
+  const formatUrl = (raw: string): string => {
+    const trimmed = raw.trim();
+    if (!trimmed) return '';
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
+  };
+
   const validate = () => {
     const errs: { hangMuc?: string; link?: string } = {};
     if (!hangMuc.trim()) {
       errs.hangMuc = 'Vui lòng nhập tên hạng mục / hệ thống';
     }
-    if (link.trim()) {
+    const formattedUrl = formatUrl(link);
+    if (formattedUrl) {
       try {
-        const parsed = new URL(link.trim());
-        if (!['http:', 'https:'].includes(parsed.protocol.toLowerCase())) {
-          errs.link = 'Đường dẫn an toàn phải bắt đầu bằng https:// hoặc http://';
+        const parsed = new URL(formattedUrl);
+        if (!['http:', 'https:'].includes(parsed.protocol.toLowerCase()) || !parsed.hostname.includes('.')) {
+          errs.link = 'Đường dẫn không hợp lệ. Vui lòng nhập định dạng tên miền (vd: domain.com hoặc https://domain.com)';
         }
       } catch (_) {
-        if (!link.trim().startsWith('http://') && !link.trim().startsWith('https://')) {
-          errs.link = 'Đường dẫn an toàn phải bắt đầu bằng https:// hoặc http://';
-        }
+        errs.link = 'Đường dẫn không hợp lệ. Vui lòng kiểm tra lại';
       }
     }
     setErrors(errs);
@@ -100,9 +106,10 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
 
     try {
       setSaving(true);
+      const formattedLink = formatUrl(link);
       await onSave({
         hangMuc: hangMuc.trim(),
-        link: link.trim(),
+        link: formattedLink,
         category: category.trim() || 'Chung',
         note: note.trim(),
         favorite,
@@ -148,19 +155,24 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
           </label>
           <div className="relative">
             <Input
-              placeholder="https://..."
+              placeholder="https://... hoặc tên miền (vd: google.com)"
               value={link}
               onChange={(e) => {
                 setLink(e.target.value);
                 if (errors.link) setErrors((prev) => ({ ...prev, link: undefined }));
               }}
+              onBlur={() => {
+                if (link.trim()) {
+                  setLink(formatUrl(link));
+                }
+              }}
               error={errors.link}
-              leftIcon={<LinkIcon className="w-4 h-4 text-slate-400" />}
+              leftIcon={<SFLink size={16} className="text-slate-400" />}
             />
           </div>
           {!link.trim() && (
             <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
-              <AlertCircle className="w-3.5 h-3.5 inline" /> Để trống sẽ hiển thị trạng thái "Missing link"
+              <SFExclamationmarkCircle size={14} className="inline" /> Để trống sẽ hiển thị trạng thái "Missing link"
             </p>
           )}
         </div>
@@ -192,7 +204,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
                 <option value="__CUSTOM__">+ Nhập nhóm mới...</option>
               </select>
               <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#86868b]">
-                <ChevronDown className="w-4 h-4" />
+                <SFChevronDown size={14} />
               </div>
             </div>
 
@@ -238,15 +250,15 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
         </div>
 
         <div className="pt-2">
-          <label className="flex items-center gap-3 p-3.5 rounded-xl border border-[#e0e0e0] dark:border-white/10 bg-[#f5f5f7] dark:bg-white/5 cursor-pointer hover:bg-[#e8e8ed] dark:hover:bg-white/10 transition-colors">
+          <label className="flex items-center gap-3 p-3.5 rounded-xl border border-black/10 dark:border-white/10 bg-[#f5f5f7] dark:bg-white/5 cursor-pointer hover:bg-[#e8e8ed] dark:hover:bg-white/10 transition-colors">
             <input
               type="checkbox"
               checked={favorite}
               onChange={(e) => setFavorite(e.target.checked)}
-              className="rounded text-[#0066cc] focus:ring-[#0071e3] w-4 h-4"
+              className="rounded accent-[#0071e3] text-[#0071e3] w-4 h-4 cursor-pointer outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus:ring-offset-0 ring-0 shadow-none"
             />
             <div className="flex items-center gap-2">
-              <Star className={`w-4 h-4 ${favorite ? 'text-amber-500 fill-amber-500' : 'text-[#86868b]'}`} />
+              {favorite ? <SFStarFill size={16} className="text-amber-500" /> : <SFStar size={16} className="text-[#86868b]" />}
               <span className="text-xs font-medium text-[#1d1d1f] dark:text-white">
                 Đánh dấu liên kết yêu thích (Ghim lên đầu Dashboard)
               </span>

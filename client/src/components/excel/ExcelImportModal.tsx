@@ -1,17 +1,16 @@
 import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  UploadCloud,
-  FileSpreadsheet,
-  CheckCircle2,
-  AlertTriangle,
-  Layers,
-  ArrowRight,
-  RefreshCw,
-  X,
-  FileText,
-  HelpCircle,
-} from 'lucide-react';
+  SFArrowUpDocument,
+  SFTablecells,
+  SFCheckmarkCircleFill,
+  SFExclamationmarkTriangleFill,
+  SFSquareStack3dUp,
+  SFArrowRight,
+  SFArrowClockwise,
+  SFXmark,
+  SFDocument,
+} from 'sf-symbols-lib';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { excelService, detectDatasetFromSheetName } from '@/services/excelService';
@@ -99,24 +98,28 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     }
   };
 
-  // Change target dataset for a sheet
-  const handleSheetMappingChange = (sheetIndex: number, newDataset: 'LINK' | 'ACCOUNT' | 'STORE' | 'IGNORE') => {
+  // Change target dataset for a sheet and dynamically re-analyze all rows
+  const handleSheetMappingChange = async (sheetIndex: number, newDataset: 'LINK' | 'ACCOUNT' | 'STORE' | 'IGNORE') => {
     if (!previewData || !selectedFile) return;
 
-    const updatedSheets = [...previewData.sheets];
-    const sheet = updatedSheets[sheetIndex];
-    sheet.targetDataset = newDataset;
+    try {
+      const sheetName = previewData.sheets[sheetIndex].sheetName;
+      const updatedSheet = await excelService.reanalyzeSheet(selectedFile, sheetName, newDataset);
 
-    // Re-analyze rows based on newly chosen target
-    excelService.readWorkbook(selectedFile).then((wb) => {
-      const rawRows: any[] = XLSXUtilsSheetToJson(wb.Sheets[sheet.sheetName]);
-      // Note: we can re-evaluate
-    });
+      const updatedSheets = [...previewData.sheets];
+      updatedSheets[sheetIndex] = updatedSheet;
 
-    setPreviewData({
-      ...previewData,
-      sheets: updatedSheets,
-    });
+      setPreviewData({
+        ...previewData,
+        sheets: updatedSheets,
+      });
+      toast.success(`Đã cập nhật phân tích sheet "${sheetName}": ${newDataset} (${updatedSheet.validCount} dòng hợp lệ)`, {
+        id: 'sheet-mapping-update',
+      });
+    } catch (err: any) {
+      console.error('Lỗi khi phân tích lại sheet:', err);
+      toast.error('Không thể cập nhật phân tích sheet này');
+    }
   };
 
   const handleConfirmImport = async () => {
@@ -161,12 +164,12 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
       />
 
       {/* Modal Dialog */}
-      <div className="relative bg-white/95 dark:bg-[#16161c]/95 backdrop-blur-3xl rounded-[24px] max-w-2xl w-full p-6 shadow-[0_24px_80px_rgba(0,0,0,0.2),inset_0_1.5px_1px_rgba(255,255,255,1),inset_0_-1px_1.5px_rgba(0,0,0,0.08)] dark:shadow-[0_24px_80px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.18)] border border-white/80 dark:border-white/15 animate-in fade-in zoom-in-95 duration-220 ease-out flex flex-col max-h-[90vh]">
+      <div className="relative bg-white dark:bg-[#1c1c22] rounded-[24px] max-w-2xl w-full p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15 animate-in fade-in zoom-in-95 duration-220 ease-out flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-black/[0.06] dark:border-white/10 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-[#0066cc]/10 text-[#0066cc] dark:bg-[#2997ff]/20 dark:text-[#2997ff] rounded-2xl flex items-center justify-center shrink-0 border border-[#0066cc]/20 dark:border-[#2997ff]/30 shadow-xs">
-              <FileSpreadsheet className="w-5 h-5" />
+              <SFTablecells size={20} />
             </div>
             <div>
               <h3 className="text-[17px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight">
@@ -182,7 +185,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
             className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/10 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white flex items-center justify-center transition-all active:scale-95 border border-black/5 dark:border-white/10 cursor-pointer"
             title="Đóng (Esc)"
           >
-            <X className="w-4 h-4" />
+            <SFXmark size={14} />
           </button>
         </div>
 
@@ -209,7 +212,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               />
 
               <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-gradient-to-b from-[#2997ff]/20 to-[#0066cc]/20 text-[#0066cc] dark:text-[#2997ff] flex items-center justify-center border border-[#0071e3]/20 dark:border-[#2997ff]/30 shadow-xs">
-                <UploadCloud className="w-7 h-7" />
+                <SFArrowUpDocument size={28} />
               </div>
 
               <h4 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
@@ -226,7 +229,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                   size="sm"
                   onClick={() => fileInputRef.current?.click()}
                   loading={loading}
-                  icon={<FileSpreadsheet className="w-4 h-4" />}
+                  icon={<SFTablecells size={16} />}
                 >
                   Chọn file từ máy tính
                 </Button>
@@ -245,7 +248,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               {/* File Info Bar */}
               <div className="glass-material p-3.5 rounded-[16px] flex items-center justify-between">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <FileText className="w-4 h-4 text-[#0066cc] dark:text-[#2997ff] shrink-0" />
+                  <SFDocument size={16} className="text-[#0066cc] dark:text-[#2997ff] shrink-0" />
                   <span className="text-[13px] font-semibold text-[#1d1d1f] dark:text-white truncate">
                     {previewData.fileName}
                   </span>
@@ -271,11 +274,11 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <Layers className="w-4 h-4 text-[#86868b]" />
+                        <SFSquareStack3dUp size={16} className="text-[#86868b]" />
                         <span className="text-[14px] font-semibold text-[#1d1d1f] dark:text-white">
                           {sheet.sheetName}
                         </span>
-                        <ArrowRight className="w-3.5 h-3.5 text-[#86868b]" />
+                        <SFArrowRight size={14} className="text-[#86868b]" />
                         <select
                           className="text-xs font-medium rounded-full border border-[#e0e0e0] dark:border-white/15 bg-[#f5f5f7] dark:bg-white/10 pl-3 pr-8 py-1 text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] cursor-pointer"
                           value={sheet.targetDataset}
@@ -320,7 +323,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               {/* Duplicate Strategy Option */}
               <div className="p-4 bg-amber-50/50 dark:bg-amber-950/20 rounded-[14px] border border-amber-200/60 dark:border-amber-900/40 space-y-2.5">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
-                  <AlertTriangle className="w-4 h-4" />
+                  <SFExclamationmarkTriangleFill size={16} />
                   Xử lý khi phát hiện bản ghi đã tồn tại (Duplicate Detection):
                 </div>
 
@@ -382,7 +385,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
 
           {step === 'importing' && (
             <div className="py-12 text-center space-y-3">
-              <RefreshCw className="w-8 h-8 text-[#0066cc] animate-spin mx-auto" />
+              <SFArrowClockwise size={32} className="text-[#0066cc] animate-spin mx-auto" />
               <h4 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-white">
                 Đang nạp dữ liệu vào IndexedDB...
               </h4>
@@ -429,7 +432,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 size="sm"
                 onClick={handleConfirmImport}
                 loading={loading}
-                icon={<CheckCircle2 className="w-4 h-4" />}
+                icon={<SFCheckmarkCircleFill size={16} />}
               >
                 Xác nhận Import vào Workspace
               </Button>
@@ -441,14 +444,3 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     document.body
   );
 };
-
-// Helper for sheet json convert
-function XLSXUtilsSheetToJson(ws: any): any[] {
-  if (!ws) return [];
-  try {
-    const XLSX = (window as any).XLSX;
-    return XLSX ? XLSX.utils.sheet_to_json(ws, { defval: '' }) : [];
-  } catch (_) {
-    return [];
-  }
-}

@@ -1,14 +1,94 @@
 import { FastifyInstance } from 'fastify';
+import { GoogleGenAI } from '@google/genai';
 import { geminiService } from '../ai/gemini.js';
 import { parseUserIntent, buildDataContext } from '../ai/data-query.js';
-import { verifyToken } from '../middleware/auth.js';
+import { verifyToken, optionalAuth } from '../middleware/auth.js';
 import { getDb } from '../db/connection.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export default async function aiRoutes(fastify: FastifyInstance) {
-  fastify.addHook('preHandler', verifyToken);
+  // Writing Tool endpoint (supports both server key and client-provided key)
+  fastify.post('/writing-tool', { preHandler: optionalAuth }, async (request: any, reply) => {
+    const { text, action, apiKey: clientApiKey } = request.body || {};
+    if (!text || typeof text !== 'string') {
+      return reply.code(400).send({ error: 'Nội dung văn bản không được để trống' });
+    }
 
-  fastify.post('/chat', async (request: any, reply) => {
+    try {
+      const db = getDb();
+      const keySetting = db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get() as any;
+      const apiKey = clientApiKey || keySetting?.value || process.env.GEMINI_API_KEY;
+
+      if (!apiKey) {
+        return reply.code(400).send({
+          success: false,
+          needsApiKey: true,
+          message: 'Chưa cấu hình Gemini API Key. Vui lòng cài đặt khóa API.',
+        });
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+      const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+      let lastErr = null;
+
+      const baseInstruction = 'YÊU CẦU BẮT BUỘC: CHỈ trả về duy nhất kết quả câu văn/đoạn văn sau khi xử lý. Tuyệt đối KHÔNG kèm theo lời giải thích, KHÔNG tiêu đề, KHÔNG lời chào, KHÔNG nội dung lan man ngoài ngữ cảnh gốc.';
+
+      let prompt = '';
+      if (action === 'summarize') {
+        prompt = `Hãy tóm tắt nội dung sau thành các ý ngắn gọn, súc tích bằng tiếng Việt. ${baseInstruction}\n\nNội dung cần tóm tắt:\n${text}`;
+      } else if (action === 'keypoints') {
+        prompt = `Hãy rút ra các ý chính quan trọng từ văn bản sau (đánh số 1, 2, 3...) bằng tiếng Việt. ${baseInstruction}\n\nVăn bản:\n${text}`;
+      } else if (action === 'professional') {
+        prompt = `Hãy viết lại nội dung sau theo phong cách lịch sự, chuyên nghiệp, chuẩn mực doanh nghiệp bằng tiếng Việt. Bám sát nội dung gốc, không bịa đặt thêm các thông tin không liên quan. ${baseInstruction}\n\nNội dung gốc:\n${text}`;
+      } else if (action === 'concise') {
+        prompt = `Hãy viết lại nội dung sau thật ngắn gọn, cô đọng, súc tích bằng tiếng Việt nhưng giữ nguyên toàn bộ ý nghĩa. ${baseInstruction}\n\nNội dung gốc:\n${text}`;
+      } else if (action === 'expand') {
+        prompt = `Hãy phát triển và mở rộng câu văn/đoạn văn sau một cách tự nhiên, mạch lạc, đầy đủ ý tứ bằng tiếng Việt, bám sát đúng chủ đề và nội dung ban đầu của người dùng, không thêm các quy trình dự án máy móc không liên quan. ${baseInstruction}\n\nNội dung gốc:\n${text}`;
+      } else if (action === 'action_items') {
+        prompt = `Hãy chuyển văn bản sau thành danh sách việc cần làm (Checklist) với cú pháp '- [ ] ' ở đầu mỗi dòng. ${baseInstruction}\n\nVăn bản:\n${text}`;
+      } else if (action === 'translate_en') {
+        prompt = `Hãy dịch chính xác văn bản sau sang tiếng Anh tự nhiên. ${baseInstruction}\n\nVăn bản gốc:\n${text}`;
+      } else if (action === 'translate_vi') {
+        prompt = `Hãy dịch chính xác văn bản sau sang tiếng Việt tự nhiên, mượt mà. ${baseInstruction}\n\nVăn bản gốc:\n${text}`;
+      } else {
+        // proofread
+        prompt = `Hãy sửa toàn bộ lỗi chính tả, ngữ pháp, dấu câu và câu từ trong đoạn văn sau bằng tiếng Việt. ${baseInstruction}\n\nĐoạn văn gốc:\n${text}`;
+      }
+
+      for (const model of models) {
+        try {
+          const response = await ai.models.generateContent({
+            model,
+            contents: prompt,
+            config: {
+              temperature: 0.2,
+            },
+          });
+          const resultText = response.text?.trim() || '';
+          if (resultText) {
+            return reply.send({
+              success: true,
+              result: resultText,
+              usedGemini: true,
+              model,
+            });
+          }
+        } catch (mErr: any) {
+          lastErr = mErr;
+        }
+      }
+
+      throw lastErr || new Error('Không thể tạo nội dung từ Gemini');
+    } catch (err: any) {
+      console.error('Server AI writing tool error:', err);
+      return reply.code(500).send({
+        success: false,
+        error: err.message,
+      });
+    }
+  });
+
+  fastify.post('/chat', { preHandler: verifyToken }, async (request: any, reply) => {
     const { message, conversationId } = request.body;
     
     try {
@@ -54,7 +134,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.get('/conversations', async (request: any, reply) => {
+  fastify.get('/conversations', { preHandler: verifyToken }, async (request: any, reply) => {
     const db = getDb();
     return db.prepare('SELECT * FROM ai_conversations WHERE user_id = ? ORDER BY created_at DESC').all(request.user.id);
   });

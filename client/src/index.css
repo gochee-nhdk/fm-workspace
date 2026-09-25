@@ -159,6 +159,13 @@
     --primary-foreground: #ffffff;
     --sidebar-width: 268px;
     
+    /* Concentric Corner Radii Family (macOS 27) */
+    --window-radius: 28px;
+    --surface-radius: 20px;
+    --card-radius: 16px;
+    --control-radius: 12px;
+    --pill-radius: 9999px;
+
     /* Liquid Glass Tokens */
     --glass-background: rgba(255, 255, 255, 0.78);
     --glass-background-elevated: rgba(255, 255, 255, 0.92);
@@ -179,6 +186,61 @@
     --lq-danger: #e5484d;
     --lq-danger-text: #c1272c;
     --lq-scrim: rgba(12, 14, 28, 0.32);
+
+    /* macOS 27 Liquid Glass Optics (Regular Glass for Windows & Structural Chrome) */
+    --lg-regular-bg: rgba(255, 255, 255, 0.78);
+    --lg-regular-blur: 44px;
+    --lg-regular-saturate: 190%;
+    --lg-regular-border: rgba(255, 255, 255, 0.82);
+    --lg-regular-highlight: rgba(255, 255, 255, 0.95);
+    --lg-regular-shadow: 0 24px 70px rgba(0, 0, 0, 0.16), 0 4px 14px rgba(0, 0, 0, 0.05);
+
+    /* macOS 27 Clear Glass (for Floating Controls, Menus, Modals) */
+    --lg-clear-bg: rgba(255, 255, 255, 0.54);
+    --lg-clear-blur: 36px;
+    --lg-clear-saturate: 210%;
+    --lg-clear-border: rgba(255, 255, 255, 0.75);
+    --lg-clear-highlight: rgba(255, 255, 255, 0.98);
+
+    /* ==========================================================================
+       Apple macOS 27 Official Design Tokens
+       Source: Apple macOS 27 UI Kit (Sketch Cloud 57153a31-3379-4737-8ac6-dbfd6525f052)
+       ========================================================================== */
+    /* Fills */
+    --macos-fill-primary: rgba(0, 0, 0, 0.10);
+    --macos-fill-secondary: rgba(0, 0, 0, 0.08);
+    --macos-fill-tertiary: rgba(0, 0, 0, 0.05);
+    --macos-fill-quaternary: rgba(0, 0, 0, 0.03);
+    --macos-fill-quinary: rgba(0, 0, 0, 0.02);
+
+    /* Labels */
+    --macos-label-primary: rgba(0, 0, 0, 0.85);
+    --macos-label-secondary: rgba(0, 0, 0, 0.50);
+    --macos-label-tertiary: rgba(0, 0, 0, 0.25);
+    --macos-label-quaternary: rgba(0, 0, 0, 0.10);
+
+    /* System Colors (Light) */
+    --macos-blue: #0088FF;
+    --macos-purple: #CB30E0;
+    --macos-pink: #FF2D55;
+    --macos-red: #FF383C;
+    --macos-orange: #FF8D28;
+    --macos-yellow: #FFCC00;
+    --macos-green: #34C759;
+    --macos-mint: #00C8B3;
+    --macos-teal: #00C3D0;
+    --macos-cyan: #00C0E8;
+    --macos-indigo: #6155F5;
+    --macos-brown: #AC7F5E;
+
+    /* Window Background & Separators */
+    --macos-window-bg: #FFFFFF;
+    --macos-separator: rgba(60, 60, 67, 0.29);
+
+    /* Traffic Lights */
+    --macos-traffic-close: #FF5F56;
+    --macos-traffic-minimize: #FFBD2E;
+    --macos-traffic-zoom: #27C93F;
   }
   .dark {
     --background: #000000;
@@ -211,6 +273,50 @@
     --lq-danger: #ff7076;
     --lq-danger-text: #ff7076;
     --lq-scrim: rgba(0, 0, 6, 0.48);
+
+    /* macOS 27 Liquid Glass Optics (Dark Regular) */
+    --lg-regular-bg: rgba(24, 24, 30, 0.80);
+    --lg-regular-blur: 48px;
+    --lg-regular-saturate: 210%;
+    --lg-regular-border: rgba(255, 255, 255, 0.16);
+    --lg-regular-highlight: rgba(255, 255, 255, 0.35);
+    --lg-regular-shadow: 0 28px 80px rgba(0, 0, 0, 0.75), 0 6px 18px rgba(0, 0, 0, 0.45);
+
+    /* macOS 27 Clear Glass (Dark Clear) */
+    --lg-clear-bg: rgba(28, 28, 36, 0.55);
+    --lg-clear-blur: 38px;
+    --lg-clear-saturate: 220%;
+    --lg-clear-border: rgba(255, 255, 255, 0.18);
+    --lg-clear-highlight: rgba(255, 255, 255, 0.45);
+
+    /* Apple macOS 27 Official Design Tokens (Dark) */
+    --macos-fill-primary: rgba(255, 255, 255, 0.10);
+    --macos-fill-secondary: rgba(255, 255, 255, 0.08);
+    --macos-fill-tertiary: rgba(255, 255, 255, 0.05);
+    --macos-fill-quaternary: rgba(255, 255, 255, 0.03);
+    --macos-fill-quinary: rgba(255, 255, 255, 0.02);
+
+    --macos-label-primary: #FFFFFF;
+    --macos-label-secondary: rgba(255, 255, 255, 0.55);
+    --macos-label-tertiary: rgba(255, 255, 255, 0.25);
+    --macos-label-quaternary: rgba(255, 255, 255, 0.10);
+
+    /* System Colors (Dark) */
+    --macos-blue: #0091FF;
+    --macos-purple: #DB34F2;
+    --macos-pink: #FF375F;
+    --macos-red: #FF4245;
+    --macos-orange: #FF9230;
+    --macos-yellow: #FFD600;
+    --macos-green: #30D158;
+    --macos-mint: #00DAC3;
+    --macos-teal: #00D2E0;
+    --macos-cyan: #3CD3FE;
+    --macos-indigo: #6D7CFF;
+    --macos-brown: #B78A66;
+
+    --macos-window-bg: #1E1E1E;
+    --macos-separator: rgba(255, 255, 255, 0.15);
   }
   html, body, #root {
     height: 100%;
@@ -249,6 +355,44 @@
     outline: none !important;
     box-shadow: none !important;
     outline-offset: 0 !important;
+  }
+  /* ContentEditable rich text editor dark mode fix */
+  .apple-note-canvas [contenteditable] {
+    color: inherit;
+  }
+  .dark .apple-note-canvas [contenteditable] {
+    color: #f5f5f7;
+    caret-color: #f5f5f7;
+  }
+  .dark .apple-note-canvas [contenteditable]:empty::before {
+    color: rgba(255, 255, 255, 0.25);
+  }
+  /* Checklist input dark mode */
+  .dark .apple-note-canvas .checklist-item-input {
+    color: #f5f5f7!important;
+  }
+
+  /* Clean Apple Minimalist Checkboxes & Radios - Zero harsh browser focus rings / halos */
+  input[type="checkbox"],
+  input[type="radio"] {
+    outline: none !important;
+    outline-offset: 0 !important;
+    box-shadow: none !important;
+    -webkit-tap-highlight-color: transparent;
+  }
+  input[type="checkbox"]:focus,
+  input[type="checkbox"]:focus-visible,
+  input[type="checkbox"]:active,
+  input[type="radio"]:focus,
+  input[type="radio"]:focus-visible,
+  input[type="radio"]:active {
+    outline: none !important;
+    outline-offset: 0 !important;
+    box-shadow: none !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-color: transparent !important;
+    --tw-ring-offset-width: 0px !important;
   }
 
   .theme {
@@ -419,6 +563,61 @@
     inset 0 -1.5px 1px 0 rgba(0, 0, 0, 0.65),
     0 18px 46px -8px rgba(0, 0, 0, 0.72),
     0 4px 14px -2px rgba(0, 0, 0, 0.48);
+}
+
+/* 4b. macOS 27 Official Regular Glass (Windows, Sidebars, Main Chrome) */
+.glass-regular {
+  background: var(--lg-regular-bg);
+  backdrop-filter: blur(var(--lg-regular-blur)) saturate(var(--lg-regular-saturate));
+  -webkit-backdrop-filter: blur(var(--lg-regular-blur)) saturate(var(--lg-regular-saturate));
+  border: 1px solid var(--lg-regular-border);
+  box-shadow: 
+    var(--lg-regular-shadow),
+    inset 0 1.5px 1px 0 var(--lg-regular-highlight),
+    inset 0 -1.5px 1.5px 0 rgba(0, 0, 0, 0.05);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 4c. macOS 27 Official Clear Glass (Floating Controls, Pills, Menus, Modals) */
+.glass-clear {
+  background: var(--lg-clear-bg);
+  backdrop-filter: blur(var(--lg-clear-blur)) saturate(var(--lg-clear-saturate));
+  -webkit-backdrop-filter: blur(var(--lg-clear-blur)) saturate(var(--lg-clear-saturate));
+  border: 1px solid var(--lg-clear-border);
+  box-shadow: 
+    inset 0 1.5px 1px 0 var(--lg-clear-highlight),
+    inset 0 -1.5px 1.5px 0 rgba(0, 0, 0, 0.08),
+    0 18px 44px -8px rgba(0, 0, 0, 0.16);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 4d. macOS 27 Liquid Glass Active Navigation Pill (Solid Blue with Fluid Glass Depth) */
+.liquid-nav-active {
+  background: linear-gradient(180deg, #0088FF 0%, #0066CC 100%);
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.65),
+    inset 0 0 12px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1.5px 1.5px 0 rgba(0, 0, 0, 0.22),
+    0 4px 16px -2px rgba(0, 102, 204, 0.42),
+    0 1px 3px 0 rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.dark .liquid-nav-active {
+  background: linear-gradient(180deg, #0091FF 0%, #0071E3 100%);
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.30);
+  box-shadow: 
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.60),
+    inset 0 0 14px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -1.5px 1.5px 0 rgba(0, 0, 0, 0.35),
+    0 4px 20px -2px rgba(0, 113, 227, 0.55),
+    0 1px 3px 0 rgba(0, 0, 0, 0.25);
 }
 
 /* 5. 3D Liquid Glass Interactive Elements (Cards, Containers, Metric Blocks) */
@@ -606,28 +805,56 @@
    3D Liquid Glass Segmented Controls & Toggles
    ========================================================================== */
 .liquid-glass-segmented-track {
-  background: rgba(0, 0, 0, 0.05);
-  backdrop-filter: blur(28px) saturate(200%);
-  -webkit-backdrop-filter: blur(28px) saturate(200%);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.035);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 0.5px solid rgba(255, 255, 255, 0.7);
   box-shadow: 
-    inset 0 1px 3px 0 rgba(0, 0, 0, 0.08),
-    0 1px 1px 0 rgba(255, 255, 255, 0.8);
+    inset 0 1px 2px 0 rgba(0, 0, 0, 0.025),
+    0 1px 3px 0 rgba(0, 0, 0, 0.02);
   border-radius: 9999px;
-  padding: 4px;
+  padding: 3.5px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   position: relative;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dark .liquid-glass-segmented-track {
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(32px) saturate(200%);
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
   box-shadow: 
-    inset 0 2px 5px 0 rgba(0, 0, 0, 0.55),
-    0 1px 1px 0 rgba(255, 255, 255, 0.05);
+    inset 0 1px 2px 0 rgba(0, 0, 0, 0.3),
+    0 2px 8px -2px rgba(0, 0, 0, 0.25);
+}
+
+/* Thin, delicate, subtle 3D Liquid Glass Active Pill (Hình 2) */
+.liquid-lens-pill-active {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.8) 100%);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border-radius: 9999px;
+  border: 0.5px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.03),
+    0 2px 8px -1px rgba(0, 0, 0, 0.06),
+    0 1px 2px 0 rgba(0, 0, 0, 0.03);
+}
+
+.dark .liquid-lens-pill-active {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border-radius: 9999px;
+  border: 0.5px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 
+    inset 0 1px 0.5px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.4),
+    0 2px 10px -1px rgba(0, 0, 0, 0.35);
 }
 
 .liquid-glass-segmented-item {
@@ -1089,20 +1316,17 @@
 /* Spatial Glide Page Transition */
 .page-transition-enter,
 .page-glide-enter {
-  animation: pageGlideIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: transform, opacity, filter;
+  animation: pageGlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes pageGlideIn {
   0% {
     opacity: 0;
-    transform: translateY(8px) scale(0.99);
-    filter: blur(4px);
+    transform: translate3d(0, 6px, 0);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0px);
+    transform: translate3d(0, 0, 0);
   }
 }
 
@@ -1113,93 +1337,233 @@
 @keyframes liquidDropletOpen {
   0% {
     opacity: 0;
-    transform: scale(0.93) translateY(-12px);
-    filter: blur(8px);
-  }
-  65% {
-    transform: scale(1.008) translateY(-1px);
-    filter: blur(0.5px);
+    transform: translate3d(0, 12px, 0) scale(0.975);
   }
   100% {
     opacity: 1;
-    transform: scale(1) translateY(0);
-    filter: blur(0px);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 @keyframes liquidDropletClose {
   0% {
     opacity: 1;
-    transform: scale(1) translateY(0);
-    filter: blur(0px);
+    transform: translate3d(0, 0, 0) scale(1);
   }
   100% {
     opacity: 0;
-    transform: scale(0.93) translateY(-10px);
-    filter: blur(8px);
+    transform: translate3d(0, 8px, 0) scale(0.98);
   }
 }
 
 @keyframes liquidBackdropFadeIn {
   from {
     opacity: 0;
-    backdrop-filter: blur(0px);
-    -webkit-backdrop-filter: blur(0px);
   }
   to {
     opacity: 1;
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
   }
 }
 
 @keyframes liquidBackdropFadeOut {
   from {
     opacity: 1;
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
   }
   to {
     opacity: 0;
-    backdrop-filter: blur(0px);
-    -webkit-backdrop-filter: blur(0px);
   }
 }
 
 @keyframes liquidTabContentGlide {
   0% {
-    opacity: 0;
-    transform: translateY(6px) scale(0.995);
-    filter: blur(3px);
+    opacity: 0.94;
+    transform: translate3d(8px, 0, 0);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0px);
+    transform: translate3d(0, 0, 0);
   }
 }
 
-.liquid-droplet-enter {
-  animation: liquidDropletOpen 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: transform, opacity, filter;
+@keyframes liquidTabContentGlideRev {
+  0% {
+    opacity: 0.94;
+    transform: translate3d(-8px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
+.apple-tab-content-enter {
+  animation: liquidTabContentGlide 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+.apple-tab-content-enter-rev {
+  animation: liquidTabContentGlideRev 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+/* Apple Item Materialize (Creation) & Dismiss (Deletion) */
+@keyframes appleItemMaterialize {
+  0% {
+    opacity: 0;
+    transform: scale(0.97) translate3d(0, -6px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes appleItemDismiss {
+  0% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.96) translate3d(0, -4px, 0);
+  }
+}
+
+.apple-item-materialize {
+  animation: appleItemMaterialize 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+.apple-item-dismiss {
+  animation: appleItemDismiss 0.18s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  pointer-events: none;
+}
+
+/* Apple Popover Trigger-Origin Expansions */
+@keyframes applePopoverOpenTR {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translate3d(4px, -4px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes applePopoverOpenTL {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translate3d(-4px, -4px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes applePopoverOpenBR {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translate3d(4px, 4px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes applePopoverOpenBL {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translate3d(-4px, 4px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+.apple-popover-tr {
+  transform-origin: top right;
+  animation: applePopoverOpenTR 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.apple-popover-tl {
+  transform-origin: top left;
+  animation: applePopoverOpenTL 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.apple-popover-br {
+  transform-origin: bottom right;
+  animation: applePopoverOpenBR 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.apple-popover-bl {
+  transform-origin: bottom left;
+  animation: applePopoverOpenBL 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Apple Modal & Sheet Spatial Spring Entrances */
+@keyframes appleModalOpen {
+  0% {
+    opacity: 0;
+    transform: scale(0.96) translate3d(0, 10px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes appleModalClose {
+  0% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.97) translate3d(0, 8px, 0);
+  }
+}
+
+.apple-modal-enter,
+.liquid-droplet-enter {
+  animation: appleModalOpen 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.apple-modal-exit,
 .liquid-droplet-exit {
-  animation: liquidDropletClose 0.18s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-  will-change: transform, opacity, filter;
+  animation: appleModalClose 0.16s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  will-change: transform, opacity;
 }
 
 .liquid-backdrop-enter {
-  animation: liquidBackdropFadeIn 0.25s ease-out forwards;
+  animation: liquidBackdropFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .liquid-backdrop-exit {
-  animation: liquidBackdropFadeOut 0.18s ease-in forwards;
+  animation: liquidBackdropFadeOut 0.16s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
 .liquid-tab-enter {
-  animation: liquidTabContentGlide 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: transform, opacity, filter;
+  animation: liquidTabContentGlide 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Apple Sidebar Spatial Label Transitions */
+.sidebar-label-transition {
+  transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
+}
+.sidebar-label-collapsed {
+  opacity: 0;
+  transform: translate3d(-12px, 0, 0) scale(0.985);
+  pointer-events: none;
+}
+.sidebar-label-expanded {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
 }
 
 /* Reduced motion accessibility */
@@ -1211,6 +1575,22 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  .apple-tab-content-enter,
+  .apple-tab-content-enter-rev,
+  .apple-item-materialize,
+  .apple-item-dismiss,
+  .apple-popover-tr,
+  .apple-popover-tl,
+  .apple-popover-br,
+  .apple-popover-bl,
+  .apple-modal-enter,
+  .apple-modal-exit,
+  .liquid-droplet-enter,
+  .liquid-droplet-exit,
+  .page-glide-enter,
+  .sidebar-label-transition {
+    transform: none !important;
   }
 }
 
@@ -1424,4 +1804,559 @@ tbody td {
   --tw-ring-offset-shadow: 0 0 #0000 !important;
   --tw-ring-shadow: 0 0 #0000 !important;
   --tw-shadow: 0 0 #0000 !important;
+}
+
+/* ==========================================================================
+   Apple macOS 27 UI Kit - Complete Design System
+   Source: Sketch Cloud Library (57153a31-3379-4737-8ac6-dbfd6525f052)
+   Covers: Symbols, Text Styles, Layer Styles, Color Variables
+   ========================================================================== */
+
+/* 1. TEXT STYLES (Typography Scale) */
+.macos-large-title {
+  font-family: "SF Pro Display", "SF Pro", -apple-system, sans-serif;
+  font-size: 26px;
+  line-height: 1.23;
+  font-weight: 700;
+  letter-spacing: 0.008em;
+  color: var(--macos-label-primary);
+}
+
+.macos-title-1 {
+  font-family: "SF Pro Display", "SF Pro", -apple-system, sans-serif;
+  font-size: 22px;
+  line-height: 1.27;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--macos-label-primary);
+}
+
+.macos-title-2 {
+  font-family: "SF Pro Display", "SF Pro", -apple-system, sans-serif;
+  font-size: 17px;
+  line-height: 1.29;
+  font-weight: 700;
+  letter-spacing: -0.012em;
+  color: var(--macos-label-primary);
+}
+
+.macos-title-3 {
+  font-family: "SF Pro Text", "SF Pro", -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.33;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--macos-label-primary);
+}
+
+.macos-headline {
+  font-family: "SF Pro Text", "SF Pro", -apple-system, sans-serif;
+  font-size: 13px;
+  line-height: 1.38;
+  font-weight: 700;
+  letter-spacing: -0.008em;
+  color: var(--macos-label-primary);
+}
+
+.macos-body {
+  font-family: "SF Pro Text", "SF Pro", -apple-system, sans-serif;
+  font-size: 13px;
+  line-height: 1.46;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+  color: var(--macos-label-primary);
+}
+
+.macos-callout {
+  font-family: "SF Pro Text", "SF Pro", -apple-system, sans-serif;
+  font-size: 12px;
+  line-height: 1.42;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--macos-label-secondary);
+}
+
+.macos-subheadline {
+  font-family: "SF Pro Text", "SF Pro", -apple-system, sans-serif;
+  font-size: 11px;
+  line-height: 1.36;
+  font-weight: 500;
+  letter-spacing: 0.006em;
+  color: var(--macos-label-secondary);
+}
+
+.macos-footnote {
+  font-family: "SF Pro Text", "SF Pro", -apple-system, sans-serif;
+  font-size: 10px;
+  line-height: 1.4;
+  font-weight: 400;
+  letter-spacing: 0.012em;
+  color: var(--macos-label-tertiary);
+}
+
+.macos-caption-1 {
+  font-family: "SF Pro Text", "SF Pro", -apple-system, sans-serif;
+  font-size: 10px;
+  line-height: 1.3;
+  font-weight: 500;
+  letter-spacing: 0.012em;
+  color: var(--macos-label-secondary);
+}
+
+.macos-caption-2 {
+  font-family: "SF Pro Text", "SF Pro", -apple-system, sans-serif;
+  font-size: 10px;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: 0.012em;
+  color: var(--macos-label-primary);
+}
+
+/* 2. LAYER STYLES: Buttons & Controls */
+/* 04 - Prominent (Default) */
+.macos-btn-prominent {
+  background: var(--macos-blue);
+  color: #ffffff !important;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 136, 255, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+  font-weight: 600;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.macos-btn-prominent:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 4px 14px rgba(0, 136, 255, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+.macos-btn-prominent:active {
+  transform: scale(0.97);
+  filter: brightness(0.94);
+}
+
+/* 05 - Prominent Destructive */
+.macos-btn-prominent-destructive {
+  background: var(--macos-red);
+  color: #ffffff !important;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 8px rgba(255, 56, 60, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+  font-weight: 600;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.macos-btn-prominent-destructive:hover {
+  filter: brightness(1.06);
+}
+.macos-btn-prominent-destructive:active {
+  transform: scale(0.97);
+}
+
+/* 01 - Bordered */
+.macos-btn-bordered {
+  background: var(--macos-fill-quinary);
+  color: var(--macos-label-primary);
+  border: 1px solid var(--macos-separator);
+  border-radius: 9999px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.macos-btn-bordered:hover {
+  background: var(--macos-fill-quaternary);
+  border-color: rgba(0, 0, 0, 0.16);
+}
+.dark .macos-btn-bordered:hover {
+  border-color: rgba(255, 255, 255, 0.24);
+}
+.macos-btn-bordered:active {
+  transform: scale(0.97);
+}
+
+/* 02 - Bordered Tinted */
+.macos-btn-bordered-tinted {
+  background: rgba(0, 136, 255, 0.08);
+  color: var(--macos-blue);
+  border: 1px solid rgba(0, 136, 255, 0.3);
+  border-radius: 9999px;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.macos-btn-bordered-tinted:hover {
+  background: rgba(0, 136, 255, 0.15);
+}
+.macos-btn-bordered-tinted:active {
+  transform: scale(0.97);
+}
+
+/* 03 - Bordered Destructive */
+.macos-btn-bordered-destructive {
+  background: rgba(255, 56, 60, 0.08);
+  color: var(--macos-red);
+  border: 1px solid rgba(255, 56, 60, 0.3);
+  border-radius: 9999px;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.macos-btn-bordered-destructive:hover {
+  background: rgba(255, 56, 60, 0.15);
+}
+.macos-btn-bordered-destructive:active {
+  transform: scale(0.97);
+}
+
+/* 3. LAYER STYLES: Input Fields */
+.macos-input-field {
+  background: var(--macos-fill-quinary);
+  border: 1px solid var(--macos-separator);
+  color: var(--macos-label-primary);
+  border-radius: 10px;
+  font-family: "SF Pro Text", "SF Pro", -apple-system, sans-serif;
+  font-size: 13px;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.macos-input-field:focus {
+  background: var(--macos-window-bg);
+  border-color: var(--macos-blue);
+  box-shadow: 0 0 0 3px rgba(0, 136, 255, 0.3);
+  outline: none;
+}
+
+
+
+/* 5. SYMBOLS: Liquid Glass Materials & Modals */
+.macos-window-surface {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.16), inset 0 1px 1px rgba(255, 255, 255, 1);
+}
+.dark .macos-window-surface {
+  background: rgba(30, 30, 30, 0.88);
+  backdrop-filter: blur(40px) saturate(210%);
+  -webkit-backdrop-filter: blur(40px) saturate(210%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.65), inset 0 1px 1px rgba(255, 255, 255, 0.18);
+}
+
+/* ==========================================================================
+   Comprehensive Dark Mode Readability Fixes
+   ========================================================================== */
+
+/* Dark mode: ensure all muted labels are visible */
+.dark .text-\[\#86868b\] {
+  color: #a1a1a6 !important;
+}
+.dark .text-\[\#76767b\] {
+  color: #98989d !important;
+}
+
+/* Dark mode: improve contrast for secondary text in tables/cards */
+.dark td,
+.dark th {
+  color: #f5f5f7;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Dark mode: table row hover fix */
+.dark tr:hover td {
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* Dark mode: card backgrounds that might be white */
+.dark .bg-white {
+  background-color: #1c1c22 !important;
+}
+.dark .bg-white\/50,
+.dark .bg-white\/60,
+.dark .bg-white\/70,
+.dark .bg-white\/80 {
+  background-color: rgba(28, 28, 34, 0.85) !important;
+}
+
+/* Dark mode: improved scroll area styling */
+.dark ::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Light mode: subtle scroll bars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.03);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* Dark mode: minimized note capsule pill — ensure proper dark glass */
+.dark .note-minimized-pill {
+  background: rgba(24, 24, 30, 0.88) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+/* Dark mode: note list sidebar card hover states */
+.dark .note-sidebar-card {
+  background: rgba(28, 28, 36, 0.6);
+  border-color: rgba(255, 255, 255, 0.07);
+}
+.dark .note-sidebar-card:hover {
+  background: rgba(36, 36, 48, 0.75);
+}
+
+/* Dark mode: placeholder text visibility */
+.dark ::placeholder {
+  color: rgba(255, 255, 255, 0.25) !important;
+  opacity: 1 !important;
+}
+
+/* Dark mode: stat/metric number text */
+.dark .metric-value,
+.dark [class*="text-2xl"],
+.dark [class*="text-3xl"],
+.dark [class*="text-4xl"] {
+  color: #f5f5f7;
+}
+
+/* Dark mode: dividers and separators */
+.dark hr,
+.dark [class*="border-b"],
+.dark [class*="border-t"] {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Dark mode: improved button fill contrast */
+.dark .bg-black\/\[0\.04\] { background-color: rgba(255, 255, 255, 0.06) !important; }
+.dark .bg-black\/\[0\.03\] { background-color: rgba(255, 255, 255, 0.04) !important; }
+.dark .bg-black\/\[0\.02\] { background-color: rgba(255, 255, 255, 0.025) !important; }
+.dark .hover\:bg-black\/\[0\.04\]:hover { background-color: rgba(255, 255, 255, 0.08) !important; }
+.dark .hover\:bg-black\/\[0\.08\]:hover { background-color: rgba(255, 255, 255, 0.12) !important; }
+
+/* Dark mode: focus rings use accent blue */
+.dark *:focus-visible {
+  outline-color: #2997ff;
+}
+
+/* ──────────────── macOS 27 Quick Note Morphing Physics & Fluid Animations ──────────────── */
+@keyframes macosMorphOpen {
+  0% {
+    opacity: 0;
+    transform: scale(0.35) translate3d(80px, 80px, 0);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.015) translate3d(-2px, -2px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes macosMorphClose {
+  0% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.35) translate3d(80px, 80px, 0);
+  }
+}
+
+@keyframes macosExpandModal {
+  0% {
+    opacity: 0;
+    transform: scale(0.7) translate3d(60px, 60px, 0);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.012) translate3d(-1px, -1px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+.macos-morph-window {
+  transform-origin: bottom right;
+  animation: macosMorphOpen 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.macos-morph-close {
+  transform-origin: bottom right;
+  animation: macosMorphClose 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.macos-expand-modal {
+  transform-origin: bottom right;
+  animation: macosExpandModal 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes appleShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-7px); }
+  40%, 80% { transform: translateX(7px); }
+}
+
+.apple-shake {
+  animation: appleShake 0.35s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* ==========================================================================
+   Apple Liquid Glass Floating Control Surface (Web Approximation)
+   Reserved for the floating control layer (toolbars, tab bars, buttons)
+   above opaque content.
+   ========================================================================== */
+.apple-liquid-glass-control {
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(32px) saturate(210%) contrast(102%) brightness(104%);
+  -webkit-backdrop-filter: blur(32px) saturate(210%) contrast(102%) brightness(104%);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow:
+    inset 0 1.25px 0.75px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.05),
+    0 4px 18px -2px rgba(0, 0, 0, 0.06),
+    0 1px 3px 0 rgba(0, 0, 0, 0.04);
+  border-radius: 9999px;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+.dark .apple-liquid-glass-control {
+  background: rgba(22, 22, 28, 0.62);
+  backdrop-filter: blur(36px) saturate(220%) contrast(105%) brightness(105%);
+  -webkit-backdrop-filter: blur(36px) saturate(220%) contrast(105%) brightness(105%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow:
+    inset 0 1.25px 0.75px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.55),
+    0 8px 24px -2px rgba(0, 0, 0, 0.55),
+    0 2px 6px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* Apple Note Media & Attachments Inline Controls */
+.apple-img-wrapper {
+  position: relative;
+  display: inline-block;
+  margin: 6px 0;
+  vertical-align: middle;
+  border-radius: 12px;
+}
+
+.apple-img-wrapper .apple-img-delete-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: bold;
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  z-index: 10;
+}
+
+.apple-img-wrapper:hover .apple-img-delete-btn,
+.apple-img-wrapper:focus-within .apple-img-delete-btn {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+}
+
+.apple-img-wrapper .apple-img-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.7) !important;
+  transform: scale(1.08) !important;
+}
+
+.apple-file-attachment .apple-file-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.22) !important;
+  border-color: rgba(239, 68, 68, 0.45) !important;
+  transform: scale(1.08);
+}
+
+/* Concentric Apple Focus Rings for Liquid Glass Controls */
+.liquid-glass-segmented-track button:focus-visible,
+.apple-liquid-glass-control:focus-visible {
+  outline: 2px solid #0071e3 !important;
+  outline-offset: 2px !important;
+}
+
+.dark .liquid-glass-segmented-track button:focus-visible,
+.dark .apple-liquid-glass-control:focus-visible {
+  outline: 2px solid #2997ff !important;
+  outline-offset: 2px !important;
+}
+
+/* Accessibility: Honor Reduce Transparency */
+@media (prefers-reduced-transparency: reduce) {
+  .liquid-glass-segmented-track,
+  .apple-liquid-glass-control,
+  .glass-regular,
+  .glass-clear,
+  .liquid-glass,
+  .ios-glass-panel,
+  [data-layout-id="active-navigation-pill"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .liquid-glass-segmented-track {
+    background: #e5e5ea !important;
+    border-color: #c6c6c8 !important;
+  }
+  .dark .liquid-glass-segmented-track {
+    background: #2c2c2e !important;
+    border-color: #38383a !important;
+  }
+
+  [data-layout-id="active-navigation-pill"] {
+    background: #ffffff !important;
+    border-color: #8e8e93 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  }
+  .dark [data-layout-id="active-navigation-pill"] {
+    background: #3a3a3c !important;
+    border-color: #636366 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6) !important;
+  }
+}
+
+/* Accessibility: Honor Reduce Motion */
+@media (prefers-reduced-motion: reduce) {
+  .macos-morph-window,
+  .macos-morph-close,
+  .macos-expand-modal,
+  .apple-shake,
+  [data-layout-id="active-navigation-pill"] {
+    animation: none !important;
+    transition: none !important;
+  }
 }

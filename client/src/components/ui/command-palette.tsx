@@ -2,27 +2,27 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
-  Search,
-  ExternalLink,
-  Link as LinkIcon,
-  Shield,
-  Store,
-  LayoutDashboard,
-  Settings,
-  Database,
-  ArrowRight,
-  Sparkles,
-  X,
-  FileSpreadsheet,
-  Moon,
-  Sun,
-  CornerDownLeft,
-  Zap,
-  Clock,
-  Compass,
-  Layers,
-  SquarePen,
-} from 'lucide-react';
+  SFMagnifyingglass,
+  SFArrowUpRightSquare,
+  SFLink,
+  SFShieldFill,
+  SFStorefront,
+  SFSquareGrid2x2,
+  SFGearshapeFill,
+  SFCylinder,
+  SFArrowRight,
+  SFSparkles,
+  SFXmark,
+  SFTablecells,
+  SFMoonFill,
+  SFSunMaxFill,
+  SFReturn,
+  SFBoltFill,
+  SFClock,
+  SFLocationFill,
+  SFSquareStack3dUp,
+  SFSquareAndPencil,
+} from 'sf-symbols-lib';
 import { dataService } from '@/services/dataService';
 import { LinkItem, AccountItem, StoreItem } from '@/types/workspace';
 import { useUiStore } from '@/stores/ui-store';
@@ -126,9 +126,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     };
   }, []);
 
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Handle open & smooth MacBook closing transition lifecycle
   useEffect(() => {
     if (isOpen) {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
       setIsMounted(true);
       setIsClosing(false);
       setQuery('');
@@ -153,22 +156,26 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       }, 50);
     } else if (isMounted && !isClosing) {
       setIsClosing(true);
-      const timer = setTimeout(() => {
+      closeTimerRef.current = setTimeout(() => {
         setIsMounted(false);
         setIsClosing(false);
-      }, 180);
-      return () => clearTimeout(timer);
+      }, 160);
     }
+
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
   }, [isOpen]);
 
   const handleClose = () => {
     if (isClosing) return;
     setIsClosing(true);
-    setTimeout(() => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => {
       onClose();
       setIsClosing(false);
       setIsMounted(false);
-    }, 180);
+    }, 160);
   };
 
   // Reset scroll and selection whenever query or category changes
@@ -205,7 +212,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         sub: 'Trang chủ tổng quan chỉ số và phím tắt nhanh',
         path: '/',
         tag: 'Dashboard',
-        icon: <LayoutDashboard className="w-4 h-4" />,
+        icon: <SFSquareGrid2x2 size={16} />,
         iconBg: 'bg-blue-500/12 dark:bg-blue-500/20',
         iconColor: 'text-blue-600 dark:text-blue-400',
       },
@@ -216,7 +223,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         sub: 'Danh mục liên kết hệ thống, báo cáo và vận hành',
         path: '/?tab=links',
         tag: 'Links',
-        icon: <LinkIcon className="w-4 h-4" />,
+        icon: <SFLink size={16} />,
         iconBg: 'bg-sky-500/12 dark:bg-sky-500/20',
         iconColor: 'text-sky-600 dark:text-sky-400',
       },
@@ -227,7 +234,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         sub: 'Két bảo mật thông tin đăng nhập SAP, POS, Bravo...',
         path: '/?tab=accounts',
         tag: 'Account Vault',
-        icon: <Shield className="w-4 h-4" />,
+        icon: <SFShieldFill size={16} />,
         iconBg: 'bg-emerald-500/12 dark:bg-emerald-500/20',
         iconColor: 'text-emerald-600 dark:text-emerald-400',
       },
@@ -238,7 +245,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         sub: 'Tra cứu mã cửa hàng, địa chỉ, vị trí Google Maps',
         path: '/?tab=stores',
         tag: 'Cửa hàng',
-        icon: <Store className="w-4 h-4" />,
+        icon: <SFStorefront size={16} />,
         iconBg: 'bg-amber-500/12 dark:bg-amber-500/20',
         iconColor: 'text-amber-600 dark:text-amber-400',
       },
@@ -249,7 +256,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         sub: 'Cấu hình bảo mật, kiểm tra dung lượng, xuất nhập Excel',
         path: '/settings',
         tag: 'Hệ thống',
-        icon: <Settings className="w-4 h-4" />,
+        icon: <SFGearshapeFill size={16} />,
         iconBg: 'bg-slate-500/12 dark:bg-slate-500/20',
         iconColor: 'text-slate-600 dark:text-slate-400',
       },
@@ -266,7 +273,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         label: 'Mở cửa sổ Ghi chú nhanh (Quick Note)',
         sub: 'Tạo hoặc xem các ghi chú công việc nhanh (phím tắt Alt + N hoặc Ctrl + J)',
         tag: 'Ghi chú',
-        icon: <SquarePen className="w-4 h-4" />,
+        icon: <SFSquareAndPencil size={16} />,
         iconBg: 'bg-amber-500/12 dark:bg-amber-500/20',
         iconColor: 'text-amber-600 dark:text-amber-400',
         action: () => {
@@ -280,7 +287,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         label: 'Tạo ghi chú mới ngay lập tức',
         sub: 'Mở trình soạn thảo tạo ghi chú mới',
         tag: 'Ghi chú',
-        icon: <SquarePen className="w-4 h-4" />,
+        icon: <SFSquareAndPencil size={16} />,
         iconBg: 'bg-amber-500/12 dark:bg-amber-500/20',
         iconColor: 'text-amber-600 dark:text-amber-400',
         action: () => {
@@ -294,7 +301,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         label: 'Import dữ liệu từ file Excel',
         sub: 'Mở cửa sổ tải tệp bảng tính (.xlsx, .xls, .csv) vào hệ thống',
         tag: 'Excel Hub',
-        icon: <FileSpreadsheet className="w-4 h-4" />,
+        icon: <SFTablecells size={16} />,
         iconBg: 'bg-emerald-500/12 dark:bg-emerald-500/20',
         iconColor: 'text-emerald-600 dark:text-emerald-400',
         action: () => {
@@ -312,7 +319,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         label: `Chuyển sang giao diện ${theme === 'dark' ? 'Sáng (Light Mode)' : 'Tối (Dark Mode)'}`,
         sub: 'Chuyển đổi tông màu giao diện Sáng / Tối',
         tag: 'Giao diện',
-        icon: theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />,
+        icon: theme === 'dark' ? <SFSunMaxFill size={16} /> : <SFMoonFill size={16} />,
         iconBg: 'bg-violet-500/12 dark:bg-violet-500/20',
         iconColor: 'text-violet-600 dark:text-violet-400',
         action: () => {
@@ -326,7 +333,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         label: 'Thêm lối tắt liên kết mới',
         sub: 'Mở biểu mẫu thêm link mới vào hệ thống Quick Links',
         tag: 'Quick Links',
-        icon: <LinkIcon className="w-4 h-4" />,
+        icon: <SFLink size={16} />,
         iconBg: 'bg-sky-500/12 dark:bg-sky-500/20',
         iconColor: 'text-sky-600 dark:text-sky-400',
         action: () => {
@@ -340,7 +347,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         label: 'Lưu tài khoản phần mềm mới',
         sub: 'Thêm tài khoản vào Két bảo mật Account Vault',
         tag: 'Account Vault',
-        icon: <Shield className="w-4 h-4" />,
+        icon: <SFShieldFill size={16} />,
         iconBg: 'bg-teal-500/12 dark:bg-teal-500/20',
         iconColor: 'text-teal-600 dark:text-teal-400',
         action: () => {
@@ -354,7 +361,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         label: 'Thêm chi nhánh cửa hàng mới',
         sub: 'Đăng ký mã cửa hàng mới vào danh mục hệ thống',
         tag: 'Cửa hàng',
-        icon: <Store className="w-4 h-4" />,
+        icon: <SFStorefront size={16} />,
         iconBg: 'bg-amber-500/12 dark:bg-amber-500/20',
         iconColor: 'text-amber-600 dark:text-amber-400',
         action: () => {
@@ -377,7 +384,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       sub: l.category ? `Danh mục: ${l.category}${l.note ? ` • ${l.note}` : ''}` : l.note || 'Link làm việc trực tiếp',
       tag: l.category || 'Quick Link',
       url: l.link,
-      icon: <LinkIcon className="w-4 h-4" />,
+      icon: <SFLink size={16} />,
       iconBg: 'bg-sky-500/12 dark:bg-sky-500/20',
       iconColor: 'text-sky-600 dark:text-sky-400',
     }));
@@ -389,7 +396,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       sub: `Username: ${a.username}${a.note ? ` • ${a.note}` : ''}`,
       tag: 'Tài khoản',
       path: '/accounts',
-      icon: <Shield className="w-4 h-4" />,
+      icon: <SFShieldFill size={16} />,
       iconBg: 'bg-emerald-500/12 dark:bg-emerald-500/20',
       iconColor: 'text-emerald-600 dark:text-emerald-400',
     }));
@@ -402,7 +409,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       tag: s.storeCode,
       mapsUrl: s.googleMaps,
       path: '/stores',
-      icon: <Store className="w-4 h-4" />,
+      icon: <SFStorefront size={16} />,
       iconBg: 'bg-amber-500/12 dark:bg-amber-500/20',
       iconColor: 'text-amber-600 dark:text-amber-400',
     }));
@@ -498,7 +505,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'all',
         label: 'Tất cả',
-        icon: <Layers className="w-3.5 h-3.5" />,
+        icon: <SFSquareStack3dUp size={14} />,
         count: counts.all,
         activeColor: 'text-[#0066cc] dark:text-[#2997ff]',
         activeBadge: 'bg-[#0066cc]/10 text-[#0066cc] dark:bg-[#2997ff]/20 dark:text-[#2997ff]',
@@ -506,7 +513,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'link',
         label: 'Liên kết',
-        icon: <LinkIcon className="w-3.5 h-3.5" />,
+        icon: <SFLink size={14} />,
         count: counts.link,
         activeColor: 'text-sky-600 dark:text-sky-400',
         activeBadge: 'bg-sky-500/12 text-sky-600 dark:bg-sky-500/20 dark:text-sky-400',
@@ -514,7 +521,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'account',
         label: 'Tài khoản',
-        icon: <Shield className="w-3.5 h-3.5" />,
+        icon: <SFShieldFill size={14} />,
         count: counts.account,
         activeColor: 'text-emerald-600 dark:text-emerald-400',
         activeBadge: 'bg-emerald-500/12 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400',
@@ -522,7 +529,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'store',
         label: 'Cửa hàng',
-        icon: <Store className="w-3.5 h-3.5" />,
+        icon: <SFStorefront size={14} />,
         count: counts.store,
         activeColor: 'text-amber-600 dark:text-amber-400',
         activeBadge: 'bg-amber-500/12 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400',
@@ -530,7 +537,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'action',
         label: 'Tác vụ',
-        icon: <Zap className="w-3.5 h-3.5" />,
+        icon: <SFBoltFill size={14} />,
         count: counts.action,
         activeColor: 'text-purple-600 dark:text-purple-400',
         activeBadge: 'bg-purple-500/12 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400',
@@ -538,7 +545,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'nav',
         label: 'Trang',
-        icon: <Compass className="w-3.5 h-3.5" />,
+        icon: <SFLocationFill size={14} />,
         count: counts.nav,
         activeColor: 'text-indigo-600 dark:text-indigo-400',
         activeBadge: 'bg-indigo-500/12 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400',
@@ -687,7 +694,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         aria-modal="true"
         aria-label="Tìm kiếm nhanh Spotlight"
         className={cn(
-          'relative w-full max-w-2xl sm:max-w-[720px] bg-white/95 dark:bg-[#16161c]/95 backdrop-blur-3xl rounded-[24px] shadow-[0_24px_80px_rgba(0,0,0,0.2),inset_0_1.5px_1px_rgba(255,255,255,1),inset_0_-1px_1.5px_rgba(0,0,0,0.08)] dark:shadow-[0_24px_80px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.18)] border border-white/80 dark:border-white/15 overflow-hidden z-10 flex flex-col',
+          'relative w-full max-w-2xl sm:max-w-[720px] bg-white dark:bg-[#1c1c22] rounded-[24px] shadow-[0_28px_80px_rgba(0,0,0,0.28),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15 overflow-hidden z-10 flex flex-col',
           isClosing ? 'liquid-droplet-exit' : 'liquid-droplet-enter'
         )}
       >
@@ -697,7 +704,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           className="flex items-center gap-3.5 px-5 py-4 border-b border-black/[0.06] dark:border-white/10 bg-transparent"
         >
           <div className="w-8 h-8 rounded-xl bg-[#0071e3]/10 dark:bg-[#2997ff]/15 text-[#0066cc] dark:text-[#2997ff] flex items-center justify-center shrink-0">
-            <Search className="w-4 h-4" strokeWidth={2.2} />
+            <SFMagnifyingglass size={16} />
           </div>
 
           <input
@@ -731,7 +738,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   className="p-1 rounded-full text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
                   title="Xoá nội dung"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <SFXmark size={14} />
                 </button>
               </>
             )}
@@ -743,7 +750,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
               className="w-7 h-7 rounded-full bg-black/[0.04] dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 flex items-center justify-center text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white transition-all active:scale-95 cursor-pointer ml-1"
               title="Đóng tìm kiếm (Esc)"
             >
-              <X className="w-4 h-4" strokeWidth={2.2} />
+              <SFXmark size={16} />
             </button>
           </div>
         </div>
@@ -818,7 +825,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                 <div>
                   <div className="flex items-center justify-between text-[11px] font-semibold text-[#86868b] uppercase tracking-wider mb-2">
                     <span className="flex items-center gap-1.5">
-                      <Clock className="w-3 h-3" />
+                      <SFClock size={12} />
                       Tìm kiếm gần đây
                     </span>
                     <button
@@ -847,7 +854,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
               {/* Popular Tags */}
               <div>
                 <div className="text-[11px] font-semibold text-[#86868b] uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3 text-amber-500" />
+                  <SFSparkles size={12} className="text-amber-500" />
                   Gợi ý tra cứu nhanh
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -943,12 +950,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   {isSelected ? (
                     <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/5 dark:bg-white/10 text-[11px] font-mono text-[#0071e3] dark:text-[#2997ff] shrink-0 animate-in fade-in duration-100 font-medium">
                       <span>Mở</span>
-                      <CornerDownLeft className="w-3 h-3" />
+                      <SFReturn size={12} />
                     </div>
                   ) : item.url || item.mapsUrl ? (
-                    <ExternalLink className="w-3.5 h-3.5 shrink-0 text-[#86868b] opacity-40 group-hover:opacity-80 transition-opacity" />
+                    <SFArrowUpRightSquare size={14} className="shrink-0 text-[#86868b] opacity-40 group-hover:opacity-80 transition-opacity" />
                   ) : (
-                    <ArrowRight className="w-3.5 h-3.5 shrink-0 text-[#86868b] opacity-40 group-hover:opacity-80 transition-opacity" />
+                    <SFArrowRight size={14} className="shrink-0 text-[#86868b] opacity-40 group-hover:opacity-80 transition-opacity" />
                   )}
                 </button>
               );
@@ -956,7 +963,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           ) : (
             <div className="py-10 text-center px-4">
               <div className="w-10 h-10 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/10 flex items-center justify-center mx-auto mb-2 text-[#76767b]">
-                <Search className="w-5 h-5 opacity-40" />
+                <SFMagnifyingglass size={20} className="opacity-40" />
               </div>
               <p className="text-[13.5px] font-medium text-[#1d1d1f] dark:text-white">
                 Không tìm thấy kết quả nào cho &quot;{query}&quot;

@@ -18,12 +18,12 @@ export const QuickNoteFloatingButton: React.FC = () => {
         onClick={toggleNote}
         title="Ghi chú nhanh (Alt + N hoặc Ctrl + J)"
         className={`group relative flex items-center gap-2.5 px-4 py-2.5 rounded-full
-          backdrop-blur-2xl bg-white/75 dark:bg-[#1c1c1e]/75
-          border border-white/60 dark:border-white/15
-          shadow-[0_8px_32px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.06)]
-          hover:shadow-[0_12px_40px_rgba(245,158,11,0.22),0_4px_12px_rgba(0,0,0,0.1)]
+          backdrop-blur-[36px] saturate-[210%] bg-white/70 dark:bg-[#1c1c24]/75
+          border border-white/75 dark:border-white/20
+          shadow-[0_16px_36px_-8px_rgba(0,0,0,0.14),inset_0_1.5px_1px_rgba(255,255,255,0.95),inset_0_-1.5px_1.5px_rgba(0,0,0,0.08)]
+          hover:shadow-[0_20px_44px_-8px_rgba(245,158,11,0.25),inset_0_1.5px_1px_rgba(255,255,255,1)]
           hover:scale-[1.03] active:scale-[0.97]
-          transition-all duration-300 ease-out cursor-pointer
+          transition-all duration-240 ease-out cursor-pointer
           overflow-hidden
         `}
       >

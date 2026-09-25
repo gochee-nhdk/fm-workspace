@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Trash2, X } from 'lucide-react';
+import { SFExclamationmarkTriangleFill, SFTrash, SFXmark } from 'sf-symbols-lib';
 import { Button } from './button';
 
 interface ConfirmDeleteDialogProps {
@@ -49,19 +49,19 @@ export const ConfirmDeleteDialog: React.FC<ConfirmDeleteDialogProps> = ({
         role="alertdialog"
         aria-modal="true"
         aria-label={title}
-        className="relative bg-white/95 dark:bg-[#16161c]/95 backdrop-blur-3xl rounded-[24px] max-w-md w-full p-6 shadow-[0_24px_80px_rgba(0,0,0,0.2),inset_0_1.5px_1px_rgba(255,255,255,1),inset_0_-1px_1.5px_rgba(0,0,0,0.08)] dark:shadow-[0_24px_80px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.18)] border border-white/80 dark:border-white/15 animate-in fade-in zoom-in-95 duration-220 ease-out"
+        className="relative bg-white dark:bg-[#1c1c22] rounded-[24px] max-w-md w-full p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15 animate-in fade-in zoom-in-95 duration-220 ease-out"
       >
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white w-7 h-7 rounded-full bg-[#f5f5f7] dark:bg-white/10 flex items-center justify-center transition-all active:scale-95"
           title="Đóng"
         >
-          <X className="w-4 h-4" />
+          <SFXmark size={14} />
         </button>
 
         <div className="flex items-start gap-4">
           <div className="w-10 h-10 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-full flex items-center justify-center shrink-0">
-            <AlertTriangle className="w-5 h-5" />
+            <SFExclamationmarkTriangleFill size={20} />
           </div>
 
           <div className="flex-1 min-w-0">
@@ -95,7 +95,7 @@ export const ConfirmDeleteDialog: React.FC<ConfirmDeleteDialogProps> = ({
             size="sm"
             onClick={handleConfirm}
             loading={loading}
-            icon={<Trash2 className="w-4 h-4" />}
+            icon={<SFTrash size={14} />}
           >
             Xác nhận xóa
           </Button>

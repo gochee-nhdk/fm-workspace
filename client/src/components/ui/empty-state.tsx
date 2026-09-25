@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { Inbox } from 'lucide-react';
+import { SFTray } from 'sf-symbols-lib';
 import { Button } from './button';
 
 export interface EmptyStateProps {
@@ -34,7 +34,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       )}
     >
       <div className="w-12 h-12 rounded-full bg-[#0066cc]/10 text-[#0066cc] dark:bg-[#2997ff]/15 dark:text-[#2997ff] flex items-center justify-center mb-3.5 shadow-2xs">
-        {icon || <Inbox className="w-5 h-5" />}
+        {icon || <SFTray size={20} />}
       </div>
       <h4 className="text-[16px] font-semibold text-[#1d1d1f] dark:text-white tracking-tight mb-1">
         {title}

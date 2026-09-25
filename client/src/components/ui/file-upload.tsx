@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { UploadCloud, FileSpreadsheet, X, CheckCircle } from 'lucide-react';
+import { SFArrowUpDocument, SFTablecells, SFXmark } from 'sf-symbols-lib';
 import { Button } from './button';
 
 export interface FileUploadProps {
@@ -84,7 +84,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         />
 
         <div className="w-12 h-12 rounded-xl bg-teal-50 dark:bg-teal-950/60 border border-teal-100 dark:border-teal-900 flex items-center justify-center text-teal-600 dark:text-teal-400">
-          <UploadCloud className="w-6 h-6" />
+          <SFArrowUpDocument size={24} />
         </div>
 
         <div>
@@ -104,7 +104,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       {selectedFile && (
         <div className="flex items-center justify-between p-3 rounded-xl border border-teal-200 dark:border-teal-800 bg-teal-50/30 dark:bg-teal-950/20">
           <div className="flex items-center gap-2.5 overflow-hidden">
-            <FileSpreadsheet className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0" />
+            <SFTablecells size={20} className="text-teal-600 dark:text-teal-400 shrink-0" />
             <div className="truncate text-xs">
               <p className="font-semibold text-slate-800 dark:text-slate-100 truncate">
                 {selectedFile.name}
@@ -121,7 +121,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             }}
             className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
           >
-            <X className="w-4 h-4" />
+            <SFXmark size={14} />
           </button>
         </div>
       )}

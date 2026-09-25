@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: farmers-market-procurement-api
+    env: node
+    plan: free
+    region: singapore
+    buildCommand: npm --prefix server install && npm --prefix server run build
+    startCommand: npm --prefix server start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLIENT_URL
+        sync: false

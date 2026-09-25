@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronDown } from 'lucide-react';
+import { SFChevronDown } from 'sf-symbols-lib';
 
 export interface SelectOption {
   value: string;
@@ -50,7 +50,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             ))}
           </select>
           <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-[#76767b]">
-            <ChevronDown className="w-4 h-4" />
+            <SFChevronDown size={14} />
           </div>
         </div>
         {error ? (

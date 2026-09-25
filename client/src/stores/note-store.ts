@@ -19,8 +19,9 @@ interface NoteStoreState {
   toggleNote: () => void;
   setMinimized: (minimized: boolean) => void;
   togglePinned: () => void;
-  createNote: (initialContent?: string) => Promise<QuickNoteItem>;
+  createNote: (type?: 'note' | 'checklist', initialContent?: string) => Promise<QuickNoteItem>;
   selectNote: (id: string) => void;
+  updateNote: (id: string, fields: Partial<QuickNoteItem>) => Promise<void>;
   updateActiveNote: (fields: Partial<QuickNoteItem>) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
   togglePinNote: (id: string) => Promise<void>;
@@ -89,11 +90,18 @@ export const useNoteStore = create<NoteStoreState>((set, get) => ({
     toast.success(next ? 'Đã ghim nổi ghi chú' : 'Đã bỏ ghim nổi', { id: 'note-pin-window' });
   },
 
-  createNote: async (initialContent = '') => {
+  createNote: async (type: 'note' | 'checklist' = 'note', initialContent?: string) => {
+    const isChecklist = type === 'checklist';
+    const defaultContent = isChecklist
+      ? (initialContent ?? '- [ ] Việc cần làm 1\n- [ ] Việc cần làm 2')
+      : (initialContent ?? '');
+    const defaultTitle = isChecklist ? 'Danh sách việc mới' : 'Ghi chú mới';
+
     const newNote = await noteService.saveNote({
-      title: 'Ghi chú mới',
-      content: initialContent,
-      color: 'amber',
+      title: defaultTitle,
+      content: defaultContent,
+      noteType: type,
+      color: isChecklist ? 'blue' : 'amber',
       pinned: false,
     });
 
@@ -111,24 +119,44 @@ export const useNoteStore = create<NoteStoreState>((set, get) => ({
     set({ activeNoteId: id, isMinimized: false });
   },
 
-  updateActiveNote: async (fields: Partial<QuickNoteItem>) => {
-    const { activeNoteId, notes } = get();
-    if (!activeNoteId) return;
-
-    const current = notes.find((n) => n.id === activeNoteId);
+  updateNote: async (id: string, fields: Partial<QuickNoteItem>) => {
+    const { notes } = get();
+    const current = notes.find((n) => n.id === id);
     if (!current) return;
 
+    // Optimistic in-memory update immediately so typing/switching has 0 delay and no data loss
+    const optimistic: QuickNoteItem = {
+      ...current,
+      ...fields,
+      id,
+      updatedAt: new Date().toISOString(),
+    };
+
+    set((state) => ({
+      notes: state.notes.map((n) => (n.id === id ? optimistic : n)),
+    }));
+
+    // Asynchronously persist
     const updated = await noteService.saveNote({
       ...current,
       ...fields,
-      id: activeNoteId,
+      id,
     });
 
-    set((state) => ({
-      notes: noteService.sortNotes(
-        state.notes.map((n) => (n.id === activeNoteId ? updated : n))
-      ),
-    }));
+    // Update in-place to preserve stable list position during active editing & selecting!
+    // Only re-sort if pinned status changed, preventing the list from jumping wildly.
+    set((state) => {
+      const updatedNotes = state.notes.map((n) => (n.id === id ? updated : n));
+      return {
+        notes: fields.pinned !== undefined ? noteService.sortNotes(updatedNotes) : updatedNotes,
+      };
+    });
+  },
+
+  updateActiveNote: async (fields: Partial<QuickNoteItem>) => {
+    const { activeNoteId } = get();
+    if (!activeNoteId) return;
+    await get().updateNote(activeNoteId, fields);
   },
 
   deleteNote: async (id: string) => {

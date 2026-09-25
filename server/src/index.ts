@@ -31,17 +31,28 @@ const fastify = Fastify({
 });
 
 async function build() {
-  // Enterprise Security: Restrict CORS to trusted local origins
+  // Enterprise Security: Restrict CORS to trusted origins & cloud frontend
+  const envOrigins = [
+    process.env.CLIENT_URL,
+    ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : []),
+  ].filter(Boolean).map((s) => (s as string).trim().replace(/\/+$/, ''));
+
   const allowedOrigins = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+    ...envOrigins,
   ];
 
   await fastify.register(cors, {
     origin: (origin, cb) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        (origin && origin.endsWith('.vercel.app')) ||
+        process.env.NODE_ENV !== 'production'
+      ) {
         cb(null, true);
         return;
       }
@@ -119,12 +130,12 @@ const start = async () => {
   try {
     const server = await build();
     const port = Number(process.env.PORT) || 3000;
-    // Security: Bind strictly to 127.0.0.1 (Localhost only) to prevent unauthorized LAN access
-    const host = process.env.HOST || '127.0.0.1';
+    // Security: Bind strictly to 127.0.0.1 in local dev, or 0.0.0.0 in production cloud (Render/Railway/Docker)
+    const host = process.env.HOST || (process.env.NODE_ENV === 'production' || process.env.PORT ? '0.0.0.0' : '127.0.0.1');
     await server.listen({ port, host });
     console.log(`[FM Security Shield] Server securely listening on http://${host}:${port}`);
   } catch (err) {
-    fastify.log.error(err);
+    console.error('Server failed to start:', err);
     process.exit(1);
   }
 };

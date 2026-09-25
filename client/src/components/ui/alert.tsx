@@ -1,6 +1,12 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { AlertCircle, CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
+import {
+  SFExclamationmarkCircle,
+  SFCheckmarkCircleFill,
+  SFExclamationmarkTriangleFill,
+  SFInfoCircle,
+  SFXmark,
+} from 'sf-symbols-lib';
 
 export interface AlertProps {
   type?: 'info' | 'success' | 'warning' | 'error';
@@ -29,10 +35,10 @@ export const Alert: React.FC<AlertProps> = ({
   };
 
   const icons = {
-    info: <Info className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />,
-    success: <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />,
-    warning: <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />,
-    error: <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+    info: <SFInfoCircle size={16} className="text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />,
+    success: <SFCheckmarkCircleFill size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />,
+    warning: <SFExclamationmarkTriangleFill size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />,
+    error: <SFExclamationmarkCircle size={16} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
   };
 
   return (
@@ -55,7 +61,7 @@ export const Alert: React.FC<AlertProps> = ({
           onClick={onDismiss}
           className="p-1 rounded-md opacity-60 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 transition-opacity"
         >
-          <X className="w-3.5 h-3.5" />
+          <SFXmark size={14} />
         </button>
       )}
     </div>

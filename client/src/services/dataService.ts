@@ -23,6 +23,8 @@ const generateId = (): string => {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 };
 
+const SEEDED_KEY = 'fm_workspace_seeded';
+
 class DataService {
   private initialized = false;
 
@@ -30,19 +32,17 @@ class DataService {
     if (this.initialized) return;
 
     try {
+      const isSeeded = localStorage.getItem(SEEDED_KEY);
       const existingLinks = await idbGetAll<LinkItem>(STORES.LINKS);
       const existingAccounts = await idbGetAll<AccountItem>(STORES.ACCOUNTS);
       const existingStores = await idbGetAll<StoreItem>(STORES.STORES);
 
-      // If initial seed data exists and database is fresh, populate
-      if (existingLinks.length === 0 && initialLinks.length > 0) {
-        await idbBulkPut(STORES.LINKS, initialLinks);
-      }
-      if (existingAccounts.length === 0 && initialAccounts.length > 0) {
-        await idbBulkPut(STORES.ACCOUNTS, initialAccounts);
-      }
-      if (existingStores.length === 0 && initialStores.length > 0) {
-        await idbBulkPut(STORES.STORES, initialStores);
+      // Only seed on the VERY FIRST EVER installation if user hasn't explicitly cleared
+      if (!isSeeded && existingLinks.length === 0 && existingAccounts.length === 0 && existingStores.length === 0) {
+        if (initialLinks.length > 0) await idbBulkPut(STORES.LINKS, initialLinks);
+        if (initialAccounts.length > 0) await idbBulkPut(STORES.ACCOUNTS, initialAccounts);
+        if (initialStores.length > 0) await idbBulkPut(STORES.STORES, initialStores);
+        localStorage.setItem(SEEDED_KEY, 'true');
       }
 
       this.initialized = true;
@@ -290,11 +290,23 @@ class DataService {
     // IMPORTANT: Log BEFORE clearing — after clear, the activity store is also wiped!
     await this.logActivity('delete', 'ALL', 'all', 'Đã xóa toàn bộ dữ liệu workspace');
     await idbClearAll();
-    // Reset initialized flag so seed data can be repopulated if needed
-    this.initialized = false;
+    // Mark as seeded so returning to workspace remains 100% clean (does NOT re-seed sample data)
+    localStorage.setItem(SEEDED_KEY, 'true');
+    this.initialized = true;
   }
 
-  /** Call this to re-seed from initialData after a clearAllData() */
+  /** Explicitly restores default sample data (Factory Reset) */
+  async restoreSeedData(): Promise<void> {
+    await idbClearAll();
+    if (initialLinks.length > 0) await idbBulkPut(STORES.LINKS, initialLinks);
+    if (initialAccounts.length > 0) await idbBulkPut(STORES.ACCOUNTS, initialAccounts);
+    if (initialStores.length > 0) await idbBulkPut(STORES.STORES, initialStores);
+    localStorage.setItem(SEEDED_KEY, 'true');
+    this.initialized = true;
+    await this.logActivity('create', 'ALL', 'seed-restore', 'Đã khôi phục dữ liệu mẫu ban đầu');
+  }
+
+  /** Re-initialize database check */
   async resetInitialized(): Promise<void> {
     this.initialized = false;
     await this.ensureInitialized();

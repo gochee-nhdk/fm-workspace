@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
+import { SFArrowClockwise } from 'sf-symbols-lib';
 
 export interface SpinnerProps {
   size?: 'sm' | 'md' | 'lg';
@@ -10,14 +10,14 @@ export interface SpinnerProps {
 
 export const Spinner: React.FC<SpinnerProps> = ({ size = 'md', className, label }) => {
   const sizes = {
-    sm: 'w-4 h-4',
-    md: 'w-6 h-6',
-    lg: 'w-8 h-8'
+    sm: 16,
+    md: 24,
+    lg: 32,
   };
 
   return (
     <div className={cn('flex flex-col items-center justify-center gap-2', className)}>
-      <Loader2 className={cn('animate-spin text-[#0066cc] dark:text-[#2997ff]', sizes[size])} />
+      <SFArrowClockwise size={sizes[size]} className="animate-spin text-[#0066cc] dark:text-[#2997ff]" />
       {label && (
         <span className="text-[12px] text-[#76767b] dark:text-[#a1a1a6] font-medium">
           {label}
@@ -56,7 +56,7 @@ export const ContextualLoading: React.FC<ContextualLoadingProps> = ({
   return (
     <div className={cn('p-6 rounded-[18px] border border-[#0066cc]/20 dark:border-[#2997ff]/20 bg-[#0066cc]/5 dark:bg-[#2997ff]/10 text-center space-y-3', className)}>
       <div className="flex justify-center">
-        <Loader2 className="w-6 h-6 text-[#0066cc] dark:text-[#2997ff] animate-spin" />
+        <SFArrowClockwise size={24} className="text-[#0066cc] dark:text-[#2997ff] animate-spin" />
       </div>
       <div>
         <p className="text-[14px] font-semibold text-[#1d1d1f] dark:text-white">{step}</p>

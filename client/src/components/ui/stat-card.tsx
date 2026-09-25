@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { SFChartLineUptrendXyaxis, SFChartLineDowntrendXyaxis, SFMinus } from 'sf-symbols-lib';
 import { useLiquidTilt } from '@/hooks/useLiquidTilt';
 
 export interface StatCardProps {
@@ -87,17 +87,17 @@ export const StatCard: React.FC<StatCardProps> = ({
             <div className="flex items-center gap-1 font-semibold ml-auto">
               {trend === 'up' || change > 0 ? (
                 <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
-                  <TrendingUp className="w-3.5 h-3.5" />
+                  <SFChartLineUptrendXyaxis size={14} />
                   +{change}%
                 </span>
               ) : trend === 'down' || change < 0 ? (
                 <span className="text-rose-600 dark:text-rose-400 flex items-center gap-0.5">
-                  <TrendingDown className="w-3.5 h-3.5" />
+                  <SFChartLineDowntrendXyaxis size={14} />
                   {change}%
                 </span>
               ) : (
                 <span className="text-[#76767b] flex items-center gap-0.5">
-                  <Minus className="w-3.5 h-3.5" />
+                  <SFMinus size={14} />
                   {change}%
                 </span>
               )}

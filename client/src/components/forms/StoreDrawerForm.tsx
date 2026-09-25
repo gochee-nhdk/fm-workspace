@@ -3,8 +3,9 @@ import { Drawer } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StoreItem } from '@/types/workspace';
-import { MapPin, Navigation, ExternalLink } from 'lucide-react';
+import { SFMappinAndEllipse, SFLocationFill, SFArrowUpRightSquare } from 'sf-symbols-lib';
 import { getMapEmbedUrl } from '@/components/ui/MapPreviewModal';
+import { dataService } from '@/services/dataService';
 import toast from 'react-hot-toast';
 
 interface StoreDrawerFormProps {
@@ -61,8 +62,26 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
 
     try {
       setSaving(true);
+      const targetCode = storeCode.trim().toUpperCase();
+
+      // Kiểm tra trùng mã cửa hàng (ngoại trừ chính nó nếu đang chỉnh sửa)
+      const existingStores = await dataService.getStores();
+      const isDuplicate = existingStores.some(
+        (s) => s.id !== initialData?.id && s.storeCode?.trim().toUpperCase() === targetCode
+      );
+
+      if (isDuplicate) {
+        setErrors((prev) => ({
+          ...prev,
+          storeCode: `Mã cửa hàng "${targetCode}" đã tồn tại trên hệ thống`,
+        }));
+        toast.error(`Mã cửa hàng "${targetCode}" đã tồn tại!`);
+        setSaving(false);
+        return;
+      }
+
       await onSave({
-        storeCode: storeCode.trim().toUpperCase(),
+        storeCode: targetCode,
         address: address.trim(),
         googleMaps: googleMaps.trim(),
         type: type.trim() || 'Standard',
@@ -126,7 +145,7 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
             placeholder="https://maps.app.goo.gl/... hoặc https://google.com/maps/..."
             value={googleMaps}
             onChange={(e) => setGoogleMaps(e.target.value)}
-            leftIcon={<Navigation className="w-4 h-4 text-[#86868b]" />}
+            leftIcon={<SFLocationFill size={16} className="text-[#86868b]" />}
           />
 
           {/* Live Map Preview Toggle */}
@@ -137,7 +156,7 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
                 onClick={() => setShowMapPreview((prev) => !prev)}
                 className="inline-flex items-center gap-1.5 text-xs font-medium text-[#0071e3] dark:text-[#2997ff] hover:underline transition-all cursor-pointer"
               >
-                <MapPin className="w-3.5 h-3.5" />
+                <SFMappinAndEllipse size={14} />
                 <span>{showMapPreview ? 'Ẩn bản đồ xem trước' : 'Xem trước vị trí trên Google Maps'}</span>
               </button>
 
@@ -179,7 +198,7 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
           <Button type="button" variant="glass" size="sm" onClick={onClose} disabled={saving}>
             Hủy
           </Button>
-          <Button type="submit" variant="glassProminent" size="sm" loading={saving} icon={<MapPin className="w-4 h-4" />}>
+          <Button type="submit" variant="glassProminent" size="sm" loading={saving} icon={<SFMappinAndEllipse size={16} />}>
             {initialData ? 'Lưu thay đổi' : 'Thêm cửa hàng'}
           </Button>
         </div>

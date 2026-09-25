@@ -3,7 +3,7 @@ import { Drawer } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AccountItem } from '@/types/workspace';
-import { Eye, EyeOff, ShieldCheck, Lock, Globe } from 'lucide-react';
+import { SFEye, SFEyeSlash, SFCheckmarkShieldFill, SFLockFill, SFGlobe } from 'sf-symbols-lib';
 import toast from 'react-hot-toast';
 
 interface AccountDrawerFormProps {
@@ -61,6 +61,13 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
     return Object.keys(errs).length === 0;
   };
 
+  const formatUrl = (raw: string): string => {
+    const trimmed = raw.trim();
+    if (!trimmed) return '';
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    return `https://${trimmed}`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
@@ -71,7 +78,7 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
         software: software.trim(),
         username: username.trim(),
         password: password.trim(),
-        link: link.trim(),
+        link: formatUrl(link),
         note: note.trim(),
         stt: stt !== '' ? Number(stt) : null,
       });
@@ -95,7 +102,7 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Subtle security notice */}
         <div className="p-3.5 bg-[#f5f5f7] dark:bg-white/5 rounded-[14px] border border-[#e0e0e0] dark:border-white/10 flex items-start gap-2.5">
-          <ShieldCheck className="w-4 h-4 text-[#0066cc] dark:text-[#2997ff] shrink-0 mt-0.5" />
+          <SFCheckmarkShieldFill size={16} className="text-[#0066cc] dark:text-[#2997ff] shrink-0 mt-0.5" />
           <p className="text-[12px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
             <span className="font-semibold text-[#1d1d1f] dark:text-white">Private Vault:</span> Thông tin được lưu trữ nội bộ trong trình duyệt này. Không gửi ra ngoài hoặc lưu vào máy chủ công cộng.
           </p>
@@ -144,14 +151,14 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <Lock className="w-4 h-4 text-[#86868b] absolute left-3 top-3 pointer-events-none" />
+            <SFLockFill size={16} className="text-[#86868b] absolute left-3 top-3 pointer-events-none" />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-3 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white transition-colors"
               title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
             >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              {showPassword ? <SFEyeSlash size={16} /> : <SFEye size={16} />}
             </button>
           </div>
         </div>
@@ -161,10 +168,13 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
             Đường dẫn đăng nhập (URL)
           </label>
           <Input
-            placeholder="https://..."
+            placeholder="https://... hoặc tên miền (vd: app.example.com)"
             value={link}
             onChange={(e) => setLink(e.target.value)}
-            leftIcon={<Globe className="w-4 h-4 text-[#86868b]" />}
+            onBlur={() => {
+              if (link.trim()) setLink(formatUrl(link));
+            }}
+            leftIcon={<SFGlobe size={16} className="text-[#86868b]" />}
           />
         </div>
 

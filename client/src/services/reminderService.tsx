@@ -228,8 +228,9 @@ class ReminderService {
         // 1. Note-level reminder check
         if (note.reminderAt && !note.reminderCompleted) {
           const reminderTime = new Date(note.reminderAt).getTime();
-          if (reminderTime <= now && now - reminderTime < 24 * 60 * 60 * 1000) {
-            await this.fireNoteReminder(note);
+          if (reminderTime <= now) {
+            const isOverdue = now - reminderTime > 4 * 60 * 60 * 1000;
+            await this.fireNoteReminder(note, isOverdue);
           }
         }
 
@@ -239,8 +240,9 @@ class ReminderService {
           for (const tr of note.taskReminders) {
             if (tr.reminderAt && !tr.reminderCompleted) {
               const reminderTime = new Date(tr.reminderAt).getTime();
-              if (reminderTime <= now && now - reminderTime < 24 * 60 * 60 * 1000) {
-                await this.fireTaskReminder(note, tr);
+              if (reminderTime <= now) {
+                const isOverdue = now - reminderTime > 4 * 60 * 60 * 1000;
+                await this.fireTaskReminder(note, tr, isOverdue);
                 tr.reminderCompleted = true;
                 updated = true;
               }
@@ -265,7 +267,7 @@ class ReminderService {
   /**
    * Fire note-level reminder
    */
-  async fireNoteReminder(note: QuickNoteItem): Promise<void> {
+  async fireNoteReminder(note: QuickNoteItem, isOverdue = false): Promise<void> {
     await noteService.saveNote({
       id: note.id,
       reminderCompleted: true,
@@ -274,11 +276,13 @@ class ReminderService {
 
     playAppleChime();
 
+    const titlePrefix = isOverdue ? '⚠️ Nhắc nhở quá hạn: ' : '⏰ Nhắc nhở: ';
+
     // 1. Desktop Notification
     if (note.reminderNotifyDesktop !== false && 'Notification' in window && Notification.permission === 'granted') {
       try {
-        const notif = new Notification(`⏰ Nhắc nhở: ${note.title || 'Ghi chú công việc'}`, {
-          body: note.content ? note.content.slice(0, 140) : 'Đã đến thời gian nhắc nhở công việc bạn đã đặt.',
+        const notif = new Notification(`${titlePrefix}${note.title || 'Ghi chú công việc'}`, {
+          body: note.content ? note.content.slice(0, 140) : (isOverdue ? 'Công việc này đã quá hạn bạn đặt.' : 'Đã đến thời gian nhắc nhở công việc bạn đã đặt.'),
           icon: '/logo.png',
         });
         notif.onclick = () => {
@@ -292,15 +296,18 @@ class ReminderService {
     toast(
       (t) => (
         <div className="flex items-center gap-3 p-1">
-          <div className="w-9 h-9 rounded-2xl bg-amber-500/15 border border-amber-500/25 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-xs">
-            ⏰
+          <div className={`w-9 h-9 rounded-2xl ${isOverdue ? 'bg-rose-500/15 border-rose-500/25 text-rose-600' : 'bg-amber-500/15 border-amber-500/25 text-amber-600'} border flex items-center justify-center shrink-0 shadow-xs`}>
+            {isOverdue ? '⚠️' : '⏰'}
           </div>
           <div className="flex-1 min-w-0">
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${isOverdue ? 'text-rose-600' : 'text-amber-600'}`}>
+              {isOverdue ? 'Đã quá hạn' : 'Đến giờ nhắc hẹn'}
+            </span>
             <p className="font-bold text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7] truncate">
               {note.title || 'Ghi chú công việc'}
             </p>
             <p className="text-[11.5px] text-[#86868b] dark:text-[#a1a1a6] truncate">
-              {note.content ? note.content.slice(0, 60) : 'Đã đến giờ nhắc hẹn!'}
+              {note.content ? note.content.slice(0, 60) : 'Nhấp để mở xem chi tiết công việc'}
             </p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
@@ -321,19 +328,38 @@ class ReminderService {
         duration: 12000,
       }
     );
+
+    // 3. Automated Email Notification
+    const targetEmail = (note.reminderEmail && note.reminderEmail.trim()) || this.getPreferredEmail();
+    if (note.reminderNotifyEmail && targetEmail) {
+      this.sendAutomatedEmail({
+        to: targetEmail,
+        subject: `${titlePrefix}${note.title || 'Ghi chú công việc'}`,
+        content: note.content ? note.content.replace(/<[^>]*>?/gm, '').slice(0, 500) : 'Đã đến thời gian nhắc nhở công việc bạn đã hẹn.',
+        noteTitle: note.title || 'Ghi chú công việc',
+      }).then((res) => {
+        if (res.success) {
+          toast.success(`📧 Đã gửi email nhắc việc tới ${targetEmail}`, { id: `email-sent-${note.id}` });
+        }
+      }).catch((err) => {
+        console.warn('Auto send note reminder email failed:', err);
+      });
+    }
   }
 
   /**
    * Fire task-level reminder for a specific checklist item
    */
-  async fireTaskReminder(note: QuickNoteItem, task: TaskReminder): Promise<void> {
+  async fireTaskReminder(note: QuickNoteItem, task: TaskReminder, isOverdue = false): Promise<void> {
     playAppleChime();
+
+    const titlePrefix = isOverdue ? '⚠️ Nhắc việc quá hạn: ' : '⏰ Nhắc việc: ';
 
     // 1. Desktop Notification
     if (note.reminderNotifyDesktop !== false && 'Notification' in window && Notification.permission === 'granted') {
       try {
-        const notif = new Notification(`⏰ Nhắc việc: ${task.taskText}`, {
-          body: `Ghi chú: "${note.title || 'Ghi chú mới'}" • Đã đến giờ thực hiện công việc này.`,
+        const notif = new Notification(`${titlePrefix}${task.taskText}`, {
+          body: `Ghi chú: "${note.title || 'Ghi chú mới'}" • ${isOverdue ? 'Đầu việc này đã quá hạn!' : 'Đã đến giờ thực hiện.'}`,
           icon: '/logo.png',
         });
         notif.onclick = () => {
@@ -343,16 +369,16 @@ class ReminderService {
       } catch (_) {}
     }
 
-    // 3. In-App Apple HUD Alert
+    // 2. In-App Apple HUD Alert
     toast(
       (t) => (
         <div className="flex items-center gap-3 p-1">
-          <div className="w-9 h-9 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-xs">
-            ☑️
+          <div className={`w-9 h-9 rounded-2xl ${isOverdue ? 'bg-rose-500/15 border-rose-500/25 text-rose-600' : 'bg-emerald-500/15 border-emerald-500/25 text-emerald-600'} border flex items-center justify-center shrink-0 shadow-xs`}>
+            {isOverdue ? '⚠️' : '☑️'}
           </div>
           <div className="flex-1 min-w-0">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-              Việc cần làm
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${isOverdue ? 'text-rose-600' : 'text-emerald-600'}`}>
+              {isOverdue ? 'Việc đã quá hạn' : 'Việc cần làm'}
             </span>
             <p className="font-bold text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7] truncate">
               {task.taskText}
@@ -379,6 +405,24 @@ class ReminderService {
         duration: 12000,
       }
     );
+
+    // 3. Automated Email Notification
+    const targetEmail = (note.reminderEmail && note.reminderEmail.trim()) || this.getPreferredEmail();
+    if (note.reminderNotifyEmail && targetEmail) {
+      this.sendAutomatedEmail({
+        to: targetEmail,
+        subject: `${titlePrefix}${task.taskText}`,
+        content: `Mục việc: "${task.taskText}" trong ghi chú "${note.title || 'Ghi chú công việc'}" đã đến hạn hoàn thành.`,
+        noteTitle: note.title || 'Ghi chú công việc',
+        taskText: task.taskText,
+      }).then((res) => {
+        if (res.success) {
+          toast.success(`📧 Đã gửi email nhắc việc tới ${targetEmail}`, { id: `email-sent-task-${task.id}` });
+        }
+      }).catch((err) => {
+        console.warn('Auto send task reminder email failed:', err);
+      });
+    }
   }
 }
 

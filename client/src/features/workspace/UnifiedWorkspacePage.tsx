@@ -1,31 +1,28 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Link as LinkIcon,
-  Shield,
-  Store,
-  Search,
-  Plus,
-  Download,
-  Upload,
-  ExternalLink,
-  Copy,
-  Check,
-  Eye,
-  EyeOff,
-  Edit2,
-  Trash2,
-  Star,
-  MapPin,
-  Sparkles,
-  Filter,
-  X,
-  FileSpreadsheet,
-  CheckCircle2,
-  Layers,
-  GripVertical,
-  ChevronDown,
-} from 'lucide-react';
+  SFLink,
+  SFShieldFill,
+  SFStorefront,
+  SFMagnifyingglass,
+  SFPlus,
+  SFArrowDownDocument,
+  SFArrowUpDocument,
+  SFArrowUpRightSquare,
+  SFSquareOnSquare,
+  SFCheckmark,
+  SFEye,
+  SFEyeSlash,
+  SFPencil,
+  SFTrash,
+  SFStar,
+  SFStarFill,
+  SFMappinAndEllipse,
+  SFLine3HorizontalDecreaseCircle,
+  SFXmark,
+  SFLine3Horizontal,
+  SFChevronDown,
+} from 'sf-symbols-lib';
 import { Button } from '@/components/ui/button';
 import { dataService } from '@/services/dataService';
 import { excelService } from '@/services/excelService';
@@ -35,9 +32,12 @@ import { AccountDrawerForm } from '@/components/forms/AccountDrawerForm';
 import { StoreDrawerForm } from '@/components/forms/StoreDrawerForm';
 import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import { MapPreviewModal } from '@/components/ui/MapPreviewModal';
+import { useAppleTabSpring, useDirectionalTab } from '@/lib/motion';
 import toast from 'react-hot-toast';
 
 type TabType = 'links' | 'accounts' | 'stores';
+
+const TAB_ORDER = ['links', 'accounts', 'stores'] as const;
 
 export const UnifiedWorkspacePage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -46,6 +46,17 @@ export const UnifiedWorkspacePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>(
     tabFromUrl === 'accounts' || tabFromUrl === 'stores' ? tabFromUrl : 'links'
   );
+
+  const tabTrackRef = useRef<HTMLDivElement>(null);
+  const pillRef = useRef<HTMLDivElement>(null);
+  const { animationClass } = useDirectionalTab(activeTab, TAB_ORDER);
+
+  useAppleTabSpring(tabTrackRef, pillRef, activeTab, {
+    stiffness: 360,
+    damping: 23,
+    mass: 0.82,
+    allowDeformation: true,
+  });
 
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
@@ -329,75 +340,106 @@ export const UnifiedWorkspacePage: React.FC = () => {
     <div className="space-y-5 max-w-7xl mx-auto pb-12 w-full">
       {/* ─────────────────── Top Bar: Sheet Tabs & Action Bar ─────────────────── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        {/* Liquid Glass Segmented Sheet Tabs */}
-        <div className="liquid-glass-segmented-track p-1.5 flex items-center shadow-sm w-full lg:w-auto overflow-x-auto">
+        {/* Liquid Glass Segmented Sheet Tabs with Shared Active Navigation Pill */}
+        <div
+          ref={tabTrackRef}
+          role="tablist"
+          aria-label="Danh mục bảng tính"
+          onKeyDown={(e) => {
+            const idx = TAB_ORDER.indexOf(activeTab);
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+              e.preventDefault();
+              const next = TAB_ORDER[(idx + 1) % TAB_ORDER.length];
+              handleTabChange(next);
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+              e.preventDefault();
+              const prev = TAB_ORDER[(idx - 1 + TAB_ORDER.length) % TAB_ORDER.length];
+              handleTabChange(prev);
+            }
+          }}
+          className="liquid-glass-segmented-track p-1 flex items-center w-full lg:w-auto overflow-x-auto relative select-none"
+        >
+          {/* Shared Active Navigation Pill (ONE continuous physical surface that morphs & travels) */}
+          <div
+            ref={pillRef}
+            data-layout-id="active-navigation-pill"
+            aria-hidden="true"
+            className="absolute top-1 bottom-1 rounded-full pointer-events-none z-0 liquid-lens-pill-active will-change-[transform,width] origin-center opacity-0 transition-opacity duration-100"
+          />
+
           {/* Tab 1: Links */}
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'links'}
+            tabIndex={activeTab === 'links' ? 0 : -1}
+            data-tab-id="links"
             onClick={() => handleTabChange('links')}
-            className={`flex items-center gap-2.5 px-4 py-2 rounded-full text-[13.5px] transition-all duration-200 active:scale-[0.98] cursor-pointer whitespace-nowrap ${
+            className={`group relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full text-[13px] transition-all duration-160 ease-out cursor-pointer whitespace-nowrap active:scale-[0.99] select-none ${
               activeTab === 'links'
-                ? 'bg-white/90 dark:bg-white/15 text-[#0066cc] dark:text-[#2997ff] shadow-[0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.15)] font-semibold'
-                : 'text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium'
+                ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.8)] dark:drop-shadow-none'
+                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
             }`}
           >
-            <LinkIcon className="w-4 h-4 text-[#0066cc] dark:text-[#2997ff]" />
-            <span>Liên kết nhanh</span>
-            <span
-              className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold transition-colors ${
+            <SFLink
+              size={15}
+              className={`transition-all duration-160 ease-out shrink-0 ${
                 activeTab === 'links'
-                  ? 'bg-[#0066cc]/15 text-[#0066cc] dark:bg-[#2997ff]/20 dark:text-[#2997ff]'
-                  : 'bg-black/5 dark:bg-white/10 text-[#76767b] dark:text-[#a1a1a6]'
+                  ? 'text-[#0071e3] dark:text-[#3898ff]'
+                  : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
               }`}
-            >
-              {links.length}
-            </span>
+            />
+            <span className="transition-colors duration-160">Liên kết nhanh</span>
           </button>
 
           {/* Tab 2: Accounts */}
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'accounts'}
+            tabIndex={activeTab === 'accounts' ? 0 : -1}
+            data-tab-id="accounts"
             onClick={() => handleTabChange('accounts')}
-            className={`flex items-center gap-2.5 px-4 py-2 rounded-full text-[13.5px] transition-all duration-200 active:scale-[0.98] cursor-pointer whitespace-nowrap ${
+            className={`group relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full text-[13px] transition-all duration-160 ease-out cursor-pointer whitespace-nowrap active:scale-[0.99] select-none ${
               activeTab === 'accounts'
-                ? 'bg-white/90 dark:bg-white/15 text-emerald-600 dark:text-emerald-400 shadow-[0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.15)] font-semibold'
-                : 'text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium'
+                ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.8)] dark:drop-shadow-none'
+                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
             }`}
           >
-            <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>Tài khoản & Mật khẩu</span>
-            <span
-              className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold transition-colors ${
+            <SFShieldFill
+              size={15}
+              className={`transition-all duration-160 ease-out shrink-0 ${
                 activeTab === 'accounts'
-                  ? 'bg-emerald-500/15 text-emerald-600 dark:bg-emerald-400/20 dark:text-emerald-300'
-                  : 'bg-black/5 dark:bg-white/10 text-[#76767b] dark:text-[#a1a1a6]'
+                  ? 'text-[#0071e3] dark:text-[#3898ff]'
+                  : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
               }`}
-            >
-              {accounts.length}
-            </span>
+            />
+            <span className="transition-colors duration-160">Tài khoản & Mật khẩu</span>
           </button>
 
           {/* Tab 3: Stores */}
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'stores'}
+            tabIndex={activeTab === 'stores' ? 0 : -1}
+            data-tab-id="stores"
             onClick={() => handleTabChange('stores')}
-            className={`flex items-center gap-2.5 px-4 py-2 rounded-full text-[13.5px] transition-all duration-200 active:scale-[0.98] cursor-pointer whitespace-nowrap ${
+            className={`group relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-full text-[13px] transition-all duration-160 ease-out cursor-pointer whitespace-nowrap active:scale-[0.99] select-none ${
               activeTab === 'stores'
-                ? 'bg-white/90 dark:bg-white/15 text-amber-600 dark:text-amber-400 shadow-[0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.15)] font-semibold'
-                : 'text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium'
+                ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.8)] dark:drop-shadow-none'
+                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
             }`}
           >
-            <Store className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-            <span>Danh mục Cửa Hàng</span>
-            <span
-              className={`px-2 py-0.5 rounded-full text-[11px] font-mono font-bold transition-colors ${
+            <SFStorefront
+              size={15}
+              className={`transition-all duration-160 ease-out shrink-0 ${
                 activeTab === 'stores'
-                  ? 'bg-amber-500/15 text-amber-600 dark:bg-amber-400/20 dark:text-amber-300'
-                  : 'bg-black/5 dark:bg-white/10 text-[#76767b] dark:text-[#a1a1a6]'
+                  ? 'text-[#0071e3] dark:text-[#3898ff]'
+                  : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
               }`}
-            >
-              {stores.length}
-            </span>
+            />
+            <span className="transition-colors duration-160">Danh mục Cửa Hàng</span>
           </button>
         </div>
 
@@ -407,7 +449,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
             variant="glass"
             size="sm"
             onClick={handleExport}
-            icon={<Download className="w-3.5 h-3.5 text-[#0066cc] dark:text-[#2997ff]" />}
+            icon={<SFArrowDownDocument size={14} className="text-[#0066cc] dark:text-[#2997ff]" />}
             title="Tải bảng tính hiện tại về máy dạng Excel (.xlsx)"
           >
             Xuất Excel
@@ -417,7 +459,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
             variant="glass"
             size="sm"
             onClick={() => window.dispatchEvent(new CustomEvent('fm:open-import'))}
-            icon={<Upload className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />}
+            icon={<SFArrowUpDocument size={14} className="text-emerald-600 dark:text-emerald-400" />}
             title="Nhập file Excel từ máy"
           >
             Import Excel
@@ -427,7 +469,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
             variant="glassProminent"
             size="sm"
             onClick={handleOpenAdd}
-            icon={<Plus className="w-4 h-4" />}
+            icon={<SFPlus size={16} />}
           >
             {activeTab === 'links' && 'Thêm Link'}
             {activeTab === 'accounts' && 'Thêm Tài Khoản'}
@@ -440,7 +482,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
       <div className="relative z-30 glass-material rounded-[20px] p-3 sm:p-3.5 flex flex-col md:flex-row items-center justify-between gap-3 shadow-xs">
         {/* Instant Search Bar */}
         <div className="relative w-full md:w-96 group">
-          <Search className="w-4 h-4 text-[#76767b] dark:text-[#a1a1a6] group-focus-within:text-[#0066cc] dark:group-focus-within:text-[#2997ff] absolute left-3.5 top-2.5 pointer-events-none transition-colors" />
+          <SFMagnifyingglass size={16} className="text-[#76767b] dark:text-[#a1a1a6] group-focus-within:text-[#0066cc] dark:group-focus-within:text-[#2997ff] absolute left-3.5 top-2.5 pointer-events-none transition-colors" />
           <input
             type="text"
             placeholder={
@@ -460,7 +502,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
               onClick={() => setSearch('')}
               className="absolute right-2.5 top-2.5 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white p-0.5 rounded-full"
             >
-              <X className="w-3.5 h-3.5" />
+              <SFXmark size={14} />
             </button>
           )}
         </div>
@@ -478,11 +520,11 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   : 'bg-white/80 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] border-black/[0.08] dark:border-white/[0.12] shadow-2xs'
               }`}
             >
-              <Star
-                className={`w-3.5 h-3.5 transition-transform ${
-                  onlyFavorites ? 'fill-amber-500 text-amber-500 scale-110' : 'text-[#8e8e93]'
-                }`}
-              />
+              {onlyFavorites ? (
+                <SFStarFill size={14} className="text-amber-500 scale-110 transition-transform" />
+              ) : (
+                <SFStar size={14} className="text-[#8e8e93] transition-transform" />
+              )}
               <span>Chỉ mục Yêu thích</span>
               {links.filter((l) => l.favorite).length > 0 && (
                 <span
@@ -509,29 +551,29 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       : 'bg-white/80 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] border-black/[0.08] dark:border-white/[0.12] shadow-2xs'
                   }`}
                 >
-                  <Filter
-                    className={`w-3.5 h-3.5 ${
-                      selectedCategory !== 'ALL' ? 'text-[#0066cc] dark:text-[#2997ff]' : 'text-[#8e8e93]'
-                    }`}
+                  <SFLine3HorizontalDecreaseCircle
+                    size={14}
+                    className={selectedCategory !== 'ALL' ? 'text-[#0066cc] dark:text-[#2997ff]' : 'text-[#8e8e93]'}
                   />
                   <span className="max-w-[160px] truncate">
                     {selectedCategory === 'ALL'
                       ? `Tất cả nhóm (${links.length})`
                       : `${selectedCategory} (${links.filter((l) => l.category === selectedCategory).length})`}
                   </span>
-                  <ChevronDown
-                    className={`w-3.5 h-3.5 text-[#8e8e93] transition-transform duration-200 shrink-0 ${
+                  <SFChevronDown
+                    size={14}
+                    className={`text-[#8e8e93] transition-transform duration-200 shrink-0 ${
                       categoryDropdownOpen ? 'rotate-180 text-[#0066cc] dark:text-[#2997ff]' : ''
                     }`}
                   />
                 </button>
 
-                {/* Floating Liquid-Glass Popover Menu */}
+                {/* Floating Liquid-Glass Popover Menu originating from trigger */}
                 {categoryDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-white dark:bg-[#1c1c24] backdrop-blur-3xl border border-black/10 dark:border-white/15 p-1.5 shadow-[0_20px_48px_-6px_rgba(0,0,0,0.25),0_6px_16px_rgba(0,0,0,0.08)] z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1">
-                    <div className="px-3 py-2 text-[10.5px] font-bold text-[#8e8e93] dark:text-[#98989d] uppercase tracking-wider border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between">
+                  <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-white dark:bg-[#1c1c24] backdrop-blur-3xl border border-black/10 dark:border-white/15 p-1.5 shadow-[0_20px_48px_-6px_rgba(0,0,0,0.25),0_6px_16px_rgba(0,0,0,0.08)] z-50 apple-popover-tr space-y-1">
+                    <div className="px-3 py-2 text-[11px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between">
                       <span>Phân loại danh mục</span>
-                      <span className="font-mono text-[10px] font-normal">{categories.length} nhóm</span>
+                      <span className="font-mono text-[10px] font-normal text-[#86868b] dark:text-[#a1a1a6]">{categories.length} nhóm</span>
                     </div>
 
                     <div className="max-h-60 overflow-y-auto space-y-0.5 pr-0.5">
@@ -610,21 +652,23 @@ export const UnifiedWorkspacePage: React.FC = () => {
         {/* Specular reflection line on top border */}
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/80 dark:via-white/20 to-transparent pointer-events-none z-30" />
 
-        {/* 1. SHEET: QUICK LINKS */}
-        {activeTab === 'links' && (
+        {/* Spatial Continuity Animated Content Context */}
+        <div key={activeTab} className={animationClass}>
+          {/* 1. SHEET: QUICK LINKS */}
+          {activeTab === 'links' && (
           <div className="overflow-x-auto scrollbar-thin">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
               <thead className="bg-white/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[11.5px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider select-none sticky top-0 z-10 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                 <tr>
-                  <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]">
-                    <GripVertical className="w-3.5 h-3.5 mx-auto opacity-30" />
+                  <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]" aria-label="Kéo thả sắp xếp" title="Kéo thả sắp xếp">
+                    <SFLine3Horizontal size={14} className="mx-auto opacity-30" />
                   </th>
-                  <th className="px-2 py-3.5 w-10 text-center whitespace-nowrap">⭐</th>
+                  <th className="px-2 py-3.5 w-10 text-center whitespace-nowrap" aria-label="Đánh dấu yêu thích" title="Đánh dấu yêu thích">⭐</th>
                   <th className="px-4 py-3.5 whitespace-nowrap min-w-[130px] max-w-[200px]">Tên Hạng Mục</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[110px]">Danh Mục</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[120px] max-w-[220px]">Ghi Chú</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px]">Đường Dẫn</th>
-                  <th className="sticky right-0 z-20 px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#181820]/95 backdrop-blur-2xl shadow-[-8px_0_16px_rgba(0,0,0,0.04)] dark:shadow-[-8px_0_16px_rgba(0,0,0,0.35)]">
+                  <th className="sticky right-0 z-20 px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#181820] backdrop-blur-2xl border-l border-black/[0.04] dark:border-white/[0.06]">
                     Thao Tác
                   </th>
                 </tr>
@@ -690,7 +734,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                           className="inline-flex items-center justify-center p-1 rounded hover:bg-black/5 dark:hover:bg-white/10"
                           title="Kéo thả để sắp xếp thứ tự tùy ý"
                         >
-                          <GripVertical className="w-3.5 h-3.5 opacity-35 group-hover:opacity-90 transition-opacity" />
+                          <SFLine3Horizontal size={14} className="opacity-35 group-hover:opacity-90 transition-opacity" />
                         </div>
                       </td>
 
@@ -702,11 +746,11 @@ export const UnifiedWorkspacePage: React.FC = () => {
                           className="text-[#cccccc] hover:text-amber-500 transition-colors cursor-pointer p-1"
                           title={item.favorite ? 'Bỏ yêu thích' : 'Đánh dấu yêu thích'}
                         >
-                          <Star
-                            className={`w-4 h-4 ${
-                              item.favorite ? 'fill-amber-500 text-amber-500' : ''
-                            }`}
-                          />
+                          {item.favorite ? (
+                            <SFStarFill size={16} className="text-amber-500" />
+                          ) : (
+                            <SFStar size={16} className="text-[#cccccc] hover:text-amber-500" />
+                          )}
                         </button>
                       </td>
 
@@ -749,7 +793,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                             >
                               <span>Mở link</span>
                               <span className="w-3.5 h-3.5 rounded-full bg-[#0071e3]/12 dark:bg-[#2997ff]/20 flex items-center justify-center text-[#0066cc] dark:text-[#2997ff] group-hover/link:bg-[#0071e3] group-hover/link:text-white transition-all shrink-0">
-                                <ExternalLink className="w-2 h-2" />
+                                <SFArrowUpRightSquare size={10} />
                               </span>
                             </a>
                             <button
@@ -759,9 +803,9 @@ export const UnifiedWorkspacePage: React.FC = () => {
                               title="Sao chép link"
                             >
                               {copiedKey === `link-${item.id}` ? (
-                                <Check className="w-3.5 h-3.5 text-[#34c759]" />
+                                <SFCheckmark size={14} className="text-[#34c759]" />
                               ) : (
-                                <Copy className="w-3.5 h-3.5 opacity-70 hover:opacity-100" />
+                                <SFSquareOnSquare size={14} className="opacity-70 hover:opacity-100" />
                               )}
                             </button>
                           </div>
@@ -773,7 +817,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       </td>
 
                       {/* Actions */}
-                      <td className="sticky right-0 z-10 px-4 py-3 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#141418]/95 group-hover:bg-[#f6f7fa] dark:group-hover:bg-[#1c1c24] backdrop-blur-xl shadow-[-8px_0_16px_rgba(0,0,0,0.04)] dark:shadow-[-8px_0_16px_rgba(0,0,0,0.35)] transition-colors">
+                      <td className="sticky right-0 z-10 px-4 py-3 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#141418] group-hover:bg-[#f6f7fa] dark:group-hover:bg-[#1a1a20] backdrop-blur-xl border-l border-black/[0.04] dark:border-white/[0.06] transition-colors">
                         <div className="inline-flex items-center justify-end gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
                           <button
                             type="button"
@@ -784,7 +828,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                             className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white transition-all active:scale-90"
                             title="Chỉnh sửa"
                           >
-                            <Edit2 className="w-3.5 h-3.5" />
+                            <SFPencil size={14} />
                           </button>
                           <button
                             type="button"
@@ -794,7 +838,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                             className="p-1.5 rounded-full hover:bg-rose-500/10 text-[#76767b] hover:text-rose-600 transition-all active:scale-90"
                             title="Xóa link"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <SFTrash size={14} />
                           </button>
                         </div>
                       </td>
@@ -818,15 +862,15 @@ export const UnifiedWorkspacePage: React.FC = () => {
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
               <thead className="bg-white/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[11.5px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider select-none sticky top-0 z-10 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                 <tr>
-                  <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]">
-                    <GripVertical className="w-3.5 h-3.5 mx-auto opacity-30" />
+                  <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]" aria-label="Kéo thả sắp xếp" title="Kéo thả sắp xếp">
+                    <SFLine3Horizontal size={14} className="mx-auto opacity-30" />
                   </th>
                   <th className="px-4 py-3.5 whitespace-nowrap min-w-[120px] max-w-[160px]">Phần Mềm</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px] max-w-[210px]">Tên Đăng Nhập</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[120px]">Mật Khẩu</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px]">Trang Đăng Nhập</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[120px] max-w-[240px]">Ghi Chú</th>
-                  <th className="sticky right-0 z-20 px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#181820]/95 backdrop-blur-2xl shadow-[-8px_0_16px_rgba(0,0,0,0.04)] dark:shadow-[-8px_0_16px_rgba(0,0,0,0.35)]">
+                  <th className="sticky right-0 z-20 px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#181820] backdrop-blur-2xl border-l border-black/[0.04] dark:border-white/[0.06]">
                     Thao Tác
                   </th>
                 </tr>
@@ -892,7 +936,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                           className="inline-flex items-center justify-center p-1 rounded hover:bg-black/5 dark:hover:bg-white/10"
                           title="Kéo thả để sắp xếp thứ tự tùy ý"
                         >
-                          <GripVertical className="w-3.5 h-3.5 opacity-35 group-hover:opacity-90 transition-opacity" />
+                          <SFLine3Horizontal size={14} className="opacity-35 group-hover:opacity-90 transition-opacity" />
                         </div>
                       </td>
 
@@ -916,9 +960,9 @@ export const UnifiedWorkspacePage: React.FC = () => {
                             {item.username}
                           </span>
                           {copiedKey === `user-${item.id}` ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <SFCheckmark size={14} className="text-emerald-600 shrink-0" />
                           ) : (
-                            <Copy className="w-3 h-3 text-[#76767b] opacity-40 group-hover/user:opacity-100 shrink-0" />
+                            <SFSquareOnSquare size={12} className="text-[#76767b] opacity-40 group-hover/user:opacity-100 shrink-0" />
                           )}
                         </button>
                       </td>
@@ -936,9 +980,9 @@ export const UnifiedWorkspacePage: React.FC = () => {
                               {showPasswordMap[item.id] ? item.password : '••••••••'}
                             </span>
                             {copiedKey === `pass-${item.id}` ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <SFCheckmark size={14} className="text-emerald-600 shrink-0" />
                             ) : (
-                              <Copy className="w-3 h-3 text-[#76767b] opacity-40 group-hover/pass:opacity-100 shrink-0" />
+                              <SFSquareOnSquare size={12} className="text-[#76767b] opacity-40 group-hover/pass:opacity-100 shrink-0" />
                             )}
                           </button>
 
@@ -955,9 +999,9 @@ export const UnifiedWorkspacePage: React.FC = () => {
                             title={showPasswordMap[item.id] ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                           >
                             {showPasswordMap[item.id] ? (
-                              <EyeOff className="w-3.5 h-3.5" />
+                              <SFEyeSlash size={14} />
                             ) : (
-                              <Eye className="w-3.5 h-3.5" />
+                              <SFEye size={14} />
                             )}
                           </button>
                         </div>
@@ -976,7 +1020,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                             >
                               <span>Đăng nhập</span>
                               <span className="w-3.5 h-3.5 rounded-full bg-[#0071e3]/12 dark:bg-[#2997ff]/20 flex items-center justify-center text-[#0066cc] dark:text-[#2997ff] group-hover/acc:bg-[#0071e3] group-hover/acc:text-white transition-all shrink-0">
-                                <ExternalLink className="w-2 h-2" />
+                                <SFArrowUpRightSquare size={10} />
                               </span>
                             </a>
                             <button
@@ -986,9 +1030,9 @@ export const UnifiedWorkspacePage: React.FC = () => {
                               title="Sao chép liên kết đăng nhập"
                             >
                               {copiedKey === `acc-link-${item.id}` ? (
-                                <Check className="w-3.5 h-3.5 text-[#34c759]" />
+                                <SFCheckmark size={14} className="text-[#34c759]" />
                               ) : (
-                                <Copy className="w-3 h-3 opacity-70 hover:opacity-100" />
+                                <SFSquareOnSquare size={12} className="opacity-70 hover:opacity-100" />
                               )}
                             </button>
                           </div>
@@ -1005,7 +1049,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       </td>
 
                       {/* Actions */}
-                      <td className="sticky right-0 z-10 px-4 py-3 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#141418]/95 group-hover:bg-[#f6f7fa] dark:group-hover:bg-[#1c1c24] backdrop-blur-xl shadow-[-8px_0_16px_rgba(0,0,0,0.04)] dark:shadow-[-8px_0_16px_rgba(0,0,0,0.35)] transition-colors">
+                      <td className="sticky right-0 z-10 px-4 py-3 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#141418] group-hover:bg-[#f6f7fa] dark:group-hover:bg-[#1a1a20] backdrop-blur-xl border-l border-black/[0.04] dark:border-white/[0.06] transition-colors">
                         <div className="inline-flex items-center justify-end gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
                           <button
                             type="button"
@@ -1016,7 +1060,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                             className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white transition-all active:scale-90"
                             title="Chỉnh sửa"
                           >
-                            <Edit2 className="w-3.5 h-3.5" />
+                            <SFPencil size={14} />
                           </button>
                           <button
                             type="button"
@@ -1030,7 +1074,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                             className="p-1.5 rounded-full hover:bg-rose-500/10 text-[#76767b] hover:text-rose-600 transition-all active:scale-90"
                             title="Xóa tài khoản"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <SFTrash size={14} />
                           </button>
                         </div>
                       </td>
@@ -1054,14 +1098,14 @@ export const UnifiedWorkspacePage: React.FC = () => {
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
               <thead className="bg-white/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[11.5px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider select-none sticky top-0 z-10 shadow-[0_1px_3px_rgba(0,0,0,0.03)]">
                 <tr>
-                  <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]">
-                    <GripVertical className="w-3.5 h-3.5 mx-auto opacity-30" />
+                  <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]" aria-label="Kéo thả sắp xếp" title="Kéo thả sắp xếp">
+                    <SFLine3Horizontal size={14} className="mx-auto opacity-30" />
                   </th>
                   <th className="px-4 py-3.5 whitespace-nowrap min-w-[100px]">Mã Cửa Hàng</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[180px] max-w-[320px]">Địa Chỉ Cửa Hàng</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[110px]">Khu Vực / Loại</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px]">Google Maps</th>
-                  <th className="sticky right-0 z-20 px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#181820]/95 backdrop-blur-2xl shadow-[-8px_0_16px_rgba(0,0,0,0.04)] dark:shadow-[-8px_0_16px_rgba(0,0,0,0.35)]">
+                  <th className="sticky right-0 z-20 px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#181820] backdrop-blur-2xl border-l border-black/[0.04] dark:border-white/[0.06]">
                     Thao Tác
                   </th>
                 </tr>
@@ -1127,7 +1171,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                           className="inline-flex items-center justify-center p-1 rounded hover:bg-black/5 dark:hover:bg-white/10"
                           title="Kéo thả để sắp xếp thứ tự tùy ý"
                         >
-                          <GripVertical className="w-3.5 h-3.5 opacity-35 group-hover:opacity-90 transition-opacity" />
+                          <SFLine3Horizontal size={14} className="opacity-35 group-hover:opacity-90 transition-opacity" />
                         </div>
                       </td>
 
@@ -1150,9 +1194,9 @@ export const UnifiedWorkspacePage: React.FC = () => {
                             {item.address}
                           </span>
                           {copiedKey === `store-${item.id}` ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <SFCheckmark size={14} className="text-emerald-600 shrink-0" />
                           ) : (
-                            <Copy className="w-3 h-3 text-[#76767b] opacity-40 group-hover/store:opacity-100 shrink-0" />
+                            <SFSquareOnSquare size={12} className="text-[#76767b] opacity-40 group-hover/store:opacity-100 shrink-0" />
                           )}
                         </button>
                       </td>
@@ -1179,7 +1223,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                               title="Xem trước bản đồ Google Maps trong web app"
                             >
                               <span className="w-3.5 h-3.5 rounded-full bg-[#0071e3]/12 dark:bg-[#2997ff]/20 flex items-center justify-center text-[#0066cc] dark:text-[#2997ff] group-hover/map:bg-[#0071e3] group-hover/map:text-white transition-all shrink-0">
-                                <MapPin className="w-2 h-2" />
+                                <SFMappinAndEllipse size={10} />
                               </span>
                               <span>Xem bản đồ</span>
                             </button>
@@ -1191,7 +1235,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                                 className="w-6 h-6 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/5 dark:hover:bg-white/10 transition-colors shrink-0"
                                 title="Mở trang Google Maps ngoài tab mới"
                               >
-                                <ExternalLink className="w-3 h-3 opacity-70 hover:opacity-100" />
+                                <SFArrowUpRightSquare size={12} className="opacity-70 hover:opacity-100" />
                               </a>
                             )}
                           </div>
@@ -1201,7 +1245,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       </td>
 
                       {/* Actions */}
-                      <td className="sticky right-0 z-10 px-4 py-3 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#141418]/95 group-hover:bg-[#f6f7fa] dark:group-hover:bg-[#1c1c24] backdrop-blur-xl shadow-[-8px_0_16px_rgba(0,0,0,0.04)] dark:shadow-[-8px_0_16px_rgba(0,0,0,0.35)] transition-colors">
+                      <td className="sticky right-0 z-10 px-4 py-3 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#141418] group-hover:bg-[#f6f7fa] dark:group-hover:bg-[#1a1a20] backdrop-blur-xl border-l border-black/[0.04] dark:border-white/[0.06] transition-colors">
                         <div className="inline-flex items-center justify-end gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
                           <button
                             type="button"
@@ -1212,7 +1256,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                             className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white transition-all active:scale-90"
                             title="Chỉnh sửa"
                           >
-                            <Edit2 className="w-3.5 h-3.5" />
+                            <SFPencil size={14} />
                           </button>
                           <button
                             type="button"
@@ -1226,7 +1270,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                             className="p-1.5 rounded-full hover:bg-rose-500/10 text-[#76767b] hover:text-rose-600 transition-all active:scale-90"
                             title="Xóa cửa hàng"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <SFTrash size={14} />
                           </button>
                         </div>
                       </td>
@@ -1243,6 +1287,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
             </table>
           </div>
         )}
+        </div>
       </div>
 
       {/* ─────────────────── Drawers & Confirmation Dialogs ─────────────────── */}

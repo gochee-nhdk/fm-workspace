@@ -6,13 +6,26 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbPath = process.env.DATABASE_PATH || process.env.DB_PATH || path.resolve(__dirname, '../../data/procurement.db');
-
-// Ensure data directory exists
-const dataDir = path.dirname(dbPath);
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
+function getDatabaseFilePath(): string {
+  if (process.env.DATABASE_PATH) return process.env.DATABASE_PATH;
+  if (process.env.DB_PATH) return process.env.DB_PATH;
+  
+  const rootDataDir = path.resolve(__dirname, '../../data');
+  try {
+    if (!fs.existsSync(rootDataDir)) {
+      fs.mkdirSync(rootDataDir, { recursive: true });
+    }
+    return path.join(rootDataDir, 'procurement.db');
+  } catch {
+    const cwdDataDir = path.resolve(process.cwd(), 'data');
+    if (!fs.existsSync(cwdDataDir)) {
+      fs.mkdirSync(cwdDataDir, { recursive: true });
+    }
+    return path.join(cwdDataDir, 'procurement.db');
+  }
 }
+
+const dbPath = getDatabaseFilePath();
 
 let dbInstance: Database.Database | null = null;
 

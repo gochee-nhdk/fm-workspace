@@ -160,6 +160,28 @@ class ExcelService {
     };
   }
 
+  // Re-analyze a single sheet when user changes the target dataset dropdown
+  async reanalyzeSheet(
+    file: File,
+    sheetName: string,
+    newDataset: 'LINK' | 'ACCOUNT' | 'STORE' | 'IGNORE'
+  ): Promise<SheetPreview> {
+    const workbook = await this.readWorkbook(file);
+    const existingLinks = await idbGetAll<LinkItem>(STORES.LINKS);
+    const existingAccounts = await idbGetAll<AccountItem>(STORES.ACCOUNTS);
+    const existingStores = await idbGetAll<StoreItem>(STORES.STORES);
+    const worksheet = workbook.Sheets[sheetName];
+    const rawRows: any[] = worksheet ? XLSX.utils.sheet_to_json(worksheet, { defval: '' }) : [];
+    return this.analyzeSheetRows(
+      sheetName,
+      newDataset,
+      rawRows,
+      existingLinks,
+      existingAccounts,
+      existingStores
+    );
+  }
+
   // Analyze rows for a sheet with designated dataset
   analyzeSheetRows(
     sheetName: string,
@@ -479,7 +501,7 @@ class ExcelService {
 
   // ==================== EXPORT EXCEL (ENHANCED & PROFESSIONAL) ====================
   // Export single dataset to .xlsx with auto-fit columns and filters
-  async exportDataset(dataset: 'LINK' | 'ACCOUNT' | 'STORE'): Promise<void> {
+  async exportDataset(dataset: 'LINK' | 'ACCOUNT' | 'STORE', options: { maskPasswords?: boolean } = {}): Promise<void> {
     const wb = XLSX.utils.book_new();
 
     if (dataset === 'LINK') {
@@ -511,7 +533,7 @@ class ExcelService {
         STT: item.stt ?? idx + 1,
         'Phần mềm': shieldFormula(item.software),
         'Tên đăng nhập': shieldFormula(item.username),
-        'Mật khẩu': shieldFormula(item.password || ''),
+        'Mật khẩu': shieldFormula(options.maskPasswords ? '••••••••' : (item.password || '')),
         'Đường dẫn': shieldFormula(item.link || ''),
         'Ghi chú': shieldFormula(item.note || ''),
       }));
@@ -581,7 +603,7 @@ class ExcelService {
   }
 
   // Export full workspace to a multi-sheet workbook with Cover Summary + auto-fit columns
-  async exportFullWorkspace(): Promise<void> {
+  async exportFullWorkspace(options: { maskPasswords?: boolean } = {}): Promise<void> {
     const wb = XLSX.utils.book_new();
 
     const [links, accounts, stores] = await Promise.all([
@@ -698,7 +720,7 @@ class ExcelService {
       STT: item.stt ?? idx + 1,
       'Phần mềm': shieldFormula(item.software),
       'Tên đăng nhập': shieldFormula(item.username),
-      'Mật khẩu': shieldFormula(item.password || ''),
+      'Mật khẩu': shieldFormula(options.maskPasswords ? '••••••••' : (item.password || '')),
       'Đường dẫn': shieldFormula(item.link || ''),
       'Ghi chú': shieldFormula(item.note || ''),
     }));

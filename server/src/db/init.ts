@@ -444,8 +444,8 @@ async function initDb() {
   console.log('Database initialization complete.');
 }
 
-// Run if called directly
-if (process.argv[1] === __filename) {
+// Run if called directly as standalone script (e.g. npm run db:init)
+if (process.argv[1] && (process.argv[1].endsWith('init.ts') || process.argv[1].endsWith('init.js'))) {
   initDb().catch(console.error);
 }
 

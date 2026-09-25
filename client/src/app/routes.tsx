@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import { ErrorBoundary } from '@/components/ui';
+import { NotFoundPage } from '@/components/ui/NotFoundPage';
 
 // FM WORKSPACE Pages (Ultra-Simplified Architecture)
 import { UnifiedWorkspacePage } from '@/features/workspace/UnifiedWorkspacePage';
@@ -23,9 +24,10 @@ export default function RoutesConfig() {
           <Route path="accounts" element={<Navigate to="/?tab=accounts" replace />} />
           <Route path="stores" element={<Navigate to="/?tab=stores" replace />} />
           <Route path="data-manager" element={<Navigate to="/settings" replace />} />
-        </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+          {/* 404 Fallback within AppShell */}
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
       </Routes>
     </ErrorBoundary>
   );

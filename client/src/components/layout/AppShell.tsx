@@ -2,37 +2,30 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Link as LinkIcon,
-  Shield,
-  Store,
-  Database,
-  Settings,
-  Search,
-  Menu,
-  X,
-  FileSpreadsheet,
-  Moon,
-  Sun,
-  Command,
-  Plus,
-  ExternalLink,
-  PanelLeftClose,
-  PanelLeftOpen,
-  SquarePen,
-} from 'lucide-react';
+  SFSquareGrid2x2,
+  SFGearshapeFill,
+  SFMagnifyingglass,
+  SFLine3Horizontal,
+  SFXmark,
+  SFTablecells,
+  SFMoonFill,
+  SFSunMaxFill,
+  SFSidebarLeft,
+  SFSquareAndPencil,
+} from '@/components/ui/AppleIcon';
 import { CommandPalette } from '@/components/ui/command-palette';
 import { ExcelImportModal } from '@/components/excel/ExcelImportModal';
 import { QuickNoteWindow } from '@/components/notes/QuickNoteWindow';
 import { QuickNoteFloatingButton } from '@/components/notes/QuickNoteFloatingButton';
-import { useUiStore } from '@/stores/ui-store';
+import { useUiStore, resolveTheme } from '@/stores/ui-store';
 import { useNoteStore } from '@/stores/note-store';
 import { Button } from '@/components/ui/button';
 import { reminderService } from '@/services/reminderService';
+import { useScrollInterpolation, useTabIndicator } from '@/lib/motion';
 
 const navItems = [
-  { to: '/', label: 'Bàn làm việc chính', icon: <LayoutDashboard className="w-4 h-4" /> },
-  { to: '/settings', label: 'Cài đặt & Dữ liệu', icon: <Settings className="w-4 h-4" /> },
+  { to: '/', label: 'Bàn làm việc chính', icon: <SFSquareGrid2x2 size={16} /> },
+  { to: '/settings', label: 'Cài đặt & Dữ liệu', icon: <SFGearshapeFill size={16} /> },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
@@ -56,11 +49,12 @@ export const AppShell: React.FC = () => {
     });
   };
 
-  const { theme, toggleTheme } = useUiStore();
+  const { theme, setTheme } = useUiStore();
   const { loadNotes, openNote, toggleNote, notes } = useNoteStore();
   const location = useLocation();
   const navigate = useNavigate();
   const mainRef = useRef<HTMLElement>(null);
+  const scrollRatio = useScrollInterpolation(mainRef, 48);
 
   // ✅ Initialize notes on app startup
   useEffect(() => {
@@ -145,14 +139,15 @@ export const AppShell: React.FC = () => {
       <aside
         className={`hidden md:flex flex-col ${
           isSidebarCollapsed ? 'w-[72px]' : 'w-[268px]'
-        } vision-glass-sidebar shrink-0 h-full select-none z-30 transition-all duration-300 relative`}
+        } vision-glass-sidebar shrink-0 h-full select-none z-30 transition-[width] duration-280 ease-[cubic-bezier(0.16,1,0.3,1)] relative overflow-hidden will-change-[width]`}
       >
+
         {/* Workspace Brand Header */}
         <div
           className={`border-b border-black/[0.06] dark:border-white/10 flex items-center ${
             isSidebarCollapsed
-              ? 'py-3.5 px-2 flex-col gap-2.5 justify-center'
-              : 'h-[74px] px-3.5 justify-between gap-2.5'
+              ? 'py-3 px-2 flex-col gap-2.5 justify-center'
+              : 'h-[68px] px-3.5 justify-between gap-2.5'
           }`}
         >
           <button
@@ -163,42 +158,38 @@ export const AppShell: React.FC = () => {
             } group cursor-pointer outline-none focus:outline-none focus-visible:outline-none ring-0 focus:ring-0 border-none select-none [-webkit-tap-highlight-color:transparent]`}
             title="Về trang chủ"
           >
-            {/* Apple-grade crisp circular 3D glass logo (48px) */}
-            <div className="w-12 h-12 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-[0_4px_14px_rgba(250,196,38,0.38),0_1px_3px_rgba(0,0,0,0.06)] border-2 border-white dark:border-white/20 shrink-0 group-hover:scale-105 group-active:scale-95 transition-all duration-200">
+            {/* Apple-grade crisp circular 3D glass logo (44px) */}
+            <div className="w-11 h-11 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-[0_4px_14px_rgba(250,196,38,0.38),0_1px_3px_rgba(0,0,0,0.06)] border-2 border-white dark:border-white/20 shrink-0 group-hover:scale-105 group-active:scale-95 transition-all duration-200">
               <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover rounded-full pointer-events-none" />
             </div>
             {!isSidebarCollapsed && (
-              <div className="min-w-0 flex-1 flex flex-col justify-center select-none">
-                <span className="font-extrabold text-[14.5px] leading-tight tracking-tight text-[#1d1d1f] dark:text-white whitespace-nowrap group-hover:text-[#FAC426] group-active:text-[#E5B01E] dark:group-hover:text-[#FAC426] transition-colors duration-150">
+              <div className="min-w-0 flex-1 flex flex-col justify-center select-none font-sans">
+                <span className="font-extrabold text-[14px] leading-tight tracking-tight text-[#1d1d1f] dark:text-white whitespace-nowrap group-hover:text-[#FAC426] group-active:text-[#E5B01E] dark:group-hover:text-[#FAC426] transition-colors duration-150">
                   FARMERS MARKET
                 </span>
-                <span className="text-[10px] leading-tight font-bold text-[#007aff] dark:text-[#2997ff] group-hover:text-[#FAC426] group-active:text-[#E5B01E] dark:group-hover:text-[#FAC426] transition-colors duration-150 tracking-wider uppercase mt-1 whitespace-nowrap">
-                  FM WORKSPACE OS
+                <span className="text-[9.5px] leading-tight font-bold text-[#0088FF] dark:text-[#0091FF] group-hover:text-[#FAC426] group-active:text-[#E5B01E] dark:group-hover:text-[#FAC426] transition-colors duration-150 tracking-wider uppercase mt-1 whitespace-nowrap">
+                  FM WORKSPACE
                 </span>
               </div>
             )}
           </button>
 
-          {/* Authentic Apple Liquid Glass Circular Toggle Button */}
+          {/* Apple Sidebar Toggle Toolbar Button */}
           <button
             type="button"
             onClick={toggleSidebar}
-            className="liquid-lens-circle !w-8 !h-8 text-[#555558] hover:text-[#007aff] dark:text-[#a1a1a6] dark:hover:text-[#2997ff] shrink-0 outline-none focus:outline-none"
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-[#555558] dark:text-[#a1a1a6] hover:text-[#0088FF] dark:hover:text-[#0091FF] hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all cursor-pointer outline-none shrink-0"
             title={isSidebarCollapsed ? 'Mở rộng thanh bên (Ctrl+\\)' : 'Thu gọn thanh bên (Ctrl+\\)'}
             aria-label={isSidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
           >
-            {isSidebarCollapsed ? (
-              <PanelLeftOpen className="w-4 h-4 stroke-[1.8]" />
-            ) : (
-              <PanelLeftClose className="w-4 h-4 stroke-[1.8]" />
-            )}
+            <SFSidebarLeft size={16} className={`transition-transform duration-280 ease-[cubic-bezier(0.16,1,0.3,1)] ${isSidebarCollapsed ? 'rotate-180' : ''}`} />
           </button>
         </div>
 
-        {/* Navigation Items with Fluid Active Indicator */}
-        <nav className="p-3 space-y-1.5 flex-1 overflow-y-auto">
+        {/* Navigation Items - Native macOS Sidebar Styling */}
+        <nav className="p-3 space-y-1.5 flex-1 overflow-y-auto select-none">
           {!isSidebarCollapsed && (
-            <div className="px-3.5 py-1 text-[10.5px] font-semibold uppercase tracking-wider text-[#86868b] dark:text-[#98989d]">
+            <div className="px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-[#86868b] dark:text-[#a1a1a6]">
               Không gian làm việc
             </div>
           )}
@@ -211,11 +202,11 @@ export const AppShell: React.FC = () => {
               title={isSidebarCollapsed ? item.label : undefined}
               className={({ isActive }) =>
                 `flex items-center ${
-                  isSidebarCollapsed ? 'justify-center w-11 h-11 mx-auto px-0' : 'gap-3 px-3.5 py-2.5'
-                } rounded-full text-[13.5px] transition-all duration-200 ease-out active:scale-[0.98] ${
+                  isSidebarCollapsed ? 'justify-center w-10 h-10 mx-auto px-0' : 'gap-3 px-3.5 py-2.5'
+                } rounded-full text-[13px] transition-all duration-200 ease-out active:scale-[0.98] ${
                   isActive
-                    ? 'bg-gradient-to-b from-[#007aff] to-[#0062cc] text-white font-semibold shadow-[0_6px_20px_rgba(0,122,255,0.4),inset_0_1.5px_1px_rgba(255,255,255,0.65),inset_0_-1px_1.5px_rgba(0,0,0,0.2)] border border-white/30 backdrop-blur-xl'
-                    : 'text-[#555558] dark:text-[#a1a1a6] hover:bg-white/60 dark:hover:bg-white/[0.08] hover:text-[#1d1d1f] dark:hover:text-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.04),inset_0_1px_1px_rgba(255,255,255,0.8)] backdrop-blur-md'
+                    ? 'bg-[#0071e3]/12 dark:bg-[#0071e3]/24 text-[#0071e3] dark:text-[#3898ff] font-semibold border border-[#0071e3]/25 dark:border-[#0071e3]/35 shadow-[inset_0_1.5px_1px_rgba(255,255,255,0.7),inset_0_-1px_1px_rgba(0,113,227,0.1),0_2px_8px_rgba(0,113,227,0.08)] backdrop-blur-sm'
+                    : 'text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium border border-transparent'
                 }`
               }
             >
@@ -223,13 +214,15 @@ export const AppShell: React.FC = () => {
                 <>
                   <span
                     className={`p-1 rounded-lg transition-colors shrink-0 ${
-                      isActive ? 'text-white' : 'text-[#76767b] dark:text-[#a1a1a6]'
+                      isActive ? 'text-[#0071e3] dark:text-[#3898ff]' : 'text-[#76767b] dark:text-[#8e8e93]'
                     }`}
                   >
                     {item.icon}
                   </span>
                   {!isSidebarCollapsed && (
-                    <span className="truncate whitespace-nowrap font-medium">{item.label}</span>
+                    <span className="truncate whitespace-nowrap">
+                      {item.label}
+                    </span>
                   )}
                 </>
               )}
@@ -238,15 +231,15 @@ export const AppShell: React.FC = () => {
         </nav>
 
         {/* Sidebar Bottom Controls */}
-        <div className="p-3 border-t border-black/[0.06] dark:border-white/10 space-y-2 shrink-0 bg-white/30 dark:bg-black/30 backdrop-blur-xl">
+        <div className="p-3 border-t border-black/[0.06] dark:border-white/10 space-y-2 shrink-0 bg-white/40 dark:bg-[#1E1E1E]/40 backdrop-blur-xl">
           <button
             onClick={() => setImportModalOpen(true)}
             title={isSidebarCollapsed ? 'Import / Export Excel' : undefined}
             className={`w-full flex items-center ${
               isSidebarCollapsed ? 'justify-center w-11 h-11 mx-auto px-0' : 'gap-3 px-4 py-2.5'
-            } rounded-full text-[13px] font-medium text-[#0066cc] dark:text-[#2997ff] liquid-lens-pill hover:!bg-white/80 dark:hover:!bg-white/[0.14] transition-all duration-200 active:scale-[0.98] cursor-pointer`}
+            } rounded-full text-[13px] font-medium text-[#0088FF] dark:text-[#0091FF] liquid-lens-pill hover:!bg-white/80 dark:hover:!bg-white/[0.14] transition-all duration-200 active:scale-[0.98] cursor-pointer`}
           >
-            <FileSpreadsheet className="w-4 h-4 shrink-0 text-[#0066cc] dark:text-[#2997ff]" />
+            <SFTablecells size={16} className="shrink-0 text-[#0088FF] dark:text-[#0091FF]" />
             {!isSidebarCollapsed && <span>Import / Export Excel</span>}
           </button>
 
@@ -257,18 +250,36 @@ export const AppShell: React.FC = () => {
             } text-[11px] text-[#7a7a7a]`}
           >
             <div className="flex items-center gap-1.5" title="IndexedDB Local - Dữ liệu bảo mật trên máy">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#0071e3] shadow-xs shadow-[#0071e3]/60 animate-pulse" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[#0088FF] dark:bg-[#0091FF] shadow-xs shadow-[#0088FF]/60 animate-pulse" />
               {!isSidebarCollapsed && <span className="text-[11px] font-normal">IndexedDB Local</span>}
             </div>
-            {!isSidebarCollapsed && <span className="text-[10px] font-mono opacity-70">Liquid 3D v2.0</span>}
+            {!isSidebarCollapsed && <span className="text-[10px] font-mono opacity-70">macOS 27 UI Kit</span>}
           </div>
         </div>
       </aside>
 
       {/* ─────────────────── Main Content Canvas ─────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative z-10">
-        {/* Topbar: Translucent Liquid Glass Bar */}
-        <header className="h-16 shrink-0 px-4 sm:px-6 bg-white/35 dark:bg-[#0e0e12]/45 backdrop-blur-3xl border-b border-white/60 dark:border-white/10 flex items-center justify-between z-20 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative z-10 bg-[#f8f9fc] dark:bg-[#121216]">
+        {/* Topbar: Translucent Liquid Glass Bar with continuous scroll-driven interpolation */}
+        <header
+          style={{
+            backgroundColor:
+              resolveTheme(theme) === 'dark'
+                ? `rgba(22, 22, 28, ${0.68 + scrollRatio * 0.28})`
+                : `rgba(255, 255, 255, ${0.72 + scrollRatio * 0.24})`,
+            backdropFilter: `blur(${24 + scrollRatio * 20}px) saturate(${160 + scrollRatio * 35}%)`,
+            WebkitBackdropFilter: `blur(${24 + scrollRatio * 20}px) saturate(${160 + scrollRatio * 35}%)`,
+            borderBottomColor:
+              resolveTheme(theme) === 'dark'
+                ? `rgba(255, 255, 255, ${0.06 + scrollRatio * 0.08})`
+                : `rgba(0, 0, 0, ${0.04 + scrollRatio * 0.06})`,
+            boxShadow:
+              scrollRatio > 0.02
+                ? `0 4px 20px -2px rgba(0, 0, 0, ${resolveTheme(theme) === 'dark' ? 0.28 * scrollRatio : 0.06 * scrollRatio}), inset 0 -0.5px 0 rgba(255, 255, 255, 0.1)`
+                : 'none',
+          }}
+          className="h-16 shrink-0 px-4 sm:px-6 border-b flex items-center justify-between z-20 transition-[background-color,border-color,box-shadow] duration-160 ease-out"
+        >
           <div className="flex items-center gap-3.5">
             {/* Mobile Menu Button */}
             <button
@@ -277,7 +288,7 @@ export const AppShell: React.FC = () => {
               title="Mở menu"
               aria-label="Mở menu điều hướng"
             >
-              <Menu className="w-5 h-5" />
+              <SFLine3Horizontal size={20} />
             </button>
 
             {/* Mobile Circular Logo */}
@@ -290,8 +301,8 @@ export const AppShell: React.FC = () => {
               <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover rounded-full" />
             </button>
 
-            <div className="flex items-center gap-2">
-              <h2 className="text-[17px] font-semibold text-[#1d1d1f] dark:text-white tracking-tight">
+            <div className="flex items-center gap-2 font-sans">
+              <h2 className="text-[16px] font-bold text-[#1d1d1f] dark:text-white tracking-tight">
                 {pageTitle}
               </h2>
             </div>
@@ -305,13 +316,13 @@ export const AppShell: React.FC = () => {
               className="liquid-lens-pill group relative flex items-center gap-2.5 px-3.5 py-2 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white text-[13px] w-44 md:w-52 lg:w-64 active:scale-[0.98] cursor-pointer"
               aria-label="Tìm kiếm nhanh (Ctrl+K)"
             >
-              <div className="w-5 h-5 rounded-full bg-[#0071e3]/15 dark:bg-[#2997ff]/20 flex items-center justify-center text-[#0066cc] dark:text-[#2997ff] group-hover:scale-110 transition-transform">
-                <Search className="w-3 h-3" />
+              <div className="w-5 h-5 rounded-full bg-[#0088FF]/15 dark:bg-[#0091FF]/20 flex items-center justify-center text-[#0088FF] dark:text-[#0091FF] group-hover:scale-110 transition-transform">
+                <SFMagnifyingglass size={14} />
               </div>
               <span className="flex-1 text-left truncate font-normal text-[12.5px] opacity-90 group-hover:opacity-100">
                 Tìm nhanh link, CH, tài khoản...
               </span>
-              <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono rounded-md bg-white/80 dark:bg-white/10 border border-black/10 dark:border-white/10 text-[#76767b] dark:text-[#a1a1a6] shadow-2xs group-hover:border-[#0071e3]/30 transition-colors">
+              <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono rounded-md bg-white/80 dark:bg-white/10 border border-black/10 dark:border-white/10 text-[#76767b] dark:text-[#a1a1a6] shadow-2xs group-hover:border-[#0088FF]/30 transition-colors">
                 Ctrl + K
               </kbd>
             </button>
@@ -322,7 +333,7 @@ export const AppShell: React.FC = () => {
               size="sm"
               onClick={() => setImportModalOpen(true)}
               className="hidden sm:inline-flex"
-              icon={<FileSpreadsheet className="w-3.5 h-3.5 text-[#0066cc] dark:text-[#2997ff]" />}
+              icon={<SFTablecells size={14} className="text-[#0066cc] dark:text-[#2997ff]" />}
             >
               Import Excel
             </Button>
@@ -331,10 +342,10 @@ export const AppShell: React.FC = () => {
             <button
               onClick={() => openNote()}
               className="liquid-lens-circle w-10 h-10 group relative"
-              title="Ghi chú nhanh (Alt + N hoặc Ctrl + J)"
-              aria-label="Mở ghi chú nhanh"
+              title="Notes (Alt + N hoặc Ctrl + J)"
+              aria-label="Mở Notes"
             >
-              <SquarePen className="w-4 h-4 text-amber-500 dark:text-amber-400 group-hover:scale-110 transition-transform duration-200" />
+              <SFSquareAndPencil size={16} className="text-amber-500 dark:text-amber-400 group-hover:scale-110 transition-transform duration-200" />
               {notes.length > 0 && (
                 <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 text-[9.5px] font-bold bg-amber-500 text-white rounded-full flex items-center justify-center shadow-xs border border-white dark:border-zinc-900 pointer-events-none">
                   {notes.length}
@@ -342,22 +353,25 @@ export const AppShell: React.FC = () => {
               )}
             </button>
 
-            {/* Theme Toggle — 3D Liquid Lens Circle Button (Image 1 style) */}
+            {/* Theme Toggle — 3D Liquid Lens Circle Button (Clean light/dark toggle) */}
             <button
-              onClick={toggleTheme}
-              className="liquid-lens-circle w-10 h-10 group"
+              onClick={() => {
+                const currentResolved = resolveTheme(theme);
+                setTheme(currentResolved === 'dark' ? 'light' : 'dark');
+              }}
+              className="liquid-lens-circle w-10 h-10 group cursor-pointer"
               title={
-                theme === 'dark'
-                  ? 'Đang bật Chế độ Tối — Nhấp để đổi sang Sáng'
-                  : 'Đang bật Chế độ Sáng — Nhấp để đổi sang Tối'
+                resolveTheme(theme) === 'dark'
+                  ? 'Chế độ Tối — Nhấp để đổi sang Sáng'
+                  : 'Chế độ Sáng — Nhấp để đổi sang Tối'
               }
-              aria-label="Chuyển chế độ giao diện"
-              aria-pressed={theme === 'dark'}
+              aria-label="Chuyển chế độ giao diện Sáng / Tối"
+              aria-pressed={resolveTheme(theme) === 'dark'}
             >
-              {theme === 'dark' ? (
-                <Sun className="w-4 h-4 text-amber-400 filter drop-shadow-[0_0_8px_rgba(251,191,36,0.7)] group-hover:rotate-45 transition-transform duration-300" />
+              {resolveTheme(theme) === 'dark' ? (
+                <SFSunMaxFill size={16} className="text-amber-400 filter drop-shadow-[0_0_8px_rgba(251,191,36,0.7)] group-hover:rotate-45 transition-transform duration-300" />
               ) : (
-                <Moon className="w-4 h-4 text-[#0066cc] filter drop-shadow-[0_0_8px_rgba(0,102,204,0.5)] group-hover:-rotate-12 transition-transform duration-300" />
+                <SFMoonFill size={16} className="text-[#0066cc] filter drop-shadow-[0_0_8px_rgba(0,102,204,0.5)] group-hover:-rotate-12 transition-transform duration-300" />
               )}
             </button>
           </div>
@@ -402,7 +416,7 @@ export const AppShell: React.FC = () => {
                   className="p-1.5 rounded-full text-[#7a7a7a] hover:bg-black/5 cursor-pointer"
                   aria-label="Đóng menu"
                 >
-                  <X className="w-5 h-5" />
+                  <SFXmark size={20} />
                 </button>
               </div>
 
@@ -414,14 +428,16 @@ export const AppShell: React.FC = () => {
                     end={item.to === '/'}
                     onClick={() => setMobileMenuOpen(false)}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-3.5 py-2.5 rounded-full text-[14px] font-medium transition-all ${
+                      `flex items-center gap-3 px-3.5 py-2.5 rounded-full text-[14px] transition-all duration-200 ${
                         isActive
-                          ? 'bg-[#0071e3] text-white font-medium shadow-xs'
-                          : 'text-[#7a7a7a] hover:text-[#1d1d1f] hover:bg-black/5'
+                          ? 'bg-[#0071e3]/12 dark:bg-[#0071e3]/24 text-[#0071e3] dark:text-[#3898ff] font-semibold border border-[#0071e3]/25 dark:border-[#0071e3]/35 shadow-[inset_0_1.5px_1px_rgba(255,255,255,0.7),inset_0_-1px_1px_rgba(0,113,227,0.1),0_2px_8px_rgba(0,113,227,0.08)] backdrop-blur-sm'
+                          : 'text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium border border-transparent'
                       }`
                     }
                   >
-                    {item.icon}
+                    <span className="p-1 rounded-lg transition-colors shrink-0">
+                      {item.icon}
+                    </span>
                     <span>{item.label}</span>
                   </NavLink>
                 ))}
@@ -435,7 +451,7 @@ export const AppShell: React.FC = () => {
                   }}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium bg-[#0066cc]/10 text-[#0066cc] dark:text-[#2997ff]"
                 >
-                  <FileSpreadsheet className="w-4 h-4" />
+                  <SFTablecells size={16} />
                   <span>Import / Export Excel</span>
                 </button>
               </div>

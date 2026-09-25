@@ -81,13 +81,24 @@ export interface TaskReminder {
 
 export type EmailProviderType = 'gmail' | 'outlook' | 'mailto';
 
+export interface NoteImageAttachment {
+  id: string;
+  url: string; // Base64 data URL
+  name?: string;
+  size?: number; // Size in bytes
+  createdAt: string;
+}
+
 export interface QuickNoteItem {
   id: string;
   title: string;
   content: string;
+  checklistContent?: string;
+  noteType?: 'note' | 'checklist';
   pinned?: boolean;
   color?: QuickNoteColor;
   tags?: string[];
+  images?: NoteImageAttachment[];
   reminderAt?: string | null;
   reminderEmail?: string | null;
   reminderNotifyDesktop?: boolean;
@@ -95,7 +106,10 @@ export interface QuickNoteItem {
   reminderCompleted?: boolean;
   taskReminders?: TaskReminder[];
   emailProvider?: EmailProviderType;
+  isLocked?: boolean;
+  password?: string;
   createdAt: string;
   updatedAt: string;
 }
+
 

@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { MapPin, ExternalLink, Copy, Check, X, Navigation, RefreshCw, AlertCircle } from 'lucide-react';
+import {
+  SFMappinAndEllipse,
+  SFArrowUpRightSquare,
+  SFSquareOnSquare,
+  SFCheckmark,
+  SFXmark,
+  SFLocationFill,
+  SFExclamationmarkCircle
+} from 'sf-symbols-lib';
 import { StoreItem } from '@/types/workspace';
 import toast from 'react-hot-toast';
 
@@ -28,8 +36,11 @@ export function cleanAddressForMap(rawAddress: string, storeCode?: string): stri
     .replace(/\bP\.(\d+)\b/gi, 'Phường $1')
     .replace(/\bP\.([A-Za-zÀ-ỹ]+)\b/gi, 'Phường $1');
 
-  // If no city or country is specified, add Ho Chi Minh, Vietnam for accuracy
-  if (!/hồ chí minh|hà nội|đà nẵng|bình dương|đồng nai|cần thơ|hải phòng/i.test(str)) {
+  // Check if any Vietnamese province or city is already present in the address
+  const hasKnownProvince = /hồ chí minh|hà nội|đà nẵng|bình dương|đồng nai|cần thơ|hải phòng|vũng tàu|bà rịa|bình thuận|nha trang|khánh hòa|lâm đồng|đà lạt|long an|tiền giang|bến tre|vĩnh long|an giang|kiên giang|tây ninh|huế|quảng ninh/i.test(str);
+
+  // Only default to Ho Chi Minh if no province or major city is mentioned
+  if (!hasKnownProvince) {
     str += ', Hồ Chí Minh';
   }
   if (!/việt\s*nam|vietnam/i.test(str)) {
@@ -215,7 +226,7 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
 
       {/* Liquid Glass Modal Window */}
       <div
-        className="relative w-full max-w-4xl bg-white/90 dark:bg-[#16161c]/90 backdrop-blur-3xl rounded-3xl border border-white/80 dark:border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.22),inset_0_1.5px_1px_rgba(255,255,255,1),inset_0_-1px_1.5px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col z-10 transition-all duration-300 scale-100"
+        className="relative w-full max-w-4xl bg-white dark:bg-[#1c1c22] rounded-[28px] border border-black/10 dark:border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] overflow-hidden flex flex-col z-10 transition-all duration-300 scale-100"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Apple Window Header */}
@@ -223,7 +234,7 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
           <div className="flex items-center gap-3.5 min-w-0">
             {/* Apple Maps App Lens Icon */}
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-b from-[#2997ff] to-[#0066cc] flex items-center justify-center text-white shadow-[0_4px_12px_rgba(0,113,227,0.35),inset_0_1px_1px_rgba(255,255,255,0.7)] border border-white/40 shrink-0">
-              <MapPin className="w-5 h-5 drop-shadow-xs" />
+              <SFMappinAndEllipse size={20} className="drop-shadow-xs" />
             </div>
 
             <div className="min-w-0">
@@ -259,12 +270,12 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
               >
                 {copied ? (
                   <>
-                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 stroke-[2.5]" />
+                    <SFCheckmark size={14} className="text-emerald-600 dark:text-emerald-400 stroke-[2.5]" />
                     <span className="text-emerald-600 dark:text-emerald-400">Đã chép</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3.5 h-3.5 text-[#76767b]" />
+                    <SFSquareOnSquare size={14} className="text-[#76767b]" />
                     <span className="hidden sm:inline">Sao chép</span>
                   </>
                 )}
@@ -279,9 +290,9 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-semibold text-white bg-gradient-to-b from-[#007aff] to-[#0062cc] shadow-[0_4px_12px_rgba(0,122,255,0.35),inset_0_1px_1px_rgba(255,255,255,0.6)] border border-white/30 active:scale-95 transition-all cursor-pointer"
               title="Mở trên ứng dụng Google Maps ngoài"
             >
-              <Navigation className="w-3.5 h-3.5" />
+              <SFLocationFill size={14} />
               <span>Mở Google Maps</span>
-              <ExternalLink className="w-3 h-3 opacity-80" />
+              <SFArrowUpRightSquare size={12} className="opacity-80" />
             </a>
 
             {/* Apple Glass Close Button */}
@@ -292,7 +303,7 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
               title="Đóng cửa sổ"
               aria-label="Đóng"
             >
-              <X className="w-4 h-4 stroke-[2.5]" />
+              <SFXmark size={16} className="stroke-[2.5]" />
             </button>
           </div>
         </div>
@@ -303,7 +314,7 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
           {hasNoAddress ? (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 p-6 text-center bg-white/80 dark:bg-black/70 backdrop-blur-md">
               <div className="w-12 h-12 rounded-full bg-amber-500/15 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                <AlertCircle className="w-6 h-6" />
+                <SFExclamationmarkCircle size={24} />
               </div>
               <h4 className="text-base font-bold text-[#1d1d1f] dark:text-white">
                 Chưa có địa chỉ hoặc tọa độ cho {store.storeCode}
@@ -318,7 +329,7 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
                 className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#007aff] text-white text-xs font-semibold shadow-md active:scale-95 transition-all"
               >
                 <span>Tìm kiếm "{store.storeCode}" trên Google Maps</span>
-                <ExternalLink className="w-3.5 h-3.5" />
+                <SFArrowUpRightSquare size={14} />
               </a>
             </div>
           ) : (

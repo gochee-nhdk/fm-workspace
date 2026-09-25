@@ -2,10 +2,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import toast, { Toaster, resolveValue, useToasterStore } from 'react-hot-toast';
 import { Suspense, useEffect } from 'react';
-import { SFCheckmarkCircleFill, SFExclamationmarkCircle, SFInfoCircle } from 'sf-symbols-lib';
-import { Loader2 } from 'lucide-react';
+import { SFCheckmarkCircleFill, SFExclamationmarkCircle, SFInfoCircle, SFArrowClockwise } from 'sf-symbols-lib';
 import RoutesConfig from './routes';
-import { useUiStore } from '@/stores/ui-store';
+import { useUiStore, resolveTheme } from '@/stores/ui-store';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -18,15 +17,38 @@ const queryClient = new QueryClient({
   },
 });
 
+/**
+ * ThemeSync — listens to the store theme, resolves system/auto preference,
+ * and syncs the `dark` class on <html>. Also reacts to OS preference changes
+ * in real-time so theme auto-updates when user changes system setting.
+ */
 function ThemeSync() {
   const theme = useUiStore((state) => state.theme);
 
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
+    const applyTheme = () => {
+      const resolved = resolveTheme(theme);
+      const root = document.documentElement;
+      if (resolved === 'dark') {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+    };
+
+    applyTheme();
+
+    // For 'auto_time' mode: check every 30 seconds to react immediately to time transitions
+    if (theme === 'auto_time') {
+      const interval = setInterval(applyTheme, 30_000);
+      return () => clearInterval(interval);
+    }
+
+    // For 'system' mode: listen to OS dark/light preference changes in real-time
+    if (theme === 'system' && window.matchMedia) {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      mq.addEventListener('change', applyTheme);
+      return () => mq.removeEventListener('change', applyTheme);
     }
   }, [theme]);
 
@@ -111,7 +133,7 @@ export default function App() {
                 >
                   {isSuccess && <SFCheckmarkCircleFill size={15} />}
                   {isError && <SFExclamationmarkCircle size={15} />}
-                  {isLoading && <Loader2 className="w-3.5 h-3.5 stroke-[2.5] animate-spin" />}
+                  {isLoading && <SFArrowClockwise size={15} className="animate-spin" />}
                   {!isSuccess && !isError && !isLoading && <SFInfoCircle size={15} />}
                 </div>
 

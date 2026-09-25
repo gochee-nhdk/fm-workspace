@@ -21,7 +21,16 @@ const getLocalStorageNotes = (): QuickNoteItem[] => {
 const saveLocalStorageNotes = (notes: QuickNoteItem[]): void => {
   try {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(notes));
-  } catch (_) {}
+  } catch (_) {
+    // If quota exceeded due to large image data URLs, strip heavy url in cache while IndexedDB preserves 100%
+    try {
+      const stripped = notes.map((n) => ({
+        ...n,
+        images: n.images?.map((img) => ({ ...img, url: '' })),
+      }));
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stripped));
+    } catch (_) {}
+  }
 };
 
 export const noteService = {
@@ -48,8 +57,10 @@ export const noteService = {
    */
   sortNotes(notes: QuickNoteItem[]): QuickNoteItem[] {
     return [...notes].sort((a, b) => {
-      if (a.pinned && !b.pinned) return -1;
-      if (!a.pinned && b.pinned) return 1;
+      const aPinned = Boolean(a.pinned);
+      const bPinned = Boolean(b.pinned);
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
       return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
   },
@@ -83,9 +94,11 @@ export const noteService = {
       id,
       title: titleToSave,
       content: data.content ?? existing?.content ?? '',
-      pinned: data.pinned ?? existing?.pinned ?? false,
+      checklistContent: data.checklistContent !== undefined ? data.checklistContent : (existing?.checklistContent ?? ''),
+      pinned: data.pinned !== undefined ? Boolean(data.pinned) : (existing?.pinned ?? false),
       color: data.color ?? existing?.color ?? 'amber',
       tags: data.tags ?? existing?.tags ?? [],
+      images: data.images !== undefined ? data.images : (existing?.images ?? []),
       reminderAt: data.reminderAt !== undefined ? data.reminderAt : (existing?.reminderAt ?? null),
       reminderEmail: data.reminderEmail !== undefined ? data.reminderEmail : (existing?.reminderEmail ?? null),
       reminderNotifyDesktop: data.reminderNotifyDesktop !== undefined ? data.reminderNotifyDesktop : (existing?.reminderNotifyDesktop ?? true),
@@ -93,6 +106,9 @@ export const noteService = {
       reminderCompleted: data.reminderCompleted !== undefined ? data.reminderCompleted : (existing?.reminderCompleted ?? false),
       taskReminders: data.taskReminders !== undefined ? data.taskReminders : (existing?.taskReminders ?? []),
       emailProvider: data.emailProvider !== undefined ? data.emailProvider : (existing?.emailProvider ?? 'gmail'),
+      noteType: data.noteType !== undefined ? data.noteType : (existing?.noteType ?? (data.content && /^-\s*\[([ xX])\]/m.test(data.content) ? 'checklist' : 'note')),
+      isLocked: data.isLocked !== undefined ? Boolean(data.isLocked) : (existing?.isLocked ?? false),
+      password: data.password !== undefined ? data.password : (existing?.password ?? ''),
       createdAt: existing?.createdAt || now,
       updatedAt: now,
     };
@@ -138,7 +154,7 @@ export const noteService = {
   async togglePin(id: string): Promise<QuickNoteItem | null> {
     const note = await this.getNoteById(id);
     if (!note) return null;
-    return this.saveNote({ ...note, pinned: !note.pinned });
+    return this.saveNote({ ...note, pinned: !Boolean(note.pinned) });
   },
 
   /**

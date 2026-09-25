@@ -1,5 +1,13 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RotateCcw, Home, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+import {
+  SFExclamationmarkTriangleFill,
+  SFArrowCounterclockwise,
+  SFHouse,
+  SFChevronDown,
+  SFChevronUp,
+  SFSquareOnSquare,
+  SFCheckmark
+} from 'sf-symbols-lib';
 
 interface Props {
   children: ReactNode;
@@ -64,7 +72,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
             {/* Apple Squircle Alert Badge */}
             <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-b from-amber-500/20 to-rose-500/10 dark:from-amber-400/25 dark:to-rose-500/20 border border-amber-500/30 flex items-center justify-center text-amber-500 dark:text-amber-400 shadow-md shadow-amber-500/15 mb-4 group">
-              <AlertTriangle className="w-7 h-7 drop-shadow-xs" />
+              <SFExclamationmarkTriangleFill size={28} className="drop-shadow-xs" />
             </div>
 
             {/* Heading */}
@@ -92,12 +100,12 @@ export class ErrorBoundary extends Component<Props, State> {
                 {this.state.showDetails ? (
                   <>
                     <span>Ẩn chi tiết kỹ thuật</span>
-                    <ChevronUp className="w-3 h-3" />
+                    <SFChevronUp size={12} />
                   </>
                 ) : (
                   <>
                     <span>Xem chi tiết lỗi kỹ thuật</span>
-                    <ChevronDown className="w-3 h-3" />
+                    <SFChevronDown size={12} />
                   </>
                 )}
               </button>
@@ -113,12 +121,12 @@ export class ErrorBoundary extends Component<Props, State> {
                   >
                     {this.state.copied ? (
                       <>
-                        <Check className="w-3 h-3 text-[#34c759]" />
+                        <SFCheckmark size={12} className="text-[#34c759]" />
                         <span className="text-[#34c759]">Đã chép</span>
                       </>
                     ) : (
                       <>
-                        <Copy className="w-3 h-3" />
+                        <SFSquareOnSquare size={12} />
                         <span>Sao chép</span>
                       </>
                     )}
@@ -137,7 +145,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 onClick={this.handleReset}
                 className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-b from-[#007aff] to-[#0062cc] text-white font-semibold text-[13px] shadow-[0_6px_20px_rgba(0,122,255,0.35),inset_0_1.5px_1px_rgba(255,255,255,0.65)] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
+                <SFArrowCounterclockwise size={14} />
                 <span>Tải lại trang</span>
               </button>
 
@@ -146,7 +154,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 onClick={this.handleGoHome}
                 className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] font-medium text-[13px] border border-black/[0.06] dark:border-white/10 active:scale-[0.98] transition-all cursor-pointer"
               >
-                <Home className="w-3.5 h-3.5" />
+                <SFHouse size={14} />
                 <span>Về trang chủ</span>
               </button>
             </div>

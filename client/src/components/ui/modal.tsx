@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
-import { X } from 'lucide-react';
+import { SFXmark } from 'sf-symbols-lib';
 
 export interface ModalProps {
   isOpen: boolean;
@@ -24,32 +24,38 @@ export const Modal: React.FC<ModalProps> = ({
 }) => {
   const [isMounted, setIsMounted] = useState(isOpen);
   const [isClosing, setIsClosing] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (isOpen) {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
       setIsMounted(true);
       setIsClosing(false);
       document.body.style.overflow = 'hidden';
     } else if (isMounted && !isClosing) {
       setIsClosing(true);
-      const timer = setTimeout(() => {
+      closeTimerRef.current = setTimeout(() => {
         setIsMounted(false);
         setIsClosing(false);
         document.body.style.overflow = '';
-      }, 180);
-      return () => clearTimeout(timer);
+      }, 160);
     }
+
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
   }, [isOpen]);
 
   const handleClose = () => {
     if (isClosing) return;
     setIsClosing(true);
-    setTimeout(() => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => {
       onClose();
       setIsClosing(false);
       setIsMounted(false);
       document.body.style.overflow = '';
-    }, 180);
+    }, 160);
   };
 
   useEffect(() => {
@@ -87,24 +93,24 @@ export const Modal: React.FC<ModalProps> = ({
         onClick={handleClose}
       />
 
-      {/* Fluid Droplet Modal Surface */}
+      {/* Fluid Droplet Modal Surface - Apple macOS 27 Window Modal Overlay */}
       <div
         className={cn(
-          'relative w-full bg-white/95 dark:bg-[#16161c]/95 backdrop-blur-3xl rounded-[24px] shadow-[0_24px_80px_rgba(0,0,0,0.2),inset_0_1.5px_1px_rgba(255,255,255,1),inset_0_-1px_1.5px_rgba(0,0,0,0.08)] dark:shadow-[0_24px_80px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.18)] border border-white/80 dark:border-white/15 overflow-hidden z-10 max-h-[90vh] flex flex-col',
+          'relative w-full bg-white dark:bg-[#1c1c22] rounded-[24px] shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15 overflow-hidden z-10 max-h-[90vh] flex flex-col font-sans',
           sizes[size],
           isClosing ? 'liquid-droplet-exit' : 'liquid-droplet-enter'
         )}
       >
         {(title || showCloseButton) && (
-          <div className="px-6 py-4.5 border-b border-[#e0e0e0]/70 dark:border-white/10 flex items-center justify-between shrink-0">
+          <div className="px-6 py-4.5 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between shrink-0 bg-[#fbfbfd] dark:bg-white/[0.02]">
             <div>
               {title && (
-                <h3 className="text-[17px] font-semibold text-[#1d1d1f] dark:text-white tracking-tight">
+                <h3 className="text-[17px] font-bold text-[#1d1d1f] dark:text-white tracking-tight">
                   {title}
                 </h3>
               )}
               {description && (
-                <p className="text-[13px] text-[#76767b] dark:text-[#a1a1a6] mt-0.5 leading-normal">
+                <p className="text-[12px] text-[#86868b] dark:text-[#a1a1a6] mt-0.5 leading-normal">
                   {description}
                 </p>
               )}
@@ -113,10 +119,10 @@ export const Modal: React.FC<ModalProps> = ({
               <button
                 type="button"
                 onClick={handleClose}
-                className="w-7 h-7 rounded-full bg-[#f5f5f7] dark:bg-white/10 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white flex items-center justify-center transition-all active:scale-95 cursor-pointer"
+                className="w-7 h-7 rounded-full bg-black/5 dark:bg-white/10 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white flex items-center justify-center transition-all active:scale-90 cursor-pointer"
                 title="Đóng (Esc)"
               >
-                <X className="w-4 h-4" />
+                <SFXmark size={14} />
               </button>
             )}
           </div>

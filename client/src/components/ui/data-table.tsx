@@ -11,7 +11,7 @@ import {
   ColumnFiltersState
 } from '@tanstack/react-table';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ArrowUpDown, Download } from 'lucide-react';
+import { SFChevronLeft, SFChevronRight, SFBackwardEnd, SFForwardEnd, SFArrowUpArrowDown, SFArrowDownDocument } from 'sf-symbols-lib';
 import { Button } from './button';
 import { EmptyState } from './empty-state';
 import { Spinner } from './loading';
@@ -70,7 +70,7 @@ export function DataTable<TData, TValue>({
             variant="glass"
             size="sm"
             onClick={onExport}
-            icon={<Download className="w-3.5 h-3.5 text-[#0066cc] dark:text-[#2997ff]" />}
+            icon={<SFArrowDownDocument size={14} className="text-[#0066cc] dark:text-[#2997ff]" />}
           >
             {exportLabel}
           </Button>
@@ -95,7 +95,7 @@ export function DataTable<TData, TValue>({
                         >
                           {flexRender(header.column.columnDef.header, header.getContext())}
                           {header.column.getCanSort() && (
-                            <ArrowUpDown className="w-3 h-3 text-[#76767b] opacity-60" />
+                            <SFArrowUpArrowDown size={12} className="text-[#76767b] opacity-60" />
                           )}
                         </div>
                       )}
@@ -152,7 +152,7 @@ export function DataTable<TData, TValue>({
                 className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
                 title="Trang đầu"
               >
-                <ChevronsLeft className="w-4 h-4" />
+                <SFBackwardEnd size={14} />
               </button>
               <button
                 onClick={() => table.previousPage()}
@@ -160,7 +160,7 @@ export function DataTable<TData, TValue>({
                 className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
                 title="Trang trước"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <SFChevronLeft size={14} />
               </button>
 
               <span className="px-3 py-1 rounded-full bg-white dark:bg-[#1d1d1f] border border-[#e0e0e0] dark:border-white/10 text-xs font-semibold text-[#1d1d1f] dark:text-white shadow-2xs">
@@ -173,7 +173,7 @@ export function DataTable<TData, TValue>({
                 className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
                 title="Trang sau"
               >
-                <ChevronRight className="w-4 h-4" />
+                <SFChevronRight size={14} />
               </button>
               <button
                 onClick={() => table.setPageIndex(table.getPageCount() - 1)}
@@ -181,7 +181,7 @@ export function DataTable<TData, TValue>({
                 className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95"
                 title="Trang cuối"
               >
-                <ChevronsRight className="w-4 h-4" />
+                <SFForwardEnd size={14} />
               </button>
             </div>
           </div>
