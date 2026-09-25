@@ -6,21 +6,35 @@ export class GeminiService {
   private model = 'gemini-2.5-flash';
 
   constructor() {
-    this.initClient();
+    try {
+      this.initClient();
+    } catch (_) {
+      // Table system_settings may not be initialized yet during early boot
+    }
   }
 
   public initClient() {
-    const db = getDb();
-    const keySetting = db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get() as any;
-    const modelSetting = db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_model'").get() as any;
+    try {
+      const db = getDb();
+      const keySetting = db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get() as any;
+      const modelSetting = db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_model'").get() as any;
 
-    const apiKey = keySetting?.value || process.env.GEMINI_API_KEY;
+      const apiKey = keySetting?.value || process.env.GEMINI_API_KEY;
 
-    if (apiKey) {
-      this.ai = new GoogleGenAI({ apiKey });
-    }
-    if (modelSetting && modelSetting.value) {
-      this.model = modelSetting.value;
+      if (apiKey) {
+        this.ai = new GoogleGenAI({ apiKey });
+      }
+      if (modelSetting && modelSetting.value) {
+        this.model = modelSetting.value;
+      }
+    } catch {
+      // Fallback to environment variable if system_settings table is not ready yet
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (apiKey) {
+        try {
+          this.ai = new GoogleGenAI({ apiKey });
+        } catch (_) {}
+      }
     }
   }
 
