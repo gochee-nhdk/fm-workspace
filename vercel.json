@@ -1,5 +1,6 @@
 {
-  "buildCommand": "npm --prefix client install && npm --prefix client run build",
+  "installCommand": "npm --prefix client install --legacy-peer-deps",
+  "buildCommand": "npm --prefix client run build",
   "outputDirectory": "client/dist",
   "rewrites": [
     {
