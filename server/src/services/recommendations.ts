@@ -13,8 +13,9 @@ export async function generateOrderRecommendations(storeId?: string): Promise<nu
     db.prepare("DELETE FROM purchase_recommendations WHERE status = 'pending'").run();
   }
 
-  const storeFilter = storeId ? `WHERE id = ?` : ``;
-  const stores = db.prepare(`SELECT id FROM stores ${storeFilter}`).all(storeId ? [storeId] : []) as any[];
+  const stores = storeId 
+    ? (db.prepare('SELECT id FROM stores WHERE id = ?').all(storeId) as any[])
+    : (db.prepare('SELECT id FROM stores').all() as any[]);
 
   for (const store of stores) {
     const products = db.prepare('SELECT id FROM products WHERE is_active = 1').all() as any[];

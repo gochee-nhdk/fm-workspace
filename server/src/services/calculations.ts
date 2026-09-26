@@ -1,6 +1,7 @@
 import { getDb } from '../db/connection.js';
 
 export function calculateAverageDailySales(productId: string, storeId: string, days: number = 30): number {
+  if (days <= 0) return 0;
   const db = getDb();
   const query = `
     SELECT SUM(quantity) as total_qty
@@ -8,20 +9,26 @@ export function calculateAverageDailySales(productId: string, storeId: string, d
     WHERE product_id = ? AND store_id = ? AND sale_date >= date('now', '-' || ? || ' days')
   `;
   const result = db.prepare(query).get(productId, storeId, days) as any;
-  return result?.total_qty ? result.total_qty / days : 0;
+  const total = Number(result?.total_qty || 0);
+  return total > 0 ? total / days : 0;
 }
 
 export function calculateDaysOfCover(currentStock: number, avgDailySales: number): number {
   if (avgDailySales <= 0) return 999;
+  if (currentStock <= 0) return 0;
   return currentStock / avgDailySales;
 }
 
 export function calculateSafetyStock(avgDailySales: number, safetyDays: number): number {
+  if (avgDailySales <= 0 || safetyDays <= 0) return 0;
   return avgDailySales * safetyDays;
 }
 
 export function calculateReorderPoint(avgDailySales: number, leadTime: number, safetyStock: number): number {
-  return (avgDailySales * leadTime) + safetyStock;
+  const safeAvg = Math.max(0, avgDailySales || 0);
+  const safeLead = Math.max(0, leadTime || 0);
+  const safeStock = Math.max(0, safetyStock || 0);
+  return (safeAvg * safeLead) + safeStock;
 }
 
 export function calculateRecommendedOrderQty(productId: string, storeId: string): any {
@@ -31,24 +38,25 @@ export function calculateRecommendedOrderQty(productId: string, storeId: string)
   const productInfo = db.prepare(`
     SELECT p.*, ps.moq, ps.order_multiple, s.lead_time_days
     FROM products p
-    JOIN product_suppliers ps ON ps.product_id = p.id
-    JOIN suppliers s ON s.id = ps.supplier_id
+    LEFT JOIN product_suppliers ps ON ps.product_id = p.id AND ps.is_primary = 1
+    LEFT JOIN suppliers s ON s.id = ps.supplier_id
     WHERE p.id = ? LIMIT 1
   `).get(productId) as any;
 
   // Get current stock
   const stock = db.prepare('SELECT available_qty FROM inventory WHERE product_id = ? AND store_id = ?').get(productId, storeId) as any;
-  const currentStock = stock ? stock.available_qty : 0;
+  const currentStock = Math.max(0, Number(stock?.available_qty || 0));
 
   const avgSales = calculateAverageDailySales(productId, storeId, 30);
-  const leadTime = productInfo?.lead_time_days || 3;
-  const moq = productInfo?.moq || 1;
-  const orderMultiple = productInfo?.order_multiple || 1;
+  const leadTime = Math.max(0, Number(productInfo?.lead_time_days) || 3);
+  const moq = Math.max(1, Number(productInfo?.moq) || 1);
+  const orderMultiple = Math.max(1, Number(productInfo?.order_multiple) || 1);
   
   const settings = db.prepare('SELECT key, value FROM system_settings').all() as any[];
   const getSetting = (key: string, def: number) => {
     const s = settings.find(s => s.key === key);
-    return s ? parseFloat(s.value) : def;
+    const parsed = s ? parseFloat(s.value) : def;
+    return isNaN(parsed) || parsed < 0 ? def : parsed;
   };
 
   const safetyDays = getSetting('default_safety_days', 3);

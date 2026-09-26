@@ -10,7 +10,7 @@
     "start": "node dist/index.js",
     "db:init": "tsx src/db/init.ts",
     "db:seed": "tsx src/db/seed.ts",
-    "test": "tsx src/__tests__/calculations.test.ts && tsx src/__tests__/e2e-workflow.test.ts"
+    "test": "tsx src/__tests__/calculations.test.ts && tsx src/__tests__/excel-quality.test.ts && tsx src/__tests__/e2e-workflow.test.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^9.3.1",

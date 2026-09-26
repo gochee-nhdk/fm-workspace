@@ -25,16 +25,12 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<any>) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
     } else if (error.response?.status === 403) {
       toast.error('Bạn không có quyền thực hiện hành động này.');
     } else if (error.response?.status && error.response.status >= 500) {
