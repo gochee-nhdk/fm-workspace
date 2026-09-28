@@ -389,7 +389,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
               }`}
             />
-            <span className="transition-colors duration-160">Liên kết nhanh</span>
+            <span className="transition-colors duration-160">Links</span>
           </button>
 
           {/* Tab 2: Accounts */}
@@ -414,7 +414,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
               }`}
             />
-            <span className="transition-colors duration-160">Tài khoản & Mật khẩu</span>
+            <span className="transition-colors duration-160">Tài khoản</span>
           </button>
 
           {/* Tab 3: Stores */}
@@ -439,7 +439,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
               }`}
             />
-            <span className="transition-colors duration-160">Danh mục Cửa Hàng</span>
+            <span className="transition-colors duration-160">Cửa hàng</span>
           </button>
         </div>
 

@@ -927,6 +927,7 @@ export const QuickNoteWindow: React.FC = () => {
   const [geminiApiKeyInput, setGeminiApiKeyInput] = useState(getStoredGeminiKey());
   const [showApiKeySetting, setShowApiKeySetting] = useState(false);
   const [showApiKeyPassword, setShowApiKeyPassword] = useState(false);
+  const [mathAnimatedRowIndex, setMathAnimatedRowIndex] = useState<number | null>(null);
 
   // Active text formatting states for toolbar highlighting
   const [activeFormats, setActiveFormats] = useState<{
@@ -2252,7 +2253,8 @@ export const QuickNoteWindow: React.FC = () => {
 
         const mathRes = tryCalculateInlineMath(textBefore, textBefore.length);
         if (mathRes) {
-          document.execCommand('insertText', false, ' ' + mathRes.resultStr);
+          const resultHtml = `<span class="apple-math-result-badge">&nbsp;${mathRes.resultStr}&nbsp;</span>&nbsp;`;
+          document.execCommand('insertHTML', false, resultHtml);
           playPopSound();
           toast.success(`🧮 ${mathRes.matchedExpr} = ${mathRes.resultStr}`, {
             id: 'math-notes',
@@ -2502,6 +2504,8 @@ export const QuickNoteWindow: React.FC = () => {
         const mathRes = tryCalculateInlineMath(newText, newText.length);
         if (mathRes) {
           finalText = mathRes.newText;
+          setMathAnimatedRowIndex(lineIndex);
+          setTimeout(() => setMathAnimatedRowIndex(null), 1200);
           playPopSound();
           toast.success(`🧮 ${mathRes.matchedExpr} = ${mathRes.resultStr}`, { id: 'math-notes-row', duration: 2500 });
         }
@@ -3062,8 +3066,35 @@ export const QuickNoteWindow: React.FC = () => {
                           : 'bg-black/[0.02] dark:bg-white/[0.03] border-black/[0.04] dark:border-white/[0.06] hover:bg-black/[0.05] dark:hover:bg-white/[0.07] hover:border-black/[0.08]'
                       }`}
                     >
-                      {/* Action buttons: Top-right cluster (Pin & Delete) — Nâng cấp kích thước & độ tương phản theo Hình 4 */}
-                      <div className="absolute top-2 right-2 flex items-center gap-1">
+                      {/* Action buttons: Top-right cluster (Thứ tự chuẩn Apple: Khóa -> Ghim -> Xóa) */}
+                      <div className="absolute top-2 right-2 flex items-center gap-1 z-10">
+                        {note.isLocked && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (unlockedNoteIds.includes(note.id)) {
+                                setUnlockedNoteIds((prev) => prev.filter((id) => id !== note.id));
+                                toast('Đã khóa lại ghi chú', { icon: '🔒', id: 'note-relocked' });
+                              } else {
+                                handleSelectNote(note.id);
+                                setTimeout(() => {
+                                  const input = document.getElementById('note-unlock-pin-hidden') as HTMLInputElement | null;
+                                  input?.focus();
+                                }, 50);
+                              }
+                            }}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                              unlockedNoteIds.includes(note.id)
+                                ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 opacity-90 hover:opacity-100'
+                                : 'text-[#0071e3] dark:text-[#2997ff] bg-[#0071e3]/15 opacity-100 shadow-2xs'
+                            }`}
+                            title={unlockedNoteIds.includes(note.id) ? 'Đang mở khóa — Nhấp để khóa lại' : 'Đang khóa — Nhấp để nhập mã PIN mở khóa'}
+                          >
+                            {unlockedNoteIds.includes(note.id) ? <Unlock size={13} /> : <Lock size={13} />}
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); togglePinNote(note.id); }}
@@ -3088,10 +3119,15 @@ export const QuickNoteWindow: React.FC = () => {
                       </div>
 
                       {/* Content */}
-                      <div className="pr-16 min-w-0">
+                      <div className={`min-w-0 ${note.isLocked ? 'pr-24' : 'pr-16'}`}>
                         {/* Title row */}
                         <div className="flex items-center gap-1.5 mb-1 min-w-0">
                           <span className={`w-2 h-2 rounded-full shrink-0 ${dotColor}`} />
+                          {note.isLocked && (
+                            <span title={isLockedAndHidden ? 'Ghi chú đã khóa mật khẩu' : 'Ghi chú được bảo vệ'}>
+                              <Lock size={11} className="text-[#0071e3] dark:text-[#2997ff] shrink-0" />
+                            </span>
+                          )}
                           <h5 className={`text-[12.5px] font-semibold truncate leading-snug ${
                             isSelected ? 'text-[#1d1d1f] dark:text-white' : 'text-[#1d1d1f]/90 dark:text-[#f5f5f7]/85'
                           }`}>
@@ -3122,17 +3158,23 @@ export const QuickNoteWindow: React.FC = () => {
                           <p className="text-[11px] text-[#86868b] dark:text-[#a1a1a6] truncate">{formatNotePreview(note.content)}</p>
                         )}
 
-                        {/* Footer info: Date + Lock/Reminder Icons */}
+                        {/* Footer info: Date & Reminder Icons aligned harmoniously */}
                         <div className="flex items-center justify-between mt-1.5 pt-1 border-t border-black/[0.03] dark:border-white/[0.04]">
-                          <span className="text-[10px] text-[#86868b] dark:text-[#76767b] font-mono">
-                            {new Date(note.updatedAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}
-                          </span>
-                          <div className="flex items-center gap-1">
-                            {note.isLocked && <Lock size={10} className="text-[#0071e3] dark:text-[#2997ff]" />}
-                            {(hasNoteReminder || hasTaskReminder) && (
-                              <SFClock size={10} className={isChecklistNote ? 'text-[#0071e3]' : 'text-amber-500'} />
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-[#86868b] dark:text-[#76767b] font-mono">
+                              {new Date(note.updatedAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}
+                            </span>
+                            {note.isLocked && (
+                              <span className="text-[9.5px] px-1.5 py-0.2 rounded-full font-medium bg-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff]">
+                                {isLockedAndHidden ? 'Đã khóa' : 'Bảo vệ'}
+                              </span>
                             )}
                           </div>
+                          {(hasNoteReminder || hasTaskReminder) && (
+                            <div className="flex items-center gap-1" title="Có cài lịch nhắc nhở">
+                              <SFClock size={10.5} className={isChecklistNote ? 'text-[#0071e3]' : 'text-amber-500'} />
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -3846,6 +3888,10 @@ export const QuickNoteWindow: React.FC = () => {
                       <div
                         key={`row-${row.lineIndex}`}
                         className={`group flex items-center gap-2.5 p-2.5 rounded-xl border transition-all duration-200 ${
+                          mathAnimatedRowIndex === row.lineIndex
+                            ? 'animate-math-flash ring-2 ring-[#0071e3]/40 border-[#0071e3]/50'
+                            : ''
+                        } ${
                           row.completed
                             ? 'bg-emerald-500/[0.04] dark:bg-emerald-400/[0.05] border-emerald-500/20'
                             : 'bg-white/60 dark:bg-white/[0.03] border-black/[0.04] dark:border-white/[0.06] hover:border-[#0071e3]/45 hover:bg-[#0071e3]/[0.02]'
@@ -4374,18 +4420,18 @@ export const QuickNoteWindow: React.FC = () => {
                   </div>
       </div>
 
-      {/* ─────────────────── Apple Gemini API Key Modal (Portal Root, NO Blur, Solid Elevation) ─────────────────── */}
+      {/* ─────────────────── Apple Gemini API Key Modal (Apple Liquid Glass Blur & Translucency) ─────────────────── */}
       {showApiKeySetting && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label="Cài đặt Gemini API Key"
           onClick={() => setShowApiKeySetting(false)}
-          className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-black/30 dark:bg-black/60 select-none animate-in fade-in duration-150"
+          className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-black/25 dark:bg-black/50 backdrop-blur-md select-none animate-in fade-in duration-150"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-[420px] bg-white dark:bg-[#1e1e24] rounded-[26px] border border-black/[0.08] dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3)] p-5 space-y-4 text-left animate-in zoom-in-95 duration-150"
+            className="w-full max-w-[420px] bg-white/85 dark:bg-[#1e1e24]/85 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/10 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] p-5 space-y-4 text-left animate-in zoom-in-95 duration-150"
           >
             <div className="flex items-center justify-between pb-3 border-b border-black/[0.06] dark:border-white/10">
               <div className="flex items-center gap-2.5">
@@ -4479,18 +4525,18 @@ export const QuickNoteWindow: React.FC = () => {
         </div>
       )}
 
-      {/* ─────────────────── Individual Task Reminder Modal (Portal Root, NO Blur, Solid Elevation) ─────────────────── */}
+      {/* ─────────────────── Individual Task Reminder Modal (Apple Liquid Glass Blur & Translucency) ─────────────────── */}
       {taskReminderPopover && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label="Hẹn giờ nhắc việc"
           onClick={() => setTaskReminderPopover(null)}
-          className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-black/30 dark:bg-black/60 select-none animate-in fade-in duration-150"
+          className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-black/25 dark:bg-black/50 backdrop-blur-md select-none animate-in fade-in duration-150"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-[390px] bg-white dark:bg-[#1e1e24] rounded-[26px] border border-black/[0.08] dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3)] p-5 space-y-4 text-left animate-in zoom-in-95 duration-150"
+            className="w-full max-w-[390px] bg-white/85 dark:bg-[#1e1e24]/85 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/10 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] p-5 space-y-4 text-left animate-in zoom-in-95 duration-150"
           >
             <div className="flex items-center justify-between pb-3 border-b border-black/[0.06] dark:border-white/10">
               <div className="flex items-center gap-2.5">
@@ -4670,18 +4716,18 @@ export const QuickNoteWindow: React.FC = () => {
         </div>
       )}
 
-      {/* ─────────────────── Apple Liquid Glass Master Reminder Modal (Portal Root, NO Blur, Solid Elevation) ─────────────────── */}
+      {/* ─────────────────── Apple Liquid Glass Master Reminder Modal (Apple Liquid Glass Blur & Translucency) ─────────────────── */}
       {showReminderModal && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label="Cài lịch nhắc nhở"
           onClick={() => setShowReminderModal(false)}
-          className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-black/30 dark:bg-black/60 select-none animate-in fade-in duration-150"
+          className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-black/25 dark:bg-black/50 backdrop-blur-md select-none animate-in fade-in duration-150"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-[460px] max-h-[85vh] flex flex-col bg-white dark:bg-[#1e1e24] rounded-[26px] border border-black/[0.08] dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3)] overflow-hidden text-left animate-in zoom-in-95 duration-150"
+            className="w-full max-w-[460px] max-h-[85vh] flex flex-col bg-white/85 dark:bg-[#1e1e24]/85 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/10 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] overflow-hidden text-left animate-in zoom-in-95 duration-150"
           >
             {/* Fixed Header */}
             <div className="p-4 sm:px-5 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between shrink-0 bg-black/[0.01] dark:bg-white/[0.02]">
@@ -4989,7 +5035,7 @@ export const QuickNoteWindow: React.FC = () => {
         </div>
       )}
 
-      {/* ─────────────────── Apple PIN Lock Config Modal (Portal Root, NO Blur, Solid Elevation) ─────────────────── */}
+      {/* ─────────────────── Apple PIN Lock Config Modal (Apple Liquid Glass Blur & Translucency) ─────────────────── */}
       {showLockConfigModal && activeNote && (!activeNote.isLocked || unlockedNoteIds.includes(activeNote.id)) && (
         <div
           role="dialog"
@@ -5001,7 +5047,7 @@ export const QuickNoteWindow: React.FC = () => {
             setLockConfirmPassword('');
             setLockConfigMismatch(false);
           }}
-          className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-black/30 dark:bg-black/60 select-none animate-in fade-in duration-150"
+          className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-black/25 dark:bg-black/50 backdrop-blur-md select-none animate-in fade-in duration-150"
         >
           <div
             onClick={(e) => {
@@ -5010,7 +5056,7 @@ export const QuickNoteWindow: React.FC = () => {
               input?.focus();
             }}
             className={cn(
-              "w-full max-w-[340px] bg-white dark:bg-[#1e1e24] rounded-[26px] border border-black/[0.08] dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3)] p-6 text-center space-y-5 animate-in zoom-in-95 duration-150 relative cursor-default",
+              "w-full max-w-[340px] bg-white/85 dark:bg-[#1e1e24]/85 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/10 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] p-6 text-center space-y-5 animate-in zoom-in-95 duration-150 relative cursor-default",
               lockConfigMismatch && "apple-shake"
             )}
           >

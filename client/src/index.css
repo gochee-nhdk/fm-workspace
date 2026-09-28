@@ -2412,8 +2412,61 @@ tbody td {
   .macos-morph-close,
   .macos-expand-modal,
   .apple-shake,
+  .apple-math-result-badge,
   [data-layout-id="active-navigation-pill"] {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* ──────────────── Apple Math Notes Dynamic Result Animation ──────────────── */
+@keyframes appleMathResultPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.82) translateY(2px);
+    filter: brightness(1.5) drop-shadow(0 0 10px rgba(0, 113, 227, 0.7));
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1.08) translateY(-1px);
+    filter: brightness(1.25) drop-shadow(0 0 6px rgba(0, 113, 227, 0.45));
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: drop-shadow(0 0 0 rgba(0, 0, 0, 0));
+  }
+}
+
+.apple-math-result-badge {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  color: #0071e3;
+  animation: appleMathResultPop 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  background: rgba(0, 113, 227, 0.08);
+  border-bottom: 1.5px solid rgba(0, 113, 227, 0.4);
+  border-radius: 4px;
+  padding: 0 4px;
+  margin: 0 2px;
+  user-select: text;
+}
+
+.dark .apple-math-result-badge {
+  color: #2997ff;
+  background: rgba(41, 151, 255, 0.12);
+  border-bottom-color: rgba(41, 151, 255, 0.45);
+}
+
+@keyframes mathRowFlash {
+  0% {
+    background-color: rgba(0, 113, 227, 0.18);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.animate-math-flash {
+  animation: mathRowFlash 1.2s ease-out forwards;
 }

@@ -28,11 +28,27 @@ export default async function authRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.post('/login', async (request, reply) => {
-    const { email, password } = request.body as any;
+  fastify.post('/login', {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '1 minute',
+        errorResponseBuilder: () => ({
+          statusCode: 429,
+          error: 'Too Many Requests',
+          message: 'Bạn đã thử đăng nhập quá nhiều lần. Vui lòng đợi 1 phút rồi thử lại để bảo vệ an toàn tài khoản.'
+        })
+      }
+    }
+  }, async (request, reply) => {
+    const { email, password } = (request.body || {}) as any;
+    if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
+      return reply.code(400).send({ error: 'Email và mật khẩu không được để trống' });
+    }
+    const cleanEmail = email.toLowerCase().trim();
     const db = getDb();
     
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail) as any;
     if (!user || user.is_active === 0) {
       return reply.code(401).send({ error: 'Invalid credentials' });
     }

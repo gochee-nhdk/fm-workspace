@@ -61,13 +61,20 @@ async function build() {
     credentials: true,
   });
 
-  // Enterprise Security Headers (Anti-Clickjacking, Anti-MIME sniffing, XSS Filter)
+  // Enterprise Security Headers (Anti-Clickjacking, Anti-MIME sniffing, XSS Filter, CSP, HSTS)
   fastify.addHook('onSend', async (_request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('X-Frame-Options', 'DENY');
     reply.header('X-XSS-Protection', '1; mode=block');
     reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
     reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    reply.header(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: http: ws: wss:; frame-ancestors 'none';"
+    );
+    if (process.env.NODE_ENV === 'production') {
+      reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    }
   });
 
   await fastify.register(cookie);

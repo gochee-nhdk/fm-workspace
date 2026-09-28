@@ -82,16 +82,17 @@ export default function App() {
           <RoutesConfig />
         </Suspense>
         <Toaster
-          position="bottom-center"
+          position="top-right"
           gutter={12}
           containerClassName="apple-toaster-container"
           containerStyle={{
-            bottom: 32,
-            left: 0,
-            right: 0,
+            top: 24,
+            right: 24,
+            left: 'auto',
+            bottom: 'auto',
             display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
             pointerEvents: 'none',
             zIndex: 99999,
           }}
@@ -110,7 +111,7 @@ export default function App() {
                 className={`liquid-glass-macos27-toast group transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer ${
                   t.visible
                     ? 'opacity-100 scale-100 translate-y-0'
-                    : 'opacity-0 scale-90 translate-y-3 pointer-events-none'
+                    : 'opacity-0 scale-90 -translate-y-3 pointer-events-none'
                 }`}
                 style={{
                   ...t.style,

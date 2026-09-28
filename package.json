@@ -4,6 +4,8 @@
   "private": true,
   "description": "AI Procurement & Merchandising Assistant - Farmers Market",
   "scripts": {
+    "setup": "npm install && npm --prefix server install && npm --prefix client install --legacy-peer-deps && npm --prefix server run db:init",
+    "install:all": "npm --prefix server install && npm --prefix client install --legacy-peer-deps",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
