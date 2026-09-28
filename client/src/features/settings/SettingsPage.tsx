@@ -45,7 +45,7 @@ export const SettingsPage: React.FC = () => {
   const [smtpPassword, setSmtpPassword] = useState('');
   const [smtpSenderName, setSmtpSenderName] = useState('Trợ Lý Thu Mua • Farmers Market');
   const [isSavingSmtp, setIsSavingSmtp] = useState(false);
-  const [testRecipient, setTestRecipient] = useState('kaka.nhdk@gmail.com');
+  const [testRecipient, setTestRecipient] = useState(() => reminderService.getPreferredEmail() || '');
   const [isSendingTest, setIsSendingTest] = useState(false);
 
   const loadSmtp = async () => {

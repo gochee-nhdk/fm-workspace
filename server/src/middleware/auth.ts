@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import jwt from 'jsonwebtoken';
 import { getDb } from '../db/connection.js';
+import { getJwtSecret } from '../config/auth.js';
 
 export interface AuthUser {
   id: string;
@@ -14,8 +15,6 @@ declare module 'fastify' {
     user?: AuthUser;
   }
 }
-
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_change_in_production';
 
 export async function verifyToken(request: FastifyRequest, reply: FastifyReply) {
   try {
@@ -31,7 +30,7 @@ export async function verifyToken(request: FastifyRequest, reply: FastifyReply) 
       return reply.code(401).send({ error: 'Unauthorized', message: 'Missing or invalid token' });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as AuthUser;
+    const decoded = jwt.verify(token, getJwtSecret()) as AuthUser;
     
     // Check if user is active
     const db = getDb();
@@ -62,7 +61,7 @@ export async function optionalAuth(request: FastifyRequest, reply: FastifyReply)
     const authHeader = request.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
-      const decoded = jwt.verify(token, JWT_SECRET) as AuthUser;
+      const decoded = jwt.verify(token, getJwtSecret()) as AuthUser;
       request.user = decoded;
     }
   } catch (error) {

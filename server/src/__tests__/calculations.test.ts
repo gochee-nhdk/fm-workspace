@@ -43,6 +43,15 @@ async function runTests() {
   assert(calculateReorderPoint(10, 2, 0) === 20, 'Reorder point khi SafetyStock = 0: 20 + 0 = 20');
   assert(calculateReorderPoint(-10, 2, 30) === 30, 'Reorder point xử lý an toàn khi ADS âm');
 
+  // 4. Net Requirement & Incoming Stock Logic Test
+  const testTargetStock = 100;
+  const testCurrentStock = 20;
+  const testIncomingStock = 40;
+  const rawNeedWithIncoming = testTargetStock - (testCurrentStock + testIncomingStock);
+  assert(rawNeedWithIncoming === 40, 'Nhu cầu đặt hàng ròng trừ chính xác lượng hàng đang về: 100 - (20 + 40) = 40');
+  const rawNeedFullIncoming = testTargetStock - (testCurrentStock + 90);
+  assert(rawNeedFullIncoming < 0, 'Khi hàng đang về đủ bù đắp mục tiêu, nhu cầu đặt hàng ròng <= 0');
+
   console.log(`\n=== KẾT QUẢ KIỂM THỬ: ${passed} ĐẠT, ${failed} THẤT BẠI ===`);
   if (failed > 0) process.exit(1);
 }

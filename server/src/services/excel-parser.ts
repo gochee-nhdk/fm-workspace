@@ -82,6 +82,12 @@ const SEMANTIC_DICTIONARY: Record<string, string[]> = {
   ]
 };
 
+export function isSafeKey(key: string): boolean {
+  if (!key || typeof key !== 'string') return false;
+  const lower = key.trim().toLowerCase();
+  return lower !== '__proto__' && lower !== 'constructor' && lower !== 'prototype';
+}
+
 export class ExcelParserService {
   /**
    * Guess semantic target field for a given column header
@@ -120,6 +126,10 @@ export class ExcelParserService {
     }
     if (typeof val === 'string') {
       const trimmed = val.trim();
+      // Sanitize potential formula injection triggers (=, +, -, @)
+      if (/^[=\+\-@\t\r]/.test(trimmed) && trimmed.length > 1 && !/^-?\d+(\.\d+)?$/.test(trimmed)) {
+        return "'" + trimmed;
+      }
       // Detect DD/MM/YYYY or DD-MM-YYYY format
       const ddmmyyyy = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/;
       const m = trimmed.match(ddmmyyyy);
@@ -149,7 +159,9 @@ export class ExcelParserService {
       return (parsed.data || []).map((row) => {
         const cleanedRow: Record<string, any> = {};
         for (const [k, v] of Object.entries(row)) {
-          cleanedRow[k] = ExcelParserService.cleanCellValue(v);
+          if (isSafeKey(k)) {
+            cleanedRow[k] = ExcelParserService.cleanCellValue(v);
+          }
         }
         return cleanedRow;
       });
@@ -190,10 +202,12 @@ export class ExcelParserService {
           const rowObj: Record<string, any> = {};
           let hasVal = false;
           headers.forEach((h, idx) => {
-            const rawVal = row.getCell(idx + 1).value;
-            const cleaned = ExcelParserService.cleanCellValue(rawVal);
-            rowObj[h] = cleaned;
-            if (cleaned !== null && cleaned !== '') hasVal = true;
+            if (isSafeKey(h)) {
+              const rawVal = row.getCell(idx + 1).value;
+              const cleaned = ExcelParserService.cleanCellValue(rawVal);
+              rowObj[h] = cleaned;
+              if (cleaned !== null && cleaned !== '') hasVal = true;
+            }
           });
           if (hasVal) {
             allRows.push(rowObj);
@@ -341,7 +355,9 @@ export class ExcelParserService {
             parsedVal = (cellVal as any).result;
           }
 
-          rowObj[h] = parsedVal;
+          if (isSafeKey(h)) {
+            rowObj[h] = parsedVal;
+          }
 
           if (!colSamples[idx]) colSamples[idx] = [];
           if (!colNulls[idx]) colNulls[idx] = 0;

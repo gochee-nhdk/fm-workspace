@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { getDb } from '../db/connection.js';
-import { verifyToken, optionalAuth } from '../middleware/auth.js';
+import { verifyToken, optionalAuth, requireRole } from '../middleware/auth.js';
 import { v4 as uuidv4 } from 'uuid';
 import nodemailer from 'nodemailer';
 
@@ -47,9 +47,10 @@ function getSmtpConfig(): SmtpConfig {
 }
 
 export default async function notificationsRoutes(fastify: FastifyInstance) {
-  // 1. Check SMTP Configuration Status
-  fastify.get('/smtp-status', { preHandler: optionalAuth }, async (_request, reply) => {
+  // 1. Check SMTP Configuration Status (Mask email for non-admin)
+  fastify.get('/smtp-status', { preHandler: optionalAuth }, async (request: any, reply) => {
     const config = getSmtpConfig();
+    const isAdmin = request.user?.role === 'admin';
     const maskedUser = config.user
       ? config.user.replace(/^(.)(.*)(@.*)$/, (_, first, mid, last) => `${first}${'*'.repeat(Math.max(mid.length, 3))}${last}`)
       : null;
@@ -60,13 +61,13 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
       smtpHost: config.host,
       smtpPort: config.port,
       smtpUser: maskedUser,
-      fullUser: config.user || null,
+      fullUser: isAdmin ? (config.user || null) : null,
       senderName: config.senderName,
     });
   });
 
-  // 2. Configure & Verify SMTP Settings (from UI / Settings)
-  fastify.post('/smtp-config', { preHandler: optionalAuth }, async (request: any, reply) => {
+  // 2. Configure & Verify SMTP Settings (Admin-only access)
+  fastify.post('/smtp-config', { preHandler: requireRole('admin') }, async (request: any, reply) => {
     const { user, pass, host, port, senderName } = request.body || {};
 
     if (!user || !pass) {
@@ -92,7 +93,7 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
         pass: cleanPass,
       },
       tls: {
-        rejectUnauthorized: false,
+        rejectUnauthorized: process.env.SMTP_IGNORE_TLS === 'true' ? false : true,
       },
     });
 
@@ -349,7 +350,7 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
         pass: config.pass,
       },
       tls: {
-        rejectUnauthorized: false,
+        rejectUnauthorized: process.env.SMTP_IGNORE_TLS === 'true' ? false : true,
       },
     });
 
@@ -384,34 +385,65 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // Regular authenticated notification routes
+  // Regular authenticated notification routes (scoped to current user or admin)
   fastify.get('/', { preHandler: verifyToken }, async (request: any, reply) => {
     const { page = 1, limit = 10 } = request.query;
     const db = getDb();
-    const offset = (page - 1) * limit;
+    const offset = (Number(page) - 1) * Number(limit);
+    const userId = request.user?.id;
+    const isAdmin = request.user?.role === 'admin';
     
-    const query = 'SELECT * FROM notifications ORDER BY created_at DESC';
-    const count = (db.prepare('SELECT COUNT(*) as total FROM notifications').get() as any).total;
-    const data = db.prepare(`${query} LIMIT ? OFFSET ?`).all(Number(limit), Number(offset));
+    let count: number;
+    let data: any[];
+
+    if (isAdmin) {
+      count = (db.prepare('SELECT COUNT(*) as total FROM notifications').get() as any).total;
+      data = db.prepare('SELECT * FROM notifications ORDER BY created_at DESC LIMIT ? OFFSET ?').all(Number(limit), Number(offset));
+    } else {
+      count = (db.prepare('SELECT COUNT(*) as total FROM notifications WHERE user_id = ? OR user_id IS NULL OR user_id = "system"').get(userId) as any).total;
+      data = db.prepare('SELECT * FROM notifications WHERE user_id = ? OR user_id IS NULL OR user_id = "system" ORDER BY created_at DESC LIMIT ? OFFSET ?').all(userId, Number(limit), Number(offset));
+    }
     
-    return { success: true, data, pagination: { page: Number(page), limit: Number(limit), total: count, total_pages: Math.ceil(count / limit) } };
+    return { success: true, data, pagination: { page: Number(page), limit: Number(limit), total: count, total_pages: Math.ceil(count / Number(limit)) } };
   });
 
   fastify.put('/:id/read', { preHandler: verifyToken }, async (request: any, reply) => {
     const db = getDb();
-    db.prepare('UPDATE notifications SET is_read = 1 WHERE id = ?').run(request.params.id);
+    const userId = request.user?.id;
+    const isAdmin = request.user?.role === 'admin';
+
+    if (isAdmin) {
+      db.prepare('UPDATE notifications SET is_read = 1 WHERE id = ?').run(request.params.id);
+    } else {
+      db.prepare('UPDATE notifications SET is_read = 1 WHERE id = ? AND (user_id = ? OR user_id IS NULL OR user_id = "system")').run(request.params.id, userId);
+    }
     return { success: true, data: { id: request.params.id } };
   });
 
   fastify.put('/read-all', { preHandler: verifyToken }, async (request: any, reply) => {
     const db = getDb();
-    db.prepare('UPDATE notifications SET is_read = 1 WHERE is_read = 0').run();
+    const userId = request.user?.id;
+    const isAdmin = request.user?.role === 'admin';
+
+    if (isAdmin) {
+      db.prepare('UPDATE notifications SET is_read = 1 WHERE is_read = 0').run();
+    } else {
+      db.prepare('UPDATE notifications SET is_read = 1 WHERE is_read = 0 AND (user_id = ? OR user_id IS NULL OR user_id = "system")').run(userId);
+    }
     return { success: true };
   });
 
   fastify.get('/unread-count', { preHandler: verifyToken }, async (request: any, reply) => {
     const db = getDb();
-    const count = (db.prepare('SELECT COUNT(*) as count FROM notifications WHERE is_read = 0').get() as any).count;
+    const userId = request.user?.id;
+    const isAdmin = request.user?.role === 'admin';
+
+    let count: number;
+    if (isAdmin) {
+      count = (db.prepare('SELECT COUNT(*) as count FROM notifications WHERE is_read = 0').get() as any).count;
+    } else {
+      count = (db.prepare('SELECT COUNT(*) as count FROM notifications WHERE is_read = 0 AND (user_id = ? OR user_id IS NULL OR user_id = "system")').get(userId) as any).count;
+    }
     return { success: true, data: { count } };
   });
 }

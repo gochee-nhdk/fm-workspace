@@ -6,8 +6,58 @@ import { ExcelParserService } from '../services/excel-parser.js';
 import { DataQualityService } from '../services/data-quality.js';
 import ExcelJS from 'exceljs';
 
-// In-memory temporary cache for uploaded parsed workbooks
-const uploadCache = new Map<string, { fileName: string; buffer: Buffer; profile: any }>();
+// In-memory bounded temporary cache for uploaded parsed workbooks (15 mins TTL, max 20 entries)
+interface CachedUpload {
+  fileName: string;
+  buffer: Buffer;
+  profile: any;
+  createdAt: number;
+}
+
+class BoundedUploadCache {
+  private cache = new Map<string, CachedUpload>();
+  private readonly maxEntries = 20;
+  private readonly ttlMs = 15 * 60 * 1000; // 15 minutes TTL
+
+  set(id: string, entry: Omit<CachedUpload, 'createdAt'>) {
+    this.evictExpired();
+    if (this.cache.size >= this.maxEntries) {
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey) this.cache.delete(oldestKey);
+    }
+    this.cache.set(id, { ...entry, createdAt: Date.now() });
+  }
+
+  get(id: string): CachedUpload | undefined {
+    this.evictExpired();
+    const item = this.cache.get(id);
+    if (!item) return undefined;
+    if (Date.now() - item.createdAt > this.ttlMs) {
+      this.cache.delete(id);
+      return undefined;
+    }
+    return item;
+  }
+
+  has(id: string): boolean {
+    return this.get(id) !== undefined;
+  }
+
+  delete(id: string): boolean {
+    return this.cache.delete(id);
+  }
+
+  private evictExpired() {
+    const now = Date.now();
+    for (const [key, value] of this.cache.entries()) {
+      if (now - value.createdAt > this.ttlMs) {
+        this.cache.delete(key);
+      }
+    }
+  }
+}
+
+const uploadCache = new BoundedUploadCache();
 
 export default async function importsRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', verifyToken);

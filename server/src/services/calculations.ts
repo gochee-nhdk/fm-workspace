@@ -65,10 +65,25 @@ export function calculateRecommendedOrderQty(productId: string, storeId: string)
   const safetyStock = calculateSafetyStock(avgSales, safetyDays);
   const reorderPoint = calculateReorderPoint(avgSales, leadTime, safetyStock);
 
+  // Retrieve incoming on-order stock from open purchase orders
+  let incomingStock = 0;
+  try {
+    const onOrderRow = db.prepare(`
+      SELECT COALESCE(SUM(poi.order_qty), 0) as incoming
+      FROM po_items poi
+      JOIN purchase_orders po ON po.id = poi.po_id
+      WHERE poi.product_id = ? AND po.store_id = ? AND po.status IN ('submitted', 'approved', 'ordered')
+    `).get(productId, storeId) as any;
+    incomingStock = Math.max(0, Number(onOrderRow?.incoming) || 0);
+  } catch (_) {
+    incomingStock = 0;
+  }
+
   let recommendedQty = 0;
-  if (avgSales > 0 && currentStock <= reorderPoint) {
+  const inventoryPosition = currentStock + incomingStock;
+  if (avgSales > 0 && inventoryPosition <= reorderPoint) {
     const targetStock = avgSales * (leadTime + reviewPeriod + safetyDays);
-    const rawNeed = targetStock - currentStock;
+    const rawNeed = targetStock - inventoryPosition;
     if (rawNeed > 0) {
       const qty = Math.max(moq, rawNeed);
       recommendedQty = Math.ceil(qty / orderMultiple) * orderMultiple;
@@ -77,6 +92,6 @@ export function calculateRecommendedOrderQty(productId: string, storeId: string)
 
   return {
     recommendedQty,
-    metrics: { avgSales, currentStock, leadTime, safetyStock, reorderPoint, moq, orderMultiple }
+    metrics: { avgSales, currentStock, incomingStock, inventoryPosition, leadTime, safetyStock, reorderPoint, moq, orderMultiple }
   };
 }

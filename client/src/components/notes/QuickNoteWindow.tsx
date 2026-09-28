@@ -81,6 +81,7 @@ import {
   getStoredGeminiKey,
   setStoredGeminiKey,
 } from '@/services/writingToolsService';
+import { attachmentService } from '@/services/attachmentService';
 import toast from 'react-hot-toast';
 
 const COLOR_MAP: Record<
@@ -306,7 +307,9 @@ const extractPlainText = (html: string): string => {
   if (!/<[a-z][\s\S]*>/i.test(html)) {
     return html;
   }
-  const formatted = html
+  // Strip heavy data: URLs (>50k chars) before parsing DOM to prevent main thread freezing
+  const cleaned = html.length > 50000 ? html.replace(/data:[^"'\s)]+/g, '') : html;
+  const formatted = cleaned
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n')
     .replace(/<\/div>/gi, '\n')
@@ -319,12 +322,24 @@ const extractPlainText = (html: string): string => {
 };
 
 /**
- * Format note preview snippet for the left sidebar list
+ * Format note preview snippet for the left sidebar list (Ultra-fast, zero DOM allocation)
  */
 const formatNotePreview = (content: string): string => {
   if (!content || !content.trim()) return 'Trống...';
-  const plain = extractPlainText(content);
-  if (!plain.trim()) return 'Trống...';
+  // Fast path for preview: only inspect first chunk up to 800 chars and strip tags via regex
+  const firstChunk = content.length > 800 ? content.slice(0, 800) : content;
+  const plain = firstChunk
+    .replace(/data:[^"'\s)]+/g, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .trim();
+  if (!plain) return 'Trống...';
   const lines = plain.split('\n').map((l) => l.trim()).filter(Boolean);
   if (lines.length === 0) return 'Trống...';
   return lines[0].replace(/^(?:-\s*)?\[([ xX])\]\s*/, (_, check) =>
@@ -357,10 +372,33 @@ const getAppleDocSvg = (ext: string): string => {
 };
 
 /**
- * Decode base64 data URL to text
+ * Universal byte reader for Blob/HTTP URLs and base64 Data URLs
  */
-const decodeDataUrlText = (dataUrl: string): string => {
+const getBytesFromUrl = async (url: string): Promise<Uint8Array> => {
+  if (url.startsWith('blob:') || url.startsWith('http:') || url.startsWith('https:')) {
+    const res = await fetch(url);
+    const buf = await res.arrayBuffer();
+    return new Uint8Array(buf);
+  }
+  const parts = url.split(',');
+  const base64 = parts[1] || parts[0];
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+};
+
+/**
+ * Decode file or base64 data URL to text
+ */
+const decodeDataUrlText = async (dataUrl: string): Promise<string> => {
   try {
+    if (dataUrl.startsWith('blob:') || dataUrl.startsWith('http:') || dataUrl.startsWith('https:')) {
+      const res = await fetch(dataUrl);
+      return await res.text();
+    }
     const base64 = dataUrl.split(',')[1];
     if (!base64) return '';
     const binary = atob(base64);
@@ -376,10 +414,14 @@ const decodeDataUrlText = (dataUrl: string): string => {
 };
 
 /**
- * Convert base64 data URL to native Blob for reliable browser rendering (PDF, Audio, Video)
+ * Convert base64 data URL or Blob URL to native Blob
  */
-const dataUrlToBlob = (dataUrl: string): Blob => {
-  const parts = dataUrl.split(',');
+const dataUrlToBlob = async (url: string): Promise<Blob> => {
+  if (url.startsWith('blob:')) {
+    const res = await fetch(url);
+    return await res.blob();
+  }
+  const parts = url.split(',');
   const mime = parts[0]?.match(/:(.*?);/)?.[1] || 'application/octet-stream';
   const base64 = parts[1] || parts[0];
   const binary = atob(base64);
@@ -397,15 +439,9 @@ interface ExcelSheetPreview {
   totalCols: number;
 }
 
-const parseExcelFromDataUrl = (dataUrl: string): { sheets: ExcelSheetPreview[]; activeSheetIndex: number } | null => {
+const parseExcelFromDataUrl = async (dataUrl: string): Promise<{ sheets: ExcelSheetPreview[]; activeSheetIndex: number } | null> => {
   try {
-    const parts = dataUrl.split(',');
-    const base64 = parts[1] || parts[0];
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
+    const bytes = await getBytesFromUrl(dataUrl);
     const workbook = XLSX.read(bytes, { type: 'array' });
     const sheets: ExcelSheetPreview[] = workbook.SheetNames.map((name) => {
       const sheet = workbook.Sheets[name];
@@ -431,20 +467,15 @@ const parseExcelFromDataUrl = (dataUrl: string): { sheets: ExcelSheetPreview[]; 
 interface DocxBlock {
   type: 'h1' | 'h2' | 'h3' | 'p' | 'li' | 'table';
   text?: string;
+  align?: 'left' | 'center' | 'right' | 'justify';
+  bold?: boolean;
   tableRows?: string[][];
 }
 
 const parseDocxFromDataUrl = async (dataUrl: string): Promise<DocxBlock[] | null> => {
   try {
-    const parts = dataUrl.split(',');
-    const base64 = parts[1] || parts[0];
-    const binary = atob(base64);
-    const buf = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      buf[i] = binary.charCodeAt(i);
-    }
-
-    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    const buf = await getBytesFromUrl(dataUrl);
+    const view = new DataView(buf.buffer as ArrayBuffer, buf.byteOffset, buf.byteLength);
     let offset = 0;
     let docXmlText: string | null = null;
     while (offset < buf.byteLength - 4) {
@@ -464,7 +495,7 @@ const parseDocxFromDataUrl = async (dataUrl: string): Promise<DocxBlock[] | null
         } else if (compMethod === 8) {
           const ds = new DecompressionStream('deflate-raw');
           const writer = ds.writable.getWriter();
-          writer.write(compData);
+          writer.write(compData as any);
           writer.close();
           const res = new Response(ds.readable);
           docXmlText = await res.text();
@@ -486,6 +517,7 @@ const parseDocxFromDataUrl = async (dataUrl: string): Promise<DocxBlock[] | null
 
     for (const child of children) {
       if (child.nodeName === 'w:p') {
+        // Extract runs to preserve linebreaks
         const textNodes = child.getElementsByTagName('w:t');
         let fullText = '';
         for (let i = 0; i < textNodes.length; i++) {
@@ -493,18 +525,29 @@ const parseDocxFromDataUrl = async (dataUrl: string): Promise<DocxBlock[] | null
         }
         if (!fullText.trim()) continue;
 
+        // Extract alignment (left, center, right, both/justify)
+        const jcEl = child.getElementsByTagName('w:jc')[0];
+        const jcVal = jcEl?.getAttribute('w:val') || '';
+        let align: 'left' | 'center' | 'right' | 'justify' = 'left';
+        if (jcVal === 'center') align = 'center';
+        else if (jcVal === 'right') align = 'right';
+        else if (jcVal === 'both' || jcVal === 'distribute') align = 'justify';
+
+        // Check if paragraph has bold formatting
+        const hasBold = child.getElementsByTagName('w:b').length > 0;
+
         const pStyle = child.getElementsByTagName('w:pStyle')[0]?.getAttribute('w:val') || '';
         const numPr = child.getElementsByTagName('w:numPr')[0];
         if (pStyle.toLowerCase().includes('heading1') || pStyle === '1') {
-          blocks.push({ type: 'h1', text: fullText });
+          blocks.push({ type: 'h1', text: fullText, align });
         } else if (pStyle.toLowerCase().includes('heading2') || pStyle === '2') {
-          blocks.push({ type: 'h2', text: fullText });
+          blocks.push({ type: 'h2', text: fullText, align });
         } else if (pStyle.toLowerCase().includes('heading3') || pStyle === '3') {
-          blocks.push({ type: 'h3', text: fullText });
+          blocks.push({ type: 'h3', text: fullText, align });
         } else if (numPr) {
-          blocks.push({ type: 'li', text: fullText });
+          blocks.push({ type: 'li', text: fullText, align });
         } else {
-          blocks.push({ type: 'p', text: fullText });
+          blocks.push({ type: 'p', text: fullText, align, bold: hasBold });
         }
       } else if (child.nodeName === 'w:tbl') {
         const trList = child.getElementsByTagName('w:tr');
@@ -542,15 +585,8 @@ interface PptxSlide {
 
 const parsePptxFromDataUrl = async (dataUrl: string): Promise<PptxSlide[] | null> => {
   try {
-    const parts = dataUrl.split(',');
-    const base64 = parts[1] || parts[0];
-    const binary = atob(base64);
-    const buf = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      buf[i] = binary.charCodeAt(i);
-    }
-
-    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    const buf = await getBytesFromUrl(dataUrl);
+    const view = new DataView(buf.buffer as ArrayBuffer, buf.byteOffset, buf.byteLength);
     let offset = 0;
     const slideXmlMap: Record<number, string> = {};
 
@@ -573,7 +609,7 @@ const parsePptxFromDataUrl = async (dataUrl: string): Promise<PptxSlide[] | null
         } else if (compMethod === 8) {
           const ds = new DecompressionStream('deflate-raw');
           const writer = ds.writable.getWriter();
-          writer.write(compData);
+          writer.write(compData as any);
           writer.close();
           const res = new Response(ds.readable);
           slideXmlMap[slideNum] = await res.text();
@@ -618,7 +654,7 @@ const generateInlineImageHtml = (dataUrl: string, name: string): string => {
   </span></p><p><br></p>`;
 };
 
-const generateFileCardHtml = (fileDataUrl: string, fileName: string, ext: string, sizeStr: string): string => {
+const generateFileCardHtml = (fileIdOrUrl: string, fileName: string, ext: string, sizeStr: string): string => {
   const docSvg = getAppleDocSvg(ext);
   let badgeColor = '#0071e3';
   if (ext === 'pdf') { badgeColor = '#e03e2d'; }
@@ -628,7 +664,12 @@ const generateFileCardHtml = (fileDataUrl: string, fileName: string, ext: string
   else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) { badgeColor = '#805ad5'; }
   else if (['txt', 'md', 'json'].includes(ext)) { badgeColor = '#718096'; }
 
-  return `<p><span class="apple-file-attachment" contenteditable="false" data-media-type="file" data-file-url="${fileDataUrl}" data-file-name="${fileName}" data-file-ext="${ext}" data-file-size="${sizeStr}" style="display: inline-flex; align-items: center; gap: 10px; padding: 7px 12px; margin: 6px 0; border-radius: 16px; background: rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.08); font-size: 13px; font-weight: 500; text-decoration: none; user-select: none; box-shadow: 0 2px 6px rgba(0,0,0,0.03); vertical-align: middle; max-width: 100%;">
+  const isAttachmentId = fileIdOrUrl.startsWith('att_');
+  const fileIdAttr = isAttachmentId ? `data-file-id="${fileIdOrUrl}"` : '';
+  const fileUrlAttr = !isAttachmentId ? `data-file-url="${fileIdOrUrl}"` : '';
+  const downloadHref = isAttachmentId ? '#' : fileIdOrUrl;
+
+  return `<p><span class="apple-file-attachment" contenteditable="false" data-media-type="file" ${fileIdAttr} ${fileUrlAttr} data-file-name="${fileName}" data-file-ext="${ext}" data-file-size="${sizeStr}" style="display: inline-flex; align-items: center; gap: 10px; padding: 7px 12px; margin: 6px 0; border-radius: 16px; background: rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.08); font-size: 13px; font-weight: 500; text-decoration: none; user-select: none; box-shadow: 0 2px 6px rgba(0,0,0,0.03); vertical-align: middle; max-width: 100%;">
     ${docSvg}
     <span style="display: flex; flex-direction: column; min-width: 0; max-width: 220px; line-height: 1.25;">
       <span style="font-weight: 600; color: #1d1d1f; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px;" title="${fileName}">${fileName}</span>
@@ -636,10 +677,75 @@ const generateFileCardHtml = (fileDataUrl: string, fileName: string, ext: string
     </span>
     <span style="display: inline-flex; align-items: center; gap: 4px; margin-left: 6px;">
       <button type="button" class="apple-file-preview-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,113,227,0.12); color: #0071e3; border: 1px solid rgba(0,113,227,0.2); cursor: pointer; padding: 0; outline: none;" title="Xem trước tệp (Quick Look)"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2.5"/></svg></button>
-      <a href="${fileDataUrl}" download="${fileName}" class="apple-file-download-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: ${badgeColor}; color: white; border: none; text-decoration: none; cursor: pointer;" title="Tải xuống tệp ${fileName}"><svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v8M3.5 7L7 10.5 10.5 7M2 12h10"/></svg></a>
+      <a href="${downloadHref}" download="${fileName}" class="apple-file-download-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: ${badgeColor}; color: white; border: none; text-decoration: none; cursor: pointer;" title="Tải xuống tệp ${fileName}"><svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v8M3.5 7L7 10.5 10.5 7M2 12h10"/></svg></a>
       <button type="button" class="apple-file-delete-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); cursor: pointer; padding: 0; outline: none;" title="Xóa tệp đính kèm"><svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg></button>
     </span>
   </span></p><p><br></p>`;
+};
+
+/**
+ * Safely removes a file or image attachment from HTML using DOMParser.
+ * NEVER destroys sibling elements or unclosed tags.
+ */
+const removeAttachmentFromHtml = (rawHtml: string, targetUrl: string, targetName?: string): string => {
+  if (!rawHtml || (!targetUrl && !targetName)) return rawHtml;
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(rawHtml, 'text/html');
+    let modified = false;
+
+    // 1. Check file attachment cards
+    const fileBadges = Array.from(doc.querySelectorAll('.apple-file-attachment'));
+    fileBadges.forEach((badge) => {
+      const fileId = badge.getAttribute('data-file-id');
+      const u = badge.getAttribute('data-file-url');
+      const n = badge.getAttribute('data-file-name');
+      const a = badge.querySelector('a');
+      const href = a?.getAttribute('href');
+      const download = a?.getAttribute('download');
+
+      if (
+        (targetUrl && (fileId === targetUrl || u === targetUrl || href === targetUrl)) ||
+        (targetName && (n === targetName || download === targetName))
+      ) {
+        if (fileId) {
+          attachmentService.deleteAttachment(fileId).catch(console.error);
+        }
+        const parent = badge.parentElement;
+        badge.remove();
+        modified = true;
+        // Only remove parent if it is an empty paragraph with no text and no other children
+        if (parent && parent.tagName.toLowerCase() === 'p' && parent.children.length === 0 && !parent.textContent?.trim()) {
+          parent.remove();
+        }
+      }
+    });
+
+    // 2. Check inline images (.apple-img-wrapper and <img>)
+    const imgWrappers = Array.from(doc.querySelectorAll('.apple-img-wrapper, img'));
+    imgWrappers.forEach((el) => {
+      const img = el.tagName.toLowerCase() === 'img' ? (el as HTMLImageElement) : el.querySelector('img');
+      const src = img?.getAttribute('src') || '';
+      const alt = img?.getAttribute('alt') || '';
+
+      if ((targetUrl && src === targetUrl) || (targetName && alt === targetName)) {
+        const targetContainer = el.closest('.apple-img-wrapper') || el;
+        const parent = targetContainer.parentElement;
+        targetContainer.remove();
+        modified = true;
+        if (parent && parent.tagName.toLowerCase() === 'p' && parent.children.length === 0 && !parent.textContent?.trim()) {
+          parent.remove();
+        }
+      }
+    });
+
+    if (modified) {
+      return doc.body.innerHTML;
+    }
+  } catch (err) {
+    console.error('Lỗi khi xóa tệp khỏi HTML:', err);
+  }
+  return rawHtml;
 };
 
 export const QuickNoteWindow: React.FC = () => {
@@ -889,6 +995,7 @@ export const QuickNoteWindow: React.FC = () => {
     ext: string;
     size: string;
   } | null>(null);
+  const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
   const [previewTextContent, setPreviewTextContent] = useState<string | null>(null);
   const [excelPreview, setExcelPreview] = useState<{ sheets: ExcelSheetPreview[]; activeSheetIndex: number } | null>(null);
   const [docxPreview, setDocxPreview] = useState<DocxBlock[] | null>(null);
@@ -970,16 +1077,45 @@ export const QuickNoteWindow: React.FC = () => {
     return Array.from(tagSet);
   }, [notes]);
 
+  // ──────── Ultra-fast memoized character count (zero DOM reflow) ────────
+  const localCharCount = useMemo(() => {
+    if (!localContent) return 0;
+    return localContent
+      .replace(/data:[^"'\s)]+/g, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&[a-z0-9#]+;/gi, ' ')
+      .trim().length;
+  }, [localContent]);
+
   // ──────── Helper: Chèn HTML trực tiếp vào khung soạn thảo tại con trỏ ────────
-  const insertHtmlIntoEditor = useCallback((html: string) => {
+  const insertHtmlIntoEditor = useCallback((html: string, options?: { skipSave?: boolean }) => {
     const targetEl = editorRef.current;
-    if (!targetEl) return;
+    if (!targetEl) return '';
     targetEl.focus();
 
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0 && targetEl.contains(sel.anchorNode)) {
       const range = sel.getRangeAt(0);
-      range.deleteContents();
+
+      // Check if cursor or selection touches an attachment card or image wrapper
+      const anchorNode = sel.anchorNode;
+      const anchorEl = anchorNode instanceof Element ? anchorNode : anchorNode?.parentElement;
+      const insideCard = anchorEl?.closest('.apple-file-attachment, .apple-img-wrapper');
+
+      if (insideCard) {
+        // Move selection right after the card to avoid corrupting or nesting inside it
+        range.setStartAfter(insideCard);
+        range.collapse(true);
+      } else if (!range.collapsed) {
+        // If selection spans attachments, collapse safely instead of deleting contents
+        const frag = range.cloneContents();
+        if (frag.querySelector('.apple-file-attachment, .apple-img-wrapper')) {
+          range.collapse(false);
+        } else {
+          range.deleteContents();
+        }
+      }
+
       const el = document.createElement('div');
       el.innerHTML = html;
       const frag = document.createDocumentFragment();
@@ -1003,9 +1139,10 @@ export const QuickNoteWindow: React.FC = () => {
     const updated = targetEl.innerHTML;
     setLocalContent(updated);
     localContentRef.current = updated;
-    if (activeNoteIdRef.current) {
+    if (!options?.skipSave && activeNoteIdRef.current) {
       updateNote(activeNoteIdRef.current, { content: updated });
     }
+    return updated;
   }, [isMinimized, updateNote]);
 
   // ──────── Image & Screenshot & File Handlers ────────
@@ -1016,35 +1153,45 @@ export const QuickNoteWindow: React.FC = () => {
     toast.loading('Đang xử lý hình ảnh...', { id: 'note-img-process' });
     try {
       const newAttachments: NoteImageAttachment[] = [];
+      let combinedHtml = '';
+
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (!file.type.startsWith('image/')) continue;
         const { dataUrl, size } = await compressImageFile(file);
-        newAttachments.push({
+        const att: NoteImageAttachment = {
           id: 'img_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7),
           url: dataUrl,
           name: file.name || `Anh_${(activeNote.images?.length || 0) + newAttachments.length + 1}.jpg`,
           size,
           createdAt: new Date().toISOString(),
-        });
-
-        // Đẩy ảnh trực tiếp vào khung ghi văn bản (chuẩn tỉ lệ gọn gàng, hỗ trợ nhấn để phóng to & xóa)
-        const imgHtml = generateInlineImageHtml(dataUrl, file.name || 'Hình ảnh');
-        insertHtmlIntoEditor(imgHtml);
-
-        if (editorMode === 'checklist') {
-          const nextChecklist = `${localChecklistRef.current.trim()}\n- [ ] 📷 [Hình ảnh: ${file.name}]`.trim();
-          setLocalChecklist(nextChecklist);
-          localChecklistRef.current = nextChecklist;
-          if (activeNoteIdRef.current) {
-            updateNote(activeNoteIdRef.current, { checklistContent: nextChecklist } as any);
-          }
-        }
+        };
+        newAttachments.push(att);
+        combinedHtml += generateInlineImageHtml(dataUrl, att.name || 'Hình ảnh');
       }
 
       if (newAttachments.length > 0) {
+        const updatedHtml = insertHtmlIntoEditor(combinedHtml, { skipSave: true });
         const currentImages = activeNote.images || [];
-        await updateActiveNote({ images: [...currentImages, ...newAttachments] });
+        const nextImages = [...currentImages, ...newAttachments];
+
+        if (editorMode === 'checklist') {
+          const lines = newAttachments.map((a) => `- [ ] 📷 [Hình ảnh: ${a.name}]`).join('\n');
+          const nextChecklist = `${localChecklistRef.current.trim()}\n${lines}`.trim();
+          setLocalChecklist(nextChecklist);
+          localChecklistRef.current = nextChecklist;
+          await updateActiveNote({
+            content: updatedHtml,
+            images: nextImages,
+            checklistContent: nextChecklist,
+          } as any);
+        } else {
+          await updateActiveNote({
+            content: updatedHtml,
+            images: nextImages,
+          });
+        }
+
         playAppleChime();
         toast.success(`Đã chèn ${newAttachments.length} hình ảnh trực tiếp vào ghi chú!`, { id: 'note-img-process' });
       } else {
@@ -1064,7 +1211,10 @@ export const QuickNoteWindow: React.FC = () => {
 
     toast.loading('Đang xử lý tệp tin...', { id: 'note-file-process' });
     try {
-      let attachedCount = 0;
+      const newAttachments: NoteImageAttachment[] = [];
+      let combinedHtml = '';
+      const newChecklistLines: string[] = [];
+
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
 
@@ -1077,41 +1227,44 @@ export const QuickNoteWindow: React.FC = () => {
             size,
             createdAt: new Date().toISOString(),
           };
-          const currentImages = activeNote.images || [];
-          await updateActiveNote({ images: [...currentImages, newAttachment] });
-
-          const imgHtml = generateInlineImageHtml(dataUrl, file.name);
-          insertHtmlIntoEditor(imgHtml);
-          attachedCount++;
+          newAttachments.push(newAttachment);
+          combinedHtml += generateInlineImageHtml(dataUrl, file.name);
+          newChecklistLines.push(`- [ ] 📷 [Hình ảnh: ${file.name}]`);
         } else {
-          // File tài liệu
-          const fileDataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-
+          // File tài liệu: lưu nhị phân trực tiếp vào IndexedDB (không nhúng base64 nặng vào HTML)
+          const { id, sizeStr } = await attachmentService.saveAttachment(file, file.name);
           const ext = file.name.split('.').pop()?.toLowerCase() || '';
-          const fileCardHtml = generateFileCardHtml(fileDataUrl, file.name, ext, formatFileSize(file.size));
-
-          insertHtmlIntoEditor(fileCardHtml);
-
-          if (editorMode === 'checklist') {
-            const nextChecklist = `${localChecklistRef.current.trim()}\n- [ ] [${ext.toUpperCase()} - ${file.name}] (${formatFileSize(file.size)})`.trim();
-            setLocalChecklist(nextChecklist);
-            localChecklistRef.current = nextChecklist;
-            if (activeNoteIdRef.current) {
-              updateNote(activeNoteIdRef.current, { checklistContent: nextChecklist } as any);
-            }
-          }
-
-          attachedCount++;
+          combinedHtml += generateFileCardHtml(id, file.name, ext, sizeStr);
+          newChecklistLines.push(`- [ ] [${ext.toUpperCase()} - ${file.name}] (${sizeStr})`);
         }
       }
 
-      playAppleChime();
-      toast.success(`Đã đính kèm ${attachedCount} tệp tin trực tiếp vào văn bản!`, { id: 'note-file-process' });
+      if (combinedHtml) {
+        const updatedHtml = insertHtmlIntoEditor(combinedHtml, { skipSave: true });
+        const currentImages = activeNote.images || [];
+        const nextImages = [...currentImages, ...newAttachments];
+
+        if (editorMode === 'checklist' && newChecklistLines.length > 0) {
+          const nextChecklist = `${localChecklistRef.current.trim()}\n${newChecklistLines.join('\n')}`.trim();
+          setLocalChecklist(nextChecklist);
+          localChecklistRef.current = nextChecklist;
+          await updateActiveNote({
+            content: updatedHtml,
+            images: nextImages,
+            checklistContent: nextChecklist,
+          } as any);
+        } else {
+          await updateActiveNote({
+            content: updatedHtml,
+            images: nextImages,
+          });
+        }
+
+        playAppleChime();
+        toast.success(`Đã đính kèm ${files.length} tệp tin trực tiếp vào văn bản!`, { id: 'note-file-process' });
+      } else {
+        toast.dismiss('note-file-process');
+      }
     } catch (err: any) {
       toast.error(err.message || 'Lỗi khi đính kèm tệp tin', { id: 'note-file-process' });
     } finally {
@@ -1153,19 +1306,26 @@ export const QuickNoteWindow: React.FC = () => {
         createdAt: new Date().toISOString(),
       };
       const currentImages = activeNote.images || [];
-      await updateActiveNote({ images: [...currentImages, newAttachment] });
+      const nextImages = [...currentImages, newAttachment];
 
       // Đẩy ảnh chụp màn hình trực tiếp vào khung soạn thảo văn bản
       const imgHtml = generateInlineImageHtml(croppedDataUrl, fileName);
-      insertHtmlIntoEditor(imgHtml);
+      const updatedHtml = insertHtmlIntoEditor(imgHtml, { skipSave: true });
 
       if (editorMode === 'checklist') {
         const nextChecklist = `${localChecklistRef.current.trim()}\n- [ ] ✂️ [Ảnh chụp màn hình: ${fileName}]`.trim();
         setLocalChecklist(nextChecklist);
         localChecklistRef.current = nextChecklist;
-        if (activeNoteIdRef.current) {
-          updateNote(activeNoteIdRef.current, { checklistContent: nextChecklist } as any);
-        }
+        await updateActiveNote({
+          content: updatedHtml,
+          images: nextImages,
+          checklistContent: nextChecklist,
+        } as any);
+      } else {
+        await updateActiveNote({
+          content: updatedHtml,
+          images: nextImages,
+        });
       }
 
       playAppleChime();
@@ -1729,7 +1889,7 @@ export const QuickNoteWindow: React.FC = () => {
       (img) => (imageId ? img.id !== imageId : true) && (imageUrl ? img.url !== imageUrl : true)
     );
 
-    // 2. Xóa phần tử hình ảnh trong editor DOM
+    // 2. Xóa phần tử hình ảnh trong editor DOM bằng selector an toàn
     if (editorRef.current) {
       const imgs = Array.from(editorRef.current.querySelectorAll('img'));
       imgs.forEach((img) => {
@@ -1738,30 +1898,23 @@ export const QuickNoteWindow: React.FC = () => {
                         (imageId && img.getAttribute('data-image-id') === imageId);
         if (matches) {
           const wrapper = img.closest('.apple-img-wrapper') || img;
-          const parentP = wrapper.closest('p');
-          if (parentP && (parentP.children.length <= 1 || parentP.textContent?.trim() === '')) {
+          const parentP = wrapper.parentElement;
+          wrapper.remove();
+          if (parentP && parentP.tagName.toLowerCase() === 'p' && parentP.children.length === 0 && !parentP.textContent?.trim()) {
             parentP.remove();
-          } else {
-            wrapper.remove();
           }
         }
       });
     }
 
-    let updatedHtml = editorRef.current?.innerHTML;
-    if (updatedHtml === undefined || (imageUrl && updatedHtml.includes(imageUrl))) {
-      let cur = localContentRef.current || activeNote.content || '';
-      if (imageUrl) {
-        cur = cur.replace(new RegExp(`<p>[^<]*<span class=["']apple-img-wrapper["'][^>]*>[\\s\\S]*?src=["']${escapeRegex(imageUrl)}["'][\\s\\S]*?<\\/span>[^<]*<\\/p>`, 'g'), '');
-        cur = cur.replace(new RegExp(`<span class=["']apple-img-wrapper["'][^>]*>[\\s\\S]*?src=["']${escapeRegex(imageUrl)}["'][\\s\\S]*?<\\/span>`, 'g'), '');
-        cur = cur.replace(new RegExp(`<p>[^<]*<img[^>]*src=["']${escapeRegex(imageUrl)}["'][^>]*>[^<]*<\\/p>`, 'g'), '');
-        cur = cur.replace(new RegExp(`<img[^>]*src=["']${escapeRegex(imageUrl)}["'][^>]*>`, 'g'), '');
-      }
-      updatedHtml = cur;
-    }
+    const baseContent = editorRef.current ? editorRef.current.innerHTML : (localContentRef.current || activeNote.content || '');
+    const updatedHtml = imageUrl ? removeAttachmentFromHtml(baseContent, imageUrl) : baseContent;
 
     setLocalContent(updatedHtml);
     localContentRef.current = updatedHtml;
+    if (editorRef.current && editorRef.current.innerHTML !== updatedHtml) {
+      editorRef.current.innerHTML = updatedHtml;
+    }
 
     if (activeNoteIdRef.current) {
       await updateNote(activeNoteIdRef.current, { images: updatedImages, content: updatedHtml });
@@ -1770,43 +1923,71 @@ export const QuickNoteWindow: React.FC = () => {
     toast.success('Đã xóa hình ảnh khỏi ghi chú', { id: 'note-img-del' });
   };
 
-  const handleDeleteFileFromPreview = (fileUrl: string, fileName?: string) => {
+  const handleDeleteFileFromPreview = async (fileUrl: string, fileName?: string) => {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = null;
     }
+
+    // 1. Xóa đúng phần tử tệp/ảnh trong editor DOM
     if (editorRef.current) {
-      const attachments = Array.from(editorRef.current.querySelectorAll('.apple-file-attachment'));
-      attachments.forEach((badge) => {
-        const u = badge.getAttribute('data-file-url');
-        const n = badge.getAttribute('data-file-name');
-        if ((fileUrl && u === fileUrl) || (fileName && n === fileName)) {
-          const parentP = badge.closest('p');
-          if (parentP && (parentP.children.length <= 1 || parentP.textContent?.trim() === badge.textContent?.trim())) {
-            parentP.remove();
-          } else {
-            badge.remove();
+      const elements = Array.from(editorRef.current.querySelectorAll('.apple-file-attachment, .apple-img-wrapper, img'));
+      elements.forEach((el) => {
+        const isFile = el.classList.contains('apple-file-attachment');
+        if (isFile) {
+          const u = el.getAttribute('data-file-url');
+          const n = el.getAttribute('data-file-name');
+          const a = el.querySelector('a');
+          if (
+            (fileUrl && (u === fileUrl || a?.getAttribute('href') === fileUrl)) ||
+            (fileName && (n === fileName || a?.getAttribute('download') === fileName))
+          ) {
+            const parent = el.parentElement;
+            el.remove();
+            if (parent && parent.tagName.toLowerCase() === 'p' && parent.children.length === 0 && !parent.textContent?.trim()) {
+              parent.remove();
+            }
+          }
+        } else {
+          const img = el.tagName.toLowerCase() === 'img' ? (el as HTMLImageElement) : el.querySelector('img');
+          const src = img?.getAttribute('src') || '';
+          const alt = img?.getAttribute('alt') || '';
+          if ((fileUrl && src === fileUrl) || (fileName && alt === fileName)) {
+            const targetContainer = el.closest('.apple-img-wrapper') || el;
+            const parent = targetContainer.parentElement;
+            targetContainer.remove();
+            if (parent && parent.tagName.toLowerCase() === 'p' && parent.children.length === 0 && !parent.textContent?.trim()) {
+              parent.remove();
+            }
           }
         }
       });
     }
 
-    let updatedHtml = editorRef.current?.innerHTML;
-    if (updatedHtml === undefined || (fileUrl && updatedHtml.includes(fileUrl))) {
-      let cur = localContentRef.current || activeNote?.content || '';
-      if (fileUrl) {
-        cur = cur.replace(new RegExp(`<p>[^<]*<span class=["']apple-file-attachment["'][^>]*data-file-url=["']${escapeRegex(fileUrl)}["'][\\s\\S]*?<\\/span>[^<]*<\\/p>`, 'g'), '');
-        cur = cur.replace(new RegExp(`<span class=["']apple-file-attachment["'][^>]*data-file-url=["']${escapeRegex(fileUrl)}["'][\\s\\S]*?<\\/span>`, 'g'), '');
-      }
-      updatedHtml = cur;
-    }
+    // 2. Dọn dẹp an toàn qua DOMParser (tuyệt đối không dùng regex làm hỏng thẻ lân cận)
+    const baseContent = editorRef.current ? editorRef.current.innerHTML : (localContentRef.current || activeNote?.content || '');
+    const updatedHtml = removeAttachmentFromHtml(baseContent, fileUrl, fileName);
+
+    // 3. Nếu là hình ảnh, gỡ bỏ khỏi activeNote.images
+    const updatedImages = (activeNote?.images || []).filter(
+      (img) => (fileUrl ? img.url !== fileUrl : true) && (fileName ? img.name !== fileName : true)
+    );
 
     setLocalContent(updatedHtml);
     localContentRef.current = updatedHtml;
-    if (activeNoteIdRef.current) {
-      updateNote(activeNoteIdRef.current, { content: updatedHtml });
+    if (editorRef.current && editorRef.current.innerHTML !== updatedHtml) {
+      editorRef.current.innerHTML = updatedHtml;
     }
+
+    if (activeNoteIdRef.current) {
+      await updateNote(activeNoteIdRef.current, {
+        content: updatedHtml,
+        images: updatedImages,
+      });
+    }
+
     setFilePreviewModal(null);
+    setIsPreviewFullscreen(false);
     playPopSound();
     toast.success('Đã xóa tệp tin khỏi ghi chú!', { id: 'file-del-modal' });
   };
@@ -1841,6 +2022,7 @@ export const QuickNoteWindow: React.FC = () => {
         toast.loading('Đang dán ảnh từ clipboard...', { id: 'note-img-paste' });
         try {
           const newAttachments: NoteImageAttachment[] = [];
+          let combinedHtml = '';
           for (const f of imageFiles) {
             const { dataUrl, size } = await compressImageFile(f);
             newAttachments.push({
@@ -1850,13 +2032,15 @@ export const QuickNoteWindow: React.FC = () => {
               size,
               createdAt: new Date().toISOString(),
             });
-
-            // Đẩy ảnh dán trực tiếp vào khung soạn thảo văn bản
-            const imgHtml = generateInlineImageHtml(dataUrl, f.name || 'Hình ảnh dán');
-            insertHtmlIntoEditor(imgHtml);
+            combinedHtml += generateInlineImageHtml(dataUrl, f.name || 'Hình ảnh dán');
           }
+          const updatedHtml = insertHtmlIntoEditor(combinedHtml, { skipSave: true });
           const currentImages = activeNote.images || [];
-          await updateActiveNote({ images: [...currentImages, ...newAttachments] });
+          const nextImages = [...currentImages, ...newAttachments];
+          await updateActiveNote({
+            content: updatedHtml,
+            images: nextImages,
+          });
           playAppleChime();
           toast.success(`Đã dán ${newAttachments.length} hình ảnh vào ghi chú!`, { id: 'note-img-paste' });
         } catch (err: any) {
@@ -1889,38 +2073,55 @@ export const QuickNoteWindow: React.FC = () => {
 
     // Create a native blob URL for PDF, audio, video, etc.
     let bUrl: string | null = null;
-    try {
-      if (filePreviewModal.url.startsWith('data:')) {
-        const blob = dataUrlToBlob(filePreviewModal.url);
+    let isCancelled = false;
+
+    if (filePreviewModal.url.startsWith('data:')) {
+      dataUrlToBlob(filePreviewModal.url).then((blob) => {
+        if (isCancelled) return;
         bUrl = URL.createObjectURL(blob);
         setPreviewBlobUrl(bUrl);
-      } else {
-        setPreviewBlobUrl(filePreviewModal.url);
-      }
-    } catch {
+      }).catch(() => {
+        if (!isCancelled) setPreviewBlobUrl(filePreviewModal.url);
+      });
+    } else {
       setPreviewBlobUrl(filePreviewModal.url);
     }
 
     if (['txt', 'md', 'json', 'csv', 'js', 'ts', 'jsx', 'tsx', 'html', 'css', 'py', 'log', 'xml', 'yaml', 'yml'].includes(ext)) {
-      setPreviewTextContent(decodeDataUrlText(filePreviewModal.url));
-      setIsPreviewLoading(false);
+      decodeDataUrlText(filePreviewModal.url).then((text) => {
+        if (!isCancelled) {
+          setPreviewTextContent(text);
+          setIsPreviewLoading(false);
+        }
+      }).catch(() => {
+        if (!isCancelled) setIsPreviewLoading(false);
+      });
     } else if (['xlsx', 'xls'].includes(ext)) {
-      const data = parseExcelFromDataUrl(filePreviewModal.url);
-      setExcelPreview(data);
-      setIsPreviewLoading(false);
+      parseExcelFromDataUrl(filePreviewModal.url).then((data) => {
+        if (!isCancelled) {
+          setExcelPreview(data);
+          setIsPreviewLoading(false);
+        }
+      }).catch(() => {
+        if (!isCancelled) setIsPreviewLoading(false);
+      });
     } else if (['docx'].includes(ext)) {
       parseDocxFromDataUrl(filePreviewModal.url).then((res) => {
-        setDocxPreview(res);
-        setIsPreviewLoading(false);
+        if (!isCancelled) {
+          setDocxPreview(res);
+          setIsPreviewLoading(false);
+        }
       }).catch(() => {
-        setIsPreviewLoading(false);
+        if (!isCancelled) setIsPreviewLoading(false);
       });
     } else if (['pptx'].includes(ext)) {
       parsePptxFromDataUrl(filePreviewModal.url).then((res) => {
-        setPptxPreview(res);
-        setIsPreviewLoading(false);
+        if (!isCancelled) {
+          setPptxPreview(res);
+          setIsPreviewLoading(false);
+        }
       }).catch(() => {
-        setIsPreviewLoading(false);
+        if (!isCancelled) setIsPreviewLoading(false);
       });
     } else {
       setIsPreviewLoading(false);
@@ -1930,10 +2131,12 @@ export const QuickNoteWindow: React.FC = () => {
       if (e.key === 'Escape') {
         e.preventDefault();
         setFilePreviewModal(null);
+        setIsPreviewFullscreen(false);
       }
     };
     window.addEventListener('keydown', handleEsc);
     return () => {
+      isCancelled = true;
       window.removeEventListener('keydown', handleEsc);
       if (bUrl) {
         URL.revokeObjectURL(bUrl);
@@ -2301,12 +2504,15 @@ export const QuickNoteWindow: React.FC = () => {
       }
       const badge = fileDeleteBtn.closest('.apple-file-attachment') as HTMLElement | null;
       if (badge) {
+        const fileId = badge.getAttribute('data-file-id');
+        if (fileId) {
+          attachmentService.deleteAttachment(fileId).catch(console.error);
+        }
         const fileName = badge.getAttribute('data-file-name') || 'tệp đính kèm';
-        const parentP = badge.closest('p');
-        if (parentP && (parentP.children.length <= 1 || parentP.textContent?.trim() === badge.textContent?.trim())) {
+        const parentP = badge.parentElement;
+        badge.remove();
+        if (parentP && parentP.tagName.toLowerCase() === 'p' && parentP.children.length === 0 && !parentP.textContent?.trim()) {
           parentP.remove();
-        } else {
-          badge.remove();
         }
         const updated = editorRef.current?.innerHTML || '';
         setLocalContent(updated);
@@ -2318,6 +2524,22 @@ export const QuickNoteWindow: React.FC = () => {
         toast.success(`Đã xóa tệp "${fileName}" khỏi ghi chú!`, { id: 'file-del-badge' });
       }
       return;
+    }
+
+    // 1b. Nhấp vào nút Tải xuống tệp đính kèm
+    const fileDownloadBtn = target.closest('.apple-file-download-btn');
+    if (fileDownloadBtn) {
+      const badge = fileDownloadBtn.closest('.apple-file-attachment') as HTMLElement | null;
+      if (badge) {
+        const fileId = badge.getAttribute('data-file-id');
+        const fileName = badge.getAttribute('data-file-name') || 'tep_tin';
+        if (fileId) {
+          e.preventDefault();
+          e.stopPropagation();
+          attachmentService.downloadAttachment(fileId, fileName);
+          return;
+        }
+      }
     }
 
     // 2. Nhấp vào nút Xóa nhanh hình ảnh trực tiếp (✕) - 1 CLICK XÓA NGAY KHÔNG CẦN PHÓNG TO
@@ -2335,11 +2557,10 @@ export const QuickNoteWindow: React.FC = () => {
       const imgAlt = imgEl?.getAttribute('alt') || 'hình ảnh';
 
       if (wrapper) {
-        const parentP = wrapper.closest('p');
-        if (parentP && (parentP.children.length <= 1 || parentP.textContent?.trim() === '')) {
+        const parentP = wrapper.parentElement;
+        wrapper.remove();
+        if (parentP && parentP.tagName.toLowerCase() === 'p' && parentP.children.length === 0 && !parentP.textContent?.trim()) {
           parentP.remove();
-        } else {
-          wrapper.remove();
         }
       }
       const updatedHtml = editorRef.current?.innerHTML || '';
@@ -2386,15 +2607,29 @@ export const QuickNoteWindow: React.FC = () => {
     // 4. Nhấp vào nút Xem trước (Preview) hoặc click vào thẻ tệp đính kèm
     const previewBtn = target.closest('.apple-file-preview-btn');
     const badge = target.closest('.apple-file-attachment') as HTMLElement | null;
-    if (previewBtn || (badge && !target.closest('.apple-file-delete-btn') && !target.closest('a'))) {
+    if (previewBtn || (badge && !target.closest('.apple-file-delete-btn') && !target.closest('.apple-file-download-btn') && !target.closest('a'))) {
       const targetBadge = badge || (previewBtn?.closest('.apple-file-attachment') as HTMLElement | null);
       if (targetBadge) {
         e.preventDefault();
         e.stopPropagation();
+        const fileId = targetBadge.getAttribute('data-file-id');
         const url = targetBadge.getAttribute('data-file-url') || targetBadge.querySelector('a')?.getAttribute('href') || '';
         const name = targetBadge.getAttribute('data-file-name') || targetBadge.querySelector('a')?.getAttribute('download') || 'Tệp đính kèm';
         const ext = targetBadge.getAttribute('data-file-ext') || name.split('.').pop()?.toLowerCase() || '';
         const size = targetBadge.getAttribute('data-file-size') || '';
+
+        if (fileId) {
+          attachmentService.getAttachment(fileId).then((att) => {
+            if (att) {
+              setFilePreviewModal({ url: att.url, name, ext, size: att.sizeStr || size });
+              playPopSound();
+            } else {
+              toast.error('Không tìm thấy tệp đính kèm trong bộ nhớ');
+            }
+          });
+          return;
+        }
+
         if (url) {
           setFilePreviewModal({ url, name, ext, size });
           playPopSound();
@@ -2902,40 +3137,39 @@ export const QuickNoteWindow: React.FC = () => {
 
           toast.loading('Đang xử lý tệp kéo thả...', { id: 'note-drop-process' });
           try {
-            let processed = 0;
+            const newAttachments: NoteImageAttachment[] = [];
+            let combinedHtml = '';
+
             for (const file of files) {
               if (file.type.startsWith('image/')) {
                 const { dataUrl, size } = await compressImageFile(file);
                 const newAttachment: NoteImageAttachment = {
                   id: 'img_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7),
                   url: dataUrl,
-                  name: file.name || `Anh_${(activeNote.images?.length || 0) + 1}.jpg`,
+                  name: file.name || `Anh_${(activeNote.images?.length || 0) + newAttachments.length + 1}.jpg`,
                   size,
                   createdAt: new Date().toISOString(),
                 };
-                const currentImages = activeNote.images || [];
-                await updateActiveNote({ images: [...currentImages, newAttachment] });
-
-                const imgHtml = generateInlineImageHtml(dataUrl, file.name || `Anh_${(activeNote.images?.length || 0) + 1}.jpg`);
-                insertHtmlIntoEditor(imgHtml);
-                processed++;
+                newAttachments.push(newAttachment);
+                combinedHtml += generateInlineImageHtml(dataUrl, newAttachment.name || 'Hình ảnh');
               } else {
-                const fileDataUrl = await new Promise<string>((resolve, reject) => {
-                  const reader = new FileReader();
-                  reader.onload = () => resolve(reader.result as string);
-                  reader.onerror = reject;
-                  reader.readAsDataURL(file);
-                });
-
+                const { id, sizeStr } = await attachmentService.saveAttachment(file, file.name);
                 const ext = file.name.split('.').pop()?.toLowerCase() || '';
-                const fileCardHtml = generateFileCardHtml(fileDataUrl, file.name, ext, formatFileSize(file.size));
-
-                insertHtmlIntoEditor(fileCardHtml);
-                processed++;
+                combinedHtml += generateFileCardHtml(id, file.name, ext, sizeStr);
               }
             }
-            playAppleChime();
-            toast.success(`Đã thêm ${processed} tệp trực tiếp vào ghi chú!`, { id: 'note-drop-process' });
+
+            if (combinedHtml) {
+              const updatedHtml = insertHtmlIntoEditor(combinedHtml, { skipSave: true });
+              const currentImages = activeNote.images || [];
+              const nextImages = [...currentImages, ...newAttachments];
+              await updateActiveNote({
+                content: updatedHtml,
+                images: nextImages,
+              });
+              playAppleChime();
+              toast.success(`Đã thêm ${files.length} tệp trực tiếp vào ghi chú!`, { id: 'note-drop-process' });
+            }
           } catch (err: any) {
             toast.error(err.message || 'Lỗi khi xử lý tệp', { id: 'note-drop-process' });
           }
@@ -3046,7 +3280,7 @@ export const QuickNoteWindow: React.FC = () => {
                 let checklistDoneCount = 0;
                 let checklistPercentVal = 0;
                 if (isChecklistNote) {
-                  const plain = extractPlainText(note.content);
+                  const plain = (note.checklistContent || note.content || '').replace(/<[^>]+>/g, '\n');
                   const lines = plain.split('\n');
                   checklistTotalCount = lines.filter((l) => /^(?:-\s*)?\[([ xX])\]/.test(l)).length;
                   checklistDoneCount = lines.filter((l) => /^(?:-\s*)?\[[xX]\]/.test(l)).length;
@@ -3470,7 +3704,7 @@ export const QuickNoteWindow: React.FC = () => {
                       hour: '2-digit',
                       minute: '2-digit',
                     })}{' '}
-                    • {extractPlainText(localContent).length} ký tự
+                    • {localCharCount} ký tự
                   </span>
                   <span className="text-[#34c759] inline-flex items-center gap-1 font-medium shrink-0">
                     <SFCheckmark size={12} className="text-[#34c759]" /> Đã lưu
@@ -5401,13 +5635,22 @@ export const QuickNoteWindow: React.FC = () => {
               if (e.target === e.currentTarget) {
                 e.stopPropagation();
                 setFilePreviewModal(null);
+                setIsPreviewFullscreen(false);
               }
             }}
-            className="fixed inset-0 z-[10010] bg-black/65 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-180"
+            className={cn(
+              "fixed inset-0 z-[10010] bg-black/65 backdrop-blur-md flex items-center justify-center animate-in fade-in duration-180",
+              isPreviewFullscreen ? "p-0" : "p-3 sm:p-6"
+            )}
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-4xl h-[85vh] max-h-[850px] bg-white dark:bg-[#1c1c24] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.55)] border border-black/10 dark:border-white/12 flex flex-col overflow-hidden animate-in zoom-in-95 duration-180"
+              className={cn(
+                "relative bg-white dark:bg-[#1c1c24] flex flex-col overflow-hidden transition-all duration-200",
+                isPreviewFullscreen
+                  ? "w-full h-full max-w-none max-h-none rounded-none shadow-none border-0"
+                  : "w-full max-w-4xl h-[85vh] max-h-[850px] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.55)] border border-black/10 dark:border-white/12 animate-in zoom-in-95 duration-180"
+              )}
             >
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-black/[0.08] dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] shrink-0">
@@ -5422,41 +5665,59 @@ export const QuickNoteWindow: React.FC = () => {
                     </h3>
                     <p className="text-[11px] text-[#86868b] font-mono">
                       {filePreviewModal.ext.toUpperCase()} {filePreviewModal.size && `• ${filePreviewModal.size}`}
+                      {filePreviewModal.ext.toLowerCase() === 'docx' && docxPreview && ` • ${docxPreview.length} đoạn văn`}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <a
                     href={filePreviewModal.url}
                     download={filePreviewModal.name}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[12px] font-medium transition-all shadow-xs cursor-pointer active:scale-95"
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-[#0071e3]/10 hover:bg-[#0071e3] text-[#0071e3] hover:text-white dark:bg-[#0071e3]/20 dark:hover:bg-[#0071e3] dark:text-[#3898ff] dark:hover:text-white transition-all shadow-xs cursor-pointer active:scale-95"
                     title="Tải xuống tệp tin"
                   >
-                    <span>↓ Tải xuống</span>
+                    <SFArrowDownToLine size={14} />
                   </a>
                   <button
                     type="button"
-                    onClick={() => handleDeleteFileFromPreview(filePreviewModal.url, filePreviewModal.name)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/15 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 text-[12px] font-medium transition-all shadow-xs cursor-pointer active:scale-95 border border-rose-500/30"
-                    title="Xóa tệp này khỏi ghi chú"
+                    onClick={() => setIsPreviewFullscreen((prev) => !prev)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-[#6e6e73] hover:text-[#1d1d1f] dark:text-[#a1a1a6] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all cursor-pointer active:scale-95"
+                    title={isPreviewFullscreen ? 'Thu nhỏ cửa sổ' : 'Phóng to toàn màn hình'}
                   >
-                    <SFTrash size={13} />
-                    <span>Xóa tệp</span>
+                    {isPreviewFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setFilePreviewModal(null)}
+                    onClick={() => handleDeleteFileFromPreview(filePreviewModal.url, filePreviewModal.name)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:bg-rose-500/20 dark:text-rose-400 dark:hover:text-white transition-all shadow-xs cursor-pointer active:scale-95 border border-rose-500/20"
+                    title="Xóa tệp này khỏi ghi chú"
+                  >
+                    <SFTrash size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilePreviewModal(null);
+                      setIsPreviewFullscreen(false);
+                    }}
                     className="w-8 h-8 rounded-full flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
                     title="Đóng (Esc)"
                   >
-                    ✕
+                    <SFXmark size={14} />
                   </button>
                 </div>
               </div>
 
               {/* Preview Body - Multi-format In-App QuickLook */}
-              <div className="flex-1 overflow-auto p-3 sm:p-4 flex items-center justify-center bg-[#f8f9fa] dark:bg-[#131317]">
+              <div
+                className={cn(
+                  "flex-1 overflow-auto bg-[#f0f2f5] dark:bg-[#121217]",
+                  ['docx', 'xlsx', 'xls', 'pdf', 'pptx'].includes(filePreviewModal.ext.toLowerCase())
+                    ? "p-0 flex flex-col items-center"
+                    : "p-3 sm:p-4 flex items-center justify-center"
+                )}
+              >
                 {isPreviewLoading ? (
                   <div className="flex flex-col items-center justify-center p-8 text-[#86868b] space-y-3">
                     <Loader2 className="w-8 h-8 animate-spin text-[#0071e3]" />
@@ -5541,35 +5802,74 @@ export const QuickNoteWindow: React.FC = () => {
                     <div className="p-8 text-center text-[#86868b] text-[13px]">Không thể nạp nội dung trang tính</div>
                   )
                 ) : filePreviewModal.ext.toLowerCase() === 'docx' && docxPreview && docxPreview.length > 0 ? (
-                  <div className="w-full h-full overflow-y-auto p-4 sm:p-8 flex justify-center">
-                    <div className="w-full max-w-3xl bg-white dark:bg-[#1a1a20] rounded-2xl border border-black/10 dark:border-white/10 p-6 sm:p-10 shadow-lg space-y-3.5 text-left font-sans select-text">
+                  <div className="w-full h-full overflow-y-auto py-8 sm:py-12 px-3 sm:px-8 flex justify-center items-start">
+                    <div className="w-full max-w-4xl bg-white dark:bg-[#1c1c24] rounded-2xl border border-black/[0.08] dark:border-white/[0.08] p-8 sm:p-14 md:p-16 shadow-[0_10px_35px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.04)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.5)] text-left font-sans select-text space-y-4 shrink-0 h-fit">
                       {docxPreview.map((b, idx) => {
                         if (b.type === 'h1') {
-                          return <h1 key={idx} className="text-[20px] font-bold text-[#1d1d1f] dark:text-white pt-2 border-b pb-1 border-black/10 dark:border-white/10">{b.text}</h1>;
+                          return (
+                            <h1
+                              key={idx}
+                              className={cn(
+                                "text-[22px] font-bold text-[#1d1d1f] dark:text-white pt-4 pb-2 border-b border-black/[0.08] dark:border-white/10 tracking-tight",
+                                b.align === 'center' ? 'text-center' : b.align === 'right' ? 'text-right' : 'text-left'
+                              )}
+                            >
+                              {b.text}
+                            </h1>
+                          );
                         }
                         if (b.type === 'h2') {
-                          return <h2 key={idx} className="text-[17px] font-semibold text-[#1d1d1f] dark:text-white pt-1">{b.text}</h2>;
+                          return (
+                            <h2
+                              key={idx}
+                              className={cn(
+                                "text-[18px] font-semibold text-[#1d1d1f] dark:text-white pt-3 pb-1 tracking-tight",
+                                b.align === 'center' ? 'text-center' : b.align === 'right' ? 'text-right' : 'text-left'
+                              )}
+                            >
+                              {b.text}
+                            </h2>
+                          );
                         }
                         if (b.type === 'h3') {
-                          return <h3 key={idx} className="text-[15px] font-semibold text-[#1d1d1f] dark:text-white">{b.text}</h3>;
+                          return (
+                            <h3
+                              key={idx}
+                              className={cn(
+                                "text-[15.5px] font-semibold text-[#1d1d1f] dark:text-white pt-2",
+                                b.align === 'center' ? 'text-center' : b.align === 'right' ? 'text-right' : 'text-left'
+                              )}
+                            >
+                              {b.text}
+                            </h3>
+                          );
                         }
                         if (b.type === 'li') {
                           return (
-                            <div key={idx} className="flex items-start gap-2 text-[13.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] pl-3">
-                              <span className="text-[#0071e3] mt-1.5">•</span>
-                              <span>{b.text}</span>
+                            <div key={idx} className="flex items-start gap-3 text-[14.5px] leading-[1.8] text-[#1d1d1f] dark:text-[#f5f5f7] pl-4">
+                              <span className="text-[#0071e3] select-none font-bold mt-0.5">•</span>
+                              <span className="flex-1">{b.text}</span>
                             </div>
                           );
                         }
                         if (b.type === 'table' && b.tableRows) {
                           return (
-                            <div key={idx} className="overflow-x-auto my-3 rounded-lg border border-black/10 dark:border-white/10">
-                              <table className="w-full border-collapse text-[12.5px]">
+                            <div key={idx} className="overflow-x-auto my-4 rounded-xl border border-black/[0.08] dark:border-white/10 shadow-xs bg-white dark:bg-[#16161c]">
+                              <table className="w-full border-collapse text-[13px]">
                                 <tbody>
                                   {b.tableRows.map((tr, rIdx) => (
-                                    <tr key={rIdx} className={rIdx === 0 ? 'bg-black/[0.04] dark:bg-white/[0.06] font-semibold' : 'border-t border-black/5 dark:border-white/5'}>
+                                    <tr
+                                      key={rIdx}
+                                      className={
+                                        rIdx === 0
+                                          ? 'bg-black/[0.035] dark:bg-white/[0.06] font-semibold border-b border-black/[0.08] dark:border-white/10'
+                                          : 'border-b border-black/[0.04] dark:border-white/[0.06] hover:bg-black/[0.015] dark:hover:bg-white/[0.02]'
+                                      }
+                                    >
                                       {tr.map((tc, cIdx) => (
-                                        <td key={cIdx} className="px-3 py-1.5 border-r border-black/5 dark:border-white/5">{tc}</td>
+                                        <td key={cIdx} className="px-3.5 py-2.5 border-r border-black/[0.04] dark:border-white/[0.06] last:border-r-0">
+                                          {tc}
+                                        </td>
                                       ))}
                                     </tr>
                                   ))}
@@ -5578,7 +5878,18 @@ export const QuickNoteWindow: React.FC = () => {
                             </div>
                           );
                         }
-                        return <p key={idx} className="text-[13.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7]">{b.text}</p>;
+                        return (
+                          <p
+                            key={idx}
+                            className={cn(
+                              "text-[14.5px] leading-[1.85] text-[#2c2c2e] dark:text-[#e5e5ea] whitespace-pre-wrap font-normal",
+                              b.bold && "font-semibold text-[#1d1d1f] dark:text-white",
+                              b.align === 'center' ? 'text-center' : b.align === 'right' ? 'text-right' : 'text-justify'
+                            )}
+                          >
+                            {b.text}
+                          </p>
+                        );
                       })}
                     </div>
                   </div>

@@ -5,6 +5,7 @@ import rateLimit from '@fastify/rate-limit';
 import multipart from '@fastify/multipart';
 import { initDb } from './db/init.js';
 import { closeDb } from './db/connection.js';
+import { getJwtSecret } from './config/auth.js';
 
 // Route imports
 import authRoutes from './routes/auth.js';
@@ -60,6 +61,9 @@ async function build() {
     },
     credentials: true,
   });
+
+  // Fail-fast JWT Secret verification
+  getJwtSecret();
 
   // Enterprise Security Headers (Anti-Clickjacking, Anti-MIME sniffing, XSS Filter, CSP, HSTS)
   fastify.addHook('onSend', async (_request, reply) => {
@@ -121,9 +125,18 @@ async function build() {
     };
   });
 
-  fastify.setErrorHandler((error, request, reply) => {
+  fastify.setErrorHandler((error: any, request, reply) => {
     request.log.error(error);
-    reply.status(500).send({ success: false, error: 'Internal Server Error', message: error.message });
+    const statusCode = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
+    const isProd = process.env.NODE_ENV === 'production';
+    const message = statusCode >= 500 && isProd
+      ? 'Đã xảy ra lỗi nội bộ hệ thống. Vui lòng liên hệ quản trị viên.'
+      : (error.message || 'Lỗi xử lý yêu cầu');
+    reply.status(statusCode).send({
+      success: false,
+      error: error.name || 'Error',
+      message
+    });
   });
 
   fastify.addHook('onClose', async () => {

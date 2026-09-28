@@ -35,9 +35,11 @@ export function getDb(): Database.Database {
       verbose: process.env.NODE_ENV === 'development' ? console.log : undefined,
     });
     
-    // Enable WAL mode for better concurrency
+    // Enable WAL mode and performance pragmas
     dbInstance.pragma('journal_mode = WAL');
     dbInstance.pragma('foreign_keys = ON');
+    dbInstance.pragma('synchronous = NORMAL');
+    dbInstance.pragma('cache_size = -64000'); // 64MB memory page cache
     
     // Configure busy timeout
     dbInstance.pragma('busy_timeout = 5000');

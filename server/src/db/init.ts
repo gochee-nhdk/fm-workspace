@@ -392,10 +392,22 @@ async function initDb() {
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(sale_date);
+    CREATE INDEX IF NOT EXISTS idx_sales_store_prod_date ON sales(store_id, product_id, sale_date);
     CREATE INDEX IF NOT EXISTS idx_po_number ON purchase_orders(po_number);
-    CREATE INDEX IF NOT EXISTS idx_products_sku ON products(sku_code);
     CREATE INDEX IF NOT EXISTS idx_po_status ON purchase_orders(status);
+    CREATE INDEX IF NOT EXISTS idx_po_store_status ON purchase_orders(store_id, status);
+    CREATE INDEX IF NOT EXISTS idx_po_items_po_id ON po_items(po_id);
+    CREATE INDEX IF NOT EXISTS idx_po_items_prod_id ON po_items(product_id);
+    CREATE INDEX IF NOT EXISTS idx_products_sku ON products(sku_code);
+    CREATE INDEX IF NOT EXISTS idx_inventory_store_prod ON inventory(store_id, product_id);
+    CREATE INDEX IF NOT EXISTS idx_stock_transfers_status ON stock_transfers(status, created_at);
+    CREATE INDEX IF NOT EXISTS idx_transfer_items_transfer_id ON transfer_items(transfer_id);
     CREATE INDEX IF NOT EXISTS idx_expiry_date ON expiry_lots(expiry_date);
+    CREATE INDEX IF NOT EXISTS idx_expiry_lots_lookup ON expiry_lots(store_id, product_id, status, expiry_date);
+    CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, is_read, created_at);
+    CREATE INDEX IF NOT EXISTS idx_audit_logs_lookup ON audit_logs(entity_type, entity_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_datasets_status ON datasets(status, created_at);
+    CREATE INDEX IF NOT EXISTS idx_company_knowledge_status ON company_knowledge(status, doc_type);
   `);
 
   console.log('Indices created. Checking default admin user...');

@@ -7,7 +7,6 @@ import toast from 'react-hot-toast';
 
 const PREFERRED_EMAIL_KEY = 'fm_user_preferred_reminder_email';
 const PREFERRED_PROVIDER_KEY = 'fm_user_preferred_email_provider';
-const DEFAULT_REMINDER_EMAIL = 'kaka.nhdk@gmail.com';
 
 /**
  * Synthesizes a subtle Apple visionOS / iOS glass bell chime using Web Audio API
@@ -69,9 +68,16 @@ class ReminderService {
    */
   getPreferredEmail(): string {
     try {
-      return localStorage.getItem(PREFERRED_EMAIL_KEY) || DEFAULT_REMINDER_EMAIL;
+      const stored = localStorage.getItem(PREFERRED_EMAIL_KEY);
+      if (stored) return stored;
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        if (user?.email) return user.email;
+      }
+      return '';
     } catch (_) {
-      return DEFAULT_REMINDER_EMAIL;
+      return '';
     }
   }
 

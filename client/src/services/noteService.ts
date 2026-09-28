@@ -20,13 +20,23 @@ const getLocalStorageNotes = (): QuickNoteItem[] => {
 
 const saveLocalStorageNotes = (notes: QuickNoteItem[]): void => {
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(notes));
+    // Keep localStorage light (<500KB) by stripping any inline data URLs and image URLs
+    const lightweightNotes = notes.map((n) => ({
+      ...n,
+      content: n.content && n.content.length > 20000 ? n.content.replace(/data:[^"'\s)]+/g, '') : n.content,
+      images: n.images?.map((img) => ({ ...img, url: '' })),
+    }));
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(lightweightNotes));
   } catch (_) {
-    // If quota exceeded due to large image data URLs, strip heavy url in cache while IndexedDB preserves 100%
+    // If quota exceeded, strip further
     try {
       const stripped = notes.map((n) => ({
-        ...n,
-        images: n.images?.map((img) => ({ ...img, url: '' })),
+        id: n.id,
+        title: n.title,
+        updatedAt: n.updatedAt,
+        pinned: n.pinned,
+        color: n.color,
+        tags: n.tags,
       }));
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stripped));
     } catch (_) {}
@@ -85,7 +95,9 @@ export const noteService = {
     const isNew = !data.id;
     const id = data.id || generateId();
 
-    const existing = isNew ? null : await this.getNoteById(id);
+    const cached = getLocalStorageNotes();
+    const existingFromCache = cached.find((n) => n.id === id);
+    const existing = isNew ? null : (existingFromCache || (await this.getNoteById(id)));
 
     // Preserve user title (allows clearing title completely while user is editing)
     const titleToSave = data.title !== undefined ? data.title : (existing?.title ?? 'Ghi chú mới');
@@ -114,10 +126,10 @@ export const noteService = {
     };
 
     // 1. Sync to localStorage instantly
-    const cached = getLocalStorageNotes();
+    const latestCache = getLocalStorageNotes();
     const updatedCache = isNew
-      ? [noteToSave, ...cached]
-      : cached.map((n) => (n.id === id ? noteToSave : n));
+      ? [noteToSave, ...latestCache]
+      : latestCache.map((n) => (n.id === id ? noteToSave : n));
     saveLocalStorageNotes(updatedCache);
 
     // 2. Persist to IndexedDB

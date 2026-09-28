@@ -19,67 +19,97 @@ export const formatFileSize = (bytes?: number): string => {
 };
 
 /**
- * Compress and resize an image file or blob to prevent browser memory bloat and save storage
+ * Compress and resize an image file or blob to prevent browser memory bloat and save storage.
+ * Uses native off-thread createImageBitmap for zero UI freezing on heavy images.
  */
 export const compressImageFile = async (
   file: File | Blob,
-  maxWidth = 1600,
-  maxHeight = 1600,
-  quality = 0.85
+  maxWidth = 1400,
+  maxHeight = 1400,
+  quality = 0.8
 ): Promise<{ dataUrl: string; size: number }> => {
+  // 1. Off-thread decoding via native createImageBitmap (background thread, zero UI lag)
+  if (typeof window !== 'undefined' && 'createImageBitmap' in window) {
+    try {
+      const bitmap = await createImageBitmap(file);
+      let { width, height } = bitmap;
+
+      // Downscale maintaining aspect ratio
+      if (width > maxWidth || height > maxHeight) {
+        if (width > height) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        } else {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(bitmap, 0, 0, width, height);
+        bitmap.close(); // Immediate memory release
+
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        const estimatedSize = Math.round((dataUrl.length - 23) * 0.75);
+        return {
+          dataUrl,
+          size: estimatedSize > 0 ? estimatedSize : file.size,
+        };
+      }
+      bitmap.close();
+    } catch (err) {
+      console.warn('createImageBitmap failed, falling back to ObjectURL:', err);
+    }
+  }
+
+  // 2. Fast Fallback using URL.createObjectURL (avoids slow multi-megabyte base64 FileReader strings)
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const src = e.target?.result as string;
-      if (!src) {
-        reject(new Error('Không thể đọc dữ liệu hình ảnh'));
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+      if (width > maxWidth || height > maxHeight) {
+        if (width > height) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        } else {
+          width = Math.round((width * maxHeight) / height);
+          height = maxHeight;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve({ dataUrl: objectUrl, size: file.size });
         return;
       }
 
-      const img = new Image();
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, width, height);
 
-        // Downscale maintaining aspect ratio
-        if (width > maxWidth || height > maxHeight) {
-          if (width > height) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          } else {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve({ dataUrl: src, size: file.size });
-          return;
-        }
-
-        // High quality smoothing
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, 0, 0, width, height);
-
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        // Estimate size from base64 length
-        const estimatedSize = Math.round((dataUrl.length - 'data:image/jpeg;base64,'.length) * 0.75);
-
-        resolve({
-          dataUrl,
-          size: estimatedSize > 0 ? estimatedSize : file.size,
-        });
-      };
-      img.onerror = () => reject(new Error('Định dạng hình ảnh không hợp lệ hoặc bị lỗi'));
-      img.src = src;
+      const dataUrl = canvas.toDataURL('image/jpeg', quality);
+      const estimatedSize = Math.round((dataUrl.length - 23) * 0.75);
+      resolve({
+        dataUrl,
+        size: estimatedSize > 0 ? estimatedSize : file.size,
+      });
     };
-    reader.onerror = () => reject(new Error('Lỗi khi tải tập tin hình ảnh'));
-    reader.readAsDataURL(file);
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Định dạng hình ảnh không hợp lệ hoặc không thể nạp'));
+    };
+    img.src = objectUrl;
   });
 };
 

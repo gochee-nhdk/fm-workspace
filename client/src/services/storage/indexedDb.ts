@@ -1,6 +1,6 @@
 // Native IndexedDB Engine with high-performance persistent storage
 const DB_NAME = 'FM_WORKSPACE_DB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 export const STORES = {
   LINKS: 'links',
@@ -8,6 +8,7 @@ export const STORES = {
   STORES: 'stores',
   ACTIVITIES: 'activities',
   NOTES: 'notes',
+  ATTACHMENTS: 'attachments',
 } as const;
 
 export type StoreName = (typeof STORES)[keyof typeof STORES];
@@ -62,6 +63,11 @@ export const getDB = (): Promise<IDBDatabase> => {
         noteStore.createIndex('updatedAt', 'updatedAt', { unique: false });
         noteStore.createIndex('pinned', 'pinned', { unique: false });
         noteStore.createIndex('title', 'title', { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains(STORES.ATTACHMENTS)) {
+        const attachStore = db.createObjectStore(STORES.ATTACHMENTS, { keyPath: 'id' });
+        attachStore.createIndex('createdAt', 'createdAt', { unique: false });
       }
     };
 

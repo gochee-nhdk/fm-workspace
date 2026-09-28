@@ -42,7 +42,7 @@
 
 ## 🚀 Hướng Dẫn Cài Đặt & Sử Dụng (Dành Cho Máy Cá Nhân)
 
-### 👉 Cách 1: Cài đặt 1-Click trên Windows (Khuyên dùng cho người dùng cá nhân)
+### 👉 Cách 1: Cài đặt 1-Click trên Windows
 1. Tải repo này về máy tính (bấm **Code -> Download ZIP** rồi giải nén).
 2. Nhấn đúp chuột vào file:
    ```text
@@ -54,7 +54,17 @@
 
 ---
 
-### 👉 Cách 2: Dành cho lập trình viên (Terminal / Developer Setup)
+### 👉 Cách 2: Cài đặt 1-Click trên macOS & Linux
+Mở Terminal tại thư mục dự án và chạy:
+```bash
+./install.sh    # Tự động cài đặt 1 chạm và cấu hình môi trường
+./start.sh      # Khởi động ứng dụng và tự động mở trình duyệt
+./stop.sh       # Dừng ứng dụng và giải phóng cổng mạng
+```
+
+---
+
+### 👉 Cách 3: Dành cho lập trình viên (Terminal / Developer Setup)
 
 #### Bước 1: Tải mã nguồn
 ```bash
@@ -66,7 +76,7 @@ cd fm-workspace
 ```bash
 npm run setup
 ```
-> Lệnh này sẽ tự động cài đặt thư viện cho Client & Server và khởi tạo cơ sở dữ liệu SQLite cục bộ.
+> Lệnh này sẽ tự động cài đặt thư viện cho Client & Server và khởi tạo cơ sở dữ liệu SQLite cục bộ với hệ thống chỉ mục tăng tốc.
 
 #### Bước 3: Khởi chạy môi trường phát triển
 ```bash
@@ -84,7 +94,8 @@ Hệ thống sẽ đồng thời khởi chạy cả Backend (cổng `3000`) và 
 | `npm run dev` | Khởi chạy đồng thời Backend và Frontend |
 | `npm run setup` | Cài đặt toàn bộ dependencies và khởi tạo cơ sở dữ liệu |
 | `npm run build` | Đóng gói toàn bộ ứng dụng sẵn sàng deploy production |
-| `npm --prefix server run test` | Chạy toàn bộ 38 test suites kiểm thử thuật toán và dữ liệu |
+| `npm --prefix server run test` | Chạy toàn bộ 40 test suites kiểm thử thuật toán và dữ liệu |
+| `npm --prefix server run db:init` | Khởi tạo bảng và 17 composite indexes cho SQLite |
 | `npm --prefix server run db:seed` | Tạo lại dữ liệu mẫu (Master Data) |
 
 ---
