@@ -357,7 +357,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
               handleTabChange(prev);
             }
           }}
-          className="liquid-glass-segmented-track p-1 flex items-center w-full lg:w-auto overflow-x-auto relative select-none"
+          className="liquid-glass-segmented-track p-1 flex items-center w-fit max-w-full overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden relative select-none"
         >
           {/* Shared Active Navigation Pill (ONE continuous physical surface that morphs & travels) */}
           <div

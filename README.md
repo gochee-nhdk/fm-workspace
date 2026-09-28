@@ -40,27 +40,35 @@
 
 ---
 
-## 🚀 Hướng Dẫn Cài Đặt & Khởi Chạy (Dành Cho Máy Mới)
+## 🚀 Hướng Dẫn Cài Đặt & Sử Dụng (Dành Cho Máy Cá Nhân)
 
-### Yêu cầu hệ thống:
-- **Node.js** >= 18.0.0 (khuyên dùng bản LTS)
-- **npm** >= 9.0.0
+### 👉 Cách 1: Cài đặt 1-Click trên Windows (Khuyên dùng cho người dùng cá nhân)
+1. Tải repo này về máy tính (bấm **Code -> Download ZIP** rồi giải nén).
+2. Nhấn đúp chuột vào file:
+   ```text
+   CAI_DAT_APP.bat
+   ```
+3. Chương trình sẽ tự động cài đặt toàn bộ gói cần thiết, tạo cơ sở dữ liệu SQLite cục bộ, tạo biểu tượng **FM Workspace** trên màn hình Desktop và **gán sẵn phím tắt toàn hệ thống: `Ctrl + Alt + F`**.
+4. Khi muốn mở ứng dụng, bạn chỉ cần nhấn **`Ctrl + Alt + F`** hoặc bấm đúp vào biểu tượng trên Desktop!
+5. Khi muốn tắt ứng dụng, nhấn đúp vào `DUNG_APP.bat`. Để sao lưu dữ liệu cá nhân, nhấn đúp vào `SAO_LUU_DU_LIEU.bat`.
 
-### Bước 1: Tải mã nguồn về máy
+---
+
+### 👉 Cách 2: Dành cho lập trình viên (Terminal / Developer Setup)
+
+#### Bước 1: Tải mã nguồn
 ```bash
 git clone https://github.com/gochee-nhdk/fm-workspace.git
 cd fm-workspace
 ```
 
-### Bước 2: Cài đặt tự động toàn bộ ứng dụng (1 Lệnh duy nhất)
+#### Bước 2: Cài đặt tự động toàn bộ ứng dụng (1 Lệnh duy nhất)
 ```bash
 npm run setup
 ```
-> Lệnh này sẽ tự động:
-> 1. Cài đặt các thư viện cần thiết cho cả Client và Server.
-> 2. Tự động khởi tạo cơ sở dữ liệu SQLite cục bộ (`./server/data/procurement.db`).
+> Lệnh này sẽ tự động cài đặt thư viện cho Client & Server và khởi tạo cơ sở dữ liệu SQLite cục bộ.
 
-### Bước 3: Khởi chạy môi trường phát triển
+#### Bước 3: Khởi chạy môi trường phát triển
 ```bash
 npm run dev
 ```

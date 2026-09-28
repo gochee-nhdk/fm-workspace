@@ -2253,7 +2253,7 @@ export const QuickNoteWindow: React.FC = () => {
 
         const mathRes = tryCalculateInlineMath(textBefore, textBefore.length);
         if (mathRes) {
-          const resultHtml = `<span class="apple-math-result-badge">&nbsp;${mathRes.resultStr}&nbsp;</span>&nbsp;`;
+          const resultHtml = `&nbsp;<span class="apple-math-result-text">${mathRes.resultStr}</span>&nbsp;`;
           document.execCommand('insertHTML', false, resultHtml);
           playPopSound();
           toast.success(`🧮 ${mathRes.matchedExpr} = ${mathRes.resultStr}`, {

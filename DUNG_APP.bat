@@ -1,25 +1,18 @@
 @echo off
-setlocal
 chcp 65001 >nul
-title FARMERS MARKET - DUNG UNG DUNG & SECURITY GUARDIAN
-color 0C
+title Dừng FM Workspace
 
-echo =====================================================================
-echo    DUNG HE THONG TRO LY THU MUA - FARMERS MARKET
-echo =====================================================================
-echo.
+echo ==============================================================================
+echo [INFO] Đang dừng ứng dụng FM Workspace trên máy...
+echo ==============================================================================
 
-cd /d "%~dp0"
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :5173') do (
+    taskkill /f /pid %%a >nul 2>&1
+)
 
-echo Dang gui tin hieu dung an toan den Security Guardian Agent...
-node "%~dp0security-guardian.cjs" --stop
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3000') do (
+    taskkill /f /pid %%a >nul 2>&1
+)
 
-echo.
-echo =====================================================================
-echo  DA DUNG TOAN BO HE THONG AN TOAN ^& GIAI PHONG TAI NGUYEN!
-echo  - Cac tien trinh ngam da duoc dong.
-echo  - Cong mang 3000 va 5173 da duoc giai phong.
-echo  - Ban co the khoi dong lai bat ky luc nao bang shortcut hoac file VBS.
-echo =====================================================================
-echo.
-pause
+echo [OK] Đã tắt FM Workspace và giải phóng cổng mạng thành công!
+timeout /t 2 >nul

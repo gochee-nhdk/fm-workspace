@@ -69,6 +69,100 @@ export const detectDatasetFromSheetName = (
   return 'IGNORE';
 };
 
+// Automatic detection of target dataset from detected column headers
+export const detectDatasetFromHeaders = (
+  headers: string[]
+): 'LINK' | 'ACCOUNT' | 'STORE' | 'IGNORE' => {
+  const normHeaders = headers.map(norm);
+  let scoreAccount = 0;
+  let scoreStore = 0;
+  let scoreLink = 0;
+
+  for (const h of normHeaders) {
+    if (['password', 'matkhau', 'pass', 'pwd', 'username', 'tendangnhap', 'user', 'taikhoan', 'acc', 'login', 'software', 'phanmem'].some(k => h.includes(k))) {
+      scoreAccount += 2;
+    }
+    if (['storecode', 'mach', 'macuahang', 'diachi', 'address', 'cuahang', 'maps', 'googlemaps', 'chinhanh'].some(k => h.includes(k))) {
+      scoreStore += 2;
+    }
+    if (['hangmuc', 'link', 'url', 'duongdan', 'web', 'diachiweb', 'tenlink', 'linktruycap', 'danhmuc'].some(k => h.includes(k))) {
+      scoreLink += 2;
+    }
+  }
+
+  if (scoreAccount >= 2 && scoreAccount >= scoreStore && scoreAccount >= scoreLink) return 'ACCOUNT';
+  if (scoreStore >= 2 && scoreStore >= scoreAccount && scoreStore >= scoreLink) return 'STORE';
+  if (scoreLink >= 2) return 'LINK';
+  return 'IGNORE';
+};
+
+export interface ExtractedSheetData {
+  headers: string[];
+  rows: Record<string, any>[];
+  detectedHeaderRowIndex: number;
+}
+
+// Smart Header Sniffing: searches first 12 rows for the row containing true column names
+export const extractStructuredRows = (worksheet: XLSX.WorkSheet): ExtractedSheetData => {
+  if (!worksheet) return { headers: [], rows: [], detectedHeaderRowIndex: 0 };
+  const grid: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+  if (!grid || grid.length === 0) return { headers: [], rows: [], detectedHeaderRowIndex: 0 };
+
+  const knownHeaderKeywords = [
+    'stt', 'no', 'hangmuc', 'ten', 'name', 'link', 'url', 'duongdan', 'note', 'ghichu', 'category', 'nhom', 'danhmuc',
+    'software', 'phanmem', 'hethong', 'username', 'tendangnhap', 'user', 'taikhoan', 'password', 'matkhau', 'pass', 'pwd',
+    'storecode', 'mach', 'macuahang', 'address', 'diachi', 'maps', 'googlemaps', 'type', 'loai', 'cuahang', 'chinhanh'
+  ];
+
+  let bestRowIdx = 0;
+  let maxScore = -1;
+
+  // Sniff up to first 12 rows for the row with highest keyword match
+  const maxScanRows = Math.min(12, grid.length);
+  for (let r = 0; r < maxScanRows; r++) {
+    const row = grid[r];
+    if (!Array.isArray(row) || row.length === 0) continue;
+    let score = 0;
+    for (const cell of row) {
+      const nc = norm(cell);
+      if (nc && knownHeaderKeywords.some(kw => nc === kw || nc.includes(kw))) {
+        score += 1;
+      }
+    }
+    if (score > maxScore) {
+      maxScore = score;
+      bestRowIdx = r;
+    }
+  }
+
+  const rawHeaders = grid[bestRowIdx] || [];
+  const headers: string[] = rawHeaders.map((h, i) => {
+    const trimmed = String(h || '').trim();
+    return trimmed || `Col_${i + 1}`;
+  });
+
+  const rows: Record<string, any>[] = [];
+  for (let r = bestRowIdx + 1; r < grid.length; r++) {
+    const rowArr = grid[r];
+    if (!Array.isArray(rowArr)) continue;
+    // Check if entire row is empty
+    const hasData = rowArr.some(cell => cell !== undefined && cell !== null && String(cell).trim() !== '');
+    if (!hasData) continue;
+
+    const rowObj: Record<string, any> = {};
+    headers.forEach((header, colIdx) => {
+      rowObj[header] = rowArr[colIdx] !== undefined ? rowArr[colIdx] : '';
+    });
+    rows.push(rowObj);
+  }
+
+  return {
+    headers,
+    rows,
+    detectedHeaderRowIndex: bestRowIdx,
+  };
+};
+
 interface ColWidthRule {
   min?: number;
   max?: number;
@@ -128,6 +222,19 @@ class ExcelService {
     return XLSX.read(arrayBuffer, { type: 'array' });
   }
 
+  // Helper to sniff any URL in a row if link column was missing or empty
+  private detectUrlInRow(row: Record<string, any>): string {
+    for (const val of Object.values(row)) {
+      if (typeof val === 'string') {
+        const trimmed = val.trim();
+        if (/^(https?:\/\/|www\.)[^\s]+$/i.test(trimmed)) {
+          return trimmed;
+        }
+      }
+    }
+    return '';
+  }
+
   // Generate complete preview of sheets, mapping, valid rows, duplicates
   async generateImportPreview(file: File): Promise<ImportPreviewResult> {
     const workbook = await this.readWorkbook(file);
@@ -138,14 +245,21 @@ class ExcelService {
     const sheets: SheetPreview[] = [];
 
     for (const sheetName of workbook.SheetNames) {
-      const targetDataset = detectDatasetFromSheetName(sheetName);
       const worksheet = workbook.Sheets[sheetName];
-      const rawRows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+      const extracted = extractStructuredRows(worksheet);
+
+      // 1. Try detect by sheet name
+      let targetDataset = detectDatasetFromSheetName(sheetName);
+      // 2. If sheet name is generic (Sheet1, Data...), auto-detect by column headers!
+      if (targetDataset === 'IGNORE' && extracted.headers.length > 0) {
+        targetDataset = detectDatasetFromHeaders(extracted.headers);
+      }
 
       const preview = this.analyzeSheetRows(
         sheetName,
         targetDataset,
-        rawRows,
+        extracted.rows,
+        extracted.headers,
         existingLinks,
         existingAccounts,
         existingStores
@@ -171,11 +285,13 @@ class ExcelService {
     const existingAccounts = await idbGetAll<AccountItem>(STORES.ACCOUNTS);
     const existingStores = await idbGetAll<StoreItem>(STORES.STORES);
     const worksheet = workbook.Sheets[sheetName];
-    const rawRows: any[] = worksheet ? XLSX.utils.sheet_to_json(worksheet, { defval: '' }) : [];
+    const extracted = extractStructuredRows(worksheet);
+
     return this.analyzeSheetRows(
       sheetName,
       newDataset,
-      rawRows,
+      extracted.rows,
+      extracted.headers,
       existingLinks,
       existingAccounts,
       existingStores
@@ -186,10 +302,11 @@ class ExcelService {
   analyzeSheetRows(
     sheetName: string,
     targetDataset: 'LINK' | 'ACCOUNT' | 'STORE' | 'IGNORE',
-    rawRows: any[],
-    existingLinks: LinkItem[],
-    existingAccounts: AccountItem[],
-    existingStores: StoreItem[]
+    rawRows: Record<string, any>[],
+    headers: string[] = [],
+    existingLinks: LinkItem[] = [],
+    existingAccounts: AccountItem[] = [],
+    existingStores: StoreItem[] = []
   ): SheetPreview {
     if (targetDataset === 'IGNORE' || rawRows.length === 0) {
       return {
@@ -210,33 +327,50 @@ class ExcelService {
     const errors: string[] = [];
     const parsedRows: any[] = [];
 
-    // Find headers matching
-    const sample = rawRows[0] || {};
-    const headerKeys = Object.keys(sample);
+    // All available header keys from extracted headers or sample row
+    const headerKeys = headers.length > 0 ? headers : Object.keys(rawRows[0] || {});
 
     const findCol = (aliases: string[]) => {
       return headerKeys.find((k) => {
         const nk = norm(k);
-        return aliases.some((a) => nk === norm(a) || nk.includes(norm(a)));
+        return aliases.some((a) => nk === norm(a) || nk.includes(norm(a)) || norm(a).includes(nk));
       });
     };
 
     if (targetDataset === 'LINK') {
-      const colStt = findCol(['stt', 'no', 'sothutu']);
-      const colHangMuc = findCol(['hangmuc', 'ten', 'name', 'title', 'hethong', 'linktf', 'congcu']);
-      const colLink = findCol(['link', 'url', 'duongdan', 'web', 'diachiweb']);
-      const colNote = findCol(['note', 'ghichu', 'mota', 'chuthich']);
-      const colCategory = findCol(['category', 'nhom', 'danhmuc', 'phanloai', 'loai']);
+      const colStt = findCol(['stt', 'no', 'sothutu', 'order', 'index', 'sttlink']);
+      const colHangMuc = findCol(['hangmuc', 'ten', 'name', 'title', 'hethong', 'linktf', 'congcu', 'tieude', 'chucnang', 'mota', 'noidung', 'congviec', 'ungdung', 'dichvu', 'duan', 'tenlink', 'tenhethong', 'item']);
+      const colLink = findCol(['link', 'url', 'duongdan', 'web', 'diachiweb', 'linktruycap', 'trangchu', 'website', 'addressweb', 'lienket']);
+      const colNote = findCol(['note', 'ghichu', 'mota', 'chuthich', 'chitiet', 'thongtin', 'phanquyen']);
+      const colCategory = findCol(['category', 'nhom', 'danhmuc', 'phanloai', 'loai', 'chude', 'tag', 'phongban', 'bophan']);
 
       rawRows.forEach((row, idx) => {
-        const rawHangMuc = colHangMuc ? row[colHangMuc] : Object.values(row)[0] || '';
+        let rawHangMuc = colHangMuc ? row[colHangMuc] : '';
+        let rawLink = colLink ? row[colLink] : '';
+
+        // Fallback: If link is empty, sniff any URL in the row
+        if (!rawLink) {
+          rawLink = this.detectUrlInRow(row);
+        }
+
+        // Fallback: If hangMuc is empty, find the first string value that isn't a URL or number
+        if (!rawHangMuc) {
+          const stringVals = Object.values(row).filter(v => v !== undefined && v !== null && String(v).trim() !== '');
+          const candidate = stringVals.find(v => !/^(https?:\/\/|www\.)/i.test(String(v).trim()) && isNaN(Number(v)));
+          if (candidate) {
+            rawHangMuc = String(candidate);
+          }
+        }
+
         const hangMuc = sanitizeCellInput(rawHangMuc, 200);
-        const link = sanitizeCellInput(colLink ? row[colLink] : '', 1000);
+        const link = sanitizeCellInput(rawLink, 1000);
         const note = sanitizeCellInput(colNote ? row[colNote] : '', 500);
         const category = sanitizeCellInput(colCategory ? row[colCategory] : 'Chung', 100) || 'Chung';
         const stt = colStt && !isNaN(Number(row[colStt])) ? Number(row[colStt]) : idx + 1;
 
-        if (!hangMuc && !link) {
+        // Zero-loss check: if row has any non-blank value, accept it
+        const hasAnyContent = Object.values(row).some(v => v !== undefined && v !== null && String(v).trim() !== '');
+        if (!hasAnyContent && !hangMuc && !link) {
           invalidCount++;
           return;
         }
@@ -252,7 +386,7 @@ class ExcelService {
 
         parsedRows.push({
           stt,
-          hangMuc: hangMuc || 'Liên kết không tên',
+          hangMuc: hangMuc || (link ? `Liên kết: ${link.replace(/^https?:\/\//i, '').slice(0, 30)}` : 'Liên kết không tên'),
           link,
           note,
           category: category || 'Chung',
@@ -260,23 +394,41 @@ class ExcelService {
         });
       });
     } else if (targetDataset === 'ACCOUNT') {
-      const colStt = findCol(['stt', 'no']);
-      const colSoftware = findCol(['software', 'phanmem', 'hethong', 'ungdung', 'app', 'tool']);
-      const colUser = findCol(['username', 'tendangnhap', 'user', 'taikhoan', 'acc', 'login']);
-      const colPass = findCol(['password', 'matkhau', 'pass', 'pwd']);
-      const colLink = findCol(['link', 'url', 'duongdan', 'web']);
-      const colNote = findCol(['note', 'ghichu', 'chuthich']);
+      const colStt = findCol(['stt', 'no', 'order', 'index']);
+      const colSoftware = findCol(['software', 'phanmem', 'hethong', 'ungdung', 'app', 'tool', 'tenphanmem', 'tenhethong', 'dichvu', 'service', 'trangweb', 'web', 'nentang']);
+      const colUser = findCol(['username', 'tendangnhap', 'user', 'taikhoan', 'acc', 'login', 'email', 'mail', 'sdt', 'taikhoandangnhap', 'id', 'account', 'nguoidung']);
+      const colPass = findCol(['password', 'matkhau', 'pass', 'pwd', 'secret', 'key', 'pin', 'mk', 'matma']);
+      const colLink = findCol(['link', 'url', 'duongdan', 'web', 'diachiweb', 'linkdangnhap', 'trangchu']);
+      const colNote = findCol(['note', 'ghichu', 'chuthich', 'phanquyen', 'role', 'mota', 'chitiet']);
 
       rawRows.forEach((row, idx) => {
-        const rawSoftware = colSoftware ? row[colSoftware] : Object.values(row)[0] || '';
+        let rawSoftware = colSoftware ? row[colSoftware] : '';
+        let rawUser = colUser ? row[colUser] : '';
+        let rawPass = colPass ? row[colPass] : '';
+        let rawLink = colLink ? row[colLink] : '';
+
+        if (!rawLink) {
+          rawLink = this.detectUrlInRow(row);
+        }
+
+        // Fallback: If software or username missing, deduce from non-empty fields
+        const stringVals = Object.values(row).filter(v => v !== undefined && v !== null && String(v).trim() !== '');
+        if (!rawSoftware && stringVals.length > 0) {
+          rawSoftware = String(stringVals[0]);
+        }
+        if (!rawUser && stringVals.length > 1) {
+          rawUser = String(stringVals[1]);
+        }
+
         const software = sanitizeCellInput(rawSoftware, 200);
-        const username = sanitizeCellInput(colUser ? row[colUser] : '', 200);
-        const password = sanitizeCellInput(colPass ? row[colPass] : '', 300);
-        const link = sanitizeCellInput(colLink ? row[colLink] : '', 1000);
+        const username = sanitizeCellInput(rawUser, 200);
+        const password = sanitizeCellInput(rawPass, 300);
+        const link = sanitizeCellInput(rawLink, 1000);
         const note = sanitizeCellInput(colNote ? row[colNote] : '', 500);
         const stt = colStt && !isNaN(Number(row[colStt])) ? Number(row[colStt]) : idx + 1;
 
-        if (!software && !username) {
+        const hasAnyContent = Object.values(row).some(v => v !== undefined && v !== null && String(v).trim() !== '');
+        if (!hasAnyContent && !software && !username) {
           invalidCount++;
           return;
         }
@@ -301,19 +453,34 @@ class ExcelService {
         });
       });
     } else if (targetDataset === 'STORE') {
-      const colCode = findCol(['storecode', 'mach', 'macuahang', 'code', 'ma', 'cuahang']);
-      const colAddress = findCol(['address', 'diachi', 'dia chi']);
-      const colMaps = findCol(['googlemaps', 'ggmaps', 'maps', 'bando', 'map']);
-      const colType = findCol(['type', 'loai', 'loaidonvi', 'phanloai']);
+      const colCode = findCol(['storecode', 'mach', 'macuahang', 'code', 'ma', 'cuahang', 'stocode', 'storeid', 'tench', 'tencuahang', 'chinhanh', 'machinhanh', 'kho', 'makho', 'pos']);
+      const colAddress = findCol(['address', 'diachi', 'dia chi', 'vitri', 'diadiem', 'tinhthanh', 'quan', 'phuong', 'street', 'location']);
+      const colMaps = findCol(['googlemaps', 'ggmaps', 'maps', 'bando', 'map', 'toado', 'linkmap', 'linkbando', 'toadogoogle']);
+      const colType = findCol(['type', 'loai', 'loaidonvi', 'phanloai', 'hinhthuc', 'status', 'trangthai']);
 
       rawRows.forEach((row) => {
-        const rawCode = colCode ? row[colCode] : Object.values(row)[0] || '';
+        let rawCode = colCode ? row[colCode] : '';
+        let rawAddress = colAddress ? row[colAddress] : '';
+        let rawMaps = colMaps ? row[colMaps] : '';
+
+        if (!rawMaps) {
+          rawMaps = this.detectUrlInRow(row);
+        }
+
+        // Fallback: If code is missing, try first string column
+        if (!rawCode) {
+          const stringVals = Object.values(row).filter(v => v !== undefined && v !== null && String(v).trim() !== '');
+          if (stringVals.length > 0) rawCode = String(stringVals[0]);
+          if (stringVals.length > 1 && !rawAddress) rawAddress = String(stringVals[1]);
+        }
+
         const storeCode = sanitizeCellInput(rawCode, 50).toUpperCase();
-        const address = sanitizeCellInput(colAddress ? row[colAddress] : '', 500);
-        const googleMaps = sanitizeCellInput(colMaps ? row[colMaps] : '', 1000);
+        const address = sanitizeCellInput(rawAddress, 500);
+        const googleMaps = sanitizeCellInput(rawMaps, 1000);
         const type = sanitizeCellInput(colType ? row[colType] : 'Standard', 100) || 'Standard';
 
-        if (!storeCode) {
+        const hasAnyContent = Object.values(row).some(v => v !== undefined && v !== null && String(v).trim() !== '');
+        if (!hasAnyContent && !storeCode) {
           invalidCount++;
           return;
         }
@@ -326,7 +493,7 @@ class ExcelService {
         validCount++;
 
         parsedRows.push({
-          storeCode,
+          storeCode: storeCode || 'CH-UNKNOWN',
           address: address || 'Chưa cập nhật địa chỉ',
           googleMaps,
           type,

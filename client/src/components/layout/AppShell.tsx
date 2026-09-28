@@ -202,7 +202,7 @@ export const AppShell: React.FC = () => {
               title={isSidebarCollapsed ? item.label : undefined}
               className={({ isActive }) =>
                 `flex items-center ${
-                  isSidebarCollapsed ? 'justify-center w-10 h-10 mx-auto px-0' : 'gap-3 px-3.5 py-2.5'
+                  isSidebarCollapsed ? 'justify-center w-10 h-10 aspect-square shrink-0 mx-auto px-0' : 'gap-3 px-3.5 py-2.5'
                 } rounded-full text-[13px] transition-all duration-200 ease-out active:scale-[0.98] ${
                   isActive
                     ? 'bg-[#0071e3]/12 dark:bg-[#0071e3]/24 text-[#0071e3] dark:text-[#3898ff] font-semibold border border-[#0071e3]/25 dark:border-[#0071e3]/35 shadow-[inset_0_1.5px_1px_rgba(255,255,255,0.7),inset_0_-1px_1px_rgba(0,113,227,0.1),0_2px_8px_rgba(0,113,227,0.08)] backdrop-blur-sm'
@@ -235,8 +235,8 @@ export const AppShell: React.FC = () => {
           <button
             onClick={() => setImportModalOpen(true)}
             title={isSidebarCollapsed ? 'Import / Export Excel' : undefined}
-            className={`w-full flex items-center ${
-              isSidebarCollapsed ? 'justify-center w-11 h-11 mx-auto px-0' : 'gap-3 px-4 py-2.5'
+            className={`flex items-center ${
+              isSidebarCollapsed ? 'justify-center w-11 h-11 aspect-square shrink-0 mx-auto px-0' : 'w-full gap-3 px-4 py-2.5'
             } rounded-full text-[13px] font-medium text-[#0088FF] dark:text-[#0091FF] liquid-lens-pill hover:!bg-white/80 dark:hover:!bg-white/[0.14] transition-all duration-200 active:scale-[0.98] cursor-pointer`}
           >
             <SFTablecells size={16} className="shrink-0 text-[#0088FF] dark:text-[#0091FF]" />

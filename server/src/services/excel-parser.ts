@@ -161,14 +161,32 @@ export class ExcelParserService {
     const allRows: Record<string, any>[] = [];
 
     if (worksheet) {
-      const headerRow = worksheet.getRow(1);
+      let headerRowIndex = 1;
+      let maxScore = -1;
+      const scanLimit = Math.min(10, worksheet.rowCount || 10);
+      for (let r = 1; r <= scanLimit; r++) {
+        const row = worksheet.getRow(r);
+        let score = 0;
+        row.eachCell((cell) => {
+          const val = String(cell.value || '').toLowerCase().trim();
+          if (val && Object.values(SEMANTIC_DICTIONARY).some(kws => kws.some(k => val === k || val.includes(k)))) {
+            score++;
+          }
+        });
+        if (score > maxScore) {
+          maxScore = score;
+          headerRowIndex = r;
+        }
+      }
+
+      const headerRow = worksheet.getRow(headerRowIndex);
       const headers: string[] = [];
       headerRow.eachCell((cell, colNumber) => {
         headers[colNumber - 1] = String(cell.value || '').trim();
       });
 
       worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber > 1) {
+        if (rowNumber > headerRowIndex) {
           const rowObj: Record<string, any> = {};
           let hasVal = false;
           headers.forEach((h, idx) => {
@@ -278,8 +296,26 @@ export class ExcelParserService {
         return;
       }
 
-      // Extract header from row 1
-      const headerRow = worksheet.getRow(1);
+      let headerRowIndex = 1;
+      let maxScore = -1;
+      const scanLimit = Math.min(10, worksheet.rowCount || 10);
+      for (let r = 1; r <= scanLimit; r++) {
+        const row = worksheet.getRow(r);
+        let score = 0;
+        row.eachCell((cell) => {
+          const val = String(cell.value || '').toLowerCase().trim();
+          if (val && Object.values(SEMANTIC_DICTIONARY).some(kws => kws.some(k => val === k || val.includes(k)))) {
+            score++;
+          }
+        });
+        if (score > maxScore) {
+          maxScore = score;
+          headerRowIndex = r;
+        }
+      }
+
+      // Extract header from detected header row
+      const headerRow = worksheet.getRow(headerRowIndex);
       const headers: string[] = [];
       headerRow.eachCell((cell, colNumber) => {
         headers[colNumber - 1] = String(cell.value || `Cột_${colNumber}`).trim();
@@ -287,12 +323,12 @@ export class ExcelParserService {
 
       // Extract preview rows (up to 10 rows)
       const previewRows: Record<string, any>[] = [];
-      const sampleLimit = Math.min(rowCount, 20);
+      const sampleLimit = Math.min(rowCount, headerRowIndex + 20);
 
       const colSamples: Record<number, any[]> = {};
       const colNulls: Record<number, number> = {};
 
-      for (let r = 2; r <= sampleLimit; r++) {
+      for (let r = headerRowIndex + 1; r <= sampleLimit; r++) {
         const row = worksheet.getRow(r);
         const rowObj: Record<string, any> = {};
 

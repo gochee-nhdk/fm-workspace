@@ -682,7 +682,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {/* Liquid Glass Dynamic Backdrop with Smooth Fade */}
       <div
         className={cn(
-          'fixed inset-0 bg-black/40 dark:bg-black/60',
+          'fixed inset-0 bg-black/40 dark:bg-black/65 backdrop-blur-md',
           isClosing ? 'liquid-backdrop-exit' : 'liquid-backdrop-enter'
         )}
         onClick={handleClose}
@@ -694,7 +694,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         aria-modal="true"
         aria-label="Tìm kiếm nhanh Spotlight"
         className={cn(
-          'relative w-full max-w-2xl sm:max-w-[720px] bg-white dark:bg-[#1c1c22] rounded-[24px] shadow-[0_28px_80px_rgba(0,0,0,0.28),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15 overflow-hidden z-10 flex flex-col',
+          'relative w-full max-w-2xl sm:max-w-[720px] bg-white/95 dark:bg-[#1c1c22]/90 backdrop-blur-2xl rounded-[24px] shadow-[0_28px_80px_rgba(0,0,0,0.35),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15 overflow-hidden z-10 flex flex-col',
           isClosing ? 'liquid-droplet-exit' : 'liquid-droplet-enter'
         )}
       >
