@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { SFMagnifyingglass, SFXmark } from 'sf-symbols-lib';
+import { SFMagnifyingglass } from 'sf-symbols-lib';
+import { CloseButton } from '@/components/ui/close-button';
 
 export interface SearchInputProps {
   value?: string;
@@ -60,17 +61,16 @@ export const SearchInput: React.FC<SearchInputProps> = ({
         style={{ outline: 'none', boxShadow: 'none', border: 'none' }}
       />
       {hasContent && (
-        <button
-          type="button"
+        <CloseButton
           onClick={() => {
             setInnerValue('');
             onChange('');
           }}
-          className="absolute right-2.5 p-1 rounded-full text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-90"
-          title="Xoá"
-        >
-          <SFXmark size={12} />
-        </button>
+          size="xs"
+          className="absolute right-2.5"
+          label="Xóa"
+          title="Xóa"
+        />
       )}
     </div>
   );

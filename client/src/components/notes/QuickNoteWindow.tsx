@@ -82,6 +82,7 @@ import {
   setStoredGeminiKey,
 } from '@/services/writingToolsService';
 import { attachmentService } from '@/services/attachmentService';
+import { CloseButton } from '@/components/ui/close-button';
 import toast from 'react-hot-toast';
 
 const COLOR_MAP: Record<
@@ -3597,14 +3598,11 @@ export const QuickNoteWindow: React.FC = () => {
               </button>
 
               {/* 3. Close window — nút đóng ngoài cùng bên phải */}
-              <button
-                type="button"
+              <CloseButton
                 onClick={handleCloseNote}
-                className="w-7 h-7 rounded-full text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center transition-colors cursor-pointer"
+                size="sm"
                 title="Đóng (Esc)"
-              >
-                <SFXmark size={14} />
-              </button>
+              />
             </div>
           </div>
 
@@ -3801,15 +3799,12 @@ export const QuickNoteWindow: React.FC = () => {
                     >
                       <SFCheckmark size={13} className="stroke-[3]" />
                     </button>
-                    <button
-                      type="button"
+                    <CloseButton
                       onClick={handleDiscardAiDraft}
-                      className="w-7 h-7 rounded-full text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center transition-all cursor-pointer active:scale-90"
+                      size="sm"
+                      label="Hủy bỏ"
                       title="Hủy bỏ"
-                      aria-label="Hủy bỏ"
-                    >
-                      <SFXmark size={13} />
-                    </button>
+                    />
                   </div>
                 </div>
               )}
@@ -4681,13 +4676,10 @@ export const QuickNoteWindow: React.FC = () => {
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
+              <CloseButton
                 onClick={() => setShowApiKeySetting(false)}
-                className="w-7 h-7 rounded-full hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white transition-colors cursor-pointer"
-              >
-                <SFXmark size={14} />
-              </button>
+                size="sm"
+              />
             </div>
 
             <div className="space-y-2">
@@ -4786,13 +4778,10 @@ export const QuickNoteWindow: React.FC = () => {
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
+              <CloseButton
                 onClick={() => setTaskReminderPopover(null)}
-                className="w-6.5 h-6.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white transition-colors cursor-pointer"
-              >
-                <SFXmark size={13} />
-              </button>
+                size="xs"
+              />
             </div>
 
             {/* Quick Presets for this task */}
@@ -4978,13 +4967,10 @@ export const QuickNoteWindow: React.FC = () => {
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
+              <CloseButton
                 onClick={() => setShowReminderModal(false)}
-                className="w-6.5 h-6.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white transition-colors cursor-pointer shrink-0"
-              >
-                <SFXmark size={14} />
-              </button>
+                size="sm"
+              />
             </div>
 
             {/* Scrollable Body with Ultra-Thin Apple Scrollbar */}
@@ -5515,17 +5501,15 @@ export const QuickNoteWindow: React.FC = () => {
                   <SFTrash size={14} />
                 </button>
 
-                <button
-                  type="button"
+                <CloseButton
                   onClick={() => {
                     setLightboxImage(null);
                     setLightboxZoom(1);
                   }}
-                  className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/30 text-white active:scale-90 flex items-center justify-center transition-all cursor-pointer border border-white/20 ml-1"
+                  size="md"
+                  className="bg-white/15 hover:bg-white/30 text-white dark:bg-white/15 dark:hover:bg-white/30 border border-white/20 ml-1"
                   title="Đóng xem ảnh (Esc)"
-                >
-                  <SFXmark size={15} />
-                </button>
+                />
               </div>
             </header>
 
@@ -5695,17 +5679,14 @@ export const QuickNoteWindow: React.FC = () => {
                   >
                     <SFTrash size={14} />
                   </button>
-                  <button
-                    type="button"
+                  <CloseButton
                     onClick={() => {
                       setFilePreviewModal(null);
                       setIsPreviewFullscreen(false);
                     }}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                    size="md"
                     title="Đóng (Esc)"
-                  >
-                    <SFXmark size={14} />
-                  </button>
+                  />
                 </div>
               </div>
 

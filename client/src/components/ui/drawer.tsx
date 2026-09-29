@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
-import { SFXmark } from 'sf-symbols-lib';
+import { CloseButton } from '@/components/ui/close-button';
 
 export interface DrawerProps {
   isOpen: boolean;
@@ -110,14 +110,7 @@ export const Drawer: React.FC<DrawerProps> = ({
               </p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/10 flex items-center justify-center text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white transition-all active:scale-95 cursor-pointer"
-            title="Đóng (Esc)"
-          >
-            <SFXmark size={14} />
-          </button>
+          <CloseButton onClick={handleClose} size="md" />
         </div>
         <div className="p-6 overflow-y-auto flex-1">{children}</div>
       </div>

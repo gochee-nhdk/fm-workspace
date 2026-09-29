@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
-import { SFXmark } from 'sf-symbols-lib';
+import { CloseButton } from '@/components/ui/close-button';
 
 export interface ModalProps {
   isOpen: boolean;
@@ -116,14 +116,7 @@ export const Modal: React.FC<ModalProps> = ({
               )}
             </div>
             {showCloseButton && (
-              <button
-                type="button"
-                onClick={handleClose}
-                className="w-7 h-7 rounded-full bg-black/5 dark:bg-white/10 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white flex items-center justify-center transition-all active:scale-90 cursor-pointer"
-                title="Đóng (Esc)"
-              >
-                <SFXmark size={14} />
-              </button>
+              <CloseButton onClick={handleClose} size="sm" />
             )}
           </div>
         )}

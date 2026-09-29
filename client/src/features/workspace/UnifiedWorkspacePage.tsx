@@ -19,11 +19,11 @@ import {
   SFStarFill,
   SFMappinAndEllipse,
   SFLine3HorizontalDecreaseCircle,
-  SFXmark,
   SFLine3Horizontal,
   SFChevronDown,
 } from 'sf-symbols-lib';
 import { Button } from '@/components/ui/button';
+import { CloseButton } from '@/components/ui/close-button';
 import { dataService } from '@/services/dataService';
 import { excelService } from '@/services/excelService';
 import { LinkItem, AccountItem, StoreItem } from '@/types/workspace';
@@ -37,14 +37,14 @@ import toast from 'react-hot-toast';
 
 type TabType = 'links' | 'accounts' | 'stores';
 
-const TAB_ORDER = ['links', 'accounts', 'stores'] as const;
+const TAB_ORDER = ['accounts', 'links', 'stores'] as const;
 
 export const UnifiedWorkspacePage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab') as TabType | null;
 
   const [activeTab, setActiveTab] = useState<TabType>(
-    tabFromUrl === 'accounts' || tabFromUrl === 'stores' ? tabFromUrl : 'links'
+    tabFromUrl === 'links' || tabFromUrl === 'stores' ? tabFromUrl : 'accounts'
   );
 
   const tabTrackRef = useRef<HTMLDivElement>(null);
@@ -367,32 +367,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
             className="absolute inset-y-1 left-0 rounded-full pointer-events-none z-0 liquid-lens-pill-active will-change-[transform,width] origin-center opacity-0 transition-opacity duration-100"
           />
 
-          {/* Tab 1: Links */}
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'links'}
-            tabIndex={activeTab === 'links' ? 0 : -1}
-            data-tab-id="links"
-            onClick={() => handleTabChange('links')}
-            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-all duration-160 ease-out cursor-pointer whitespace-nowrap active:scale-[0.99] select-none ${
-              activeTab === 'links'
-                ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.8)] dark:drop-shadow-none'
-                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
-            }`}
-          >
-            <SFLink
-              size={15}
-              className={`transition-all duration-160 ease-out shrink-0 ${
-                activeTab === 'links'
-                  ? 'text-[#0071e3] dark:text-[#3898ff]'
-                  : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
-              }`}
-            />
-            <span className="transition-colors duration-160 leading-none">Links</span>
-          </button>
-
-          {/* Tab 2: Accounts */}
+          {/* Tab 1: Accounts */}
           <button
             type="button"
             role="tab"
@@ -417,6 +392,31 @@ export const UnifiedWorkspacePage: React.FC = () => {
             <span className="transition-colors duration-160 leading-none">Tài khoản</span>
           </button>
 
+          {/* Tab 2: Links */}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'links'}
+            tabIndex={activeTab === 'links' ? 0 : -1}
+            data-tab-id="links"
+            onClick={() => handleTabChange('links')}
+            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-all duration-160 ease-out cursor-pointer whitespace-nowrap active:scale-[0.99] select-none ${
+              activeTab === 'links'
+                ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.8)] dark:drop-shadow-none'
+                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
+            }`}
+          >
+            <SFLink
+              size={15}
+              className={`transition-all duration-160 ease-out shrink-0 ${
+                activeTab === 'links'
+                  ? 'text-[#0071e3] dark:text-[#3898ff]'
+                  : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
+              }`}
+            />
+            <span className="transition-colors duration-160 leading-none">Links</span>
+          </button>
+
           {/* Tab 3: Stores */}
           <button
             type="button"
@@ -439,7 +439,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
               }`}
             />
-            <span className="transition-colors duration-160 leading-none">Cửa hàng</span>
+            <span className="transition-colors duration-160 leading-none">DS Cửa hàng</span>
           </button>
         </div>
 
@@ -471,8 +471,8 @@ export const UnifiedWorkspacePage: React.FC = () => {
             onClick={handleOpenAdd}
             icon={<SFPlus size={16} />}
           >
-            {activeTab === 'links' && 'Thêm Link'}
             {activeTab === 'accounts' && 'Thêm Tài Khoản'}
+            {activeTab === 'links' && 'Thêm Link'}
             {activeTab === 'stores' && 'Thêm Cửa Hàng'}
           </Button>
         </div>
@@ -497,13 +497,13 @@ export const UnifiedWorkspacePage: React.FC = () => {
             onChange={(e) => setSearch(e.target.value)}
           />
           {search && (
-            <button
-              type="button"
+            <CloseButton
               onClick={() => setSearch('')}
-              className="absolute right-2.5 top-2.5 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white p-0.5 rounded-full"
-            >
-              <SFXmark size={14} />
-            </button>
+              size="xs"
+              className="absolute right-2.5 top-2.5"
+              label="Xóa"
+              title="Xóa"
+            />
           )}
         </div>
 
@@ -731,10 +731,10 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       {/* Drag Handle */}
                       <td className="w-9 pl-3 pr-1 py-3 text-center cursor-grab active:cursor-grabbing text-[#8e8e93] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-colors select-none">
                         <div
-                          className="inline-flex items-center justify-center p-1 rounded hover:bg-black/5 dark:hover:bg-white/10"
+                          className="inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all"
                           title="Kéo thả để sắp xếp thứ tự tùy ý"
                         >
-                          <SFLine3Horizontal size={14} className="opacity-35 group-hover:opacity-90 transition-opacity" />
+                          <SFLine3Horizontal size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
                         </div>
                       </td>
 
@@ -846,8 +846,30 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-[#76767b]">
-                      Không tìm thấy liên kết nào thỏa mãn điều kiện lọc.
+                    <td colSpan={7} className="py-14 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-[#0066cc]/8 dark:bg-[#2997ff]/12 flex items-center justify-center">
+                          <SFLink size={20} className="text-[#0066cc]/60 dark:text-[#2997ff]/70" />
+                        </div>
+                        <div>
+                          <p className="text-[14px] font-semibold text-[#1d1d1f] dark:text-white mb-0.5">
+                            {search ? 'Không tìm thấy kết quả' : 'Chưa có link nào'}
+                          </p>
+                          <p className="text-[12.5px] text-[#76767b] dark:text-[#a1a1a6]">
+                            {search ? `Thử tìm với từ khoá khác` : 'Nhấn «Thêm Link» để bắt đầu'}
+                          </p>
+                        </div>
+                        {!search && (
+                          <button
+                            type="button"
+                            onClick={handleOpenAdd}
+                            className="mt-1 inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-semibold bg-[#0066cc] text-white hover:bg-[#0071e3] active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,102,204,0.35)]"
+                          >
+                            <SFPlus size={14} />
+                            Thêm Link đầu tiên
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -867,7 +889,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   </th>
                   <th className="px-4 py-3.5 whitespace-nowrap min-w-[120px] max-w-[160px]">Phần Mềm</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px] max-w-[210px]">Tên Đăng Nhập</th>
-                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[120px]">Mật Khẩu</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[150px] max-w-[220px]">Mật Khẩu</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px]">Trang Đăng Nhập</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[120px] max-w-[240px]">Ghi Chú</th>
                   <th className="sticky right-0 z-20 px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#181820] backdrop-blur-2xl border-l border-black/[0.04] dark:border-white/[0.06]">
@@ -933,10 +955,10 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       {/* Drag Handle */}
                       <td className="w-9 pl-3 pr-1 py-3 text-center cursor-grab active:cursor-grabbing text-[#8e8e93] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-colors select-none">
                         <div
-                          className="inline-flex items-center justify-center p-1 rounded hover:bg-black/5 dark:hover:bg-white/10"
+                          className="inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all"
                           title="Kéo thả để sắp xếp thứ tự tùy ý"
                         >
-                          <SFLine3Horizontal size={14} className="opacity-35 group-hover:opacity-90 transition-opacity" />
+                          <SFLine3Horizontal size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
                         </div>
                       </td>
 
@@ -948,60 +970,65 @@ export const UnifiedWorkspacePage: React.FC = () => {
                         </div>
                       </td>
 
-                      {/* Username (1-Click Copy Badge) */}
+                      {/* Username (Apple 1-Click Copy Text: clean default, highlights on hover) */}
                       <td className="px-3.5 py-3 min-w-[130px] max-w-[210px]">
                         <button
                           type="button"
                           onClick={() => handleCopy(item.username, 'tài khoản', `user-${item.id}`)}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.07] hover:bg-[#0066cc]/10 dark:hover:bg-[#2997ff]/15 font-mono text-[13px] font-medium transition-colors cursor-pointer group/user max-w-full"
+                          className="inline-flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-lg bg-transparent hover:bg-[#0066cc]/[0.08] dark:hover:bg-[#2997ff]/15 font-mono text-[13px] font-[450] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-colors duration-180 active:scale-[0.98] cursor-pointer group/user max-w-full"
                           title={`Bấm để sao chép Tên Đăng Nhập: ${item.username}`}
                         >
-                          <span className="truncate max-w-[150px] group-hover/user:text-[#0066cc] dark:group-hover/user:text-[#2997ff]">
+                          <span className="truncate max-w-[150px]">
                             {item.username}
                           </span>
                           {copiedKey === `user-${item.id}` ? (
-                            <SFCheckmark size={14} className="text-emerald-600 shrink-0" />
+                            <SFCheckmark size={13} className="text-[#34c759] shrink-0" />
                           ) : (
-                            <SFSquareOnSquare size={12} className="text-[#76767b] opacity-40 group-hover/user:opacity-100 shrink-0" />
+                            <SFSquareOnSquare size={13} className="text-[#86868b] opacity-0 group-hover/user:opacity-100 group-hover/user:text-[#0066cc] dark:group-hover/user:text-[#2997ff] transition-opacity shrink-0" />
                           )}
                         </button>
                       </td>
 
-                      {/* Password (1-Click Copy + Reveal) */}
-                      <td className="px-3.5 py-3 min-w-[120px]">
-                        <div className="inline-flex items-center gap-1.5">
+                      {/* Password (Apple 1-Click Copy: matches Username & Address styling, clean text default) */}
+                      <td className="px-3.5 py-3 min-w-[150px] max-w-[220px]">
+                        <div className="flex items-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => handleCopy(item.password || '', 'mật khẩu', `pass-${item.id}`)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-black/[0.04] dark:bg-white/[0.07] hover:bg-emerald-500/10 font-mono text-[13px] font-medium transition-colors cursor-pointer group/pass"
+                            className="inline-flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-lg bg-transparent hover:bg-[#0066cc]/[0.08] dark:hover:bg-[#2997ff]/15 font-mono text-[13px] font-[450] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-colors duration-180 active:scale-[0.98] cursor-pointer group/pass select-none"
                             title="Bấm để sao chép Mật Khẩu"
                           >
-                            <span className="group-hover/pass:text-emerald-600 dark:group-hover/pass:text-emerald-400">
+                            <span className="truncate max-w-[130px] tracking-wide">
                               {showPasswordMap[item.id] ? item.password : '••••••••'}
                             </span>
                             {copiedKey === `pass-${item.id}` ? (
-                              <SFCheckmark size={14} className="text-emerald-600 shrink-0" />
+                              <SFCheckmark size={13} className="text-[#34c759] shrink-0" />
                             ) : (
-                              <SFSquareOnSquare size={12} className="text-[#76767b] opacity-40 group-hover/pass:opacity-100 shrink-0" />
+                              <SFSquareOnSquare
+                                size={13}
+                                className="text-[#86868b] opacity-0 group-hover/pass:opacity-100 group-hover/pass:text-[#0066cc] dark:group-hover/pass:text-[#2997ff] transition-opacity shrink-0"
+                              />
                             )}
                           </button>
 
-                          {/* Reveal/Hide Eye Button */}
+                          {/* Reveal/Hide Eye Button (Independent Apple subtle circle button) */}
                           <button
                             type="button"
-                            onClick={() =>
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setShowPasswordMap((prev) => ({
                                 ...prev,
                                 [item.id]: !prev[item.id],
-                              }))
-                            }
-                            className="p-1 rounded-full text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white transition-colors shrink-0"
+                              }));
+                            }}
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 transition-all cursor-pointer shrink-0"
                             title={showPasswordMap[item.id] ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                            aria-label={showPasswordMap[item.id] ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                           >
                             {showPasswordMap[item.id] ? (
-                              <SFEyeSlash size={14} />
+                              <SFEyeSlash size={14} className="opacity-70 hover:opacity-100 transition-opacity" />
                             ) : (
-                              <SFEye size={14} />
+                              <SFEye size={14} className="opacity-70 hover:opacity-100 transition-opacity" />
                             )}
                           </button>
                         </div>
@@ -1082,8 +1109,30 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-[#76767b]">
-                      Không tìm thấy tài khoản nào phù hợp.
+                    <td colSpan={7} className="py-14 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-[#0066cc]/8 dark:bg-[#2997ff]/12 flex items-center justify-center">
+                          <SFShieldFill size={20} className="text-[#0066cc]/60 dark:text-[#2997ff]/70" />
+                        </div>
+                        <div>
+                          <p className="text-[14px] font-semibold text-[#1d1d1f] dark:text-white mb-0.5">
+                            {search ? 'Không tìm thấy tài khoản nào' : 'Chưa có tài khoản nào'}
+                          </p>
+                          <p className="text-[12.5px] text-[#76767b] dark:text-[#a1a1a6]">
+                            {search ? 'Thử tìm với từ khoá khác' : 'Lưu trữ thông tin đăng nhập và mật khẩu an toàn'}
+                          </p>
+                        </div>
+                        {!search && (
+                          <button
+                            type="button"
+                            onClick={handleOpenAdd}
+                            className="mt-1 inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-semibold bg-[#0066cc] text-white hover:bg-[#0071e3] active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,102,204,0.35)]"
+                          >
+                            <SFPlus size={14} />
+                            Thêm Tài khoản
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -1168,35 +1217,33 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       {/* Drag Handle */}
                       <td className="w-9 pl-3 pr-1 py-3 text-center cursor-grab active:cursor-grabbing text-[#8e8e93] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-colors select-none">
                         <div
-                          className="inline-flex items-center justify-center p-1 rounded hover:bg-black/5 dark:hover:bg-white/10"
+                          className="inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all"
                           title="Kéo thả để sắp xếp thứ tự tùy ý"
                         >
-                          <SFLine3Horizontal size={14} className="opacity-35 group-hover:opacity-90 transition-opacity" />
+                          <SFLine3Horizontal size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
                         </div>
                       </td>
 
-                      {/* Store Code */}
-                      <td className="px-4 py-3 font-mono font-bold text-[#0066cc] dark:text-[#2997ff] min-w-[100px]">
-                        <span className="px-2 py-0.5 rounded-md bg-[#0066cc]/10 dark:bg-[#2997ff]/15">
-                          {item.storeCode}
-                        </span>
+                      {/* Store Code (Plain bold text, no background, neutral color) */}
+                      <td className="px-4 py-3 font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] min-w-[100px] select-text">
+                        {item.storeCode}
                       </td>
 
-                      {/* Address (1-Click Copy Badge) */}
-                      <td className="px-3.5 py-3 font-medium text-[#1d1d1f] dark:text-white min-w-[240px] max-w-[550px]">
+                      {/* Address (Neutral normal text by default, highlights with Apple blue on hover) */}
+                      <td className="px-3.5 py-3 min-w-[260px] max-w-[550px]">
                         <button
                           type="button"
                           onClick={() => handleCopy(item.address || '', 'địa chỉ', `store-${item.id}`)}
-                          className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-black/[0.04] dark:bg-white/[0.07] hover:bg-amber-500/10 transition-colors text-left cursor-pointer group/store max-w-full"
+                          className="inline-flex items-center gap-2 px-2.5 py-1 -ml-2.5 rounded-xl bg-transparent hover:bg-[#0066cc]/[0.08] dark:hover:bg-[#2997ff]/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0066cc] dark:hover:text-[#2997ff] text-[13px] font-[450] transition-colors duration-180 active:scale-[0.98] text-left cursor-pointer group/store max-w-full"
                           title={`Bấm để sao chép Địa chỉ: ${item.address}`}
                         >
-                          <span className="truncate max-w-[480px] group-hover/store:text-amber-600 dark:group-hover/store:text-amber-400">
+                          <span className="truncate max-w-[480px]">
                             {item.address}
                           </span>
                           {copiedKey === `store-${item.id}` ? (
-                            <SFCheckmark size={14} className="text-emerald-600 shrink-0" />
+                            <SFCheckmark size={14} className="text-[#34c759] shrink-0" />
                           ) : (
-                            <SFSquareOnSquare size={12} className="text-[#76767b] opacity-40 group-hover/store:opacity-100 shrink-0 ml-1" />
+                            <SFSquareOnSquare size={13} className="text-[#86868b] opacity-0 group-hover/store:opacity-100 group-hover/store:text-[#0066cc] dark:group-hover/store:text-[#2997ff] transition-opacity shrink-0" />
                           )}
                         </button>
                       </td>
@@ -1278,8 +1325,30 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="py-12 text-center text-[#76767b]">
-                      Không tìm thấy cửa hàng nào.
+                    <td colSpan={6} className="py-14 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-12 h-12 rounded-full bg-[#0066cc]/8 dark:bg-[#2997ff]/12 flex items-center justify-center">
+                          <SFStorefront size={20} className="text-[#0066cc]/60 dark:text-[#2997ff]/70" />
+                        </div>
+                        <div>
+                          <p className="text-[14px] font-semibold text-[#1d1d1f] dark:text-white mb-0.5">
+                            {search ? 'Không tìm thấy cửa hàng nào' : 'Chưa có cửa hàng nào'}
+                          </p>
+                          <p className="text-[12.5px] text-[#76767b] dark:text-[#a1a1a6]">
+                            {search ? 'Thử tìm theo mã CH, địa chỉ hoặc quận/huyện' : 'Danh sách hệ thống cửa hàng và vị trí Google Maps'}
+                          </p>
+                        </div>
+                        {!search && (
+                          <button
+                            type="button"
+                            onClick={handleOpenAdd}
+                            className="mt-1 inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-semibold bg-[#0066cc] text-white hover:bg-[#0071e3] active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,102,204,0.35)]"
+                          >
+                            <SFPlus size={14} />
+                            Thêm Cửa hàng
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )}

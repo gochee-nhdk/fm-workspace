@@ -20,6 +20,7 @@ import { QuickNoteFloatingButton } from '@/components/notes/QuickNoteFloatingBut
 import { useUiStore, resolveTheme } from '@/stores/ui-store';
 import { useNoteStore } from '@/stores/note-store';
 import { Button } from '@/components/ui/button';
+import { CloseButton } from '@/components/ui/close-button';
 import { reminderService } from '@/services/reminderService';
 import { useScrollInterpolation, useTabIndicator } from '@/lib/motion';
 
@@ -205,7 +206,7 @@ export const AppShell: React.FC = () => {
                   isSidebarCollapsed ? 'justify-center w-10 h-10 aspect-square shrink-0 mx-auto px-0' : 'gap-3 px-3.5 py-2.5'
                 } rounded-full text-[13px] transition-all duration-200 ease-out active:scale-[0.98] ${
                   isActive
-                    ? 'bg-[#0071e3]/12 dark:bg-[#0071e3]/24 text-[#0071e3] dark:text-[#3898ff] font-semibold border border-[#0071e3]/25 dark:border-[#0071e3]/35 shadow-[inset_0_1.5px_1px_rgba(255,255,255,0.7),inset_0_-1px_1px_rgba(0,113,227,0.1),0_2px_8px_rgba(0,113,227,0.08)] backdrop-blur-sm'
+                    ? 'bg-gradient-to-b from-[#0088FF] to-[#0071E3] text-white font-semibold border border-[#38a9ff]/40 shadow-[0_4px_16px_rgba(0,113,227,0.38),inset_0_1.5px_1px_rgba(255,255,255,0.45),inset_0_-1.5px_1.5px_rgba(0,0,0,0.18)] backdrop-blur-md'
                     : 'text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium border border-transparent'
                 }`
               }
@@ -214,13 +215,13 @@ export const AppShell: React.FC = () => {
                 <>
                   <span
                     className={`p-1 rounded-lg transition-colors shrink-0 ${
-                      isActive ? 'text-[#0071e3] dark:text-[#3898ff]' : 'text-[#76767b] dark:text-[#8e8e93]'
+                      isActive ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]' : 'text-[#76767b] dark:text-[#8e8e93]'
                     }`}
                   >
                     {item.icon}
                   </span>
                   {!isSidebarCollapsed && (
-                    <span className="truncate whitespace-nowrap">
+                    <span className={`truncate whitespace-nowrap ${isActive ? 'text-white font-semibold drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]' : ''}`}>
                       {item.label}
                     </span>
                   )}
@@ -411,13 +412,12 @@ export const AppShell: React.FC = () => {
                     FARMERS MARKET
                   </span>
                 </button>
-                <button
+                <CloseButton
                   onClick={() => setMobileMenuOpen(false)}
-                  className="p-1.5 rounded-full text-[#7a7a7a] hover:bg-black/5 cursor-pointer"
-                  aria-label="Đóng menu"
-                >
-                  <SFXmark size={20} />
-                </button>
+                  size="md"
+                  label="Đóng menu"
+                  title="Đóng menu"
+                />
               </div>
 
               <nav className="mt-4 space-y-1.5 flex-1">

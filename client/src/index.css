@@ -1188,60 +1188,60 @@
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
 }
 
-/* Ambient glow background spheres - Fluid Floating Orbs */
+/* Ambient glow background spheres - Fluid Floating Orbs (Hardware-accelerated with translate3d) */
 @keyframes floatOrb1 {
   0%, 100% {
-    transform: translate(0, 0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
-    transform: translate(-35px, 45px) scale(1.08);
+    transform: translate3d(-35px, 45px, 0) scale(1.08);
   }
 }
 
 @keyframes floatOrb2 {
   0%, 100% {
-    transform: translate(0, 0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
-    transform: translate(45px, -35px) scale(1.06);
+    transform: translate3d(45px, -35px, 0) scale(1.06);
   }
 }
 
-/* Chromatic Ambient Refraction Canvas (Creates the optical depth seen in Image 1 & 2) */
+/* Chromatic Ambient Refraction Canvas (3D hardware layer on GPU) */
 @keyframes floatSunsetOrb {
   0%, 100% {
-    transform: translate(0, 0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
   33% {
-    transform: translate(-50px, 35px) scale(1.12);
+    transform: translate3d(-50px, 35px, 0) scale(1.12);
   }
   66% {
-    transform: translate(25px, -40px) scale(0.95);
+    transform: translate3d(25px, -40px, 0) scale(0.95);
   }
 }
 
 @keyframes floatAzureOrb {
   0%, 100% {
-    transform: translate(0, 0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
   33% {
-    transform: translate(45px, -45px) scale(1.08);
+    transform: translate3d(45px, -45px, 0) scale(1.08);
   }
   66% {
-    transform: translate(-30px, 25px) scale(1.04);
+    transform: translate3d(-30px, 25px, 0) scale(1.04);
   }
 }
 
 @keyframes floatVioletOrb {
   0%, 100% {
-    transform: translate(0, 0) scale(0.96);
+    transform: translate3d(0, 0, 0) scale(0.96);
   }
   50% {
-    transform: translate(35px, 45px) scale(1.1);
+    transform: translate3d(35px, 45px, 0) scale(1.1);
   }
 }
 
-/* Orb 1: Warm Joshua Tree Sunset Peach (recreates Image 1's warm liquid tint) */
+/* Orb 1: Warm Joshua Tree Sunset Peach */
 .ambient-glow-sunset {
   position: fixed;
   width: 680px;
@@ -1253,6 +1253,8 @@
   filter: blur(80px);
   pointer-events: none;
   z-index: 0;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
   animation: floatSunsetOrb 20s ease-in-out infinite;
 }
 
@@ -1261,7 +1263,7 @@
   filter: blur(100px);
 }
 
-/* Orb 2: Mount Fuji Azure & Pacific Sapphire (recreates Image 2's sky depth) */
+/* Orb 2: Mount Fuji Azure & Pacific Sapphire */
 .ambient-glow-azure {
   position: fixed;
   width: 720px;
@@ -1273,6 +1275,8 @@
   filter: blur(85px);
   pointer-events: none;
   z-index: 0;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
   animation: floatAzureOrb 24s ease-in-out infinite;
 }
 
@@ -1293,6 +1297,8 @@
   filter: blur(95px);
   pointer-events: none;
   z-index: 0;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
   animation: floatVioletOrb 28s ease-in-out infinite;
 }
 
@@ -1305,16 +1311,17 @@
 @keyframes iosEnter {
   0% {
     opacity: 0;
-    transform: translateY(12px) scale(0.985);
+    transform: translate3d(0, 12px, 0) scale(0.985);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 .ios-animate-in {
   animation: iosEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
 }
 .ios-stagger-1 { animation-delay: 30ms; }
 .ios-stagger-2 { animation-delay: 60ms; }
@@ -1576,7 +1583,18 @@
   transform: translate3d(0, 0, 0) scale(1);
 }
 
-/* Reduced motion accessibility */
+/* Hardware Acceleration & Low-End GPU Performance Optimization */
+.ambient-glow-sunset,
+.ambient-glow-azure,
+.ambient-glow-violet {
+  contain: strict;
+  content-visibility: auto;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Reduced motion accessibility & Ultra Low-Power Mode */
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,
@@ -1585,6 +1603,17 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  .ambient-glow-sunset,
+  .ambient-glow-azure,
+  .ambient-glow-violet {
+    animation: none !important;
+    transform: none !important;
+    filter: blur(50px) !important;
+    opacity: 0.5 !important;
+  }
+  .apple-toast-shimmer {
+    animation: none !important;
   }
   .apple-tab-content-enter,
   .apple-tab-content-enter-rev,
@@ -1644,21 +1673,22 @@ tbody td {
 }
 
 /* ==========================================================================
-   Apple visionOS & macOS 27 Liquid Glass HUD (Bottom-Center & Zero Obstruction)
+   Apple macOS 27 & iOS Liquid Glass Notification Banner (Top-Right HUD)
    ========================================================================== */
 .apple-toaster-container {
   pointer-events: none !important;
   position: fixed !important;
-  bottom: 32px !important;
-  top: auto !important;
+  top: 76px !important;
+  right: 24px !important;
+  bottom: auto !important;
+  left: auto !important;
   z-index: 99999 !important;
-  left: 0 !important;
-  right: 0 !important;
-  width: 100% !important;
+  width: auto !important;
+  max-width: calc(100vw - 48px) !important;
   display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-  margin: 0 auto !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  margin: 0 !important;
 }
 
 .liquid-glass-macos27-toast,
@@ -1666,25 +1696,26 @@ tbody td {
   position: relative !important;
   pointer-events: auto !important;
   border-radius: 9999px !important;
-  padding: 8px 20px 8px 10px !important;
-  max-width: min(92vw, 560px) !important;
-  margin: 0 auto !important;
-  background: rgba(255, 255, 255, 0.72) !important;
-  backdrop-filter: blur(48px) saturate(220%) contrast(106%) brightness(104%) !important;
-  -webkit-backdrop-filter: blur(48px) saturate(220%) contrast(106%) brightness(104%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  padding: 9px 20px 9px 12px !important;
+  width: max-content !important;
+  min-width: 280px !important;
+  max-width: min(92vw, 440px) !important;
+  flex-shrink: 0 !important;
+  margin: 0 0 10px auto !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  backdrop-filter: blur(40px) saturate(210%) contrast(105%) brightness(103%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(210%) contrast(105%) brightness(103%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
   box-shadow: 
-    /* Top double-rim specular meniscus arc */
+    /* Specular highlights */
     inset 0 1.5px 1px 0 rgba(255, 255, 255, 1),
-    /* Internal volumetric liquid glow */
     inset 0 0 16px 0 rgba(255, 255, 255, 0.35),
-    /* Bottom meniscus refraction shadow */
-    inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.08),
-    /* Outer subtle perimeter rim */
-    0 0 0 0.5px rgba(255, 255, 255, 0.65),
-    /* Multi-layered soft ambient ambient cushion */
-    0 20px 48px -8px rgba(0, 0, 0, 0.16),
-    0 6px 18px -2px rgba(0, 0, 0, 0.08) !important;
+    inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.05),
+    /* Delicate perimeter edge */
+    0 0 0 0.5px rgba(255, 255, 255, 0.7),
+    /* Elevated Apple shadow */
+    0 16px 38px -6px rgba(0, 0, 0, 0.16),
+    0 4px 14px -2px rgba(0, 0, 0, 0.08) !important;
   color: #1d1d1f !important;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif !important;
   font-size: 13.5px !important;
@@ -1692,38 +1723,39 @@ tbody td {
   letter-spacing: -0.015em !important;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 11px !important;
+  gap: 12px !important;
   user-select: none !important;
   overflow: hidden !important;
-  cursor: default !important;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.24s ease, opacity 0.24s ease !important;
 }
 
 .liquid-glass-macos27-toast:hover,
 .apple-hud-toast:hover {
-  transform: translateY(-2px) scale(1.015) !important;
+  transform: translateY(-1.5px) scale(1.012) !important;
   box-shadow: 
     inset 0 1.5px 1px 0 rgba(255, 255, 255, 1),
     inset 0 0 20px 0 rgba(255, 255, 255, 0.45),
-    inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.1),
-    0 0 0 0.5px rgba(255, 255, 255, 0.8),
-    0 24px 56px -8px rgba(0, 0, 0, 0.2),
-    0 8px 22px -2px rgba(0, 0, 0, 0.1) !important;
+    inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.08),
+    0 0 0 0.5px rgba(255, 255, 255, 0.85),
+    0 20px 48px -6px rgba(0, 0, 0, 0.18),
+    0 6px 16px -2px rgba(0, 0, 0, 0.08) !important;
 }
 
 .dark .liquid-glass-macos27-toast,
 .dark .apple-hud-toast {
-  background: rgba(22, 22, 28, 0.68) !important;
-  backdrop-filter: blur(48px) saturate(220%) contrast(106%) !important;
-  -webkit-backdrop-filter: blur(48px) saturate(220%) contrast(106%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  background: rgba(28, 28, 34, 0.88) !important;
+  backdrop-filter: blur(40px) saturate(210%) contrast(105%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(210%) contrast(105%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
   box-shadow: 
-    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.35),
     inset 0 0 18px 0 rgba(255, 255, 255, 0.1),
-    inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.55),
-    0 0 0 0.5px rgba(255, 255, 255, 0.14),
-    0 24px 56px -8px rgba(0, 0, 0, 0.85),
-    0 8px 20px -2px rgba(0, 0, 0, 0.55) !important;
+    inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.45),
+    0 0 0 0.5px rgba(255, 255, 255, 0.15),
+    0 18px 44px -6px rgba(0, 0, 0, 0.65),
+    0 6px 16px -2px rgba(0, 0, 0, 0.4) !important;
   color: #f5f5f7 !important;
 }
 

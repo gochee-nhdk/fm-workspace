@@ -8,11 +8,11 @@ import {
   SFSquareStack3dUp,
   SFArrowRight,
   SFArrowClockwise,
-  SFXmark,
   SFDocument,
 } from 'sf-symbols-lib';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { CloseButton } from '@/components/ui/close-button';
 import { excelService, detectDatasetFromSheetName } from '@/services/excelService';
 import { ImportPreviewResult, DuplicateStrategy, SheetPreview } from '@/types/workspace';
 import toast from 'react-hot-toast';
@@ -180,13 +180,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               </p>
             </div>
           </div>
-          <button
-            onClick={handleClose}
-            className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/10 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white flex items-center justify-center transition-all active:scale-95 border border-black/5 dark:border-white/10 cursor-pointer"
-            title="Đóng (Esc)"
-          >
-            <SFXmark size={14} />
-          </button>
+          <CloseButton onClick={handleClose} size="md" />
         </div>
 
         {/* Content Body */}

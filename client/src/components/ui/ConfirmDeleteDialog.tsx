@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { SFExclamationmarkTriangleFill, SFTrash, SFXmark } from 'sf-symbols-lib';
+import { SFExclamationmarkTriangleFill, SFTrash } from 'sf-symbols-lib';
 import { Button } from './button';
+import { CloseButton } from '@/components/ui/close-button';
 
 interface ConfirmDeleteDialogProps {
   isOpen: boolean;
@@ -51,13 +52,11 @@ export const ConfirmDeleteDialog: React.FC<ConfirmDeleteDialogProps> = ({
         aria-label={title}
         className="relative bg-white dark:bg-[#1c1c22] rounded-[24px] max-w-md w-full p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15 animate-in fade-in zoom-in-95 duration-220 ease-out"
       >
-        <button
+        <CloseButton
           onClick={onClose}
-          className="absolute top-4 right-4 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white w-7 h-7 rounded-full bg-[#f5f5f7] dark:bg-white/10 flex items-center justify-center transition-all active:scale-95"
-          title="Đóng"
-        >
-          <SFXmark size={14} />
-        </button>
+          size="sm"
+          className="absolute top-4 right-4"
+        />
 
         <div className="flex items-start gap-4">
           <div className="w-10 h-10 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-full flex items-center justify-center shrink-0">

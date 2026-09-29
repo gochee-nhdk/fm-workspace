@@ -28,6 +28,7 @@ import { LinkItem, AccountItem, StoreItem } from '@/types/workspace';
 import { useUiStore } from '@/stores/ui-store';
 import { useNoteStore } from '@/stores/note-store';
 import { cn } from '@/lib/utils';
+import { CloseButton } from '@/components/ui/close-button';
 
 export interface CommandPaletteProps {
   isOpen: boolean;
@@ -729,29 +730,25 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                 <span className="hidden sm:inline-flex px-2 py-0.5 text-[11px] font-medium rounded-full bg-black/5 dark:bg-white/10 text-[#76767b] dark:text-[#a1a1a6]">
                   {results.length} kết quả
                 </span>
-                <button
-                  type="button"
+                <CloseButton
                   onClick={() => {
                     setQuery('');
                     inputRef.current?.focus();
                   }}
-                  className="p-1 rounded-full text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                  size="xs"
+                  label="Xoá nội dung"
                   title="Xoá nội dung"
-                >
-                  <SFXmark size={14} />
-                </button>
+                />
               </>
             )}
 
             {/* Dedicated Close Button */}
-            <button
-              type="button"
+            <CloseButton
               onClick={handleClose}
-              className="w-7 h-7 rounded-full bg-black/[0.04] dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 flex items-center justify-center text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white transition-all active:scale-95 cursor-pointer ml-1"
+              size="sm"
+              className="ml-1"
               title="Đóng tìm kiếm (Esc)"
-            >
-              <SFXmark size={16} />
-            </button>
+            />
           </div>
         </div>
 

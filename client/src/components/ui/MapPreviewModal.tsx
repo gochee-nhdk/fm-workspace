@@ -5,10 +5,10 @@ import {
   SFArrowUpRightSquare,
   SFSquareOnSquare,
   SFCheckmark,
-  SFXmark,
   SFLocationFill,
   SFExclamationmarkCircle
 } from 'sf-symbols-lib';
+import { CloseButton } from '@/components/ui/close-button';
 import { StoreItem } from '@/types/workspace';
 import toast from 'react-hot-toast';
 
@@ -296,15 +296,11 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
             </a>
 
             {/* Apple Glass Close Button */}
-            <button
-              type="button"
+            <CloseButton
               onClick={onClose}
-              className="w-8 h-8 rounded-full flex items-center justify-center bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-[#555558] dark:text-white transition-colors cursor-pointer active:scale-90"
+              size="md"
               title="Đóng cửa sổ"
-              aria-label="Đóng"
-            >
-              <SFXmark size={16} className="stroke-[2.5]" />
-            </button>
+            />
           </div>
         </div>
 

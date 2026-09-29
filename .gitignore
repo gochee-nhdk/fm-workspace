@@ -28,3 +28,7 @@ data/
 .DS_Store
 Thumbs.db
 *.log
+
+# Temporary harness & cache runs
+2026-*/
+
