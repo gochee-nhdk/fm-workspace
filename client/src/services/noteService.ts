@@ -20,11 +20,14 @@ const getLocalStorageNotes = (): QuickNoteItem[] => {
 
 const saveLocalStorageNotes = (notes: QuickNoteItem[]): void => {
   try {
-    // Keep localStorage light (<500KB) by stripping any inline data URLs and image URLs
+    // Keep localStorage light (<1MB) by stripping only excessively huge inline data URLs
     const lightweightNotes = notes.map((n) => ({
       ...n,
-      content: n.content && n.content.length > 20000 ? n.content.replace(/data:[^"'\s)]+/g, '') : n.content,
-      images: n.images?.map((img) => ({ ...img, url: '' })),
+      content: n.content && n.content.length > 50000 ? n.content.replace(/data:image\/[^"'\s)]+/g, '') : n.content,
+      images: n.images?.map((img) => ({
+        ...img,
+        url: img.url && img.url.startsWith('data:image') && img.url.length > 30000 ? '' : img.url,
+      })),
     }));
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(lightweightNotes));
   } catch (_) {
@@ -97,7 +100,7 @@ export const noteService = {
 
     const cached = getLocalStorageNotes();
     const existingFromCache = cached.find((n) => n.id === id);
-    const existing = isNew ? null : (existingFromCache || (await this.getNoteById(id)));
+    const existing = isNew ? null : ((await this.getNoteById(id)) || existingFromCache);
 
     // Preserve user title (allows clearing title completely while user is editing)
     const titleToSave = data.title !== undefined ? data.title : (existing?.title ?? 'Ghi chú mới');

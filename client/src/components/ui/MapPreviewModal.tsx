@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import {
   SFMappinAndEllipse,
   SFArrowUpRightSquare,
@@ -9,6 +8,7 @@ import {
   SFExclamationmarkCircle
 } from 'sf-symbols-lib';
 import { CloseButton } from '@/components/ui/close-button';
+import { AppleLiquidDialog } from '@/components/ui/AppleLiquidDialog';
 import { StoreItem } from '@/types/workspace';
 import toast from 'react-hot-toast';
 
@@ -202,13 +202,11 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
     return getMapEmbedUrl(store.address, store.googleMaps, store.storeCode);
   }, [store, customQuery]);
 
-  if (!isOpen || !store) return null;
-
-  const externalUrl = getExternalMapUrl(store.address, store.googleMaps, store.storeCode);
-  const hasNoAddress = !store.address?.trim() && !store.googleMaps?.trim();
+  const externalUrl = store ? getExternalMapUrl(store.address, store.googleMaps, store.storeCode) : '';
+  const hasNoAddress = !store?.address?.trim() && !store?.googleMaps?.trim();
 
   const handleCopyAddress = () => {
-    const textToCopy = store.address?.trim() || store.googleMaps || '';
+    const textToCopy = store?.address?.trim() || store?.googleMaps || '';
     if (!textToCopy) return;
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
@@ -216,20 +214,20 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 md:p-6 animate-fadeIn select-none font-sans">
-      {/* Dynamic ambient backdrop with Apple visionOS deep blur */}
-      <div
-        className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-2xl transition-opacity"
-        onClick={onClose}
-      />
+  if (!store && !isOpen) return null;
 
-      {/* Liquid Glass Modal Window */}
-      <div
-        className="relative w-full max-w-4xl bg-white dark:bg-[#1c1c22] rounded-[28px] border border-black/10 dark:border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] overflow-hidden flex flex-col z-10 transition-all duration-300 scale-100"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Apple Window Header */}
+  return (
+    <AppleLiquidDialog
+      isOpen={Boolean(isOpen && store)}
+      onClose={onClose}
+      zIndex={10010}
+      title={store ? `Bản đồ cửa hàng ${store.storeCode}` : 'Bản đồ cửa hàng'}
+      overlayClassName="p-3 sm:p-5 md:p-6"
+      contentClassName="relative w-full max-w-4xl bg-white dark:bg-[#1c1c22] rounded-[28px] border border-black/10 dark:border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] overflow-hidden flex flex-col z-10"
+    >
+      {store && (
+        <>
+          {/* Apple Window Header */}
         <div className="px-5 sm:px-6 py-3.5 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between gap-4 bg-white/50 dark:bg-white/[0.03] shrink-0">
           <div className="flex items-center gap-3.5 min-w-0">
             {/* Apple Maps App Lens Icon */}
@@ -374,8 +372,8 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
             <span>Kéo giữ để di chuyển bản đồ</span>
           </div>
         </div>
-      </div>
-    </div>,
-    document.body
+        </>
+      )}
+    </AppleLiquidDialog>
   );
 };

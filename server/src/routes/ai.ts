@@ -28,7 +28,15 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       }
 
       const ai = new GoogleGenAI({ apiKey });
-      const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+      const models = [
+        'gemini-3.6-flash',
+        'gemini-3.1-flash',
+        'gemini-3.1-flash-lite',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+      ];
       let lastErr = null;
 
       const baseInstruction = 'YÊU CẦU BẮT BUỘC: CHỈ trả về duy nhất kết quả câu văn/đoạn văn sau khi xử lý. Tuyệt đối KHÔNG kèm theo lời giải thích, KHÔNG tiêu đề, KHÔNG lời chào, KHÔNG nội dung lan man ngoài ngữ cảnh gốc.';
@@ -84,6 +92,34 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       return reply.code(500).send({
         success: false,
         error: err.message,
+      });
+    }
+  });
+
+  // Verify Gemini API key endpoint
+  fastify.post('/verify-key', { preHandler: optionalAuth }, async (request: any, reply) => {
+    const { apiKey } = request.body || {};
+    const key = apiKey || process.env.GEMINI_API_KEY;
+    if (!key) {
+      return reply.code(400).send({ success: false, message: 'Vui lòng cung cấp API key để kiểm tra' });
+    }
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: key });
+      await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: 'Ping. Trả lời đúng 1 chữ: OK',
+        config: { maxOutputTokens: 5 },
+      });
+      return reply.send({
+        success: true,
+        message: 'Khóa API hoạt động chính xác với Gemini 2.5 Flash!',
+        model: 'gemini-2.5-flash',
+      });
+    } catch (err: any) {
+      return reply.code(400).send({
+        success: false,
+        message: `Xác thực API Key thất bại: ${err.message || 'Khóa không hợp lệ'}`,
       });
     }
   });

@@ -27,6 +27,7 @@
     "sf-symbols-lib": "^2.0.1",
     "tailwind-merge": "^2.2.2",
     "xlsx": "^0.18.5",
+    "xlsx-js-style": "^1.2.0",
     "zod": "^3.22.4",
     "zustand": "^4.5.2"
   },

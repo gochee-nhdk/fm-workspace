@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx-js-style';
 import {
   LinkItem,
   AccountItem,
@@ -197,7 +197,7 @@ export const calculateAutoFitCols = (
   });
 };
 
-// Formats a worksheet with proper freeze pane, autofilter, and auto column widths
+// Formats a worksheet with executive Apple-grade styling: bold headers with fill, full borders, zebra striping, auto column widths, freeze panes, autofilter
 export const applyWorksheetStyles = (
   ws: XLSX.WorkSheet,
   rows: Record<string, any>[],
@@ -213,6 +213,94 @@ export const applyWorksheetStyles = (
 
   // 3. Freeze Header Row (Row 1 stays fixed when scrolling)
   ws['!views'] = [{ state: 'frozen', ySplit: 1 }];
+
+  // 4. Set comfortable row heights: 30pt for header, 22pt for data rows
+  ws['!rows'] = [{ hpt: 30 }, ...rows.map(() => ({ hpt: 22 }))];
+
+  // 5. Apply full cell styling (borders, bold headers, fills, alignments)
+  if (!ws['!ref']) return;
+  const range = XLSX.utils.decode_range(ws['!ref']);
+
+  const thinBorder = {
+    top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+    bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
+    left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+    right: { style: 'thin', color: { rgb: 'CBD5E1' } },
+  };
+
+  const headerBorder = {
+    top: { style: 'thin', color: { rgb: '005BB5' } },
+    bottom: { style: 'medium', color: { rgb: '003E8A' } },
+    left: { style: 'thin', color: { rgb: '3898FF' } },
+    right: { style: 'thin', color: { rgb: '3898FF' } },
+  };
+
+  // Inspect headers for smart column alignments
+  const headerKeys: string[] = [];
+  for (let C = range.s.c; C <= range.e.c; ++C) {
+    const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
+    const cell = ws[cellAddress];
+    headerKeys.push(cell ? String(cell.v || '').trim().toLowerCase() : '');
+  }
+
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    const isHeader = R === 0;
+    const isEvenRow = R % 2 === 0;
+
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+      if (!ws[cellAddress]) {
+        // Ensure empty cell exists for border continuity
+        ws[cellAddress] = { t: 's', v: '' };
+      }
+      const cell = ws[cellAddress];
+      const headerName = headerKeys[C] || '';
+
+      if (isHeader) {
+        cell.s = {
+          fill: { fgColor: { rgb: '0071E3' } },
+          font: {
+            name: 'Segoe UI',
+            sz: 11,
+            bold: true,
+            color: { rgb: 'FFFFFF' },
+          },
+          alignment: {
+            vertical: 'center',
+            horizontal: 'center',
+            wrapText: true,
+          },
+          border: headerBorder,
+        };
+      } else {
+        // Center alignment for STT, codes, dates, boolean tags
+        const isCenterCol =
+          headerName === 'stt' ||
+          headerName === 'no' ||
+          headerName.includes('mã') ||
+          headerName.includes('ngày') ||
+          headerName.includes('thích') ||
+          headerName.includes('loại');
+
+        cell.s = {
+          fill: {
+            fgColor: { rgb: isEvenRow ? 'F8FAFC' : 'FFFFFF' },
+          },
+          font: {
+            name: 'Segoe UI',
+            sz: 10,
+            color: { rgb: '1D1D1F' },
+          },
+          alignment: {
+            vertical: 'center',
+            horizontal: isCenterCol ? 'center' : 'left',
+            wrapText: false,
+          },
+          border: thinBorder,
+        };
+      }
+    }
+  }
 };
 
 class ExcelService {
@@ -856,8 +944,11 @@ class ExcelService {
       },
     ];
     const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
-    wsSummary['!cols'] = [{ wch: 42 }, { wch: 28 }, { wch: 60 }];
-    wsSummary['!views'] = [{ state: 'frozen', ySplit: 1 }];
+    applyWorksheetStyles(wsSummary, summaryRows, {
+      'DANH MỤC HỆ THỐNG': { min: 42, max: 50 },
+      'THÔNG SỐ / SỐ LƯỢNG': { min: 28, max: 35 },
+      'CHI TIẾT & HƯỚNG DẪN': { min: 60, max: 80 },
+    });
     XLSX.utils.book_append_sheet(wb, wsSummary, 'TỔNG QUAN');
 
     // Sheet 2: LINK

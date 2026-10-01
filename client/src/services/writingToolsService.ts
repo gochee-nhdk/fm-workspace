@@ -62,10 +62,66 @@ const callBackendWritingTool = async (
 
 /**
  * Call Gemini API directly from browser if key is set
- * Tries gemini-2.5-flash first, falls back to gemini-2.0-flash and gemini-1.5-flash
+/**
+ * Dynamically queries Google Gemini API to discover all available models authorized for this API key.
+ * Strictly prioritizes modern Flash models (gemini-3.x-flash, gemini-2.5-flash, gemini-2.0-flash, gemini-1.5-flash, etc.)
+ * and discards deprecated Pro models like gemini-2.5-pro.
+ */
+export const discoverBestFlashModels = async (apiKey: string): Promise<string[]> => {
+  const cleanKey = apiKey.trim();
+  const fallbackFlashModels = [
+    'gemini-3.6-flash',
+    'gemini-3.1-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-8b',
+  ];
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${cleanKey}`);
+    if (res.ok) {
+      const data = await res.json();
+      const models: any[] = data.models || [];
+      const supported = models
+        .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
+        .map((m) => m.name?.replace(/^models\//, ''))
+        .filter((name: string) => !name.toLowerCase().includes('2.5-pro'));
+
+      if (supported.length > 0) {
+        // Filter and sort Flash models first
+        const flashModels = supported
+          .filter((name: string) => name.toLowerCase().includes('flash'))
+          .sort((a: string, b: string) => {
+            const vA = parseFloat(a.match(/gemini-(\d+(\.\d+)?)/)?.[1] || '0');
+            const vB = parseFloat(b.match(/gemini-(\d+(\.\d+)?)/)?.[1] || '0');
+            return vB - vA;
+          });
+
+        const otherGenerative = supported.filter((name: string) => !name.toLowerCase().includes('flash'));
+        return Array.from(new Set([...flashModels, ...otherGenerative, ...fallbackFlashModels]));
+      }
+    }
+  } catch (_) {
+    // Network or CORS fallback
+  }
+
+  return fallbackFlashModels;
+};
+
+/**
+ * Direct Gemini API call from client with dynamic Flash model fallback
  */
 const callGeminiApi = async (prompt: string, apiKey: string): Promise<string> => {
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  let preferredModel: string | null = null;
+  try {
+    preferredModel = localStorage.getItem('gemini_preferred_model');
+  } catch (_) {}
+
+  const discoveredModels = await discoverBestFlashModels(apiKey);
+  const models = Array.from(new Set([preferredModel, ...discoveredModels])).filter(Boolean) as string[];
   let lastError: Error | null = null;
 
   for (const model of models) {
@@ -98,6 +154,106 @@ const callGeminiApi = async (prompt: string, apiKey: string): Promise<string> =>
   }
 
   throw lastError || new Error('Không thể kết nối tới Google Gemini API');
+};
+
+/**
+ * Test Gemini API key live with dynamic Flash model discovery and lightweight ping call
+ */
+export const testGeminiApiKey = async (
+  key: string
+): Promise<{ success: boolean; message: string; model?: string }> => {
+  const cleanKey = key.trim();
+  if (!cleanKey) {
+    return { success: false, message: 'Vui lòng nhập Gemini API Key.' };
+  }
+
+  // 1. Verify key validity and discover available models via Google models API
+  let modelsToTry: string[] = [];
+  try {
+    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${cleanKey}`);
+    if (!listRes.ok) {
+      const errJson = await listRes.json().catch(() => ({}));
+      const msg = errJson.error?.message || `Mã lỗi HTTP ${listRes.status}`;
+      return {
+        success: false,
+        message: `Không thể xác thực API Key: ${msg}`,
+      };
+    }
+    const listData = await listRes.json();
+    const serverModels: any[] = listData.models || [];
+    const validModels = serverModels
+      .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
+      .map((m) => m.name?.replace(/^models\//, ''))
+      .filter((name: string) => !name.toLowerCase().includes('2.5-pro'));
+
+    const flashFirst = validModels
+      .filter((m: string) => m.toLowerCase().includes('flash'))
+      .sort((a: string, b: string) => {
+        const vA = parseFloat(a.match(/gemini-(\d+(\.\d+)?)/)?.[1] || '0');
+        const vB = parseFloat(b.match(/gemini-(\d+(\.\d+)?)/)?.[1] || '0');
+        return vB - vA;
+      });
+
+    const rest = validModels.filter((m: string) => !m.toLowerCase().includes('flash'));
+    modelsToTry = Array.from(new Set([...flashFirst, ...rest]));
+  } catch (err: any) {
+    // If list API had a network issue, use fallback flash list
+    modelsToTry = [
+      'gemini-3.6-flash',
+      'gemini-3.1-flash',
+      'gemini-3.1-flash-lite',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+    ];
+  }
+
+  if (modelsToTry.length === 0) {
+    modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
+  }
+
+  let lastErr = '';
+  for (const model of modelsToTry) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cleanKey}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: 'Trả lời đúng 1 chữ: OK' }] }],
+          generationConfig: { maxOutputTokens: 10 },
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        lastErr = errorData.error?.message || `Mã lỗi HTTP ${res.status}`;
+        continue;
+      }
+
+      const data = await res.json();
+      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (reply) {
+        try {
+          localStorage.setItem('gemini_preferred_model', model);
+        } catch (_) {}
+
+        return {
+          success: true,
+          message: `Khóa API hoạt động chính xác! (Model Flash: ${model})`,
+          model,
+        };
+      }
+    } catch (err: any) {
+      lastErr = err.message || 'Lỗi mạng khi kết nối tới máy chủ Google Gemini';
+    }
+  }
+
+  return {
+    success: false,
+    message: `Không thể xác thực API Key: ${lastErr || 'Vui lòng kiểm tra lại tính hợp lệ của khóa'}`,
+  };
 };
 
 /**

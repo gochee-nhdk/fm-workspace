@@ -181,129 +181,114 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
       year: 'numeric',
     });
 
-    // Generate Apple-styled HTML email body
-    const emailHtml = `
-<!DOCTYPE html>
+    // Generate Apple Executive Liquid Glass HTML email body
+    const emailHtml = `<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${emailSubject}</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background-color: #f5f5f7;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: #1d1d1f;
-      -webkit-font-smoothing: antialiased;
-    }
-    .wrapper {
-      max-width: 580px;
-      margin: 32px auto;
-      background: #ffffff;
-      border-radius: 20px;
-      border: 1px solid rgba(0, 0, 0, 0.08);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
-      overflow: hidden;
-    }
-    .header {
-      background: linear-gradient(135deg, #0071e3 0%, #005bb5 100%);
-      padding: 24px 28px;
-      color: #ffffff;
-    }
-    .brand-tag {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      opacity: 0.85;
-      margin-bottom: 4px;
-    }
-    .main-title {
-      font-size: 20px;
-      font-weight: 700;
-      margin: 0;
-      line-height: 1.3;
-    }
-    .content-body {
-      padding: 28px;
-    }
-    .badge-card {
-      background: #fff8e6;
-      border: 1px solid #ffe399;
-      border-radius: 12px;
-      padding: 14px 16px;
-      margin-bottom: 20px;
-    }
-    .badge-label {
-      font-size: 11px;
-      font-weight: 700;
-      color: #b25e00;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    .badge-value {
-      font-size: 15px;
-      font-weight: 600;
-      color: #7a3e00;
-      margin-top: 4px;
-    }
-    .meta-row {
-      font-size: 12.5px;
-      color: #86868b;
-      margin-bottom: 16px;
-    }
-    .note-box {
-      background: #fbfbfd;
-      border: 1px solid #e5e5ea;
-      border-radius: 12px;
-      padding: 16px;
-      font-size: 14px;
-      line-height: 1.6;
-      color: #333336;
-      white-space: pre-wrap;
-      font-family: inherit;
-    }
-    .footer {
-      padding: 20px 28px;
-      background: #fbfbfd;
-      border-top: 1px solid #e5e5ea;
-      font-size: 12px;
-      color: #86868b;
-      text-align: center;
-      line-height: 1.5;
-    }
-  </style>
 </head>
-<body>
-  <div class="wrapper">
-    <div class="header">
-      <div class="brand-tag">Trợ Lý Thu Mua • Farmers Market</div>
-      <h1 class="main-title">⏰ Thông Báo Nhắc Nhở Công Việc</h1>
-    </div>
-    <div class="content-body">
-      ${taskText ? `
-        <div class="badge-card">
-          <div class="badge-label">Mục việc cần làm đến hạn</div>
-          <div class="badge-value">☑️ ${taskText}</div>
-        </div>
-      ` : ''}
+<body style="margin: 0; padding: 0; background-color: #F2F2F7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #1D1D1F;">
+  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #F2F2F7; padding: 32px 16px;">
+    <tr>
+      <td align="center">
+        <!-- Main Card Container -->
+        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 580px; background-color: #FFFFFF; border-radius: 24px; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.06);">
+          <!-- Header Banner -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #0A192F 0%, #0052CC 55%, #0071E3 100%); padding: 32px 32px 28px 32px; color: #FFFFFF; text-align: left;">
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td>
+                    <span style="display: inline-block; padding: 4px 12px; background: rgba(255,255,255,0.16); border-radius: 100px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #FAC426; border: 1px solid rgba(250, 196, 38, 0.35);">
+                      🌿 FARMERS MARKET • FM WORKSPACE
+                    </span>
+                    <h1 style="margin: 14px 0 0 0; font-size: 22px; font-weight: 700; line-height: 1.3; color: #FFFFFF; letter-spacing: -0.02em;">
+                      ${taskText ? '⏰ Thông Báo Việc Cần Làm Đến Hạn' : '⏰ Nhắc Nhở Lịch Hẹn Tác Nghiệp'}
+                    </h1>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
-      <div class="meta-row">
-        <strong>Ghi chú:</strong> ${noteTitle || 'Ghi chú công việc'} • <strong>Thời gian:</strong> ${formattedTime}
-      </div>
+          <!-- Content Body -->
+          <tr>
+            <td style="padding: 32px;">
+              <!-- Task Card or Note Header Card -->
+              ${taskText ? `
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background: linear-gradient(180deg, #FFFDF5 0%, #FFF8E6 100%); border: 1px solid #FFE399; border-radius: 16px; padding: 18px 20px; margin-bottom: 24px;">
+                <tr>
+                  <td>
+                    <div style="font-size: 11px; font-weight: 700; color: #B25E00; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;">
+                      ⚡ Mục Việc Cần Làm Đến Hạn
+                    </div>
+                    <div style="font-size: 16px; font-weight: 600; color: #1D1D1F; line-height: 1.4;">
+                      ☑️ ${taskText}
+                    </div>
+                  </td>
+                </tr>
+              </table>
+              ` : ''}
 
-      <div class="note-box">${content || '(Không có nội dung chi tiết)'}</div>
-    </div>
-    <div class="footer">
-      Email này được gửi tự động bởi Hệ thống Quản Lý & Trợ Lý Thu Mua Farmers Market.<br>
-      Bạn nhận được thông báo này do đã thiết lập lịch hẹn tự động trong ứng dụng.
-    </div>
-  </div>
+              <!-- Metadata Table -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 14px; padding: 14px 18px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 4px 0; font-size: 13px; color: #64748B;">
+                    <strong style="color: #1E293B;">Ghi chú:</strong> ${noteTitle || 'Ghi chú công việc'}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; font-size: 13px; color: #64748B;">
+                    <strong style="color: #1E293B;">Thời điểm nhắc:</strong> ${formattedTime}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; font-size: 13px; color: #64748B;">
+                    <strong style="color: #1E293B;">Trạng thái:</strong> <span style="display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 11.5px; font-weight: 600; background: #DCFCE7; color: #166534;">Tự động gửi thành công</span>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Note Details Box -->
+              <div style="font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px;">
+                📝 Chi Tiết Ghi Chú
+              </div>
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 18px; margin-bottom: 28px;">
+                <tr>
+                  <td style="font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-wrap;">
+                    ${content || '(Không có nội dung bổ sung)'}
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Action CTA Button -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="center">
+                    <a href="http://localhost:5173" target="_blank" style="display: inline-block; padding: 12px 28px; background: linear-gradient(180deg, #0071E3 0%, #005BB5 100%); color: #FFFFFF; font-size: 14px; font-weight: 600; text-decoration: none; border-radius: 100px; box-shadow: 0 4px 14px rgba(0, 113, 227, 0.35); letter-spacing: -0.01em;">
+                      Mở Bàn Làm Việc FM Workspace &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 22px 32px; text-align: center; color: #94A3B8; font-size: 12px; line-height: 1.6;">
+              <strong style="color: #64748B;">Hệ Thống Trợ Lý Thu Mua • Farmers Market Việt Nam</strong><br>
+              Email thông báo tự động từ Workspace cục bộ của bạn • Bảo mật Local-First
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
-</html>
-    `;
+</html>`;
 
     const plainText = [
       `[Farmers Market - Trợ Lý Thu Mua]`,
@@ -381,6 +366,136 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
         configured: true,
         error: err.message,
         message: `Gửi mail qua máy chủ SMTP thất bại: ${err.message}. Nếu dùng Gmail, hãy đảm bảo đã tạo Mật khẩu ứng dụng 16 ký tự (myaccount.google.com/apppasswords).`,
+      });
+    }
+  });
+
+  // 4. Send Test Email Endpoint
+  fastify.post('/test-email', { preHandler: optionalAuth }, async (request: any, reply) => {
+    const { to } = request.body || {};
+    if (!to || typeof to !== 'string' || !to.includes('@')) {
+      return reply.code(400).send({
+        success: false,
+        message: 'Vui lòng cung cấp địa chỉ email hợp lệ để nhận thử nghiệm.',
+      });
+    }
+
+    const config = getSmtpConfig();
+    if (!config.configured) {
+      return reply.code(400).send({
+        success: false,
+        message: 'Chưa cấu hình tài khoản gửi thư SMTP trong hệ thống.',
+      });
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: {
+        user: config.user,
+        pass: config.pass,
+      },
+      tls: {
+        rejectUnauthorized: process.env.SMTP_IGNORE_TLS === 'true' ? false : true,
+      },
+    });
+
+    const formattedTime = new Date().toLocaleString('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+
+    const testHtml = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>[Farmers Market] Thử Nghiệm Kết Nối Email</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #F2F2F7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #1D1D1F;">
+  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #F2F2F7; padding: 32px 16px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 580px; background-color: #FFFFFF; border-radius: 24px; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.06);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #0A192F 0%, #0052CC 55%, #0071E3 100%); padding: 32px 32px 28px 32px; color: #FFFFFF; text-align: left;">
+              <span style="display: inline-block; padding: 4px 12px; background: rgba(255,255,255,0.16); border-radius: 100px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #FAC426; border: 1px solid rgba(250, 196, 38, 0.35);">
+                🌿 FARMERS MARKET • FM WORKSPACE
+              </span>
+              <h1 style="margin: 14px 0 0 0; font-size: 22px; font-weight: 700; line-height: 1.3; color: #FFFFFF; letter-spacing: -0.02em;">
+                ✅ Thử Nghiệm Gửi Mail Thành Công!
+              </h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 32px;">
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 14px; padding: 14px 18px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 4px 0; font-size: 13px; color: #64748B;">
+                    <strong style="color: #1E293B;">Máy chủ SMTP:</strong> ${config.host}:${config.port} (${config.user})
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; font-size: 13px; color: #64748B;">
+                    <strong style="color: #1E293B;">Thời gian gửi:</strong> ${formattedTime}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; font-size: 13px; color: #64748B;">
+                    <strong style="color: #1E293B;">Trạng thái:</strong> <span style="display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 11.5px; font-weight: 600; background: #DCFCE7; color: #166534;">Kết nối hoàn hảo</span>
+                  </td>
+                </tr>
+              </table>
+              <div style="font-size: 14px; line-height: 1.6; color: #334155; margin-bottom: 28px;">
+                Chúc mừng bạn! Thiết lập máy chủ gửi mail Google Gmail SMTP đã kết nối thông suốt và mẫu email chuẩn <strong>Apple Executive Liquid Glass</strong> mới đã được áp dụng thành công.
+              </div>
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="center">
+                    <a href="http://localhost:5173" target="_blank" style="display: inline-block; padding: 12px 28px; background: linear-gradient(180deg, #0071E3 0%, #005BB5 100%); color: #FFFFFF; font-size: 14px; font-weight: 600; text-decoration: none; border-radius: 100px; box-shadow: 0 4px 14px rgba(0, 113, 227, 0.35);">
+                      Mở FM Workspace &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 22px 32px; text-align: center; color: #94A3B8; font-size: 12px; line-height: 1.6;">
+              <strong style="color: #64748B;">Hệ Thống Trợ Lý Thu Mua • Farmers Market Việt Nam</strong><br>
+              Email thông báo thử nghiệm từ hệ thống Workspace cục bộ
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+    try {
+      const sendResult = await transporter.sendMail({
+        from: config.from,
+        to: to.trim(),
+        subject: '🌿 [Farmers Market] Thử Nghiệm Gửi Mail Thành Công',
+        text: 'Chúc mừng! Thử nghiệm gửi mail từ FM Workspace đã thành công.',
+        html: testHtml,
+      });
+
+      return reply.send({
+        success: true,
+        message: `Đã gửi email thử nghiệm thành công tới ${to}!`,
+        messageId: sendResult.messageId,
+      });
+    } catch (err: any) {
+      console.error('Test email failed:', err);
+      return reply.code(500).send({
+        success: false,
+        message: `Gửi email thử nghiệm thất bại: ${err.message}`,
       });
     }
   });

@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import {
   SFArrowUpDocument,
   SFTablecells,
@@ -13,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CloseButton } from '@/components/ui/close-button';
+import { AppleLiquidDialog } from '@/components/ui/AppleLiquidDialog';
 import { excelService, detectDatasetFromSheetName } from '@/services/excelService';
 import { ImportPreviewResult, DuplicateStrategy, SheetPreview } from '@/types/workspace';
 import toast from 'react-hot-toast';
@@ -36,8 +36,6 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  if (!isOpen) return null;
 
   const handleReset = () => {
     setStep('upload');
@@ -155,16 +153,15 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/40 dark:bg-black/75 backdrop-blur-2xl transition-opacity duration-200"
-        onClick={handleClose}
-      />
-
-      {/* Modal Dialog */}
-      <div className="relative bg-white dark:bg-[#1c1c22] rounded-[24px] max-w-2xl w-full p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15 apple-modal-enter flex flex-col max-h-[90vh]">
+  return (
+    <AppleLiquidDialog
+      isOpen={isOpen}
+      onClose={handleClose}
+      zIndex={10010}
+      title="Import Dữ Liệu Excel"
+      overlayClassName="p-4"
+      contentClassName="relative bg-white dark:bg-[#1c1c22] rounded-[24px] max-w-2xl w-full p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15 flex flex-col max-h-[90vh]"
+    >
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-black/[0.06] dark:border-white/10 shrink-0">
           <div className="flex items-center gap-3">
@@ -433,8 +430,6 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
             )}
           </div>
         </div>
-      </div>
-    </div>,
-    document.body
+    </AppleLiquidDialog>
   );
 };

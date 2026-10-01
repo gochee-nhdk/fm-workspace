@@ -80,9 +80,12 @@ import {
   WritingToolAction,
   getStoredGeminiKey,
   setStoredGeminiKey,
+  testGeminiApiKey,
 } from '@/services/writingToolsService';
 import { attachmentService } from '@/services/attachmentService';
 import { CloseButton } from '@/components/ui/close-button';
+import { AppleLiquidDialog } from '@/components/ui/AppleLiquidDialog';
+import { AppleDateTimePicker } from '@/components/ui/AppleDateTimePicker';
 import toast from 'react-hot-toast';
 
 const COLOR_MAP: Record<
@@ -788,17 +791,16 @@ export const QuickNoteWindow: React.FC = () => {
   const [smtpPassInput, setSmtpPassInput] = useState('');
   const [isConfiguringSmtp, setIsConfiguringSmtp] = useState(false);
 
-  // Compact AI dropdown menu
+  // Compact AI dropdown menu & outside click ref
   const [showCompactAiMenu, setShowCompactAiMenu] = useState(false);
+  const compactAiMenuRef = useRef<HTMLDivElement>(null);
 
-  // Individual task reminder popover state
-  const [taskReminderPopover, setTaskReminderPopover] = useState<{
+  // Dedicated To-do item reminder modal state (Separate from note reminder modal)
+  const [todoReminderTarget, setTodoReminderTarget] = useState<{
     lineIndex: number;
     taskId: string;
     taskText: string;
     reminderAt: string;
-    reminderEmail?: string;
-    reminderNotifyEmail?: boolean;
   } | null>(null);
 
   // Set of note IDs that have been unlocked in the current session
@@ -831,11 +833,23 @@ export const QuickNoteWindow: React.FC = () => {
     height: 480,
   });
   const [isDraggingCompact, setIsDraggingCompact] = useState(false);
+  const resizeRafRef = useRef<number | null>(null);
   const [isResizing, setIsResizing] = useState(false);
   const dragStartRef = useRef<{ startX: number; startY: number; posX: number; posY: number } | null>(null);
   const rafIdRef = useRef<number | null>(null);
-  const resizeRafRef = useRef<number | null>(null);
   const windowRef = useRef<HTMLDivElement>(null);
+
+  // Auto-close Writing Tools menu when clicking outside
+  useEffect(() => {
+    if (!showCompactAiMenu) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (compactAiMenuRef.current && !compactAiMenuRef.current.contains(e.target as Node)) {
+        setShowCompactAiMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [showCompactAiMenu]);
 
   const handleToggleCompactMode = () => {
     if (!isCompactWindow) {
@@ -1120,6 +1134,13 @@ export const QuickNoteWindow: React.FC = () => {
   const [geminiApiKeyInput, setGeminiApiKeyInput] = useState(getStoredGeminiKey());
   const [showApiKeySetting, setShowApiKeySetting] = useState(false);
   const [showApiKeyPassword, setShowApiKeyPassword] = useState(false);
+  const [isTestingApiKey, setIsTestingApiKey] = useState(false);
+  const [apiKeyTestResult, setApiKeyTestResult] = useState<{
+    success: boolean;
+    message: string;
+    model?: string;
+  } | null>(null);
+  const [apiKeyShake, setApiKeyShake] = useState(false);
   const [mathAnimatedRowIndex, setMathAnimatedRowIndex] = useState<number | null>(null);
 
   // Active text formatting states for toolbar highlighting
@@ -1566,39 +1587,39 @@ export const QuickNoteWindow: React.FC = () => {
   };
 
   // Switch format of CURRENT note between Note and Checklist - 2 content hoàn toàn tách biệt
-  const handleSwitchNoteMode = (targetMode: 'note' | 'checklist') => {
+  const handleSwitchNoteMode = async (targetMode: 'note' | 'checklist') => {
     if (!activeNote) return;
-    const currentIsChecklist = editorMode === 'checklist' || activeNote.noteType === 'checklist';
-    const wantChecklist = targetMode === 'checklist';
-    if (currentIsChecklist === wantChecklist) return;
+    const currentMode = editorMode === 'checklist' ? 'checklist' : 'note';
+    if (currentMode === targetMode) return;
 
     playPopSound();
-    if (wantChecklist) {
+    if (targetMode === 'checklist') {
       // Switching from Note → Checklist: chỉ đổi mode, dùng localChecklist riêng biệt
       setEditorMode('checklist');
-      // Nếu chưa có checklist content thì khởi tạo mặc định
       if (!localChecklistRef.current.trim()) {
-        const defaultChecklist = '- [ ] ';
+        const defaultChecklist = (activeNote as any).checklistContent?.trim() || '- [ ] ';
         setLocalChecklist(defaultChecklist);
         localChecklistRef.current = defaultChecklist;
       }
-      if (activeNoteIdRef.current) {
-        updateNote(activeNoteIdRef.current, {
-          noteType: 'checklist',
-          checklistContent: localChecklistRef.current,
-        });
-      }
-      toast.success('Đã chuyển sang Checklist việc cần làm', { id: 'note-mode-toggle', duration: 1800 });
+      await updateNote(activeNote.id, {
+        noteType: 'checklist',
+        checklistContent: localChecklistRef.current,
+      });
+      toast.success('Đã chuyển sang To-do việc cần làm', { id: 'note-mode-toggle', duration: 1500 });
     } else {
       // Switching from Checklist → Note: chỉ đổi mode, dùng localContent text riêng
       setEditorMode('text');
-      // Restore nội dung text từ localContentRef (không đụng đến checklist)
       const html = ensureHtml(localContentRef.current || activeNote.content || '');
-      if (editorRef.current) editorRef.current.innerHTML = html;
-      if (activeNoteIdRef.current) {
-        updateNote(activeNoteIdRef.current, { noteType: 'note' });
+      setLocalContent(html);
+      localContentRef.current = html;
+      if (editorRef.current) {
+        editorRef.current.innerHTML = html;
       }
-      toast.success('Đã chuyển sang Ghi chú văn bản', { id: 'note-mode-toggle', duration: 1800 });
+      await updateNote(activeNote.id, {
+        noteType: 'note',
+        content: html,
+      });
+      toast.success('Đã chuyển sang Ghi chú văn bản', { id: 'note-mode-toggle', duration: 1500 });
     }
   };
 
@@ -1663,7 +1684,6 @@ export const QuickNoteWindow: React.FC = () => {
     setLockConfirmPassword('');
     setLockConfigMismatch(false);
     setShowReminderModal(false);
-    setTaskReminderPopover(null);
     setShowApiKeySetting(false);
     setShowFloatingAiMenu(false);
     setShowLockConfigModal(true);
@@ -1969,19 +1989,17 @@ export const QuickNoteWindow: React.FC = () => {
       debounceTimerRef.current = null;
     }
 
-    // 1. Lọc trong mảng activeNote.images
-    const currentImages = activeNote.images || [];
-    const updatedImages = currentImages.filter(
-      (img) => (imageId ? img.id !== imageId : true) && (imageUrl ? img.url !== imageUrl : true)
-    );
-
-    // 2. Xóa phần tử hình ảnh trong editor DOM bằng selector an toàn
+    // 1. Xóa phần tử hình ảnh trong editor DOM bằng selector an toàn
     if (editorRef.current) {
       const imgs = Array.from(editorRef.current.querySelectorAll('img'));
       imgs.forEach((img) => {
         const src = img.getAttribute('src') || '';
-        const matches = (imageUrl && (src === imageUrl || src.includes(imageUrl.substring(0, 80)))) ||
-                        (imageId && img.getAttribute('data-image-id') === imageId);
+        const matches =
+          (imageUrl &&
+            (src === imageUrl ||
+              src.includes(imageUrl.substring(0, 80)) ||
+              imageUrl.includes(src.substring(0, 80)))) ||
+          (imageId && (img.getAttribute('data-image-id') === imageId || img.id === imageId));
         if (matches) {
           const wrapper = img.closest('.apple-img-wrapper') || img;
           const parentP = wrapper.parentElement;
@@ -1996,15 +2014,26 @@ export const QuickNoteWindow: React.FC = () => {
     const baseContent = editorRef.current ? editorRef.current.innerHTML : (localContentRef.current || activeNote.content || '');
     const updatedHtml = imageUrl ? removeAttachmentFromHtml(baseContent, imageUrl) : baseContent;
 
+    // 2. Lọc triệt để trong mảng activeNote.images
+    const currentImages = activeNote.images || [];
+    const updatedImages = currentImages.filter((img) => {
+      if (imageId && (img.id === imageId || (img.id && imageId.includes(img.id)))) return false;
+      if (imageUrl && (img.url === imageUrl || (img.url && (img.url.includes(imageUrl.substring(0, 80)) || imageUrl.includes(img.url.substring(0, 80)))))) return false;
+      return true;
+    });
+
     setLocalContent(updatedHtml);
     localContentRef.current = updatedHtml;
     if (editorRef.current && editorRef.current.innerHTML !== updatedHtml) {
       editorRef.current.innerHTML = updatedHtml;
     }
 
-    if (activeNoteIdRef.current) {
-      await updateNote(activeNoteIdRef.current, { images: updatedImages, content: updatedHtml });
-    }
+    await updateNote(activeNote.id, { images: updatedImages, content: updatedHtml });
+
+    // Đóng ngay lightbox nếu ảnh này đang được mở
+    setLightboxImage(null);
+    setLightboxZoom(1);
+
     playPopSound();
     toast.success('Đã xóa hình ảnh khỏi ghi chú', { id: 'note-img-del' });
   };
@@ -2230,9 +2259,44 @@ export const QuickNoteWindow: React.FC = () => {
     };
   }, [filePreviewModal]);
 
-  // Active note images and carousel navigation
-  const noteImages = activeNote?.images || [];
-  const currentImageIndex = lightboxImage ? noteImages.findIndex((img) => img.id === lightboxImage.id) : -1;
+  // Active note images computed strictly from actual note content
+  const noteImages: NoteImageAttachment[] = useMemo(() => {
+    if (!activeNote) return [];
+
+    const html = localContentRef.current || activeNote.content || '';
+    if (!html) return [];
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const imgEls = Array.from(doc.querySelectorAll('img'));
+
+    if (imgEls.length === 0) return [];
+
+    const storedImages = activeNote.images || [];
+
+    return imgEls
+      .map((img, index) => {
+        const src = img.getAttribute('src') || '';
+        const alt = img.getAttribute('alt') || `Hình ảnh ${index + 1}`;
+        const matched = storedImages.find(
+          (si) => si.url && (si.url === src || src.includes(si.url.substring(0, 80)) || si.url.includes(src.substring(0, 80)))
+        );
+        return {
+          id: matched?.id || `img_${index}_${src.slice(-12)}`,
+          url: src,
+          name: matched?.name || alt,
+          size: matched?.size,
+          createdAt: matched?.createdAt || activeNote.updatedAt,
+        };
+      })
+      .filter((img) => Boolean(img.url));
+  }, [activeNote?.content, activeNote?.images, localContent]);
+
+  const currentImageIndex = lightboxImage
+    ? noteImages.findIndex(
+        (img) => (img.id && img.id === lightboxImage.id) || (img.url && img.url === lightboxImage.url)
+      )
+    : -1;
 
   const handlePrevImage = useCallback(() => {
     if (noteImages.length <= 1 || currentImageIndex === -1) return;
@@ -2395,13 +2459,15 @@ export const QuickNoteWindow: React.FC = () => {
         filePreviewModal ||
         showApiKeySetting ||
         showReminderModal ||
+        todoReminderTarget ||
         showLockConfigModal ||
-        taskReminderPopover ||
         showWritingToolsMenu ||
         showCompactAiMenu ||
         showFloatingAiMenu ||
         showSmtpConfig
       ) {
+        if (showCompactAiMenu) setShowCompactAiMenu(false);
+        if (todoReminderTarget) setTodoReminderTarget(null);
         return;
       }
 
@@ -2418,8 +2484,8 @@ export const QuickNoteWindow: React.FC = () => {
     filePreviewModal,
     showApiKeySetting,
     showReminderModal,
+    todoReminderTarget,
     showLockConfigModal,
-    taskReminderPopover,
     showWritingToolsMenu,
     showCompactAiMenu,
     showFloatingAiMenu,
@@ -2433,7 +2499,6 @@ export const QuickNoteWindow: React.FC = () => {
       setShowApiKeySetting(false);
     } else {
       setShowReminderModal(false);
-      setTaskReminderPopover(null);
       setShowFloatingAiMenu(false);
       setShowLockConfigModal(false);
       setGeminiApiKeyInput(getStoredGeminiKey());
@@ -2456,28 +2521,24 @@ export const QuickNoteWindow: React.FC = () => {
         setLocalTitle(initialTitle);
         localTitleRef.current = initialTitle;
 
-        const isChecklist =
-          activeNote.noteType === 'checklist' ||
-          (/^-\s*\[([ xX])\]/m.test(initialContent) && activeNote.noteType !== 'note');
+        const isChecklist = activeNote.noteType === 'checklist';
 
         if (isChecklist) {
           setEditorMode('checklist');
-          // Load checklist content từ checklistContent field, fallback về content
           const checklistData = initialChecklist || initialContent;
           setLocalChecklist(checklistData);
           localChecklistRef.current = checklistData;
-          // Vẫn giữ localContent là content text (nếu có)
-          // Không load checklist vào localContent nữa
-          setLocalContent('');
-          localContentRef.current = '';
+          const html = ensureHtml(initialContent);
+          setLocalContent(html);
+          localContentRef.current = html;
         } else {
           setEditorMode('text');
           const html = ensureHtml(initialContent);
           setLocalContent(html);
           localContentRef.current = html;
-          // Load checklistContent nếu có vào localChecklist
-          setLocalChecklist(initialChecklist);
-          localChecklistRef.current = initialChecklist;
+          const checklistData = initialChecklist || (initialContent && /^-\s*\[([ xX])\]/m.test(initialContent) ? initialContent : '');
+          setLocalChecklist(checklistData);
+          localChecklistRef.current = checklistData;
           if (editorRef.current) {
             editorRef.current.innerHTML = html;
           }
@@ -3187,13 +3248,11 @@ export const QuickNoteWindow: React.FC = () => {
     }
 
     updateActiveNote(updates);
-    setTaskReminderPopover(null);
   };
 
   // ──────── Main Note Reminder Handlers ────────
   const handleOpenReminderModal = () => {
     setShowApiKeySetting(false);
-    setTaskReminderPopover(null);
     setShowFloatingAiMenu(false);
     setShowLockConfigModal(false);
     if (activeNote?.reminderAt) {
@@ -3249,6 +3308,50 @@ export const QuickNoteWindow: React.FC = () => {
       toast.error(err.message || 'Lỗi khi gửi email', { duration: 5000 });
     } finally {
       setIsSendingTestEmail(false);
+    }
+  };
+
+  const handleValidateAndSaveApiKey = async () => {
+    const keyToSave = geminiApiKeyInput.trim();
+    if (!keyToSave) {
+      setApiKeyShake(true);
+      setTimeout(() => setApiKeyShake(false), 500);
+      toast.error('Vui lòng nhập Gemini API Key');
+      return;
+    }
+
+    setIsTestingApiKey(true);
+    setApiKeyTestResult(null);
+    toast.loading('Đang xác thực kết nối với Google Gemini...', { id: 'test-gemini-key' });
+    try {
+      const res = await testGeminiApiKey(keyToSave);
+      toast.dismiss('test-gemini-key');
+      if (res.success) {
+        setStoredGeminiKey(keyToSave);
+        setApiKeyTestResult(res);
+        playAppleChime();
+        toast.success(`🎉 Đã xác thực & lưu Gemini API Key thành công (${res.model})!`);
+        setShowApiKeySetting(false);
+      } else {
+        setApiKeyTestResult({
+          success: false,
+          message: res.message,
+        });
+        setApiKeyShake(true);
+        setTimeout(() => setApiKeyShake(false), 500);
+        toast.error(`Xác thực thất bại: ${res.message}`);
+      }
+    } catch (err: any) {
+      toast.dismiss('test-gemini-key');
+      setApiKeyTestResult({
+        success: false,
+        message: err.message || 'Không thể kết nối tới Google Gemini',
+      });
+      setApiKeyShake(true);
+      setTimeout(() => setApiKeyShake(false), 500);
+      toast.error('Lỗi khi kiểm tra kết nối API key');
+    } finally {
+      setIsTestingApiKey(false);
     }
   };
 
@@ -3754,15 +3857,19 @@ export const QuickNoteWindow: React.FC = () => {
 
               {/* Apple macOS Fluid Mode Switcher Capsule (Hình 3) */}
               {(() => {
-                const isChecklistActive = editorMode === 'checklist' || activeNote?.noteType === 'checklist';
+                const isChecklistActive = editorMode === 'checklist';
                 return (
-                  <div className="relative inline-flex items-center p-0.5 rounded-full bg-black/[0.05] dark:bg-white/[0.08] backdrop-blur-2xl border border-black/[0.06] dark:border-white/12 shadow-2xs ml-1 shrink-0 flex-nowrap select-none">
-                    {/* Fluid Sliding Pill Indicator: Lướt qua lướt lại có độ nẩy chất lỏng */}
+                  <div
+                    className={`relative inline-flex items-center p-0.5 rounded-full bg-black/[0.05] dark:bg-white/[0.08] backdrop-blur-2xl border border-black/[0.06] dark:border-white/12 shadow-2xs ml-1 shrink-0 select-none ${
+                      isCompactWindow ? 'w-[60px]' : 'w-[172px]'
+                    }`}
+                  >
+                    {/* Fluid Sliding Pill Indicator: Căn chuẩn tâm 100%, đệm đều 2px 4 phía */}
                     <div
-                      className="absolute top-0.5 bottom-0.5 rounded-full bg-[#0071e3] shadow-xs transition-transform duration-280 ease-[cubic-bezier(0.34,1.56,0.64,1)] pointer-events-none will-change-transform"
+                      className="absolute top-0.5 bottom-0.5 left-0.5 rounded-full bg-[#0071e3] shadow-xs transition-transform duration-280 ease-[cubic-bezier(0.34,1.56,0.64,1)] pointer-events-none will-change-transform"
                       style={{
-                        width: isCompactWindow ? '28px' : 'calc(50% - 2px)',
-                        transform: `translate3d(${isChecklistActive ? (isCompactWindow ? '28px' : '100%') : '0px'}, 0, 0)`,
+                        width: isCompactWindow ? '28px' : '84px',
+                        transform: `translate3d(${isChecklistActive ? (isCompactWindow ? '28px' : '84px') : '0px'}, 0, 0)`,
                       }}
                     />
 
@@ -3770,8 +3877,8 @@ export const QuickNoteWindow: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleSwitchNoteMode('note')}
-                      className={`relative z-10 inline-flex items-center justify-center gap-1.5 rounded-full text-[12px] font-semibold transition-colors duration-200 cursor-pointer active:scale-95 shrink-0 whitespace-nowrap ${
-                        isCompactWindow ? 'w-7 h-7 p-0' : 'px-3 py-1'
+                      className={`relative z-10 flex items-center justify-center gap-1.5 rounded-full text-[12px] font-semibold transition-colors duration-200 cursor-pointer active:scale-95 shrink-0 whitespace-nowrap h-7 ${
+                        isCompactWindow ? 'w-7 p-0' : 'w-[84px] px-2'
                       } ${
                         !isChecklistActive
                           ? 'text-white'
@@ -3781,29 +3888,29 @@ export const QuickNoteWindow: React.FC = () => {
                     >
                       <SFSquareAndPencil
                         size={13}
-                        className={!isChecklistActive ? 'text-white' : 'text-[#76767b] dark:text-[#a1a1a6]'}
+                        className={`shrink-0 ${!isChecklistActive ? 'text-white' : 'text-[#76767b] dark:text-[#a1a1a6]'}`}
                       />
-                      {!isCompactWindow && <span>Ghi chú</span>}
+                      {!isCompactWindow && <span className="leading-none text-center">Ghi chú</span>}
                     </button>
 
-                    {/* Nút 2: Checklist (Đã xóa vạch dọc chắn ở giữa) */}
+                    {/* Nút 2: To-do */}
                     <button
                       type="button"
                       onClick={() => handleSwitchNoteMode('checklist')}
-                      className={`relative z-10 inline-flex items-center justify-center gap-1.5 rounded-full text-[12px] font-semibold transition-colors duration-200 cursor-pointer active:scale-95 shrink-0 whitespace-nowrap ${
-                        isCompactWindow ? 'w-7 h-7 p-0' : 'px-3 py-1'
+                      className={`relative z-10 flex items-center justify-center gap-1.5 rounded-full text-[12px] font-semibold transition-colors duration-200 cursor-pointer active:scale-95 shrink-0 whitespace-nowrap h-7 ${
+                        isCompactWindow ? 'w-7 p-0' : 'w-[84px] px-2'
                       } ${
                         isChecklistActive
                           ? 'text-white'
                           : 'text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white'
                       }`}
-                      title="Chế độ Checklist việc cần làm"
+                      title="Chế độ To-do việc cần làm"
                     >
                       <SFCheckmarkSquare
                         size={13}
-                        className={isChecklistActive ? 'text-white' : 'text-[#76767b] dark:text-[#a1a1a6]'}
+                        className={`shrink-0 ${isChecklistActive ? 'text-white' : 'text-[#76767b] dark:text-[#a1a1a6]'}`}
                       />
-                      {!isCompactWindow && <span>Checklist</span>}
+                      {!isCompactWindow && <span className="leading-none text-center">To-do</span>}
                     </button>
                   </div>
                 );
@@ -3814,7 +3921,7 @@ export const QuickNoteWindow: React.FC = () => {
                 type="button"
                 onClick={() => handleCreateNewNote(editorMode === 'checklist' ? 'checklist' : 'note')}
                 className="w-7 h-7 rounded-full bg-black/[0.04] dark:bg-white/[0.06] hover:bg-[#0071e3]/15 hover:text-[#0071e3] dark:hover:text-[#2997ff] text-[#76767b] flex items-center justify-center transition-all cursor-pointer active:scale-90 ml-0.5 shadow-2xs"
-                title="Tạo ghi chú / checklist mới (+)"
+                title="Tạo ghi chú / to-do mới (+)"
               >
                 <SFPlus size={14} />
               </button>
@@ -3909,10 +4016,10 @@ export const QuickNoteWindow: React.FC = () => {
                   const input = document.getElementById('note-unlock-pin-hidden') as HTMLInputElement | null;
                   input?.focus();
                 }}
-                className="flex-1 flex flex-col items-center justify-center p-6 text-center font-sans bg-transparent select-none animate-in fade-in duration-200 cursor-text"
+                className="flex-1 flex flex-col items-center justify-center p-6 text-center font-sans bg-transparent select-none cursor-text liquid-backdrop-enter will-change-[opacity]"
               >
                 <div className={cn(
-                  "w-full max-w-[340px] p-6 rounded-[26px] bg-white/90 dark:bg-[#1c1c24]/90 border border-black/10 dark:border-white/12 shadow-[0_16px_40px_rgba(0,0,0,0.12)] flex flex-col items-center relative",
+                  "w-full max-w-[340px] p-6 rounded-[26px] bg-white/90 dark:bg-[#1c1c24]/90 border border-black/10 dark:border-white/12 shadow-[0_16px_40px_rgba(0,0,0,0.12)] flex flex-col items-center relative apple-modal-enter will-change-[transform,opacity]",
                   unlockShake && "apple-shake"
                 )}>
                   <div className="w-14 h-14 rounded-2xl bg-gradient-to-b from-[#0071e3]/20 to-[#0071e3]/5 border border-[#0071e3]/25 flex items-center justify-center text-[#0071e3] dark:text-[#2997ff] shadow-md shadow-[#0071e3]/20 mb-3">
@@ -4069,37 +4176,60 @@ export const QuickNoteWindow: React.FC = () => {
               </div>
               )} {/* end !isCompactWindow metadata row */}
 
-              {/* ──────────────── IN-LINE AI WRITING DRAFT PREVIEW (Apple Diff Inline) ──────────────── */}
+              {/* ──────────────── IN-LINE AI WRITING DRAFT PREVIEW (Apple Liquid Glass Diff Card) ──────────────── */}
               {aiDraft && (
-                <div className="mb-3 px-3.5 py-2.5 rounded-2xl bg-white/90 dark:bg-[#1e1e26]/90 backdrop-blur-2xl border border-black/[0.08] dark:border-white/12 shadow-[0_8px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_12px_32px_rgba(0,0,0,0.45)] flex items-start sm:items-center justify-between gap-3 animate-in fade-in slide-in-from-top-1.5 duration-150 shrink-0">
-                  <div className="flex-1 min-w-0 text-[13.5px] leading-relaxed select-text flex flex-wrap items-center gap-2 max-h-[160px] overflow-y-auto scrollbar-thin">
-                    {aiDraft.originalText && aiDraft.originalText !== aiDraft.result && (
-                      <span className="line-through text-rose-600 dark:text-rose-400 bg-rose-500/10 dark:bg-rose-500/15 px-2 py-0.5 rounded-lg text-[13px] whitespace-pre-wrap">
-                        {aiDraft.originalText}
+                <div className="mb-3 p-3.5 rounded-2xl bg-white/95 dark:bg-[#1e1e28]/95 backdrop-blur-3xl border border-black/[0.08] dark:border-white/12 shadow-[0_12px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] flex flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-200 shrink-0 select-none">
+                  {/* Card Header with Apple Intelligence Glow */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white flex items-center justify-center shadow-xs">
+                        <SFWandAndSparkles size={11} className="text-white" />
+                      </div>
+                      <span className="text-[12px] font-semibold tracking-tight bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] bg-clip-text text-transparent">
+                        Bản nháp Writing Tools
                       </span>
-                    )}
-                    <span className="text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 dark:bg-emerald-500/15 font-medium px-2 py-0.5 rounded-lg text-[13px] whitespace-pre-wrap">
-                      {aiDraft.result}
-                    </span>
+                    </div>
+                    {/* Action buttons pill */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleApplyAiDraft('replace')}
+                        className="px-2.5 py-1 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
+                        title="Thay thế nội dung đã chọn"
+                      >
+                        <SFCheckmark size={11} className="stroke-[3]" />
+                        <span>Thay thế</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyAiDraft('append')}
+                        className="px-2.5 py-1 rounded-full bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium flex items-center gap-1 transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95"
+                        title="Thêm vào cuối ghi chú"
+                      >
+                        <SFPlus size={11} />
+                        <span>Thêm cuối</span>
+                      </button>
+                      <CloseButton
+                        onClick={handleDiscardAiDraft}
+                        size="sm"
+                        label="Hủy bỏ"
+                        title="Hủy bỏ bản nháp"
+                      />
+                    </div>
                   </div>
 
-                  {/* Compact Floating Action Pill: [✓] [✕] */}
-                  <div className="flex items-center gap-1.5 shrink-0 bg-black/[0.04] dark:bg-white/[0.06] p-0.5 rounded-full border border-black/[0.05] dark:border-white/10 shadow-2xs self-center">
-                    <button
-                      type="button"
-                      onClick={() => handleApplyAiDraft('replace')}
-                      className="w-7 h-7 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white flex items-center justify-center transition-all cursor-pointer shadow-xs active:scale-90"
-                      title="Chấp nhận thay thế"
-                      aria-label="Chấp nhận"
-                    >
-                      <SFCheckmark size={13} className="stroke-[3]" />
-                    </button>
-                    <CloseButton
-                      onClick={handleDiscardAiDraft}
-                      size="sm"
-                      label="Hủy bỏ"
-                      title="Hủy bỏ"
-                    />
+                  {/* Diff Comparison Body */}
+                  <div className="space-y-1.5 text-[13px] leading-relaxed select-text max-h-[140px] overflow-y-auto scrollbar-thin pr-1">
+                    {aiDraft.originalText && aiDraft.originalText !== aiDraft.result && (
+                      <div className="flex items-start gap-1.5 text-[#86868b] dark:text-[#76767b]">
+                        <span className="text-[10.5px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/[0.04] dark:bg-white/[0.06] shrink-0 mt-0.5">Gốc</span>
+                        <p className="line-through line-clamp-2 text-[12px] opacity-80 whitespace-pre-wrap">{aiDraft.originalText}</p>
+                      </div>
+                    )}
+                    <div className="flex items-start gap-1.5 text-emerald-800 dark:text-emerald-300">
+                      <span className="text-[10.5px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold shrink-0 mt-0.5">Gợi ý</span>
+                      <p className="font-medium whitespace-pre-wrap flex-1">{aiDraft.result}</p>
+                    </div>
                   </div>
                 </div>
               )}
@@ -4107,7 +4237,15 @@ export const QuickNoteWindow: React.FC = () => {
               {/* In-place Quick Formatting & Tools Strip — ẨN trong compact mode */}
               {!isCompactWindow && (
               <div className="flex items-center justify-between gap-1.5 pb-2 mb-2 border-b border-black/[0.06] dark:border-white/10 shrink-0 select-none relative">
-                <div className="flex items-center gap-0.5 shrink-0 overflow-x-auto scrollbar-none py-0.5">
+                {/* Collapsible Rich-Text Formatting Controls with Liquid Spring Physics */}
+                <div
+                  className={cn(
+                    "flex items-center gap-0.5 shrink-0 overflow-x-auto scrollbar-none py-0.5 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+                    editorMode === 'checklist'
+                      ? "max-w-0 opacity-0 pointer-events-none -translate-x-3 overflow-hidden"
+                      : "max-w-[400px] opacity-100 translate-x-0"
+                  )}
+                >
                   <button
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
@@ -4209,8 +4347,8 @@ export const QuickNoteWindow: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Tools Dropdown trigger (Full 9 Writing Tools, No Blur) */}
-                <div className="relative shrink-0">
+                {/* Tools Dropdown trigger with outside click listener ref (Writing tools) */}
+                <div ref={compactAiMenuRef} className="relative shrink-0">
                   <button
                     type="button"
                     onClick={() => setShowCompactAiMenu(!showCompactAiMenu)}
@@ -4222,7 +4360,7 @@ export const QuickNoteWindow: React.FC = () => {
                     title="Công cụ AI soạn thảo & xử lý văn bản"
                   >
                     <SFWandAndSparkles size={11.5} className="text-[#0071e3] dark:text-[#2997ff]" />
-                    <span>Tools</span>
+                    <span>Writing Tools</span>
                     <ChevronDown size={10} className={`transition-transform duration-150 ${showCompactAiMenu ? 'rotate-180' : ''}`} />
                   </button>
 
@@ -4232,7 +4370,7 @@ export const QuickNoteWindow: React.FC = () => {
                       className="absolute right-0 top-full mt-1.5 w-60 rounded-2xl bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-3xl border border-black/10 dark:border-white/15 shadow-[0_24px_60px_-8px_rgba(0,0,0,0.22),0_4px_16px_rgba(0,0,0,0.06),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),inset_0_1px_1px_rgba(255,255,255,0.15)] p-1.5 z-50 apple-popover-tr space-y-0.5 text-left max-h-[380px] overflow-y-auto select-none"
                     >
                       <div className="px-2.5 py-1 text-[10.5px] font-bold text-[#86868b] dark:text-[#a1a1a6] border-b border-black/[0.06] dark:border-white/10 mb-1 flex items-center justify-between">
-                        <span>Công cụ Apple AI</span>
+                        <span>Writing Tools</span>
                         <span className="text-[9.5px] bg-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff] px-1.5 py-0.5 rounded-full font-semibold">Intelligence</span>
                       </div>
 
@@ -4461,14 +4599,14 @@ export const QuickNoteWindow: React.FC = () => {
                         {row.reminderAt ? (
                           <button
                             type="button"
-                            onClick={() =>
-                              setTaskReminderPopover({
+                            onClick={() => {
+                              setTodoReminderTarget({
                                 lineIndex: row.lineIndex,
                                 taskId: row.taskId,
                                 taskText: row.text,
                                 reminderAt: toDatetimeLocal(new Date(row.reminderAt!)),
-                              })
-                            }
+                              });
+                            }}
                             className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#0071e3]/12 text-[#0071e3] dark:text-[#2997ff] border border-[#0071e3]/25 hover:bg-[#0071e3]/20 transition-all cursor-pointer shrink-0 shadow-2xs"
                             title="Nhấp để đổi giờ hoặc hủy nhắc cho việc này"
                           >
@@ -4479,14 +4617,14 @@ export const QuickNoteWindow: React.FC = () => {
                         ) : (
                           <button
                             type="button"
-                            onClick={() =>
-                              setTaskReminderPopover({
+                            onClick={() => {
+                              setTodoReminderTarget({
                                 lineIndex: row.lineIndex,
                                 taskId: row.taskId,
                                 taskText: row.text,
                                 reminderAt: toDatetimeLocal(new Date(Date.now() + 30 * 60 * 1000)),
-                              })
-                            }
+                              });
+                            }}
                             className="opacity-0 group-hover:opacity-100 p-1 text-[#86868b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-[#0071e3]/10 rounded-full transition-all cursor-pointer shrink-0"
                             title="Hẹn giờ nhắc riêng cho mục việc này"
                           >
@@ -4937,7 +5075,7 @@ export const QuickNoteWindow: React.FC = () => {
                     : 'bg-amber-500 hover:bg-amber-600'
                 }`}
               >
-                {typeFilter === 'checklist' ? 'Tạo checklist ngay' : 'Tạo ghi chú ngay'}
+                {typeFilter === 'checklist' ? 'Tạo To-do ngay' : 'Tạo ghi chú ngay'}
               </button>
             </div>
           )}
@@ -4946,776 +5084,664 @@ export const QuickNoteWindow: React.FC = () => {
       </div>
 
       {/* ─────────────────── Apple Gemini API Key Modal (Apple Liquid Glass Blur & Translucency) ─────────────────── */}
-      {showApiKeySetting && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Cài đặt Gemini API Key"
-          onClick={() => setShowApiKeySetting(false)}
-          className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-black/25 dark:bg-black/50 backdrop-blur-md select-none animate-in fade-in duration-150"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-[420px] bg-white/85 dark:bg-[#1e1e24]/85 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/10 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] p-5 space-y-4 text-left animate-in zoom-in-95 duration-150"
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-black/[0.06] dark:border-white/10">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-b from-[#0071e3]/15 to-[#0071e3]/5 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center border border-[#0071e3]/20 shadow-xs">
-                  <SFKey size={15} />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-[14.5px] text-[#1d1d1f] dark:text-white leading-tight">
-                    Gemini API Key
-                  </h4>
-                  <p className="text-[11.5px] text-[#86868b] dark:text-[#a1a1a6] mt-0.5">
-                    Cung cấp trí tuệ cho Apple Writing Tools
-                  </p>
-                </div>
-              </div>
-              <CloseButton
-                onClick={() => setShowApiKeySetting(false)}
-                size="sm"
-              />
+      <AppleLiquidDialog
+        isOpen={showApiKeySetting}
+        onClose={() => {
+          setShowApiKeySetting(false);
+          setApiKeyTestResult(null);
+        }}
+        zIndex={10015}
+        ariaLabel="Cài đặt Gemini API Key"
+        containerClassName={cn(
+          "w-full max-w-[440px] bg-white/90 dark:bg-[#1c1c24]/90 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/12 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] p-5.5 space-y-4 text-left",
+          apiKeyShake && "apple-shake"
+        )}
+      >
+        <div className="flex items-center justify-between pb-3 border-b border-black/[0.06] dark:border-white/10">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-b from-[#0071e3]/15 to-[#0071e3]/5 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center border border-[#0071e3]/20 shadow-xs">
+              <SFKey size={15} />
             </div>
-
-            <div className="space-y-2">
-              <label className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
-                Nhập Google Gemini API Key:
-              </label>
-              <div className="relative flex items-center">
-                <input
-                  type={showApiKeyPassword ? 'text' : 'password'}
-                  value={geminiApiKeyInput}
-                  onChange={(e) => setGeminiApiKeyInput(e.target.value)}
-                  placeholder="AIzaSy..."
-                  className="w-full pl-3 pr-10 py-2 rounded-xl text-[12.5px] font-mono bg-black/[0.02] dark:bg-white/[0.04] border border-black/15 dark:border-white/20 outline-none focus:border-[#0071e3] dark:focus:border-[#2997ff] text-[#1d1d1f] dark:text-white transition-all"
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowApiKeyPassword(!showApiKeyPassword)}
-                  className="absolute right-2.5 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white cursor-pointer p-1"
-                  title={showApiKeyPassword ? 'Ẩn khóa' : 'Hiện khóa'}
-                >
-                  {showApiKeyPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
-              </div>
-              <p className="text-[11px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
-                Khóa API được lưu an toàn trên trình duyệt của bạn và dùng trực tiếp để kích hoạt các công cụ Apple AI.
+            <div>
+              <h4 className="font-semibold text-[14.5px] text-[#1d1d1f] dark:text-white leading-tight">
+                Gemini API Key
+              </h4>
+              <p className="text-[11.5px] text-[#86868b] dark:text-[#a1a1a6] mt-0.5">
+                Cung cấp trí tuệ cho Apple Writing Tools
               </p>
             </div>
+          </div>
+          <CloseButton
+            onClick={() => {
+              setShowApiKeySetting(false);
+              setApiKeyTestResult(null);
+            }}
+            size="sm"
+          />
+        </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-black/[0.06] dark:border-white/10">
-              {getStoredGeminiKey() ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStoredGeminiKey('');
-                    setGeminiApiKeyInput('');
-                    toast.success('Đã xóa Gemini API Key!', { id: 'api-key-clear' });
-                  }}
-                  className="text-[12px] font-medium text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
-                >
-                  Xóa khóa hiện tại
-                </button>
+        <div className="space-y-2.5">
+          <label className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
+            Nhập Google Gemini API Key:
+          </label>
+          <div className="relative flex items-center">
+            <input
+              type={showApiKeyPassword ? 'text' : 'password'}
+              value={geminiApiKeyInput}
+              onChange={(e) => {
+                setGeminiApiKeyInput(e.target.value);
+                setApiKeyTestResult(null);
+              }}
+              placeholder="AIzaSy..."
+              className="w-full pl-3 pr-10 py-2.5 rounded-xl text-[12.5px] font-mono bg-black/[0.02] dark:bg-white/[0.04] border border-black/15 dark:border-white/20 outline-none focus:border-[#0071e3] dark:focus:border-[#2997ff] text-[#1d1d1f] dark:text-white transition-all shadow-2xs"
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={() => setShowApiKeyPassword(!showApiKeyPassword)}
+              className="absolute right-2.5 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white cursor-pointer p-1"
+              title={showApiKeyPassword ? 'Ẩn khóa' : 'Hiện khóa'}
+            >
+              {showApiKeyPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
+
+          {/* Validation Error Badge */}
+          {apiKeyTestResult && !apiKeyTestResult.success && (
+            <div
+              className="text-[11.5px] px-3 py-2 rounded-xl font-medium flex items-start gap-2 bg-rose-500/12 text-rose-700 dark:text-rose-400 border border-rose-500/25 leading-snug animate-in fade-in duration-150"
+            >
+              <SFXmark size={14} className="shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
+              <div className="flex-1 break-words">
+                <span className="font-semibold">Xác thực thất bại:</span> {apiKeyTestResult.message}
+              </div>
+            </div>
+          )}
+
+          <p className="text-[11px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
+            Hệ thống sẽ tự động quét và kết nối với model Gemini Flash mới nhất khả dụng cho tài khoản của bạn. Khóa API hợp lệ sẽ được lưu an toàn trên máy của bạn.
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between pt-3 border-t border-black/[0.06] dark:border-white/10">
+          {getStoredGeminiKey() ? (
+            <button
+              type="button"
+              onClick={() => {
+                setStoredGeminiKey('');
+                setGeminiApiKeyInput('');
+                setApiKeyTestResult(null);
+                toast.success('Đã xóa Gemini API Key!', { id: 'api-key-clear' });
+              }}
+              className="text-[12px] font-medium text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+            >
+              Xóa khóa hiện tại
+            </button>
+          ) : (
+            <div />
+          )}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setShowApiKeySetting(false);
+                setApiKeyTestResult(null);
+              }}
+              className="px-3.5 py-1.5 rounded-full text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] border border-black/5 dark:border-white/10 transition-colors cursor-pointer active:scale-95"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              disabled={isTestingApiKey || !geminiApiKeyInput.trim()}
+              onClick={handleValidateAndSaveApiKey}
+              className="px-4.5 py-1.5 rounded-full text-[12px] font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 shrink-0"
+            >
+              {isTestingApiKey ? (
+                <>
+                  <Loader2 size={12.5} className="animate-spin" />
+                  <span>Đang xác thực...</span>
+                </>
               ) : (
-                <div />
+                <>
+                  <SFCheckmark size={12} className="stroke-[2.5]" />
+                  <span>Xác thực & Lưu</span>
+                </>
               )}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowApiKeySetting(false)}
-                  className="px-3.5 py-1.5 rounded-full text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] border border-black/5 dark:border-white/10 transition-colors cursor-pointer active:scale-95"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setStoredGeminiKey(geminiApiKeyInput.trim());
-                    setShowApiKeySetting(false);
-                    playAppleChime();
-                    toast.success('Đã lưu Gemini API Key thành công!', { id: 'api-key-save' });
-                  }}
-                  className="px-4.5 py-1.5 rounded-full text-[12px] font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-xs transition-all cursor-pointer active:scale-95"
-                >
-                  Lưu khóa API
-                </button>
-              </div>
-            </div>
+            </button>
           </div>
         </div>
-      )}
-
-      {/* ─────────────────── Individual Task Reminder Modal (Apple Liquid Glass Blur & Translucency) ─────────────────── */}
-      {taskReminderPopover && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Hẹn giờ nhắc việc"
-          onClick={() => setTaskReminderPopover(null)}
-          className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-black/25 dark:bg-black/50 backdrop-blur-md select-none animate-in fade-in duration-150"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-[390px] bg-white/85 dark:bg-[#1e1e24]/85 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/10 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] p-5 space-y-4 text-left animate-in zoom-in-95 duration-150"
-          >
-            <div className="flex items-center justify-between pb-3 border-b border-black/[0.06] dark:border-white/10">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-b from-amber-500/20 to-amber-600/10 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/20 shadow-2xs">
-                  <SFClock size={15} />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-[14px] text-[#1d1d1f] dark:text-white leading-tight">
-                    Hẹn Giờ Nhắc Việc
-                  </h4>
-                  <p className="text-[11.5px] text-[#6e6e73] dark:text-[#a1a1a6] truncate max-w-[220px] mt-0.5">
-                    {taskReminderPopover.taskText || 'Mục việc cần làm'}
-                  </p>
-                </div>
-              </div>
-              <CloseButton
-                onClick={() => setTaskReminderPopover(null)}
-                size="xs"
-              />
-            </div>
-
-            {/* Quick Presets for this task */}
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] flex items-center gap-1.5">
-                <SFWandAndSparkles size={12} className="text-amber-500" />
-                <span>Gợi ý thời gian</span>
-              </label>
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const d = new Date(Date.now() + 30 * 60 * 1000);
-                    setTaskReminderPopover({ ...taskReminderPopover, reminderAt: toDatetimeLocal(d) });
-                  }}
-                  className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-all text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
-                >
-                  ⚡ Sau 30 phút
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const d = new Date();
-                    d.setHours(15, 0, 0, 0);
-                    if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1);
-                    setTaskReminderPopover({ ...taskReminderPopover, reminderAt: toDatetimeLocal(d) });
-                  }}
-                  className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-all text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
-                >
-                  ☀️ Chiều nay 15:00
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const d = new Date();
-                    d.setDate(d.getDate() + 1);
-                    d.setHours(9, 0, 0, 0);
-                    setTaskReminderPopover({ ...taskReminderPopover, reminderAt: toDatetimeLocal(d) });
-                  }}
-                  className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-all text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
-                >
-                  🌅 Sáng mai 09:00
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const d = new Date();
-                    const day = d.getDay();
-                    d.setDate(d.getDate() + ((7 - day + 1) % 7 || 7));
-                    d.setHours(8, 30, 0, 0);
-                    setTaskReminderPopover({ ...taskReminderPopover, reminderAt: toDatetimeLocal(d) });
-                  }}
-                  className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-all text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
-                >
-                  📅 Thứ Hai 8h30
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] flex items-center gap-1.5">
-                <SFClock size={12} className="text-[#0071e3] dark:text-[#2997ff]" />
-                <span>Chọn giờ cụ thể:</span>
-              </label>
-              <input
-                type="datetime-local"
-                value={taskReminderPopover.reminderAt}
-                onChange={(e) => setTaskReminderPopover({ ...taskReminderPopover, reminderAt: e.target.value })}
-                className="w-full px-3.5 py-2 rounded-xl text-[12.5px] font-medium bg-black/[0.02] dark:bg-white/[0.04] border border-black/15 dark:border-white/20 outline-none focus:border-[#0071e3] dark:focus:border-[#2997ff] text-[#1d1d1f] dark:text-white transition-all shadow-2xs"
-              />
-            </div>
-
-            {/* Email reminder option for this individual task */}
-            <div className="space-y-1.5 pt-2 border-t border-black/[0.06] dark:border-white/10">
-              <label className="flex items-center gap-2 cursor-pointer text-[12px] text-[#1d1d1f] dark:text-[#f5f5f7]">
-                <input
-                  type="checkbox"
-                  checked={taskReminderPopover.reminderNotifyEmail ?? reminderNotifyEmail}
-                  onChange={(e) =>
-                    setTaskReminderPopover({
-                      ...taskReminderPopover,
-                      reminderNotifyEmail: e.target.checked,
-                    })
-                  }
-                  className="w-3.5 h-3.5 rounded text-[#0071e3] accent-[#0071e3] cursor-pointer"
-                />
-                <span className="font-medium flex items-center gap-1">
-                  <Mail size={12} className="text-[#0071e3]" />
-                  <span>Nhắc qua Email khi đến hạn</span>
-                </span>
-              </label>
-              {(taskReminderPopover.reminderNotifyEmail ?? reminderNotifyEmail) && (
-                <input
-                  type="email"
-                  value={taskReminderPopover.reminderEmail ?? reminderEmail}
-                  onChange={(e) =>
-                    setTaskReminderPopover({
-                      ...taskReminderPopover,
-                      reminderEmail: e.target.value,
-                    })
-                  }
-                  placeholder="Email nhận (VD: kaka.nhdk@gmail.com)"
-                  className="w-full px-3 py-1.5 rounded-xl text-[12px] bg-black/[0.02] dark:bg-white/[0.04] border border-black/15 dark:border-white/20 outline-none focus:border-[#0071e3] text-[#1d1d1f] dark:text-white"
-                />
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center justify-between pt-2 border-t border-black/[0.06] dark:border-white/10">
-              {taskReminderPopover.taskId && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleSaveIndividualTaskReminder(
-                      taskReminderPopover.lineIndex,
-                      taskReminderPopover.taskId,
-                      taskReminderPopover.taskText,
-                      null
-                    )
-                  }
-                  className="text-[12px] font-medium text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
-                >
-                  Hủy nhắc việc
-                </button>
-              )}
-              <div className="flex-1" />
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setTaskReminderPopover(null)}
-                  className="px-3.5 py-1.5 rounded-full text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] border border-black/5 dark:border-white/10 transition-colors cursor-pointer active:scale-95"
-                >
-                  Đóng
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleSaveIndividualTaskReminder(
-                      taskReminderPopover.lineIndex,
-                      taskReminderPopover.taskId,
-                      taskReminderPopover.taskText,
-                      taskReminderPopover.reminderAt,
-                      taskReminderPopover.reminderEmail ?? reminderEmail,
-                      taskReminderPopover.reminderNotifyEmail ?? reminderNotifyEmail
-                    )
-                  }
-                  className="px-4 py-1.5 rounded-full text-[12px] font-semibold bg-[#0071e3] text-white hover:bg-[#0077ed] cursor-pointer active:scale-95 shadow-xs whitespace-nowrap"
-                >
-                  Lưu hẹn giờ
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      </AppleLiquidDialog>
 
       {/* ─────────────────── Apple Liquid Glass Master Reminder Modal (Apple Liquid Glass Blur & Translucency) ─────────────────── */}
-      {showReminderModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Cài lịch nhắc nhở"
-          onClick={() => setShowReminderModal(false)}
-          className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-black/25 dark:bg-black/50 backdrop-blur-md select-none animate-in fade-in duration-150"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-[460px] max-h-[85vh] flex flex-col bg-white/85 dark:bg-[#1e1e24]/85 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/10 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] overflow-hidden text-left animate-in zoom-in-95 duration-150"
-          >
-            {/* Fixed Header */}
-            <div className="p-4 sm:px-5 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between shrink-0 bg-black/[0.01] dark:bg-white/[0.02]">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-b from-amber-500/20 to-amber-600/10 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/20 shadow-2xs shrink-0">
-                  <SFBellBadge size={16} />
-                </div>
-                <div className="min-w-0">
-                  <h4 className="font-semibold text-[14.5px] text-[#1d1d1f] dark:text-white leading-tight truncate">
-                    Cài Lịch Nhắc Nhở
-                  </h4>
-                  <p className="text-[11.5px] text-[#6e6e73] dark:text-[#a1a1a6] truncate mt-0.5">
-                    {activeNote.title ? `Cho "${activeNote.title}"` : 'Hẹn giờ thông báo tự động'}
-                  </p>
-                </div>
-              </div>
-              <CloseButton
-                onClick={() => setShowReminderModal(false)}
-                size="sm"
-              />
+      <AppleLiquidDialog
+        isOpen={showReminderModal}
+        onClose={() => setShowReminderModal(false)}
+        zIndex={10005}
+        title="Cài lịch nhắc nhở"
+        overlayClassName="p-4"
+        contentClassName="w-full max-w-[460px] max-h-[85vh] flex flex-col bg-white/90 dark:bg-[#1c1c24]/90 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/12 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] overflow-hidden text-left"
+      >
+        {/* Fixed Header */}
+        <div className="p-4 sm:px-5 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between shrink-0 bg-black/[0.01] dark:bg-white/[0.02]">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-b from-amber-500/20 to-amber-600/10 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-500/20 shadow-2xs shrink-0">
+              <SFBellBadge size={16} />
             </div>
+            <div className="min-w-0">
+              <h4 className="font-semibold text-[14.5px] text-[#1d1d1f] dark:text-white leading-tight truncate">
+                Cài Lịch Nhắc Nhở
+              </h4>
+              <p className="text-[11.5px] text-[#6e6e73] dark:text-[#a1a1a6] truncate mt-0.5">
+                {activeNote.title ? `Cho "${activeNote.title}"` : 'Hẹn giờ thông báo tự động'}
+              </p>
+            </div>
+          </div>
+          <CloseButton
+            onClick={() => setShowReminderModal(false)}
+            size="sm"
+          />
+        </div>
 
-            {/* Scrollable Body with Ultra-Thin Apple Scrollbar */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-black/25">
-              {/* Section 1: Quick Presets */}
-              <div className="space-y-2">
-                <label className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] flex items-center gap-1.5 block">
-                  <SFWandAndSparkles size={13} className="text-amber-500" />
-                  <span>Gợi ý thời gian nhanh</span>
-                </label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handleApplyPreset(30)}
-                    className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-all text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
-                  >
-                    ⚡ Sau 30 phút nữa
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleApplyPresetTime(15, 0)}
-                    className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-all text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
-                  >
-                    ☀️ Chiều nay 15:00
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleApplyPresetTime(9, 0, true)}
-                    className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-all text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
-                  >
-                    🌅 Sáng mai 09:00
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleApplyNextMonday}
-                    className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-all text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
-                  >
-                    📅 Thứ Hai tới 08:30
-                  </button>
+        {/* Scrollable Body with Ultra-Thin Apple Scrollbar */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-black/25">
+          {/* Section 1: Quick Presets */}
+          <div className="space-y-2">
+            <label className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] flex items-center gap-1.5 block">
+              <SFWandAndSparkles size={13} className="text-amber-500" />
+              <span>Gợi ý thời gian nhanh</span>
+            </label>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleApplyPreset(30)}
+                className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-all text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
+              >
+                ⚡ Sau 30 phút nữa
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApplyPresetTime(15, 0)}
+                className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-all text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
+              >
+                ☀️ Chiều nay 15:00
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApplyPresetTime(9, 0, true)}
+                className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-all text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
+              >
+                🌅 Sáng mai 09:00
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyNextMonday}
+                className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-all text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
+              >
+                📅 Thứ Hai tới 08:30
+              </button>
+            </div>
+          </div>
+
+          {/* Section 2: Custom Date & Time Picker */}
+          <div className="space-y-2">
+            <label className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] flex items-center gap-1.5 block">
+              <SFClock size={13} className="text-[#0071e3] dark:text-[#2997ff]" />
+              <span>Thời gian nhắc hẹn cụ thể</span>
+            </label>
+            <AppleDateTimePicker
+              value={reminderDate}
+              onChange={setReminderDate}
+            />
+          </div>
+
+          {/* Section 4: Notification Channels */}
+          <div className="pt-3 border-t border-black/[0.06] dark:border-white/10 space-y-3">
+            <label className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] block">
+              Kênh nhận thông báo
+            </label>
+
+            {/* Option 1: Desktop Browser Notification */}
+            <label className="flex items-center justify-between p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-xl bg-[#0071e3]/15 text-[#0071e3] flex items-center justify-center">
+                  <SFBell size={14} />
+                </div>
+                <div>
+                  <div className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-white">
+                    Thông báo màn hình (Desktop)
+                  </div>
+                  <div className="text-[11px] text-[#86868b] dark:text-[#a1a1a6]">
+                    Hiện popup và phát chuông khi đến hạn
+                  </div>
                 </div>
               </div>
+              <input
+                type="checkbox"
+                checked={reminderDesktop}
+                onChange={(e) => setReminderDesktop(e.target.checked)}
+                className="w-4 h-4 rounded text-[#0071e3] accent-[#0071e3] cursor-pointer"
+              />
+            </label>
 
-              {/* Section 2: Custom Date & Time Picker */}
-              <div className="space-y-2">
-                <label className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] flex items-center gap-1.5 block">
-                  <SFClock size={13} className="text-[#0071e3] dark:text-[#2997ff]" />
-                  <span>Thời gian nhắc hẹn cụ thể</span>
-                </label>
+            {/* Option 2: Email Notification */}
+            <div className="p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 space-y-2.5">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                    <Mail size={14} />
+                  </div>
+                  <div>
+                    <div className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-white">
+                      Gửi email nhắc nhở tự động
+                    </div>
+                    <div className="text-[11px] text-[#86868b] dark:text-[#a1a1a6]">
+                      Nhận thư nhắc việc đến hòm thư của bạn
+                    </div>
+                  </div>
+                </div>
                 <input
-                  type="datetime-local"
-                  value={reminderDate}
-                  onChange={(e) => setReminderDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl text-[13px] font-medium bg-black/[0.02] dark:bg-white/[0.04] border border-black/15 dark:border-white/20 focus:border-[#0071e3] dark:focus:border-[#2997ff] focus:ring-2 focus:ring-[#0071e3]/20 outline-none text-[#1d1d1f] dark:text-white transition-all shadow-2xs"
+                  type="checkbox"
+                  checked={reminderNotifyEmail}
+                  onChange={(e) => setReminderNotifyEmail(e.target.checked)}
+                  className="w-4 h-4 rounded text-[#0071e3] accent-[#0071e3] cursor-pointer"
                 />
-              </div>
+              </label>
 
-              {/* Section 3: Checklist Tasks List (ONLY if this note actually has checklist rows!) */}
-              {checklistRows.length > 0 && (
-                <div className="pt-3 border-t border-black/[0.06] dark:border-white/10 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] flex items-center gap-1.5">
-                      <SFCheckmarkSquare size={13} className="text-emerald-500" />
-                      <span>Hẹn giờ riêng từng mục việc ({checklistRows.length} việc)</span>
-                    </label>
-                  </div>
-                  <div className="space-y-1.5 max-h-[150px] overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-black/15 [&::-webkit-scrollbar-thumb]:rounded-full">
-                    {checklistRows.map((row) => (
-                      <div
-                        key={row.taskId}
-                        className="flex items-center justify-between p-2 rounded-xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.05] dark:border-white/10 text-[12px]"
-                      >
-                        <div className="flex items-center gap-2 min-w-0 pr-2">
-                          <span className={row.completed ? 'line-through opacity-50' : 'font-medium truncate'}>
-                            {row.text || '(Chưa nhập nội dung việc)'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {row.reminderAt ? (
-                            <span className="text-[11px] font-mono text-[#0071e3] bg-[#0071e3]/10 px-2 py-0.5 rounded-full flex items-center gap-1">
-                              <SFClock size={10} />
-                              {formatReminderBadge(row.reminderAt)}
-                            </span>
-                          ) : null}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setTaskReminderPopover({
-                                lineIndex: row.lineIndex,
-                                taskId: row.taskId,
-                                taskText: row.text,
-                                reminderAt: row.reminderAt
-                                  ? toDatetimeLocal(new Date(row.reminderAt))
-                                  : toDatetimeLocal(new Date(Date.now() + 30 * 60 * 1000)),
-                                reminderEmail: activeNote.reminderEmail || reminderEmail,
-                                reminderNotifyEmail: activeNote.reminderNotifyEmail ?? reminderNotifyEmail,
-                              })
-                            }
-                            className="px-2 py-1 rounded-lg text-[11px] font-medium bg-[#0071e3]/10 text-[#0071e3] hover:bg-[#0071e3]/20 transition-colors cursor-pointer"
-                          >
-                            {row.reminderAt ? 'Đổi giờ' : 'Hẹn giờ'}
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Section 4: Notification Channels */}
-              <div className="pt-3 border-t border-black/[0.06] dark:border-white/10 space-y-3">
-                <label className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] block">
-                  Kênh nhận thông báo
-                </label>
-
-                {/* Option 1: Desktop Browser Notification */}
-                <label className="flex items-center justify-between p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-xl bg-[#0071e3]/15 text-[#0071e3] flex items-center justify-center">
-                      <SFBell size={14} />
-                    </div>
-                    <div>
-                      <div className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-white">
-                        Thông báo màn hình (Desktop)
-                      </div>
-                      <div className="text-[11px] text-[#86868b] dark:text-[#a1a1a6]">
-                        Hiện popup và phát chuông khi đến hạn
-                      </div>
-                    </div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={reminderDesktop}
-                    onChange={(e) => setReminderDesktop(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#0071e3] accent-[#0071e3] cursor-pointer"
-                  />
-                </label>
-
-                {/* Option 2: Email Notification */}
-                <div className="p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 space-y-2.5">
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                        <Mail size={14} />
-                      </div>
-                      <div>
-                        <div className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-white">
-                          Gửi email nhắc nhở tự động
-                        </div>
-                        <div className="text-[11px] text-[#86868b] dark:text-[#a1a1a6]">
-                          Nhận thư nhắc việc đến hòm thư của bạn
-                        </div>
-                      </div>
-                    </div>
+              {reminderNotifyEmail && (
+                <div className="pt-2 border-t border-black/[0.04] dark:border-white/10 space-y-2 animate-in fade-in duration-150">
+                  <div className="flex items-center gap-2">
                     <input
-                      type="checkbox"
-                      checked={reminderNotifyEmail}
-                      onChange={(e) => setReminderNotifyEmail(e.target.checked)}
-                      className="w-4 h-4 rounded text-[#0071e3] accent-[#0071e3] cursor-pointer"
+                      type="email"
+                      value={reminderEmail}
+                      onChange={(e) => setReminderEmail(e.target.value)}
+                      placeholder="Địa chỉ email nhận (VD: kaka.nhdk@gmail.com)"
+                      className="flex-1 px-3 py-2 rounded-xl text-[12px] bg-white dark:bg-black/20 border border-black/15 dark:border-white/20 outline-none focus:border-[#0071e3] text-[#1d1d1f] dark:text-white shadow-2xs"
                     />
-                  </label>
+                    <button
+                      type="button"
+                      disabled={isSendingTestEmail}
+                      onClick={handleSendTestEmail}
+                      className="px-3 py-2 rounded-xl text-[11.5px] font-medium bg-[#0071e3]/10 hover:bg-[#0071e3]/20 text-[#0071e3] dark:text-[#2997ff] border border-[#0071e3]/20 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                      title="Gửi thử một email mẫu để kiểm tra hòm thư"
+                    >
+                      {isSendingTestEmail ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                      <span>Gửi thử</span>
+                    </button>
+                  </div>
 
-                  {reminderNotifyEmail && (
-                    <div className="pt-2 border-t border-black/[0.04] dark:border-white/10 space-y-2 animate-in fade-in duration-150">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="email"
-                          value={reminderEmail}
-                          onChange={(e) => setReminderEmail(e.target.value)}
-                          placeholder="Địa chỉ email nhận (VD: kaka.nhdk@gmail.com)"
-                          className="flex-1 px-3 py-2 rounded-xl text-[12px] bg-white dark:bg-black/20 border border-black/15 dark:border-white/20 outline-none focus:border-[#0071e3] text-[#1d1d1f] dark:text-white shadow-2xs"
-                        />
-                        <button
-                          type="button"
-                          disabled={isSendingTestEmail}
-                          onClick={handleSendTestEmail}
-                          className="px-3 py-2 rounded-xl text-[11.5px] font-medium bg-[#0071e3]/10 hover:bg-[#0071e3]/20 text-[#0071e3] dark:text-[#2997ff] border border-[#0071e3]/20 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 shrink-0"
-                          title="Gửi thử một email mẫu để kiểm tra hòm thư"
-                        >
-                          {isSendingTestEmail ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
-                          <span>Gửi thử</span>
-                        </button>
-                      </div>
+                  {/* SMTP status indicator & inline configuration */}
+                  <div className="flex items-center justify-between text-[11px] px-1 text-[#86868b]">
+                    <span className="flex items-center gap-1">
+                      <span className={`w-1.5 h-1.5 rounded-full ${smtpStatus?.configured ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                      <span>
+                        {smtpStatus?.configured
+                          ? `Máy chủ gửi thư: ${smtpStatus.smtpUser || 'Đã kích hoạt'}`
+                          : 'Chưa cấu hình máy chủ gửi Gmail'}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowSmtpConfig(!showSmtpConfig)}
+                      className="text-[#0071e3] hover:underline font-medium cursor-pointer"
+                    >
+                      {showSmtpConfig ? 'Ẩn cấu hình' : 'Cấu hình SMTP'}
+                    </button>
+                  </div>
 
-                      {/* SMTP status indicator & inline configuration */}
-                      <div className="flex items-center justify-between text-[11px] px-1 text-[#86868b]">
-                        <span className="flex items-center gap-1">
-                          <span className={`w-1.5 h-1.5 rounded-full ${smtpStatus?.configured ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                          <span>
-                            {smtpStatus?.configured
-                              ? `Máy chủ gửi thư: ${smtpStatus.smtpUser || 'Đã kích hoạt'}`
-                              : 'Chưa cấu hình máy chủ gửi Gmail'}
-                          </span>
+                  {showSmtpConfig && (
+                    <div className="p-3 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/10 dark:border-white/10 space-y-2 animate-in fade-in duration-150">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-[11.5px] text-[#1d1d1f] dark:text-white">
+                          Cài đặt Gmail App Password
                         </span>
                         <button
                           type="button"
-                          onClick={() => setShowSmtpConfig(!showSmtpConfig)}
-                          className="text-[#0071e3] hover:underline font-medium cursor-pointer"
+                          onClick={() => setShowSmtpConfig(false)}
+                          className="text-[#86868b] hover:text-[#1d1d1f] text-[11px]"
                         >
-                          {showSmtpConfig ? 'Ẩn cấu hình' : 'Cấu hình SMTP'}
+                          Đóng
                         </button>
                       </div>
-
-                      {showSmtpConfig && (
-                        <div className="p-3 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/10 dark:border-white/10 space-y-2 animate-in fade-in duration-150">
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-[11.5px] text-[#1d1d1f] dark:text-white">
-                              Cài đặt Gmail App Password
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setShowSmtpConfig(false)}
-                              className="text-[#86868b] hover:text-[#1d1d1f] text-[11px]"
-                            >
-                              Đóng
-                            </button>
-                          </div>
-                          <p className="text-[11px] text-[#86868b] leading-tight">
-                            Nhập tài khoản Gmail và Mật khẩu ứng dụng (Google App Password 16 chữ cái) để hệ thống gửi thư:
-                          </p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                            <input
-                              type="email"
-                              value={smtpEmailInput}
-                              onChange={(e) => setSmtpEmailInput(e.target.value)}
-                              placeholder="Email gửi (VD: mygmail@gmail.com)"
-                              className="px-2.5 py-1.5 rounded-lg text-[11.5px] bg-white dark:bg-black/30 border border-black/15 dark:border-white/20 outline-none"
-                            />
-                            <input
-                              type="password"
-                              value={smtpPassInput}
-                              onChange={(e) => setSmtpPassInput(e.target.value)}
-                              placeholder="Mật khẩu ứng dụng (16 ký tự)"
-                              className="px-2.5 py-1.5 rounded-lg text-[11.5px] bg-white dark:bg-black/30 border border-black/15 dark:border-white/20 outline-none"
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            disabled={isConfiguringSmtp}
-                            onClick={handleSaveSmtpConfig}
-                            className="w-full py-1.5 rounded-lg bg-[#0071e3] text-white font-semibold text-[11.5px] hover:bg-[#0077ed] transition-all cursor-pointer disabled:opacity-50"
-                          >
-                            {isConfiguringSmtp ? 'Đang kiểm tra kết nối...' : 'Lưu & Kích hoạt gửi thư'}
-                          </button>
-                        </div>
-                      )}
+                      <p className="text-[11px] text-[#86868b] leading-tight">
+                        Nhập tài khoản Gmail và Mật khẩu ứng dụng (Google App Password 16 chữ cái) để hệ thống gửi thư:
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                        <input
+                          type="email"
+                          value={smtpEmailInput}
+                          onChange={(e) => setSmtpEmailInput(e.target.value)}
+                          placeholder="Email gửi (VD: mygmail@gmail.com)"
+                          className="px-2.5 py-1.5 rounded-lg text-[11.5px] bg-white dark:bg-black/30 border border-black/15 dark:border-white/20 outline-none"
+                        />
+                        <input
+                          type="password"
+                          value={smtpPassInput}
+                          onChange={(e) => setSmtpPassInput(e.target.value)}
+                          placeholder="Mật khẩu ứng dụng (16 ký tự)"
+                          className="px-2.5 py-1.5 rounded-lg text-[11.5px] bg-white dark:bg-black/30 border border-black/15 dark:border-white/20 outline-none"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isConfiguringSmtp}
+                        onClick={handleSaveSmtpConfig}
+                        className="w-full py-1.5 rounded-lg bg-[#0071e3] text-white font-semibold text-[11.5px] hover:bg-[#0077ed] transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        {isConfiguringSmtp ? 'Đang kiểm tra kết nối...' : 'Lưu & Kích hoạt gửi thư'}
+                      </button>
                     </div>
                   )}
                 </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Fixed Pinned Footer */}
+        <div className="p-3.5 sm:px-5 border-t border-black/[0.06] dark:border-white/10 shrink-0 bg-black/[0.01] dark:bg-white/[0.02] flex items-center justify-between gap-2">
+          {activeNote.reminderAt ? (
+            <button
+              type="button"
+              onClick={handleRemoveNoteReminder}
+              className="px-3 py-1.5 rounded-full text-[12px] font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+            >
+              Hủy lịch ghi chú
+            </button>
+          ) : <div />}
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowReminderModal(false)}
+              className="px-3.5 py-1.5 rounded-full text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] border border-black/5 dark:border-white/10 transition-colors cursor-pointer active:scale-95"
+            >
+              Đóng
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveReminder}
+              className="px-4.5 py-1.5 rounded-full text-[12px] font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-xs transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+            >
+              Lưu lịch nhắc
+            </button>
+          </div>
+        </div>
+      </AppleLiquidDialog>
+
+      {/* ─────────────────── Dedicated Apple Liquid Glass To-do Item Reminder Modal ─────────────────── */}
+      <AppleLiquidDialog
+        isOpen={Boolean(todoReminderTarget)}
+        onClose={() => setTodoReminderTarget(null)}
+        zIndex={10006}
+        title="Hẹn giờ việc cần làm"
+        overlayClassName="p-4"
+        contentClassName="w-full max-w-[380px] flex flex-col bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/12 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] overflow-hidden text-left"
+      >
+        {todoReminderTarget && (
+          <>
+            {/* Header */}
+            <div className="p-4 sm:px-5 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between shrink-0 bg-black/[0.01] dark:bg-white/[0.02]">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-b from-[#0071e3]/20 to-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center border border-[#0071e3]/20 shadow-2xs shrink-0">
+                  <SFCheckmarkSquare size={16} />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="font-semibold text-[14.5px] text-[#1d1d1f] dark:text-white leading-tight truncate">
+                    Hẹn Giờ Nhắc Việc
+                  </h4>
+                  <p className="text-[11.5px] text-[#6e6e73] dark:text-[#a1a1a6] truncate mt-0.5 max-w-[240px]">
+                    To-do: {todoReminderTarget.taskText || 'Việc cần làm'}
+                  </p>
+                </div>
+              </div>
+              <CloseButton
+                onClick={() => setTodoReminderTarget(null)}
+                size="sm"
+              />
+            </div>
+
+            {/* Body */}
+            <div className="p-4 sm:p-5 space-y-3.5">
+              {/* Task Title Preview Pill */}
+              <div className="px-3 py-2 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/10 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#0071e3] shrink-0" />
+                <span className="text-[12.5px] font-medium text-[#1d1d1f] dark:text-white truncate">
+                  {todoReminderTarget.taskText || '(Chưa nhập tên công việc)'}
+                </span>
+              </div>
+
+              {/* Date & Time Picker */}
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-semibold text-[#86868b] dark:text-[#a1a1a6] flex items-center gap-1.5">
+                  <SFClock size={12} className="text-[#0071e3]" />
+                  <span>Chọn ngày & giờ nhắc:</span>
+                </label>
+                <AppleDateTimePicker
+                  embedded={true}
+                  value={todoReminderTarget.reminderAt}
+                  onChange={(newVal) =>
+                    setTodoReminderTarget((prev) => (prev ? { ...prev, reminderAt: newVal } : null))
+                  }
+                />
               </div>
             </div>
 
-            {/* Fixed Pinned Footer */}
-            <div className="p-3.5 sm:px-5 border-t border-black/[0.06] dark:border-white/10 shrink-0 bg-black/[0.01] dark:bg-white/[0.02] flex items-center justify-between gap-2">
-              {activeNote.reminderAt ? (
+            {/* Footer Actions */}
+            <div className="p-4 sm:px-5 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-between shrink-0 bg-black/[0.01] dark:bg-white/[0.02]">
+              {todoReminderTarget.reminderAt ? (
                 <button
                   type="button"
-                  onClick={handleRemoveNoteReminder}
-                  className="px-3 py-1.5 rounded-full text-[12px] font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                  onClick={() => {
+                    handleSaveIndividualTaskReminder(
+                      todoReminderTarget.lineIndex,
+                      todoReminderTarget.taskId,
+                      todoReminderTarget.taskText,
+                      null
+                    );
+                    setTodoReminderTarget(null);
+                  }}
+                  className="text-[12px] font-medium text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
                 >
-                  Hủy lịch ghi chú
+                  Hủy hẹn việc này
                 </button>
               ) : <div />}
 
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setShowReminderModal(false)}
+                  onClick={() => setTodoReminderTarget(null)}
                   className="px-3.5 py-1.5 rounded-full text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] border border-black/5 dark:border-white/10 transition-colors cursor-pointer active:scale-95"
                 >
                   Đóng
                 </button>
                 <button
                   type="button"
-                  onClick={handleSaveReminder}
-                  className="px-4.5 py-1.5 rounded-full text-[12px] font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-xs transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+                  onClick={() => {
+                    handleSaveIndividualTaskReminder(
+                      todoReminderTarget.lineIndex,
+                      todoReminderTarget.taskId,
+                      todoReminderTarget.taskText,
+                      todoReminderTarget.reminderAt,
+                      activeNote?.reminderEmail || reminderEmail,
+                      activeNote?.reminderNotifyEmail ?? reminderNotifyEmail
+                    );
+                    setTodoReminderTarget(null);
+                  }}
+                  className="px-4 py-1.5 rounded-full text-[12px] font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-xs transition-all cursor-pointer active:scale-95 whitespace-nowrap"
                 >
-                  Lưu lịch nhắc
+                  Lưu hẹn giờ
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </AppleLiquidDialog>
 
       {/* ─────────────────── Apple PIN Lock Config Modal (Apple Liquid Glass Blur & Translucency) ─────────────────── */}
-      {showLockConfigModal && activeNote && (!activeNote.isLocked || unlockedNoteIds.includes(activeNote.id)) && (
+      <AppleLiquidDialog
+        isOpen={Boolean(showLockConfigModal && activeNote && (!activeNote.isLocked || unlockedNoteIds.includes(activeNote.id)))}
+        onClose={() => {
+          setShowLockConfigModal(false);
+          setLockNewPassword('');
+          setLockConfirmPassword('');
+          setLockConfigMismatch(false);
+        }}
+        zIndex={10015}
+        title="Cài đặt mã PIN"
+        overlayClassName="p-4"
+        contentClassName={cn(
+          "w-full max-w-[340px] bg-white/90 dark:bg-[#1c1c24]/90 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/12 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] p-6 text-center space-y-5 relative cursor-default",
+          lockConfigMismatch && "apple-shake"
+        )}
+      >
         <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Cài đặt mã PIN"
-          onClick={() => {
-            setShowLockConfigModal(false);
-            setLockNewPassword('');
-            setLockConfirmPassword('');
-            setLockConfigMismatch(false);
+          onClick={(e) => {
+            e.stopPropagation();
+            const input = document.getElementById('apple-pin-config-input') as HTMLInputElement | null;
+            input?.focus();
           }}
-          className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-black/25 dark:bg-black/50 backdrop-blur-md select-none animate-in fade-in duration-150"
+          className="space-y-5"
         >
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              const input = document.getElementById('apple-pin-config-input') as HTMLInputElement | null;
-              input?.focus();
-            }}
-            className={cn(
-              "w-full max-w-[340px] bg-white/85 dark:bg-[#1e1e24]/85 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/10 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] p-6 text-center space-y-5 animate-in zoom-in-95 duration-150 relative cursor-default",
-              lockConfigMismatch && "apple-shake"
-            )}
-          >
-            {/* Header */}
-            <div className="space-y-1.5 pointer-events-none">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-b from-[#0071e3]/15 to-[#0071e3]/5 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center border border-[#0071e3]/20 shadow-xs mx-auto mb-3">
-                <Lock size={22} />
-              </div>
-              <h3 className="font-semibold text-[16px] text-[#1d1d1f] dark:text-white leading-tight">
-                {activeNote.isLocked ? 'Đổi mã PIN bảo vệ' : 'Cài mã PIN bảo vệ'}
-              </h3>
-              <p className="text-[12.5px] text-[#86868b] dark:text-[#a1a1a6] min-h-[18px]">
-                {lockNewPassword.length < 6
-                  ? 'Nhập mã PIN 6 số mới'
-                  : lockConfigMismatch
-                  ? 'Mã xác nhận không khớp! Vui lòng nhập lại'
-                  : 'Nhập lại mã PIN để xác nhận'}
-              </p>
+          {/* Header */}
+          <div className="space-y-1.5 pointer-events-none">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-b from-[#0071e3]/15 to-[#0071e3]/5 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center border border-[#0071e3]/20 shadow-xs mx-auto mb-3">
+              <Lock size={22} />
             </div>
+            <h3 className="font-semibold text-[16px] text-[#1d1d1f] dark:text-white leading-tight">
+              {activeNote?.isLocked ? 'Đổi mã PIN bảo vệ' : 'Cài mã PIN bảo vệ'}
+            </h3>
+            <p className="text-[12.5px] text-[#86868b] dark:text-[#a1a1a6] min-h-[18px]">
+              {lockNewPassword.length < 6
+                ? 'Nhập mã PIN 6 số mới'
+                : lockConfigMismatch
+                ? 'Mã xác nhận không khớp! Vui lòng nhập lại'
+                : 'Nhập lại mã PIN để xác nhận'}
+            </p>
+          </div>
 
-            {/* 6 Visual PIN Dots */}
-            <div className="flex items-center justify-center gap-3.5 my-4 cursor-pointer relative">
-              {Array.from({ length: 6 }).map((_, i) => {
-                const isConfirming = lockNewPassword.length === 6;
-                const currentPin = isConfirming ? lockConfirmPassword : lockNewPassword;
-                const isFilled = i < currentPin.length;
-                return (
-                  <div
-                    key={i}
-                    className={cn(
-                      "w-4 h-4 rounded-full transition-all duration-150",
-                      lockConfigMismatch
-                        ? "bg-rose-500 shadow-xs scale-110"
-                        : isFilled
-                        ? "bg-[#0071e3] shadow-xs scale-110"
-                        : "border-2 border-black/20 dark:border-white/25 bg-transparent"
-                    )}
-                  />
-                );
-              })}
+          {/* 6 Visual PIN Dots */}
+          <div className="flex items-center justify-center gap-3.5 my-4 cursor-pointer relative">
+            {Array.from({ length: 6 }).map((_, i) => {
+              const isConfirming = lockNewPassword.length === 6;
+              const currentPin = isConfirming ? lockConfirmPassword : lockNewPassword;
+              const isFilled = i < currentPin.length;
+              return (
+                <div
+                  key={i}
+                  className={cn(
+                    "w-4 h-4 rounded-full transition-all duration-150",
+                    lockConfigMismatch
+                      ? "bg-rose-500 shadow-xs scale-110"
+                      : isFilled
+                      ? "bg-[#0071e3] shadow-xs scale-110"
+                      : "border-2 border-black/20 dark:border-white/25 bg-transparent"
+                  )}
+                />
+              );
+            })}
 
-              {/* Hidden active input covering dots area with autoFocus & strictly digits only */}
-              <input
-                id="apple-pin-config-input"
-                type="password"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={6}
-                autoFocus
-                value={lockNewPassword.length < 6 ? lockNewPassword : lockConfirmPassword}
-                onKeyDown={(e) => {
-                  if (['Backspace', 'Tab', 'Escape'].includes(e.key)) {
-                    if (e.key === 'Escape') {
-                      setShowLockConfigModal(false);
-                      setLockNewPassword('');
-                      setLockConfirmPassword('');
-                      setLockConfigMismatch(false);
-                    }
-                    if (e.key === 'Backspace') {
-                      e.preventDefault();
-                      if (lockConfirmPassword.length > 0) {
-                        setLockConfirmPassword((prev) => prev.slice(0, -1));
-                        setLockConfigMismatch(false);
-                      } else if (lockNewPassword.length > 0) {
-                        setLockNewPassword((prev) => prev.slice(0, -1));
-                        setLockConfigMismatch(false);
-                      }
-                    }
-                    return;
-                  }
-                  if (!/^[0-9]$/.test(e.key)) {
-                    e.preventDefault();
-                    return;
-                  }
-                  // Allow numeric digit
-                  e.preventDefault();
-                  const digit = e.key;
-                  if (lockNewPassword.length < 6) {
-                    setLockNewPassword((prev) => prev + digit);
-                  } else if (lockConfirmPassword.length < 6) {
-                    const nextConfirm = lockConfirmPassword + digit;
-                    setLockConfirmPassword(nextConfirm);
-                    if (nextConfirm.length === 6) {
-                      if (nextConfirm === lockNewPassword) {
-                        // Password matches! Save PIN immediately
-                        handleSaveLockPassword(lockNewPassword, nextConfirm);
-                      } else {
-                        // Mismatch!
-                        setLockConfigMismatch(true);
-                        toast.error('Mã xác nhận không khớp! Đang làm mới...', { id: 'note-lock-err' });
-                        setTimeout(() => {
-                          setLockConfirmPassword('');
-                          setLockConfigMismatch(false);
-                          const input = document.getElementById('apple-pin-config-input') as HTMLInputElement | null;
-                          input?.focus();
-                        }, 500);
-                      }
-                    }
-                  }
-                }}
-                onChange={() => {}} // Controlled by onKeyDown for exact numeric capture
-                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-              />
-            </div>
-
-            {/* Sub-step indicator pill */}
-            <div className="flex items-center justify-center">
-              <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-[#86868b] dark:text-[#a1a1a6]">
-                {lockNewPassword.length < 6 ? 'Bước 1/2: Đặt PIN mới' : 'Bước 2/2: Xác nhận lại PIN'}
-              </span>
-            </div>
-
-            {/* Action buttons (No "Chạm để xác nhận mã PIN" button!) */}
-            <div className="flex items-center justify-between pt-2 border-t border-black/[0.06] dark:border-white/10">
-              {activeNote.isLocked ? (
-                <button
-                  type="button"
-                  onClick={handleRemoveLockPassword}
-                  className="text-[12px] font-medium text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
-                >
-                  Gỡ khóa
-                </button>
-              ) : (
-                <div />
-              )}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
+            {/* Hidden active input covering dots area with autoFocus & strictly digits only */}
+            <input
+              id="apple-pin-config-input"
+              type="password"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              autoFocus
+              value={lockNewPassword.length < 6 ? lockNewPassword : lockConfirmPassword}
+              onKeyDown={(e) => {
+                if (['Backspace', 'Tab', 'Escape'].includes(e.key)) {
+                  if (e.key === 'Escape') {
                     setShowLockConfigModal(false);
                     setLockNewPassword('');
                     setLockConfirmPassword('');
                     setLockConfigMismatch(false);
-                  }}
-                  className="px-3.5 py-1.5 rounded-full text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] border border-black/5 dark:border-white/10 transition-colors cursor-pointer active:scale-95"
-                >
-                  Hủy
-                </button>
-              </div>
+                  }
+                  if (e.key === 'Backspace') {
+                    e.preventDefault();
+                    if (lockConfirmPassword.length > 0) {
+                      setLockConfirmPassword((prev) => prev.slice(0, -1));
+                      setLockConfigMismatch(false);
+                    } else if (lockNewPassword.length > 0) {
+                      setLockNewPassword((prev) => prev.slice(0, -1));
+                      setLockConfigMismatch(false);
+                    }
+                  }
+                  return;
+                }
+                if (!/^[0-9]$/.test(e.key)) {
+                  e.preventDefault();
+                  return;
+                }
+                // Allow numeric digit
+                e.preventDefault();
+                const digit = e.key;
+                if (lockNewPassword.length < 6) {
+                  setLockNewPassword((prev) => prev + digit);
+                } else if (lockConfirmPassword.length < 6) {
+                  const nextConfirm = lockConfirmPassword + digit;
+                  setLockConfirmPassword(nextConfirm);
+                  if (nextConfirm.length === 6) {
+                    if (nextConfirm === lockNewPassword) {
+                      // Password matches! Save PIN immediately
+                      handleSaveLockPassword(lockNewPassword, nextConfirm);
+                    } else {
+                      // Mismatch!
+                      setLockConfigMismatch(true);
+                      toast.error('Mã xác nhận không khớp! Đang làm mới...', { id: 'note-lock-err' });
+                      setTimeout(() => {
+                        setLockConfirmPassword('');
+                        setLockConfigMismatch(false);
+                        const input = document.getElementById('apple-pin-config-input') as HTMLInputElement | null;
+                        input?.focus();
+                      }, 500);
+                    }
+                  }
+                }
+              }}
+              onChange={() => {}} // Controlled by onKeyDown for exact numeric capture
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+            />
+          </div>
+
+          {/* Sub-step indicator pill */}
+          <div className="flex items-center justify-center">
+            <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-[#86868b] dark:text-[#a1a1a6]">
+              {lockNewPassword.length < 6 ? 'Bước 1/2: Đặt PIN mới' : 'Bước 2/2: Xác nhận lại PIN'}
+            </span>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-between pt-2 border-t border-black/[0.06] dark:border-white/10">
+            {activeNote?.isLocked ? (
+              <button
+                type="button"
+                onClick={handleRemoveLockPassword}
+                className="text-[12px] font-medium text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+              >
+                Gỡ khóa
+              </button>
+            ) : (
+              <div />
+            )}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLockConfigModal(false);
+                  setLockNewPassword('');
+                  setLockConfirmPassword('');
+                  setLockConfigMismatch(false);
+                }}
+                className="px-3.5 py-1.5 rounded-full text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] border border-black/5 dark:border-white/10 transition-colors cursor-pointer active:scale-95"
+              >
+                Hủy
+              </button>
             </div>
           </div>
         </div>
-      )}
+      </AppleLiquidDialog>
 
 
       {/* ─────────────────── Snipping Tool Interactive Overlay ─────────────────── */}
@@ -5905,34 +5931,25 @@ export const QuickNoteWindow: React.FC = () => {
         )}
 
       {/* ─────────────────── Apple QuickLook File Preview Modal ─────────────────── */}
-      {filePreviewModal &&
-        createPortal(
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Xem trước tệp ${filePreviewModal.name}`}
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                e.stopPropagation();
-                setFilePreviewModal(null);
-                setIsPreviewFullscreen(false);
-              }
-            }}
-            className={cn(
-              "fixed inset-0 z-[10010] bg-black/65 backdrop-blur-md flex items-center justify-center animate-in fade-in duration-180",
-              isPreviewFullscreen ? "p-0" : "p-3 sm:p-6"
-            )}
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              className={cn(
-                "relative bg-white dark:bg-[#1c1c24] flex flex-col overflow-hidden transition-all duration-200",
-                isPreviewFullscreen
-                  ? "w-full h-full max-w-none max-h-none rounded-none shadow-none border-0"
-                  : "w-full max-w-4xl h-[85vh] max-h-[850px] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.55)] border border-black/10 dark:border-white/12 animate-in zoom-in-95 duration-180"
-              )}
-            >
-              {/* Header */}
+      <AppleLiquidDialog
+        isOpen={Boolean(filePreviewModal)}
+        onClose={() => {
+          setFilePreviewModal(null);
+          setIsPreviewFullscreen(false);
+        }}
+        zIndex={10010}
+        title={filePreviewModal ? `Xem trước tệp ${filePreviewModal.name}` : 'Xem trước tệp'}
+        overlayClassName={isPreviewFullscreen ? "p-0" : "p-3 sm:p-6"}
+        contentClassName={cn(
+          "relative bg-white dark:bg-[#1c1c24] flex flex-col overflow-hidden transition-all duration-200",
+          isPreviewFullscreen
+            ? "w-full h-full max-w-none max-h-none rounded-none shadow-none border-0"
+            : "w-full max-w-4xl h-[85vh] max-h-[850px] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.55)] border border-black/10 dark:border-white/12"
+        )}
+      >
+        {filePreviewModal && (
+          <>
+            {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-black/[0.08] dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] shrink-0">
                 <div className="flex items-center gap-3 min-w-0 pr-3">
                   <div
@@ -6229,10 +6246,9 @@ export const QuickNoteWindow: React.FC = () => {
                   </div>
                 )}
               </div>
-            </div>
-          </div>,
-          document.body
-        )}
+            </>
+          )}
+      </AppleLiquidDialog>
     </>,
     document.body
   );
