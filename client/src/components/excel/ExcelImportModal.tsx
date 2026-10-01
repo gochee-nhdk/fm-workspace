@@ -164,7 +164,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
       />
 
       {/* Modal Dialog */}
-      <div className="relative bg-white dark:bg-[#1c1c22] rounded-[24px] max-w-2xl w-full p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15 animate-in fade-in zoom-in-95 duration-220 ease-out flex flex-col max-h-[90vh]">
+      <div className="relative bg-white dark:bg-[#1c1c22] rounded-[24px] max-w-2xl w-full p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15 apple-modal-enter flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-black/[0.06] dark:border-white/10 shrink-0">
           <div className="flex items-center gap-3">

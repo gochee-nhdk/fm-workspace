@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   SFGearshapeFill,
   SFInternaldrive,
@@ -14,19 +14,34 @@ import {
   SFTablecells,
   SFEnvelope,
   SFPaperplaneFill,
+  SFShieldFill,
+  SFArrowUpDocument,
 } from 'sf-symbols-lib';
 import { Button } from '@/components/ui/button';
 import { dataService } from '@/services/dataService';
 import { excelService } from '@/services/excelService';
 import { reminderService } from '@/services/reminderService';
+import { backupService } from '@/services/backupService';
 import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import { useUiStore, resolveTheme } from '@/stores/ui-store';
 import { Clock, Monitor } from 'lucide-react';
 import { formatBytes } from '@/lib/utils';
+import { useAppleTabSpring } from '@/lib/motion';
 import toast from 'react-hot-toast';
+import type { BackupImportOptions, BackupImportResult } from '@/types/workspace';
 
 export const SettingsPage: React.FC = () => {
   const { theme, setTheme } = useUiStore();
+  const themeTrackRef = useRef<HTMLDivElement>(null);
+  const themePillRef = useRef<HTMLDivElement>(null);
+
+  useAppleTabSpring(themeTrackRef, themePillRef, theme, {
+    stiffness: 380,
+    damping: 25,
+    mass: 0.75,
+    allowDeformation: true,
+  });
+
   const [counts, setCounts] = useState({ links: 0, accounts: 0, stores: 0, activities: 0 });
   const [storageBytes, setStorageBytes] = useState<number>(0);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
@@ -179,6 +194,85 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
+  // ──────────────────────────────────────────
+  // BACKUP SYSTEM STATE
+  // ──────────────────────────────────────────
+  const [isExportingBackup, setIsExportingBackup] = useState(false);
+  const [isImportingBackup, setIsImportingBackup] = useState(false);
+  const [importProgress, setImportProgress] = useState('');
+  const [importResult, setImportResult] = useState<BackupImportResult | null>(null);
+  const [importConflictStrategy, setImportConflictStrategy] = useState<BackupImportOptions['conflictStrategy']>('skip');
+  const [restoreSettingsOnImport, setRestoreSettingsOnImport] = useState(false);
+  const backupFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExportFMBackup = async () => {
+    setIsExportingBackup(true);
+    try {
+      await backupService.exportFullBackup({ includeActivities: true });
+      toast.success('✅ Đã xuất file .fmbackup thành công! File chứa toàn bộ dữ liệu của bạn.', { duration: 5000 });
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi khi xuất file backup. Vui lòng thử lại.');
+    } finally {
+      setIsExportingBackup(false);
+    }
+  };
+
+  const handleImportFMBackup = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input for re-use
+    e.target.value = '';
+
+    // Quick pre-check: must have .fmbackup extension
+    if (!file.name.endsWith('.fmbackup')) {
+      toast.error('Vui lòng chọn file có đuôi .fmbackup hợp lệ.');
+      return;
+    }
+
+    setIsImportingBackup(true);
+    setImportResult(null);
+    setImportProgress('Đang kiểm tra file...');
+
+    try {
+      // Step 1: Validate first (fast check, no data written yet)
+      const validation = await backupService.validateBackupFile(file);
+      if (!validation.valid) {
+        toast.error(`❌ File không hợp lệ: ${validation.error}`, { duration: 7000 });
+        setImportProgress('');
+        setIsImportingBackup(false);
+        return;
+      }
+
+      // Step 2: Execute import with progress updates
+      const result = await backupService.importFullBackup(
+        file,
+        { conflictStrategy: importConflictStrategy, restoreSettings: restoreSettingsOnImport },
+        (msg) => setImportProgress(msg)
+      );
+
+      setImportResult(result);
+
+      if (result.success) {
+        const total = result.links + result.accounts + result.stores + result.notes + result.attachments;
+        toast.success(
+          `✅ Nhập thành công ${total} mục! (${result.links} Links, ${result.accounts} TK, ${result.stores} CH, ${result.notes} Ghi chú, ${result.attachments} Tệp)`,
+          { duration: 7000 }
+        );
+        await loadStats();
+      } else {
+        toast.error(`Nhập thất bại: ${result.errors[0] ?? 'Lỗi không xác định'}`, { duration: 7000 });
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Lỗi nghiêm trọng khi nhập dữ liệu. Dữ liệu hiện tại không bị ảnh hưởng.');
+    } finally {
+      setIsImportingBackup(false);
+      setImportProgress('');
+    }
+  }, [importConflictStrategy, restoreSettingsOnImport]);
+
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-12">
       <div>
@@ -251,6 +345,171 @@ export const SettingsPage: React.FC = () => {
           <p className="text-[12px] text-[#86868b] dark:text-[#a1a1a6] mt-0.5 leading-relaxed">
             FM Workspace không gửi bất kỳ dữ liệu nào lên internet. Mọi Links, Accounts và Stores đều nằm 100% trong trình duyệt của bạn.
           </p>
+        </div>
+      </div>
+
+      {/* ── FULL BACKUP SYSTEM (.fmbackup) ── */}
+      <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-4">
+        <div className="flex items-center gap-2 pb-3 border-b border-[#e0e0e0] dark:border-white/10">
+          <SFShieldFill size={16} className="text-[#34c759]" />
+          <h3 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-white">
+            Sao Lưu &amp; Phục Hồi Toàn Diện
+          </h3>
+          <span className="ml-auto text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+            .fmbackup
+          </span>
+        </div>
+
+        <p className="text-[13px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
+          Xuất <strong className="text-[#1d1d1f] dark:text-white font-semibold">toàn bộ dữ liệu</strong> ra file{' '}
+          <code className="text-[12px] px-1.5 py-0.5 rounded-md bg-black/[0.06] dark:bg-white/10 font-mono">.fmbackup</code>{' '}
+          — bao gồm Links, Tài khoản, Cửa hàng, <em>tất cả Ghi chú</em> (kể cả ảnh đính kèm), Tệp đính kèm và Cài đặt hệ thống.
+          File được bảo vệ bằng <strong className="text-[#1d1d1f] dark:text-white">SHA-256 checksum</strong> để đảm bảo tính toàn vẹn khi chuyển máy.
+        </p>
+
+        {/* Export */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button
+            variant="glassProminent"
+            size="sm"
+            onClick={handleExportFMBackup}
+            disabled={isExportingBackup}
+            icon={isExportingBackup
+              ? <SFArrowClockwise size={16} className="animate-spin" />
+              : <SFArrowDownDocument size={16} />
+            }
+          >
+            {isExportingBackup ? 'Đang xuất...' : 'Xuất Toàn Bộ (.fmbackup)'}
+          </Button>
+
+          <Button
+            variant="glass"
+            size="sm"
+            onClick={() => backupFileInputRef.current?.click()}
+            disabled={isImportingBackup}
+            icon={isImportingBackup
+              ? <SFArrowClockwise size={16} className="animate-spin" />
+              : <SFArrowUpDocument size={16} className="text-emerald-600 dark:text-emerald-400" />
+            }
+          >
+            {isImportingBackup ? 'Đang nhập...' : 'Nhập Backup (.fmbackup)'}
+          </Button>
+
+          {/* Hidden file input */}
+          <input
+            ref={backupFileInputRef}
+            type="file"
+            accept=".fmbackup,application/json"
+            className="sr-only"
+            onChange={handleImportFMBackup}
+          />
+        </div>
+
+        {/* Import options */}
+        <div className="pt-1 space-y-2.5">
+          <p className="text-[12px] font-medium text-[#555558] dark:text-[#a1a1a6]">Tùy chọn khi nhập:</p>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                { value: 'skip', label: 'Bỏ qua trùng', desc: 'Dữ liệu đã tồn tại sẽ không bị thay đổi' },
+                { value: 'overwrite', label: 'Ghi đè trùng', desc: 'Dữ liệu trùng sẽ được cập nhật từ backup' },
+                { value: 'merge', label: 'Gộp tất cả', desc: 'Thêm tất cả kể cả trùng (tạo bản mới)' },
+              ] as { value: BackupImportOptions['conflictStrategy']; label: string; desc: string }[]
+            ).map(({ value, label, desc }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setImportConflictStrategy(value)}
+                title={desc}
+                className={[
+                  'px-3 py-1.5 rounded-full text-[12px] font-medium border transition-all',
+                  importConflictStrategy === value
+                    ? 'bg-[#0066cc]/15 border-[#0066cc]/40 text-[#0066cc] dark:text-[#2997ff]'
+                    : 'bg-black/[0.04] dark:bg-white/[0.06] border-transparent text-[#555558] dark:text-[#a1a1a6] hover:bg-black/[0.08] dark:hover:bg-white/10',
+                ].join(' ')}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer select-none text-[12.5px] text-[#555558] dark:text-[#a1a1a6]">
+            <input
+              type="checkbox"
+              checked={restoreSettingsOnImport}
+              onChange={(e) => setRestoreSettingsOnImport(e.target.checked)}
+              className="rounded accent-[#0071e3] w-4 h-4 cursor-pointer outline-none focus:outline-none focus:ring-0 shadow-none"
+            />
+            <span>Khôi phục cài đặt giao diện (theme) từ backup</span>
+          </label>
+        </div>
+
+        {/* Progress */}
+        {isImportingBackup && importProgress && (
+          <div className="flex items-center gap-2 px-4 py-3 rounded-[14px] bg-[#0066cc]/8 dark:bg-[#2997ff]/10 border border-[#0066cc]/20">
+            <SFArrowClockwise size={14} className="animate-spin text-[#0066cc] dark:text-[#2997ff] shrink-0" />
+            <p className="text-[13px] text-[#0066cc] dark:text-[#2997ff] font-medium">{importProgress}</p>
+          </div>
+        )}
+
+        {/* Result */}
+        {importResult && !isImportingBackup && (
+          <div className={[
+            'rounded-[16px] p-4 space-y-2 border',
+            importResult.success
+              ? 'bg-emerald-500/8 border-emerald-500/25'
+              : 'bg-red-500/8 border-red-500/25',
+          ].join(' ')}>
+            <p className={[
+              'text-[13px] font-semibold',
+              importResult.success ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
+            ].join(' ')}>
+              {importResult.success ? '✅ Nhập dữ liệu thành công' : '⚠️ Nhập có lỗi'}
+            </p>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 text-center">
+              {[
+                { label: 'Links', count: importResult.links },
+                { label: 'Tài khoản', count: importResult.accounts },
+                { label: 'Cửa hàng', count: importResult.stores },
+                { label: 'Ghi chú', count: importResult.notes },
+                { label: 'Tệp đính kèm', count: importResult.attachments },
+              ].map(({ label, count }) => (
+                <div key={label} className="p-2 rounded-[10px] bg-white/50 dark:bg-white/5">
+                  <div className="text-[18px] font-semibold text-[#1d1d1f] dark:text-white">{count}</div>
+                  <div className="text-[10px] text-[#86868b] dark:text-[#a1a1a6]">{label}</div>
+                </div>
+              ))}
+            </div>
+            {importResult.skipped > 0 && (
+              <p className="text-[12px] text-[#86868b] dark:text-[#a1a1a6]">
+                {importResult.skipped} mục bị bỏ qua do trùng lặp (theo chiến lược "{importConflictStrategy}")
+              </p>
+            )}
+            {importResult.errors.length > 0 && (
+              <div className="mt-1.5 space-y-1">
+                {importResult.errors.slice(0, 3).map((err, i) => (
+                  <p key={i} className="text-[11.5px] text-red-500 dark:text-red-400">• {err}</p>
+                ))}
+                {importResult.errors.length > 3 && (
+                  <p className="text-[11.5px] text-[#86868b]">...và {importResult.errors.length - 3} lỗi khác</p>
+                )}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setImportResult(null)}
+              className="text-[11px] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white transition-colors"
+            >
+              Đóng thông báo ✕
+            </button>
+          </div>
+        )}
+
+        <div className="pt-2 border-t border-black/5 dark:border-white/8 flex items-start gap-2 text-[12px] text-[#76767b] dark:text-[#6e6e73]">
+          <SFShieldFill size={12} className="text-emerald-500 shrink-0 mt-0.5" />
+          <span>
+            File .fmbackup được xác thực bằng SHA-256 checksum. Mọi nội dung Ghi chú được lọc bảo mật (HTML sanitization) trước khi nhập để ngăn chặn mã độc.
+            Kích thước file tối đa 50 MB.
+          </span>
         </div>
       </div>
 
@@ -359,62 +618,77 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Liquid Glass Segmented Bar: minimal text only */}
-        <div className="p-1.5 rounded-[18px] bg-black/[0.04] dark:bg-white/[0.06] backdrop-blur-2xl border border-black/[0.06] dark:border-white/10 shadow-[inset_0_1px_3px_rgba(0,0,0,0.06)] grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+        {/* Liquid Glass Segmented Bar with Physical Liquid Spring Pill */}
+        <div
+          ref={themeTrackRef}
+          className="relative p-1.5 rounded-[18px] bg-black/[0.04] dark:bg-white/[0.06] backdrop-blur-2xl border border-black/[0.06] dark:border-white/10 shadow-[inset_0_1px_3px_rgba(0,0,0,0.06)] grid grid-cols-4 gap-1.5 select-none"
+        >
+          {/* Shared Active Liquid Glass Pill (continuous physical surface morphing & traveling) */}
+          <div
+            ref={themePillRef}
+            data-layout-id="theme-active-pill"
+            aria-hidden="true"
+            className="absolute inset-y-1.5 left-0 rounded-xl pointer-events-none z-0 bg-white dark:bg-[#2c2c2e] shadow-[0_3px_12px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_3px_12px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.15)] border border-black/[0.04] dark:border-white/10 will-change-[transform,width] origin-center opacity-0 transition-opacity duration-150"
+          />
+
           {/* Light */}
           <button
             type="button"
+            data-tab-id="light"
             onClick={() => setTheme('light')}
-            className={`py-2.5 px-3 rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98] ${
+            className={`relative z-10 py-2.5 px-2 sm:px-3 rounded-xl transition-colors duration-160 cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 active:scale-[0.98] select-none ${
               theme === 'light'
-                ? 'bg-white dark:bg-[#2c2c2e] text-amber-600 dark:text-amber-400 font-semibold shadow-[0_3px_12px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_3px_12px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.15)] border border-black/[0.04] dark:border-white/10'
-                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
+                ? 'text-amber-600 dark:text-amber-400 font-semibold'
+                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
             }`}
           >
-            <SFSunMaxFill size={15} className={theme === 'light' ? 'text-amber-500' : ''} />
-            <span className="text-[13px]">Sáng</span>
+            <SFSunMaxFill size={15} className={`transition-colors duration-160 shrink-0 ${theme === 'light' ? 'text-amber-500' : ''}`} />
+            <span className="text-[12.5px] sm:text-[13px] truncate">Sáng</span>
           </button>
 
           {/* Dark */}
           <button
             type="button"
+            data-tab-id="dark"
             onClick={() => setTheme('dark')}
-            className={`py-2.5 px-3 rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98] ${
+            className={`relative z-10 py-2.5 px-2 sm:px-3 rounded-xl transition-colors duration-160 cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 active:scale-[0.98] select-none ${
               theme === 'dark'
-                ? 'bg-white dark:bg-[#2c2c2e] text-[#0071e3] dark:text-[#2997ff] font-semibold shadow-[0_3px_12px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_3px_12px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.15)] border border-black/[0.04] dark:border-white/10'
-                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
+                ? 'text-[#0071e3] dark:text-[#2997ff] font-semibold'
+                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
             }`}
           >
-            <SFMoonFill size={15} className={theme === 'dark' ? 'text-[#0071e3] dark:text-[#2997ff]' : ''} />
-            <span className="text-[13px]">Tối</span>
+            <SFMoonFill size={15} className={`transition-colors duration-160 shrink-0 ${theme === 'dark' ? 'text-[#0071e3] dark:text-[#2997ff]' : ''}`} />
+            <span className="text-[12.5px] sm:text-[13px] truncate">Tối</span>
           </button>
 
           {/* Auto by Time */}
           <button
             type="button"
+            data-tab-id="auto_time"
             onClick={() => setTheme('auto_time')}
-            className={`py-2.5 px-3 rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98] ${
+            className={`relative z-10 py-2.5 px-2 sm:px-3 rounded-xl transition-colors duration-160 cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 active:scale-[0.98] select-none ${
               theme === 'auto_time'
-                ? 'bg-white dark:bg-[#2c2c2e] text-purple-600 dark:text-purple-400 font-semibold shadow-[0_3px_12px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_3px_12px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.15)] border border-black/[0.04] dark:border-white/10'
-                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
+                ? 'text-purple-600 dark:text-purple-400 font-semibold'
+                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
             }`}
           >
-            <Clock size={15} className={theme === 'auto_time' ? 'text-purple-600 dark:text-purple-400' : ''} />
-            <span className="text-[13px]">Theo giờ</span>
+            <Clock size={15} className={`transition-colors duration-160 shrink-0 ${theme === 'auto_time' ? 'text-purple-600 dark:text-purple-400' : ''}`} />
+            <span className="text-[12.5px] sm:text-[13px] truncate">Theo giờ</span>
           </button>
 
           {/* System */}
           <button
             type="button"
+            data-tab-id="system"
             onClick={() => setTheme('system')}
-            className={`py-2.5 px-3 rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98] ${
+            className={`relative z-10 py-2.5 px-2 sm:px-3 rounded-xl transition-colors duration-160 cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 active:scale-[0.98] select-none ${
               theme === 'system'
-                ? 'bg-white dark:bg-[#2c2c2e] text-emerald-600 dark:text-emerald-400 font-semibold shadow-[0_3px_12px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_3px_12px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.15)] border border-black/[0.04] dark:border-white/10'
-                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
+                ? 'text-emerald-600 dark:text-emerald-400 font-semibold'
+                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
             }`}
           >
-            <Monitor size={15} className={theme === 'system' ? 'text-emerald-600 dark:text-emerald-400' : ''} />
-            <span className="text-[13px]">Hệ thống</span>
+            <Monitor size={15} className={`transition-colors duration-160 shrink-0 ${theme === 'system' ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
+            <span className="text-[12.5px] sm:text-[13px] truncate">Hệ thống</span>
           </button>
         </div>
 

@@ -33,6 +33,7 @@ import { StoreDrawerForm } from '@/components/forms/StoreDrawerForm';
 import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import { MapPreviewModal } from '@/components/ui/MapPreviewModal';
 import { useAppleTabSpring, useDirectionalTab } from '@/lib/motion';
+import { sanitizeUrl } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 type TabType = 'links' | 'accounts' | 'stores';
@@ -375,7 +376,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
             tabIndex={activeTab === 'accounts' ? 0 : -1}
             data-tab-id="accounts"
             onClick={() => handleTabChange('accounts')}
-            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-all duration-160 ease-out cursor-pointer whitespace-nowrap active:scale-[0.99] select-none ${
+            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-[color,transform] duration-140 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer whitespace-nowrap active:scale-[0.95] select-none will-change-transform ${
               activeTab === 'accounts'
                 ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.8)] dark:drop-shadow-none'
                 : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
@@ -383,13 +384,13 @@ export const UnifiedWorkspacePage: React.FC = () => {
           >
             <SFShieldFill
               size={15}
-              className={`transition-all duration-160 ease-out shrink-0 ${
+              className={`transition-all duration-140 ease-out shrink-0 ${
                 activeTab === 'accounts'
                   ? 'text-[#0071e3] dark:text-[#3898ff]'
                   : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
               }`}
             />
-            <span className="transition-colors duration-160 leading-none">Tài khoản</span>
+            <span className="transition-colors duration-140 leading-none">Tài khoản</span>
           </button>
 
           {/* Tab 2: Links */}
@@ -400,7 +401,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
             tabIndex={activeTab === 'links' ? 0 : -1}
             data-tab-id="links"
             onClick={() => handleTabChange('links')}
-            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-all duration-160 ease-out cursor-pointer whitespace-nowrap active:scale-[0.99] select-none ${
+            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-[color,transform] duration-140 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer whitespace-nowrap active:scale-[0.95] select-none will-change-transform ${
               activeTab === 'links'
                 ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.8)] dark:drop-shadow-none'
                 : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
@@ -408,13 +409,13 @@ export const UnifiedWorkspacePage: React.FC = () => {
           >
             <SFLink
               size={15}
-              className={`transition-all duration-160 ease-out shrink-0 ${
+              className={`transition-all duration-140 ease-out shrink-0 ${
                 activeTab === 'links'
                   ? 'text-[#0071e3] dark:text-[#3898ff]'
                   : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
               }`}
             />
-            <span className="transition-colors duration-160 leading-none">Links</span>
+            <span className="transition-colors duration-140 leading-none">Links</span>
           </button>
 
           {/* Tab 3: Stores */}
@@ -425,7 +426,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
             tabIndex={activeTab === 'stores' ? 0 : -1}
             data-tab-id="stores"
             onClick={() => handleTabChange('stores')}
-            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-all duration-160 ease-out cursor-pointer whitespace-nowrap active:scale-[0.99] select-none ${
+            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-[color,transform] duration-140 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer whitespace-nowrap active:scale-[0.95] select-none will-change-transform ${
               activeTab === 'stores'
                 ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.8)] dark:drop-shadow-none'
                 : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
@@ -433,13 +434,13 @@ export const UnifiedWorkspacePage: React.FC = () => {
           >
             <SFStorefront
               size={15}
-              className={`transition-all duration-160 ease-out shrink-0 ${
+              className={`transition-all duration-140 ease-out shrink-0 ${
                 activeTab === 'stores'
                   ? 'text-[#0071e3] dark:text-[#3898ff]'
                   : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
               }`}
             />
-            <span className="transition-colors duration-160 leading-none">DS Cửa hàng</span>
+            <span className="transition-colors duration-140 leading-none">DS Cửa hàng</span>
           </button>
         </div>
 
@@ -764,10 +765,10 @@ export const UnifiedWorkspacePage: React.FC = () => {
 
                       {/* Link 1-Click Action */}
                       <td className="px-3.5 py-3 min-w-[130px]">
-                        {item.link ? (
+                        {sanitizeUrl(item.link) ? (
                           <div className="flex items-center gap-1.5">
                             <a
-                              href={item.link}
+                              href={sanitizeUrl(item.link)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="group/link inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold transition-all duration-200 active:scale-[0.97] cursor-pointer bg-white/70 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.16] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.08] dark:border-white/12 shadow-[0_1px_3px_rgba(0,0,0,0.04),inset_0_1px_0.5px_rgba(255,255,255,0.9)] hover:shadow-[0_4px_14px_rgba(0,113,227,0.18)] backdrop-blur-md"
@@ -1036,10 +1037,10 @@ export const UnifiedWorkspacePage: React.FC = () => {
 
                       {/* Link */}
                       <td className="px-3.5 py-3 min-w-[130px]">
-                        {item.link ? (
+                        {sanitizeUrl(item.link) ? (
                           <div className="flex items-center gap-1.5">
                             <a
-                              href={item.link}
+                              href={sanitizeUrl(item.link)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="group/acc inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold transition-all duration-200 active:scale-[0.97] cursor-pointer bg-white/70 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.16] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.08] dark:border-white/12 shadow-[0_1px_3px_rgba(0,0,0,0.04),inset_0_1px_0.5px_rgba(255,255,255,0.9)] hover:shadow-[0_4px_14px_rgba(0,113,227,0.18)] backdrop-blur-md"
@@ -1274,9 +1275,9 @@ export const UnifiedWorkspacePage: React.FC = () => {
                               </span>
                               <span>Xem bản đồ</span>
                             </button>
-                            {item.googleMaps && (
+                            {sanitizeUrl(item.googleMaps) && (
                               <a
-                                href={item.googleMaps}
+                                href={sanitizeUrl(item.googleMaps)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-6 h-6 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/5 dark:hover:bg-white/10 transition-colors shrink-0"

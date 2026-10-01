@@ -1,50 +1,137 @@
-# Hướng Dẫn Cài Đặt & Sử Dụng FM Workspace (Dành Cho Máy Cá Nhân)
+# 🍏 Hướng Dẫn Cài Đặt FM Workspace
+### Dành cho mọi người dùng — Dễ hiểu, Trực quan, Hoàn tất trong 3 phút
 
-Ứng dụng **FM Workspace** được thiết kế theo triết lý **Local-First**: Toàn bộ dữ liệu (ghi chú, mật khẩu tài khoản, danh mục liên kết, danh sách cửa hàng, bảng tính) đều được lưu trữ **100% cục bộ trên máy tính của bạn** thông qua cơ sở dữ liệu SQLite và IndexedDB của trình duyệt. 
-
-Không có bất kỳ dữ liệu nhạy cảm nào bị gửi lên đám mây hay máy chủ bên ngoài.
+> **Chào bạn!** Đừng lo lắng nếu bạn không rành về máy tính hay công nghệ. Tài liệu này được biên soạn từng bước cụ thể nhất, có sẵn liên kết tải trực tiếp để bạn chỉ cần làm theo là ứng dụng sẽ hoạt động ngay lập tức trên máy tính của bạn!
 
 ---
 
-## 🚀 Cài Đặt Siêu Tốc (1-Click Setup)
+## 🧭 Lựa chọn hệ điều hành của bạn
 
-### Yêu Cầu Trước Khi Cài Đặt:
-- Máy tính chạy hệ điều hành **Windows 10 / 11**.
-- Đã cài đặt **Node.js** (Khuyên dùng bản LTS từ trang chủ [nodejs.org](https://nodejs.org) hoặc gõ `winget install OpenJS.NodeJS.LTS` trong PowerShell).
+- [👉 Hướng dẫn dành cho máy tính Windows (10 / 11)](#-phan-1-huong-dan-cho-may-tinh-windows-10--11)
+- [👉 Hướng dẫn dành cho máy tính Apple macOS (MacBook, iMac, Mac mini)](#-phan-2-huong-dan-cho-may-tinh-apple-macos)
+- [👉 Câu hỏi thường gặp & Khắc phục sự cố (FAQ)](#-cau-hoi-thuong-gap--khac-phuc-su-co-faq)
 
-### Các Bước Cài Đặt:
-1. Tải toàn bộ mã nguồn về máy tính (hoặc bấm **Code -> Download ZIP** trên GitHub rồi giải nén ra một thư mục cố định).
-2. Nhấn đúp chuột vào file:
+---
+
+## 🪟 PHẦN 1: Hướng dẫn cho máy tính WINDOWS (10 / 11)
+
+Quy trình cài đặt trên Windows chỉ gồm **3 bước siêu đơn giản**:
+
+```
+[Bước 1: Tải công cụ phụ trợ Node.js] ➔ [Bước 2: Tải ứng dụng về máy] ➔ [Bước 3: Bấm cài đặt 1-Click]
+```
+
+### 🔹 Bước 1: Cài đặt công cụ nền tảng Node.js (Chỉ cần làm 1 lần duy nhất)
+Ứng dụng cần môi trường nhỏ tên là **Node.js** để chạy mượt mà ngay trên máy của bạn (hoàn toàn an toàn, miễn phí từ tổ chức mã nguồn mở quốc tế).
+
+1. Nhấp chuột vào đường link chính thức sau để tải file cài đặt về máy:  
+   👉 **[Tải Node.js bản ổn định cho Windows (Bản chính thức từ NodeJS.org)](https://nodejs.org/dist/v20.18.0/node-v20.18.0-x64.msi)**
+2. Khi tải xong, nhấp đúp chuột vào file vừa tải (thường tên là `node-v20...msi` nằm trong thư mục **Downloads**).
+3. Một cửa sổ cài đặt hiện lên: Bạn chỉ cần bấm nút **Next** liên tục ➔ bấm **Install** ➔ cuối cùng bấm **Finish**.  
+   *(Không cần thay đổi bất kỳ tùy chọn nào cả)*.
+
+---
+
+### 🔹 Bước 2: Tải thư mục ứng dụng FM Workspace về máy
+1. Tại trang GitHub của ứng dụng, bạn nhìn lên góc trên bên phải, bấm vào nút màu xanh lá cây có chữ **`Code`**.
+2. Trong menu hiện ra, bấm chọn dòng cuối cùng: **`Download ZIP`**.
+3. Sau khi tải xong, bạn mở thư mục **Downloads** trên máy tính:
+   - Nhấp chuột phải vào file nén **`fm-workspace-main.zip`** vừa tải.
+   - Chọn **Extract All...** (hoặc **Giải nén tại đây**) rồi bấm **Extract**.
+   - Bạn sẽ có một thư mục tên là `fm-workspace-main`. Bạn có thể để thư mục này ở ổ đĩa `D:\` hoặc `C:\` tùy ý.
+
+---
+
+### 🔹 Bước 3: Cài đặt tự động bằng 1 cú nhấp chuột (1-Click)
+1. Mở thư mục `fm-workspace-main` vừa giải nén ra.
+2. Tìm file có tên:
    ```text
    CAI_DAT_APP.bat
    ```
-3. Chương trình sẽ tự động:
-   - Cài đặt đầy đủ các gói phụ thuộc.
-   - Khởi tạo cơ sở dữ liệu SQLite tại chỗ.
-   - Tạo biểu tượng **FM Workspace** ngoài màn hình chính (Desktop).
-   - **Gán sẵn phím tắt toàn hệ thống: `Ctrl + Alt + F`**.
+   *(Biểu tượng file có hình 2 bánh răng)*.
+3. **Nhấp đúp chuột vào file này** để chạy.
+4. Một màn hình cài đặt tự động sẽ chạy trong khoảng 1–2 phút:
+   - Tự động thiết lập thư viện và cơ sở dữ liệu lưu trữ nội bộ.
+   - Tự động tạo biểu tượng **FM Workspace** ngoài màn hình chính (Desktop).
+   - Tự động tạo phím tắt toàn năng: **`Ctrl + Alt + F`**.
+5. Khi màn hình hiện chữ:
+   ```text
+   ==============================================================================
+   [HOÀN TẤT] CÀI ĐẶT THÀNH CÔNG 100%!
+   ==============================================================================
+   Bạn có muốn khởi chạy ứng dụng ngay bây giờ không? (y/n):
+   ```
+   Bạn gõ chữ **`y`** rồi nhấn phím **Enter**. Trình duyệt web sẽ tự động mở lên trang chủ của ứng dụng!
 
 ---
 
-## ⚡ Cách Khởi Chạy Ứng Dụng Hàng Ngày
+### 🚀 Cách mở và tắt ứng dụng hàng ngày trên Windows
 
-Khi đã cài đặt xong, bạn có thể mở ứng dụng bất cứ lúc nào với 2 cách cực kỳ tiện lợi:
+- **Khi muốn MỞ app**: Bạn có 2 cách cực kỳ nhanh:
+  - Cách 1: Bấm tổ hợp phím **`Ctrl + Alt + F`** trên bàn phím.
+  - Cách 2: Nhấp đúp vào biểu tượng **FM Workspace** ngoài màn hình Desktop.
+- **Khi muốn TẮT app**: Nhấp đúp vào file `DUNG_APP.bat` trong thư mục ứng dụng để tắt hoàn toàn và giải phóng bộ nhớ RAM.
 
-1. **Bấm phím tắt**: Nhấn tổ hợp phím **`Ctrl + Alt + F`** trên bàn phím.
-2. **Bấm đúp chuột**: Nhấn vào icon **FM Workspace** trên màn hình Desktop (hoặc chạy file `KHOI_CHAY_APP.vbs`).
+---
+---
 
-> Ứng dụng sẽ chạy hoàn toàn ẩn (không xuất hiện màn hình đen dòng lệnh khó chịu) và tự động bật trình duyệt web tới địa chỉ `http://localhost:5173`.
+## 🍎 PHẦN 2: Hướng dẫn cho máy tính APPLE macOS
+
+Ứng dụng hỗ trợ tối đa cho dòng chip Apple Silicon (M1/M2/M3/M4) và chip Intel với giao diện chuẩn macOS Liquid Glass.
+
+### 🔹 Bước 1: Cài đặt Node.js cho macOS
+1. Nhấp vào link chính thức sau để tải bộ cài đặt dành cho máy Mac:  
+   👉 **[Tải Node.js cho macOS (Gói cài đặt .pkg chính thức)](https://nodejs.org/dist/v20.18.0/node-v20.18.0.pkg)**
+2. Nhấp đúp vào file `.pkg` vừa tải trong thư mục **Downloads**.
+3. Bấm **Tiếp tục (Continue)** ➔ Nhập mật khẩu máy Mac của bạn khi được hỏi ➔ Bấm **Cài đặt**.
 
 ---
 
-## 🛑 Các Tiện Ích Bổ Trợ
-
-- **Tắt ứng dụng**: Khi làm việc xong và muốn giải phóng RAM, bạn chỉ cần nhấn đúp vào file `DUNG_APP.bat`.
-- **Sao lưu dữ liệu cá nhân**: Nhấn đúp vào file `SAO_LUU_DU_LIEU.bat`. Hệ thống sẽ tự động sao chép toàn bộ cơ sở dữ liệu `app.db` vào thư mục `backups/` có ghi rõ ngày giờ sao lưu.
+### 🔹 Bước 2: Tải mã nguồn ứng dụng
+1. Bấm nút màu xanh **`Code`** trên trang GitHub ➔ chọn **`Download ZIP`**.
+2. Nhấp đúp vào file `.zip` vừa tải để giải nén thành thư mục `fm-workspace-main`.
 
 ---
 
-## 🛡️ Cam Kết Quyền Riêng Tư & Bảo Mật
+### 🔹 Bước 3: Khởi chạy 1-Click trên macOS
+1. Mở ứng dụng **Terminal** trên máy Mac (Bấm tổ hợp `Cmd + Space`, gõ `Terminal` rồi nhấn Enter).
+2. Kéo thư mục `fm-workspace-main` thả thẳng vào cửa sổ Terminal, sau đó gõ:
+   ```bash
+   chmod +x *.sh && ./install.sh
+   ```
+   rồi nhấn **Enter**.
+3. Quá trình cài đặt sẽ tự động hoàn tất trong 1–2 phút.
+4. Để mở ứng dụng bất cứ lúc nào, bạn chỉ cần mở Terminal và gõ:
+   ```bash
+   ./start.sh
+   ```
+   Ứng dụng sẽ tự động mở trong trình duyệt Safari hoặc Chrome với giao diện Liquid Glass siêu mượt mà!
+5. Khi không dùng nữa, bạn gõ `./stop.sh` để tắt ứng dụng.
 
-- **Không lưu trữ trên Cloud**: Mọi tài khoản, mật khẩu, liên kết và ghi chú đều nằm trực tiếp trên ổ đĩa của bạn (`server/data/app.db`).
-- **Hoạt động Offline**: Bạn hoàn toàn có thể sử dụng ứng dụng ngay cả khi máy tính bị mất kết nối Internet.
+---
+---
+
+## ❓ Câu Hỏi Thường Gặp & Khắc Phục Sự Cố (FAQ)
+
+### 1. Windows hiện thông báo "Windows protected your PC" (SmartScreen)?
+> **Cách xử lý**: Đây là thông báo an toàn thông thường của Windows đối với file kịch bản tự tạo (`.bat`). Bạn chỉ cần:
+> 1. Bấm vào dòng chữ nhỏ **More info** (Thông tin khác).
+> 2. Bấm vào nút **Run anyway** (Vẫn chạy).
+
+### 2. Dữ liệu của tôi được lưu ở đâu? Có bị mất khi tắt máy không?
+> **Trả lời**: Toàn bộ dữ liệu của bạn được lưu **trực tiếp 100% trên ổ cứng máy tính của bạn** (trong bộ nhớ IndexedDB của trình duyệt và file cơ sở dữ liệu `server/data/app.db`).
+> - **Không gửi bất kỳ dữ liệu nào lên Internet** (hoàn toàn riêng tư, bảo mật tuyệt đối).
+> - Bạn có thể bấm tắt máy, khởi động lại, bật/tắt trình duyệt thoải mái mà dữ liệu vẫn nguyên vẹn 100%.
+
+### 3. Làm thế nào để chuyển toàn bộ dữ liệu sang máy tính khác?
+> **Trả lời cực kỳ đơn giản**:
+> 1. Trên máy cũ: Vào mục **Cài đặt & Dữ liệu** ➔ Tìm mục **Sao Lưu & Phục Hồi Toàn Diện** ➔ Bấm nút **"Xuất Toàn Bộ (.fmbackup)"**. Bạn sẽ tải về 1 file duy nhất đuôi `.fmbackup`.
+> 2. Trên máy mới: Cài đặt app theo hướng dẫn ở trên ➔ Vào **Cài đặt & Dữ liệu** ➔ Bấm **"Nhập Backup (.fmbackup)"** và chọn file backup vừa tải.
+> 3. Toàn bộ Links, Tài khoản, Cửa hàng, mọi Ghi chú (kể cả hình ảnh và file đính kèm) sẽ lập tức xuất hiện đầy đủ 100%!
+
+### 4. Máy tính không có kết nối Internet (Offline) có dùng được không?
+> **Trả lời**: **CÓ 100%!** Sau khi cài đặt xong lần đầu, ứng dụng hoạt động hoàn toàn độc lập ngoại tuyến (Offline), không cần mạng Internet vẫn mở lên làm việc, tính toán Math Notes và tra cứu tài khoản bình thường.
+
+---
+
+Chúc bạn có những trải nghiệm làm việc thật mượt mà, tiện lợi và an toàn cùng **FM Workspace**! 🌿

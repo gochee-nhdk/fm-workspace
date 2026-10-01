@@ -1,115 +1,144 @@
 # 🌿 Farmers Market — FM Workspace OS v2.0
+### Hệ Thống Trợ Lý Thu Mua, Tính Toán Thông Minh & Quản Trị Tác Nghiệp Nội Bộ
 
-> **Hệ thống Trợ Lý Thu Mua, Tính Toán Thông Minh & Quản Trị Tác Nghiệp Nội Bộ**  
-> Thiết kế chuẩn **Apple Liquid Glass (Glassmorphism)**, bảo mật cao đa tầng (Anti-Hacker, CSP, Zero-Cloud Leak), tích hợp **Math Notes** và **Google Gemini AI**.
-
----
-
-## 🌟 Tính Năng Chính
-
-### 1. 📝 Quick Note & Apple Math Notes (iPadOS 18 / macOS Sequoia Style)
-- Ghi chú nhanh dạng cửa sổ nổi Liquid Glass hoặc toàn màn hình.
-- **Math Notes tự động**: Tính toán biểu thức số học ngay khi gõ dấu `=` (ví dụ: `150k + 30k = 180,000`, `2.5tr * 15% = 375,000`) kèm **hiệu ứng animation phát sáng nảy nhẹ**.
-- **Interactive Checklist**: Danh sách công việc thông minh, gạch ngang khi hoàn thành, đồng bộ tỷ lệ tiến độ.
-- **Cài đặt nhắc nhở & hẹn giờ (Reminder)**: Hỗ trợ nhắc việc màn hình và gửi email cảnh báo thông qua SMTP.
-- **Bảo mật ghi chú bằng mã PIN 6 số**: Khóa riêng tư từng ghi chú, tự động ẩn nội dung nhạy cảm.
-
-### 2. 🛡️ Account Vault (Két Mật Khẩu Tác Nghiệp)
-- Quản lý tập trung tài khoản tác nghiệp: **SAP, POS, Bravo, DMS, KiotViet, Tiki, Shopee, Lazada...**
-- Tự động ẩn mật khẩu với cơ chế Reveal/Hide.
-- **Tự hủy Clipboard sau 45s**: Xóa bộ nhớ đệm sau khi sao chép để chống đánh cắp dữ liệu.
-- Lưu trữ cục bộ an toàn trong IndexedDB của máy tính nội bộ.
-
-### 3. ⚡ Links & Danh Mục Cửa Hàng
-- Quản lý liên kết nhanh các cổng nội bộ, ghim liên kết yêu thích.
-- Tra cứu danh bạ cửa hàng, địa chỉ, số hotline, mở bản đồ chỉ đường Google Maps 1 chạm.
-
-### 4. 🤖 AI Procurement Copilot & Gemini Writing Tools
-- Trợ lý AI phân tích dữ liệu tồn kho, đề xuất đặt hàng theo công thức chuỗi cung ứng: Days of Cover (DoC), Safety Stock, Reorder Point, Recommended Order Quantity.
-- Hỗ trợ công cụ biên tập văn bản thông minh (Sửa chính tả, tóm tắt, viết lại chuyên nghiệp).
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-0071e3?style=for-the-badge&logo=apple&logoColor=white" alt="Platform" />
+  <img src="https://img.shields.io/badge/UI_Design-Apple_Liquid_Glass-0088ff?style=for-the-badge" alt="Apple Liquid Glass" />
+  <img src="https://img.shields.io/badge/Performance-120_FPS_Direct_DOM-34c759?style=for-the-badge" alt="120 FPS" />
+  <img src="https://img.shields.io/badge/Architecture-Local--First_%7C_Zero--Cloud_Leak-ff9500?style=for-the-badge" alt="Local-First" />
+  <img src="https://img.shields.io/badge/Security-SHA--256_%7C_Argon2id-af52de?style=for-the-badge" alt="Security" />
+</p>
 
 ---
 
-## 🔒 Kiến Trúc Bảo Mật (Anti-Hacker Shield)
-
-- **Content Security Policy (CSP)** & Anti-Clickjacking (`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`).
-- **Mã hóa mật khẩu chuẩn Argon2id** (chuẩn khuyến nghị OWASP cao cấp).
-- **Phòng chống Brute-Force**: Giới hạn tần suất đăng nhập (Rate Limit 5 lượt/phút).
-- **100% Parameterized SQL Statements**: Loại trừ triệt để nguy cơ SQL Injection.
-- **Bảo vệ Secrets**: Khóa API và mật khẩu email được che giấu (`••••••••`), không bao giờ lọt vào client hay commit Git.
+> **FM Workspace** là không gian làm việc số cục bộ (Local-First) được phát triển dành riêng cho đội ngũ Thu Mua, Kế Toán và Quản Trị Tác Nghiệp của chuỗi bán lẻ **Farmers Market**. Ứng dụng mang trải nghiệm thiết kế **Apple Liquid Glass (macOS 27 & iPadOS 18)** cao cấp, đạt tốc độ chuyển động vật lý **120 FPS mượt mà**, tích hợp **Math Notes** tính toán số học tự động và trợ lý trí tuệ nhân tạo **Google Gemini AI**.
 
 ---
 
-## 🚀 Hướng Dẫn Cài Đặt & Sử Dụng (Dành Cho Máy Cá Nhân)
+## 📚 Bộ Tài Liệu Hướng Dẫn Chi Tiết
 
-### 👉 Cách 1: Cài đặt 1-Click trên Windows
-1. Tải repo này về máy tính (bấm **Code -> Download ZIP** rồi giải nén).
-2. Nhấn đúp chuột vào file:
+| Tài liệu | Mô tả | Dành cho ai |
+|---|---|---|
+| 🚀 **[HƯỚNG DẪN CÀI ĐẶT (1-CLICK)](HUONG_DAN_CAI_DAT.md)** | Hướng dẫn từng bước cụ thể, có link tải trực tiếp, cực kỳ dễ hiểu | Người mới bắt đầu, người không rành công nghệ (Windows & Mac) |
+| 📖 **[CẨM NANG SỬ DỤNG TOÀN DIỆN](HUONG_DAN_SU_DUNG.md)** | Hướng dẫn chi tiết 100% tất cả các tính năng có trong ứng dụng | Mọi người dùng khai thác toàn bộ sức mạnh của app |
+| 🛡️ **[BẢO MẬT & QUYỀN RIÊNG TƯ](SECURITY.md)** | Chính sách bảo mật dữ liệu cục bộ, phòng chống xâm nhập | Quản trị viên, bộ phận IT |
+
+---
+
+## 🌟 Những Điểm Nổi Bật Vượt Trội
+
+### 1. 🧮 Apple Math Notes & Ghi Chú Nhanh Nổi (Quick Note)
+- **Tính toán số học tức thì**: Gõ bất kỳ phép toán nào kết thúc bằng dấu `=` (ví dụ: `150k + 30k =`, `2.5tr * 15% =`), hệ thống tự động tính ra kết quả kèm hiệu ứng nảy sáng đàn hồi màu xanh Apple.
+- **Cửa sổ nổi tự do (Free Floating Window)**: Mở bằng phím tắt **`Alt + N`** (hoặc `Ctrl + J`). Di chuyển linh hoạt và kéo mở rộng 8 hướng với tần số quét **120 FPS Direct DOM**.
+- **Interactive Checklist**: Danh sách đầu việc tương tác, gạch ngang mượt mà, tự động cập nhật tiến độ công việc theo thời gian thực.
+- **Đính kèm Tệp & Ảnh**: Kéo thả ảnh/tệp tin trực tiếp, xem trước phóng to (Lightbox) và giải nén xem nhanh slide PowerPoint (.pptx).
+
+### 2. 🛡️ Két Mật Khẩu Tác Nghiệp (Account Vault)
+- Quản lý tập trung mọi tài khoản nội bộ: **SAP, POS, Bravo, KiotViet, Portal nhà cung cấp, Tiki, Shopee, Lazada...**
+- **Cơ chế tự hủy Clipboard sau 45s**: Tự động xóa bộ nhớ đệm sau khi sao chép mật khẩu để chống đánh cắp dữ liệu.
+- Kéo thả (Drag & Drop) sắp xếp thứ tự tài khoản ưu tiên cực kỳ trực quan.
+
+### 3. 🔍 Tìm Kiếm Đa Năng Spotlight (`Ctrl + K` / `⌘ + K`)
+- Thanh tìm kiếm kính lỏng lấy cảm hứng từ Apple Spotlight: tìm nhanh liên kết, tài khoản, mã cửa hàng (`FM09`, `FM18`), tác vụ hệ thống với thời gian phản hồi dưới 10ms.
+- Dùng phím **Tab** để chuyển đổi phạm vi lọc tức thì.
+
+### 4. 🤖 Trợ Lý Soạn Thảo AI (Apple Intelligence & Gemini)
+- Tích hợp 9 công cụ xử lý ngôn ngữ thông minh: Tóm tắt văn bản, Rút ra ý chính, Viết lại chuyên nghiệp, Viết ngắn gọn súc tích, Chuẩn hóa lỗi chính tả & ngữ pháp, Dịch thuật thương mại sang tiếng Anh.
+
+### 5. 💾 Sao Lưu & Phục Hồi Toàn Diện Thế Hệ Mới (.fmbackup)
+- Xuất toàn bộ 100% dữ liệu (Links, Tài khoản, Cửa hàng, toàn bộ Ghi chú, hình ảnh Base64 và file đính kèm) ra 1 file duy nhất đuôi `.fmbackup`.
+- Xác thực toàn vẹn bằng **mã băm mật mã SHA-256** và cơ chế **HTML Sanitization** chống mã độc khi chuyển đổi sang máy tính mới.
+
+### 6. 🌊 Trải Nghiệm Vật Lý Kính Lỏng (Liquid Glass 120 FPS)
+- Toàn bộ chuyển động giao diện được điều khiển bởi engine lò xo vật lý **8 Sub-steps/frame** (`cubic-bezier(0.16, 1, 0.3, 1)`), tối ưu 100% trên tầng GPU Compositing, loại bỏ hoàn toàn giật nấc trên màn hình ProMotion 120Hz.
+
+---
+
+## ⚡ Cài Đặt Nhanh Trong 3 Phút (1-Click Setup)
+
+### 🪟 Dành cho máy tính Windows (10 / 11)
+1. Tải ứng dụng về bằng cách bấm nút xanh **`Code`** trên GitHub ➔ chọn **`Download ZIP`** ➔ Giải nén ra thư mục.
+2. Cài đặt **[Node.js bản ổn định (Tải file .msi chính thức tại đây)](https://nodejs.org/dist/v20.18.0/node-v20.18.0-x64.msi)** (chỉ cần bấm Next liên tục).
+3. Nhấp đúp chuột vào file:
    ```text
    CAI_DAT_APP.bat
    ```
-3. Chương trình sẽ tự động cài đặt toàn bộ gói cần thiết, tạo cơ sở dữ liệu SQLite cục bộ, tạo biểu tượng **FM Workspace** trên màn hình Desktop và **gán sẵn phím tắt toàn hệ thống: `Ctrl + Alt + F`**.
-4. Khi muốn mở ứng dụng, bạn chỉ cần nhấn **`Ctrl + Alt + F`** hoặc bấm đúp vào biểu tượng trên Desktop!
-5. Khi muốn tắt ứng dụng, nhấn đúp vào `DUNG_APP.bat`. Để sao lưu dữ liệu cá nhân, nhấn đúp vào `SAO_LUU_DU_LIEU.bat`.
+4. Ứng dụng tự động thiết lập và tạo biểu tượng **FM Workspace** ngoài màn hình Desktop kèm **phím tắt mở app: `Ctrl + Alt + F`**!
+
+> 📖 *Xem hướng dẫn chi tiết có hình ảnh tại: **[HUONG_DAN_CAI_DAT.md](HUONG_DAN_CAI_DAT.md)***
 
 ---
 
-### 👉 Cách 2: Cài đặt 1-Click trên macOS & Linux
-Mở Terminal tại thư mục dự án và chạy:
-```bash
-./install.sh    # Tự động cài đặt 1 chạm và cấu hình môi trường
-./start.sh      # Khởi động ứng dụng và tự động mở trình duyệt
-./stop.sh       # Dừng ứng dụng và giải phóng cổng mạng
+### 🍎 Dành cho máy tính Apple macOS
+1. Cài đặt **[Node.js cho macOS (Tải file .pkg chính thức)](https://nodejs.org/dist/v20.18.0/node-v20.18.0.pkg)**.
+2. Tải và giải nén thư mục mã nguồn. Mở Terminal và chạy:
+   ```bash
+   chmod +x *.sh && ./install.sh
+   ```
+3. Khởi chạy ứng dụng:
+   ```bash
+   ./start.sh
+   ```
+
+---
+
+## ⌨️ Phím Tắt Phổ Biến
+
+| Phím tắt | Chức năng |
+|---|---|
+| **`Ctrl + Alt + F`** | Khởi động nhanh ứng dụng từ màn hình Desktop (Windows) |
+| **`Ctrl + K`** (hoặc **`⌘ + K`**) | Mở tìm kiếm nhanh Spotlight đa năng |
+| **`Alt + N`** (hoặc **`Ctrl + J`**) | Bật / Tắt cửa sổ Ghi chú nhanh (Quick Note) |
+| **`Ctrl + \`** (hoặc **`⌘ + \`**) | Mở rộng / Thu gọn thanh bên Sidebar |
+| **Gõ phép tính + `=`** | Tự động tính toán kết quả Math Notes ngay trong ghi chú |
+| **`Esc`** | Đóng hộp thoại hoặc cửa sổ ghi chú đang mở |
+
+---
+
+## 🛡️ Triết Lý Kiến Trúc: Local-First & Zero-Cloud Leak
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     MÁY TÍNH CỦA BẠN (LOCAL PC)                 │
+│                                                                 │
+│   ┌─────────────────────┐             ┌─────────────────────┐   │
+│   │   Trình duyệt Web   │   (IPC)     │   Cơ sở dữ liệu     │   │
+│   │ (IndexedDB + Cache) │ ◄─────────► │    SQLite Nội Bộ    │   │
+│   │   120 FPS UI/UX     │             │    app.db Cục Bộ    │   │
+│   └─────────────────────┘             └─────────────────────┘   │
+│              │                                   │              │
+│              ▼                                   ▼              │
+│     File Backup .fmbackup               Bảng tính Excel .xlsx   │
+│     (Mã băm SHA-256)                    (Lưu tại ổ đĩa máy)     │
+└─────────────────────────────────────────────────────────────────┘
+                                ▲
+                                │  KHÔNG CÓ DỮ LIỆU NÀO
+                                ✕  BỊ GỬI LÊN CLOUD
 ```
 
+- **100% Cục bộ**: Mọi ghi chú, tài khoản, mật khẩu và tệp đính kèm được lưu trong IndexedDB của trình duyệt và file SQLite `server/data/app.db`.
+- **Hoạt động Offline**: Sử dụng bình thường khi mất kết nối mạng Internet.
+- **Không phụ thuộc đám mây**: Tránh hoàn toàn nguy cơ rò rỉ dữ liệu doanh nghiệp ra bên ngoài.
+
 ---
 
-### 👉 Cách 3: Dành cho lập trình viên (Terminal / Developer Setup)
+## 🤝 Đóng Góp & Phát Triển (For Developers)
 
-#### Bước 1: Tải mã nguồn
 ```bash
+# Clone dự án
 git clone https://github.com/gochee-nhdk/fm-workspace.git
 cd fm-workspace
-```
 
-#### Bước 2: Cài đặt tự động toàn bộ ứng dụng (1 Lệnh duy nhất)
-```bash
+# Cài đặt tự động
 npm run setup
-```
-> Lệnh này sẽ tự động cài đặt thư viện cho Client & Server và khởi tạo cơ sở dữ liệu SQLite cục bộ với hệ thống chỉ mục tăng tốc.
 
-#### Bước 3: Khởi chạy môi trường phát triển
-```bash
+# Khởi chạy môi trường phát triển (Port 5173 & 3000)
 npm run dev
 ```
-Hệ thống sẽ đồng thời khởi chạy cả Backend (cổng `3000`) và Frontend (cổng `5173`).  
-👉 Mở trình duyệt và truy cập: **`http://localhost:5173`**
 
 ---
 
-## 🛠️ Các Lệnh Thao Tác Hữu Ích
+## 📄 Bản Quyền & Giấy Phép
 
-| Lệnh | Ý nghĩa |
-|---|---|
-| `npm run dev` | Khởi chạy đồng thời Backend và Frontend |
-| `npm run setup` | Cài đặt toàn bộ dependencies và khởi tạo cơ sở dữ liệu |
-| `npm run build` | Đóng gói toàn bộ ứng dụng sẵn sàng deploy production |
-| `npm --prefix server run test` | Chạy toàn bộ 40 test suites kiểm thử thuật toán và dữ liệu |
-| `npm --prefix server run db:init` | Khởi tạo bảng và 17 composite indexes cho SQLite |
-| `npm --prefix server run db:seed` | Tạo lại dữ liệu mẫu (Master Data) |
-
----
-
-## 🌐 Hướng Dẫn Triển Khai Lên Mây (Deployment)
-
-- **Frontend (Vercel):**
-  - Kết nối kho GitHub `gochee-nhdk/fm-workspace`.
-  - Cấu hình Environment Variable: `VITE_API_URL` trỏ tới URL backend (ví dụ: `https://fm-workspace-2.onrender.com`).
-- **Backend (Render):**
-  - Tạo Web Service từ repo, Build command: `npm --prefix server install && npm --prefix server run build`, Start command: `npm --prefix server run start`.
-
----
-
-## ⌨️ Phím Tắt Tiện Ích
-- `Ctrl + K` (hoặc `⌘ + K`): Mở tìm kiếm nhanh Spotlight.
-- Gõ phép tính toán trong Note + `=`: Tự động tính nhẩm ngay lập tức.
+Phát triển bởi đội ngũ kỹ thuật nội bộ dành cho chuỗi bán lẻ thực phẩm sạch **Farmers Market Việt Nam**.  
+Mã nguồn mở theo giấy phép **MIT License** — Tự do sử dụng, tùy biến và triển khai cho doanh nghiệp của bạn. 🌿

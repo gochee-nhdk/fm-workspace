@@ -189,5 +189,7 @@ export const idbClearAll = async (): Promise<void> => {
     idbClear(STORES.ACCOUNTS),
     idbClear(STORES.STORES),
     idbClear(STORES.ACTIVITIES),
+    idbClear(STORES.NOTES),
+    idbClear(STORES.ATTACHMENTS),
   ]);
 };

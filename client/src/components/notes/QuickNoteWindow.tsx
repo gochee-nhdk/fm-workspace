@@ -673,8 +673,8 @@ const generateFileCardHtml = (fileIdOrUrl: string, fileName: string, ext: string
   return `<p><span class="apple-file-attachment" contenteditable="false" data-media-type="file" ${fileIdAttr} ${fileUrlAttr} data-file-name="${fileName}" data-file-ext="${ext}" data-file-size="${sizeStr}" style="display: inline-flex; align-items: center; gap: 10px; padding: 7px 12px; margin: 6px 0; border-radius: 16px; background: rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.08); font-size: 13px; font-weight: 500; text-decoration: none; user-select: none; box-shadow: 0 2px 6px rgba(0,0,0,0.03); vertical-align: middle; max-width: 100%;">
     ${docSvg}
     <span style="display: flex; flex-direction: column; min-width: 0; max-width: 220px; line-height: 1.25;">
-      <span style="font-weight: 600; color: #1d1d1f; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px;" title="${fileName}">${fileName}</span>
-      <span style="font-size: 10.5px; color: #86868b; font-family: ui-monospace, SFMono-Regular, monospace; margin-top: 1px;">${sizeStr}</span>
+      <span class="apple-file-attachment-title" style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px;" title="${fileName}">${fileName}</span>
+      <span class="apple-file-attachment-size" style="font-size: 10.5px; font-family: ui-monospace, SFMono-Regular, monospace; margin-top: 1px;">${sizeStr}</span>
     </span>
     <span style="display: inline-flex; align-items: center; gap: 4px; margin-left: 6px;">
       <button type="button" class="apple-file-preview-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,113,227,0.12); color: #0071e3; border: 1px solid rgba(0,113,227,0.2); cursor: pointer; padding: 0; outline: none;" title="Xem trước tệp (Quick Look)"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2.5"/></svg></button>
@@ -817,7 +817,9 @@ export const QuickNoteWindow: React.FC = () => {
   const editorRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  // Mode: Main fixed tab (isCompactWindow === false, default) vs Compact draggable floating window (isCompactWindow === true)
+  const [isWindowClosing, setIsWindowClosing] = useState(false);
+  const closeWindowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [isCompactWindow, setIsCompactWindow] = useState(false);
   const [compactPos, setCompactPos] = useState<{ x: number; y: number } | null>(null);
   const [windowSize, setWindowSize] = useState<{ width: number; height: number }>({
@@ -833,6 +835,7 @@ export const QuickNoteWindow: React.FC = () => {
   const dragStartRef = useRef<{ startX: number; startY: number; posX: number; posY: number } | null>(null);
   const rafIdRef = useRef<number | null>(null);
   const resizeRafRef = useRef<number | null>(null);
+  const windowRef = useRef<HTMLDivElement>(null);
 
   const handleToggleCompactMode = () => {
     if (!isCompactWindow) {
@@ -867,21 +870,44 @@ export const QuickNoteWindow: React.FC = () => {
       posY: currentY,
     };
 
+    const prevUserSelect = document.body.style.userSelect;
+    document.body.style.userSelect = 'none';
+
+    // Disable CSS transitions immediately on DOM for 0ms drag latency
+    if (windowRef.current) {
+      windowRef.current.style.transition = 'none';
+    }
+
+    let finalX = currentX;
+    let finalY = currentY;
+
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (!dragStartRef.current) return;
       const dx = moveEvent.clientX - dragStartRef.current.startX;
       const dy = moveEvent.clientY - dragStartRef.current.startY;
       const newX = Math.max(8, Math.min(window.innerWidth - 180, dragStartRef.current.posX + dx));
       const newY = Math.max(8, Math.min(window.innerHeight - 80, dragStartRef.current.posY + dy));
+      finalX = newX;
+      finalY = newY;
+
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = requestAnimationFrame(() => {
-        setCompactPos({ x: newX, y: newY });
+        if (!windowRef.current) return;
+        const newRight = Math.max(0, window.innerWidth - newX - currentW);
+        const newBottom = Math.max(0, window.innerHeight - newY - currentH);
+        windowRef.current.style.right = `${newRight}px`;
+        windowRef.current.style.bottom = `${newBottom}px`;
       });
     };
 
     const handleMouseUp = () => {
       setIsDraggingCompact(false);
       dragStartRef.current = null;
+      document.body.style.userSelect = prevUserSelect;
+      if (windowRef.current) {
+        windowRef.current.style.transition = '';
+      }
+      setCompactPos({ x: finalX, y: finalY });
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
@@ -891,7 +917,9 @@ export const QuickNoteWindow: React.FC = () => {
     window.addEventListener('mouseup', handleMouseUp);
   };
 
-  const handleResizeStart = (e: React.MouseEvent, direction: 'nw' | 'w' | 'n' | 'se') => {
+  type ResizeDirection = 'n' | 's' | 'w' | 'e' | 'nw' | 'ne' | 'sw' | 'se';
+
+  const handleResizeStart = (e: React.MouseEvent, direction: ResizeDirection) => {
     e.preventDefault();
     e.stopPropagation();
     setIsResizing(true);
@@ -913,6 +941,34 @@ export const QuickNoteWindow: React.FC = () => {
     const minH = isCompactWindow ? 360 : 460;
     const fixedRight = startPosX + startW;
     const fixedBottom = startPosY + startH;
+    const startRightPx = Math.max(0, window.innerWidth - fixedRight);
+    const startBottomPx = Math.max(0, window.innerHeight - fixedBottom);
+
+    // Global cursor lock & user select prevention during rapid resize
+    const cursorMap: Record<ResizeDirection, string> = {
+      n: 'ns-resize',
+      s: 'ns-resize',
+      w: 'ew-resize',
+      e: 'ew-resize',
+      nw: 'nwse-resize',
+      se: 'nwse-resize',
+      ne: 'nesw-resize',
+      sw: 'nesw-resize',
+    };
+    const prevCursor = document.body.style.cursor;
+    const prevUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = cursorMap[direction];
+    document.body.style.userSelect = 'none';
+
+    // Disable CSS transitions on DOM node immediately for 0ms lag
+    if (windowRef.current) {
+      windowRef.current.style.transition = 'none';
+    }
+
+    let finalW = startW;
+    let finalH = startH;
+    let finalX = startPosX;
+    let finalY = startPosY;
 
     const onMouseMove = (moveEvent: MouseEvent) => {
       const dx = moveEvent.clientX - startX;
@@ -920,52 +976,81 @@ export const QuickNoteWindow: React.FC = () => {
 
       if (resizeRafRef.current) cancelAnimationFrame(resizeRafRef.current);
       resizeRafRef.current = requestAnimationFrame(() => {
+        if (!windowRef.current) return;
+
         if (isCompactWindow) {
           let targetX = startPosX;
           let targetY = startPosY;
           let targetW = startW;
           let targetH = startH;
+          let targetRightPx = startRightPx;
+          let targetBottomPx = startBottomPx;
 
-          if (direction === 'nw') {
-            targetX = Math.max(8, Math.min(fixedRight - minW, startPosX + dx));
-            targetY = Math.max(8, Math.min(fixedBottom - minH, startPosY + dy));
-            targetW = fixedRight - targetX;
-            targetH = fixedBottom - targetY;
-          } else if (direction === 'w') {
+          // Horizontal expansion/shrinking
+          if (direction === 'nw' || direction === 'w' || direction === 'sw') {
             targetX = Math.max(8, Math.min(fixedRight - minW, startPosX + dx));
             targetW = fixedRight - targetX;
-          } else if (direction === 'n') {
-            targetY = Math.max(8, Math.min(fixedBottom - minH, startPosY + dy));
-            targetH = fixedBottom - targetY;
-          } else if (direction === 'se') {
+            targetRightPx = startRightPx; // Right edge is mathematically fixed!
+          } else if (direction === 'ne' || direction === 'e' || direction === 'se') {
             targetW = Math.max(minW, Math.min(window.innerWidth - startPosX - 16, startW + dx));
-            targetH = Math.max(minH, Math.min(window.innerHeight - startPosY - 16, startH + dy));
+            targetRightPx = Math.max(0, window.innerWidth - (targetX + targetW));
           }
 
-          setCompactSize({ width: targetW, height: targetH });
-          if (direction === 'nw' || direction === 'w' || direction === 'n') {
-            setCompactPos({ x: targetX, y: targetY });
+          // Vertical expansion/shrinking
+          if (direction === 'nw' || direction === 'n' || direction === 'ne') {
+            targetY = Math.max(8, Math.min(fixedBottom - minH, startPosY + dy));
+            targetH = fixedBottom - targetY;
+            targetBottomPx = startBottomPx; // Bottom edge is mathematically fixed!
+          } else if (direction === 'sw' || direction === 's' || direction === 'se') {
+            targetH = Math.max(minH, Math.min(window.innerHeight - startPosY - 16, startH + dy));
+            targetBottomPx = Math.max(0, window.innerHeight - (targetY + targetH));
           }
+
+          finalW = targetW;
+          finalH = targetH;
+          finalX = targetX;
+          finalY = targetY;
+
+          // DIRECT DOM MUTATION: 0ms delay, 120 FPS hardware acceleration, zero React re-renders during drag
+          windowRef.current.style.width = `${targetW}px`;
+          windowRef.current.style.height = `${targetH}px`;
+          windowRef.current.style.right = `${targetRightPx}px`;
+          windowRef.current.style.bottom = `${targetBottomPx}px`;
         } else {
           // Docked window pinned to bottom-right (right: 0, bottom: 0)
           let targetW = startW;
           let targetH = startH;
 
-          if (direction === 'nw' || direction === 'w') {
+          if (direction === 'nw' || direction === 'w' || direction === 'sw') {
             targetW = Math.max(minW, Math.min(window.innerWidth - 16, startW - dx));
           }
-          if (direction === 'nw' || direction === 'n') {
+          if (direction === 'nw' || direction === 'n' || direction === 'ne') {
             targetH = Math.max(minH, Math.min(window.innerHeight - 16, startH - dy));
           }
 
-          setWindowSize({ width: targetW, height: targetH });
+          finalW = targetW;
+          finalH = targetH;
+
+          windowRef.current.style.width = `${targetW}px`;
+          windowRef.current.style.height = `${targetH}px`;
         }
       });
     };
 
     const onMouseUp = () => {
-      setIsResizing(false);
       if (resizeRafRef.current) cancelAnimationFrame(resizeRafRef.current);
+      document.body.style.cursor = prevCursor;
+      document.body.style.userSelect = prevUserSelect;
+      if (windowRef.current) {
+        windowRef.current.style.transition = '';
+      }
+      setIsResizing(false);
+      if (isCompactWindow) {
+        setCompactSize({ width: finalW, height: finalH });
+        setCompactPos({ x: finalX, y: finalY });
+      } else {
+        setWindowSize({ width: finalW, height: finalH });
+      }
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
@@ -2276,12 +2361,71 @@ export const QuickNoteWindow: React.FC = () => {
     selectNote(id);
   };
 
-  const handleCloseNote = () => {
+  const handleCloseNote = useCallback(() => {
     savePendingDraft(activeNoteIdRef.current);
-    setUnlockedNoteIds([]); // Relock tất cả ghi chú khi đóng cửa sổ
-    activeNoteIdRef.current = null;
-    closeNote();
-  };
+    setIsWindowClosing(true);
+    if (closeWindowTimerRef.current) clearTimeout(closeWindowTimerRef.current);
+    closeWindowTimerRef.current = setTimeout(() => {
+      setUnlockedNoteIds([]); // Relock tất cả ghi chú khi đóng cửa sổ
+      activeNoteIdRef.current = null;
+      setIsWindowClosing(false);
+      closeNote();
+    }, 180);
+  }, [closeNote, savePendingDraft]);
+
+  // Clean up closing timer on unmount
+  useEffect(() => {
+    return () => {
+      if (closeWindowTimerRef.current) {
+        clearTimeout(closeWindowTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Handle Escape key to close note window smoothly if no inner popup is active
+  useEffect(() => {
+    if (!isOpen || isWindowClosing) return;
+
+    const handleWindowEscape = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+
+      // If any modal/popover/preview is currently open, let their own handlers dismiss them first
+      if (
+        lightboxImage ||
+        filePreviewModal ||
+        showApiKeySetting ||
+        showReminderModal ||
+        showLockConfigModal ||
+        taskReminderPopover ||
+        showWritingToolsMenu ||
+        showCompactAiMenu ||
+        showFloatingAiMenu ||
+        showSmtpConfig
+      ) {
+        return;
+      }
+
+      e.preventDefault();
+      handleCloseNote();
+    };
+
+    window.addEventListener('keydown', handleWindowEscape);
+    return () => window.removeEventListener('keydown', handleWindowEscape);
+  }, [
+    isOpen,
+    isWindowClosing,
+    lightboxImage,
+    filePreviewModal,
+    showApiKeySetting,
+    showReminderModal,
+    showLockConfigModal,
+    taskReminderPopover,
+    showWritingToolsMenu,
+    showCompactAiMenu,
+    showFloatingAiMenu,
+    showSmtpConfig,
+    handleCloseNote,
+  ]);
 
   // Mutual modal logic: prevent overlapping popovers
   const handleToggleApiKeySetting = () => {
@@ -2477,6 +2621,146 @@ export const QuickNoteWindow: React.FC = () => {
     if (text && !e.clipboardData.types.includes('Files')) {
       e.preventDefault();
       document.execCommand('insertText', false, text);
+    }
+  };
+
+  /**
+   * Word-like keyboard handling for rich text note editor:
+   * - Enter in empty list item: unlists item to normal paragraph (like Word)
+   * - Shift+Enter: soft line break (<br>) within list item or paragraph
+   * - Tab / Shift+Tab: indent / outdent list item or insert 4-space tab without losing focus
+   * - Backspace at start of list item: unlists item back to regular text
+   * - Ctrl+B, Ctrl+I, Ctrl+U: standard bold/italic/underline
+   * - Zero interference with Vietnamese IME (EVKey/Unikey/typing composition)
+   */
+  const handleEditorKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // 1. Never intercept Vietnamese IME composition (EVKey, Unikey, etc.)
+    if (e.nativeEvent.isComposing || e.keyCode === 229) {
+      return;
+    }
+
+    // 2. Tab & Shift+Tab handling (Word-like indentation)
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+
+      const range = sel.getRangeAt(0);
+      const liNode = (range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+        ? (range.commonAncestorContainer as HTMLElement)
+        : range.commonAncestorContainer.parentElement)?.closest('li');
+
+      if (liNode) {
+        // Inside a list: Tab indents, Shift+Tab outdents
+        if (e.shiftKey) {
+          document.execCommand('outdent', false);
+        } else {
+          document.execCommand('indent', false);
+        }
+      } else {
+        // Outside a list: insert 4 spaces or tab indentation without blurring the editor
+        if (e.shiftKey) {
+          document.execCommand('outdent', false);
+        } else {
+          document.execCommand('insertText', false, '    ');
+        }
+      }
+
+      if (editorRef.current) {
+        handleEditorInput({ currentTarget: editorRef.current, nativeEvent: e.nativeEvent } as any);
+      }
+      return;
+    }
+
+    // 3. Enter key handling in list items (Word-like list exit on empty line)
+    if (e.key === 'Enter') {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const liNode = (range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+          ? (range.commonAncestorContainer as HTMLElement)
+          : range.commonAncestorContainer.parentElement)?.closest('li');
+
+        if (liNode) {
+          if (e.shiftKey) {
+            // Shift + Enter inside a list: insert soft line break (<br>) within the same bullet
+            e.preventDefault();
+            document.execCommand('insertLineBreak', false);
+            if (editorRef.current) {
+              handleEditorInput({ currentTarget: editorRef.current, nativeEvent: e.nativeEvent } as any);
+            }
+            return;
+          }
+
+          // If the current list item is empty:
+          // Pressing Enter in Word un-lists the item and converts it into a normal paragraph
+          const textContent = liNode.textContent || '';
+          const isEmpty = textContent.trim().length === 0 && !liNode.querySelector('img, .apple-file-attachment');
+          if (isEmpty) {
+            e.preventDefault();
+            document.execCommand('outdent', false);
+            if (editorRef.current) {
+              handleEditorInput({ currentTarget: editorRef.current, nativeEvent: e.nativeEvent } as any);
+            }
+            return;
+          }
+        }
+      }
+    }
+
+    // 4. Backspace at start of list item (Word-like bullet removal)
+    if (e.key === 'Backspace' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      const sel = window.getSelection();
+      if (sel && sel.isCollapsed && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const liNode = (range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+          ? (range.commonAncestorContainer as HTMLElement)
+          : range.commonAncestorContainer.parentElement)?.closest('li');
+
+        if (liNode) {
+          const preRange = range.cloneRange();
+          preRange.selectNodeContents(liNode);
+          preRange.setEnd(range.startContainer, range.startOffset);
+          if (preRange.toString().length === 0 && !preRange.cloneContents().querySelector('img, .apple-file-attachment')) {
+            e.preventDefault();
+            document.execCommand('outdent', false);
+            if (editorRef.current) {
+              handleEditorInput({ currentTarget: editorRef.current, nativeEvent: e.nativeEvent } as any);
+            }
+            return;
+          }
+        }
+      }
+    }
+
+    // 5. Standard Shortcuts: Ctrl+B, Ctrl+I, Ctrl+U
+    const isMod = e.ctrlKey || e.metaKey;
+    if (isMod && !e.altKey) {
+      const k = e.key.toLowerCase();
+      if (k === 'b') {
+        e.preventDefault();
+        document.execCommand('bold', false);
+        if (editorRef.current) {
+          handleEditorInput({ currentTarget: editorRef.current, nativeEvent: e.nativeEvent } as any);
+        }
+        return;
+      }
+      if (k === 'i') {
+        e.preventDefault();
+        document.execCommand('italic', false);
+        if (editorRef.current) {
+          handleEditorInput({ currentTarget: editorRef.current, nativeEvent: e.nativeEvent } as any);
+        }
+        return;
+      }
+      if (k === 'u') {
+        e.preventDefault();
+        document.execCommand('underline', false);
+        if (editorRef.current) {
+          handleEditorInput({ currentTarget: editorRef.current, nativeEvent: e.nativeEvent } as any);
+        }
+        return;
+      }
     }
   };
 
@@ -3076,7 +3360,7 @@ export const QuickNoteWindow: React.FC = () => {
   };
 
   // Only render if opened
-  if (!isOpen) return null;
+  if (!isOpen && !isWindowClosing) return null;
 
   const currentColorConfig = COLOR_MAP[activeNote?.color || 'amber'];
   const currentW = isCompactWindow
@@ -3086,37 +3370,33 @@ export const QuickNoteWindow: React.FC = () => {
     ? compactSize.height
     : Math.max(windowSize.height, 580);
 
+  const rightPx = isCompactWindow && compactPos
+    ? Math.max(0, window.innerWidth - compactPos.x - currentW)
+    : 0;
+  const bottomPx = isCompactWindow && compactPos
+    ? Math.max(0, window.innerHeight - compactPos.y - currentH)
+    : 0;
+
   return createPortal(
     <>
       {/* ─────────────────── Apple Liquid Glass Floating Window (Single Unified Window) ─────────────────── */}
       <div
+        ref={windowRef}
         role="region"
         aria-label="Cửa sổ ghi chú nhanh"
-        style={
-          isCompactWindow && compactPos
-            ? {
-                left: `${compactPos.x}px`,
-                top: `${compactPos.y}px`,
-                width: `${currentW}px`,
-                height: `${currentH}px`,
-                right: 'auto',
-                bottom: 'auto',
-              }
-            : {
-                right: '0px',
-                bottom: '0px',
-                width: `${currentW}px`,
-                height: `${currentH}px`,
-                left: 'auto',
-                top: 'auto',
-              }
-        }
+        style={{
+          right: `${rightPx}px`,
+          bottom: `${bottomPx}px`,
+          width: `${currentW}px`,
+          height: `${currentH}px`,
+        }}
         className={cn(
-          "fixed z-[9999] bg-white/95 dark:bg-[#181822]/95 backdrop-blur-3xl border border-white/80 dark:border-white/15 flex overflow-hidden font-sans select-none will-change-[transform,box-shadow] max-w-[calc(100vw-32px)] max-h-[calc(100vh-32px)] animate-in fade-in zoom-in-95 duration-200",
+          "fixed z-[9999] bg-white/95 dark:bg-[#181822]/95 backdrop-blur-3xl border border-white/80 dark:border-white/15 flex overflow-hidden font-sans select-none max-w-[calc(100vw-32px)] max-h-[calc(100vh-32px)]",
+          isWindowClosing ? "liquid-droplet-exit pointer-events-none" : "liquid-droplet-enter",
           isCompactWindow ? "rounded-[26px]" : "rounded-tl-[26px] rounded-tr-none rounded-br-none rounded-bl-none",
           (isDraggingCompact || isResizing)
             ? "shadow-[0_32px_85px_rgba(0,0,0,0.3)] transition-none select-none pointer-events-auto"
-            : "shadow-[0_20px_60px_rgba(0,0,0,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85)] transition-[width,height,shadow] duration-200"
+            : "shadow-[0_20px_60px_rgba(0,0,0,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85)] transition-[right,bottom,width,height,border-radius,box-shadow] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
         )}
         onClick={(e) => e.stopPropagation()}
         onDragOver={(e) => {
@@ -3176,36 +3456,42 @@ export const QuickNoteWindow: React.FC = () => {
           }
         }}
       >
-        {/* Resize Handles (Top, Left, Top-Left, Bottom-Right) */}
+        {/* Invisible Resize Hitboxes (All 4 Edges: n, s, w, e & All 4 Corners: nw, ne, sw, se) */}
+        {/* 4 Edges */}
         <div
           onMouseDown={(e) => handleResizeStart(e, 'n')}
-          className="absolute top-0 inset-x-4 h-2 cursor-n-resize z-50 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-          title="Kéo đổi chiều cao"
+          className="absolute top-0 inset-x-6 h-2.5 cursor-ns-resize z-50 select-none bg-transparent touch-none"
+        />
+        <div
+          onMouseDown={(e) => handleResizeStart(e, 's')}
+          className="absolute bottom-0 inset-x-6 h-2.5 cursor-ns-resize z-50 select-none bg-transparent touch-none"
         />
         <div
           onMouseDown={(e) => handleResizeStart(e, 'w')}
-          className="absolute left-0 inset-y-4 w-2 cursor-w-resize z-50 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-          title="Kéo đổi chiều rộng"
+          className="absolute left-0 inset-y-6 w-2.5 cursor-ew-resize z-50 select-none bg-transparent touch-none"
         />
         <div
+          onMouseDown={(e) => handleResizeStart(e, 'e')}
+          className="absolute right-0 inset-y-6 w-2.5 cursor-ew-resize z-50 select-none bg-transparent touch-none"
+        />
+
+        {/* 4 Corners */}
+        <div
           onMouseDown={(e) => handleResizeStart(e, 'nw')}
-          className="absolute top-0 left-0 w-4 h-4 cursor-nwse-resize z-50 hover:bg-black/10 dark:hover:bg-white/10 rounded-tl-[26px] transition-colors"
-          title="Kéo góc đổi kích thước"
+          className="absolute top-0 left-0 w-6 h-6 cursor-nwse-resize z-50 select-none bg-transparent rounded-tl-[28px] touch-none"
+        />
+        <div
+          onMouseDown={(e) => handleResizeStart(e, 'ne')}
+          className="absolute top-0 right-0 w-6 h-6 cursor-nesw-resize z-50 select-none bg-transparent rounded-tr-[28px] touch-none"
+        />
+        <div
+          onMouseDown={(e) => handleResizeStart(e, 'sw')}
+          className="absolute bottom-0 left-0 w-6 h-6 cursor-nesw-resize z-50 select-none bg-transparent rounded-bl-[28px] touch-none"
         />
         <div
           onMouseDown={(e) => handleResizeStart(e, 'se')}
-          className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize z-50 flex items-end justify-end p-0.5 text-black/20 dark:text-white/20 hover:text-[#0071e3] transition-colors"
-          title="Kéo góc đổi kích thước"
-        >
-          <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
-            <circle cx="7" cy="1" r="0.75" />
-            <circle cx="7" cy="4" r="0.75" />
-            <circle cx="4" cy="4" r="0.75" />
-            <circle cx="7" cy="7" r="0.75" />
-            <circle cx="4" cy="7" r="0.75" />
-            <circle cx="1" cy="7" r="0.75" />
-          </svg>
-        </div>
+          className="absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize z-50 select-none bg-transparent rounded-br-[28px] touch-none"
+        />
 
         {/* Drag & Drop Visual Indicator Overlay */}
         {isDraggingFile && (
@@ -3225,14 +3511,23 @@ export const QuickNoteWindow: React.FC = () => {
         <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/90 dark:via-white/25 to-transparent pointer-events-none z-20" />
 
         {/* ───────── Collapsible Notes List Sidebar (Absolute Overlay — không thu nhỏ editor) ───────── */}
-        {showSidebar && !isCompactWindow && (
+        {!isCompactWindow && (
           <>
             {/* Backdrop click outside to close sidebar — Trong suốt, không làm tối màn hình bất chợt */}
             <div
               onClick={() => setShowSidebar(false)}
-              className="absolute inset-0 z-20 bg-transparent"
+              className={cn(
+                "absolute inset-0 z-20 bg-transparent transition-opacity duration-280",
+                showSidebar ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+              )}
             />
-            <div className="absolute top-0 left-0 bottom-0 w-[275px] z-30 border-r border-black/[0.08] dark:border-white/10 flex flex-col bg-white/95 dark:bg-[#181820]/95 backdrop-blur-3xl shrink-0 animate-in slide-in-from-left duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-[4px_0_24px_rgba(0,0,0,0.06)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.35)]">
+            <div
+              aria-hidden={!showSidebar}
+              className={cn(
+                "absolute top-0 left-0 bottom-0 w-[275px] z-30 border-r border-black/[0.08] dark:border-white/10 flex flex-col bg-white/95 dark:bg-[#181820]/95 backdrop-blur-3xl shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.06)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.35)] transition-transform duration-280 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform",
+                showSidebar ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none"
+              )}
+            >
               {/* Sidebar Search Bar & Close button */}
               <div className="p-3 border-b border-black/[0.06] dark:border-white/10 space-y-2.5">
                 <div className="flex items-center gap-1.5">
@@ -3428,7 +3723,7 @@ export const QuickNoteWindow: React.FC = () => {
             onMouseDown={handleCompactHeaderMouseDown}
             className={cn(
               "h-12 px-3 sm:px-4 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between shrink-0 bg-white/50 dark:bg-white/[0.02] select-none",
-              isCompactWindow ? (isDraggingCompact ? "cursor-grabbing" : "cursor-grab") : "cursor-default"
+              isCompactWindow ? (isDraggingCompact ? "cursor-apple-grabbing" : "cursor-apple-grab") : "cursor-default"
             )}
             title={isCompactWindow ? "Kéo thả thanh này để di chuyển ghi chú tự do" : "Tab ghi chú chính cố định ở góc dưới phải"}
           >
@@ -3934,7 +4229,7 @@ export const QuickNoteWindow: React.FC = () => {
                   {showCompactAiMenu && (
                     <div
                       onClick={(e) => e.stopPropagation()}
-                      className="absolute right-0 top-full mt-1.5 w-60 rounded-2xl bg-white dark:bg-[#1c1c24] border border-black/10 dark:border-white/12 shadow-[0_16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.65)] p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-0.5 text-left max-h-[380px] overflow-y-auto"
+                      className="absolute right-0 top-full mt-1.5 w-60 rounded-2xl bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-3xl border border-black/10 dark:border-white/15 shadow-[0_24px_60px_-8px_rgba(0,0,0,0.22),0_4px_16px_rgba(0,0,0,0.06),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),inset_0_1px_1px_rgba(255,255,255,0.15)] p-1.5 z-50 apple-popover-tr space-y-0.5 text-left max-h-[380px] overflow-y-auto select-none"
                     >
                       <div className="px-2.5 py-1 text-[10.5px] font-bold text-[#86868b] dark:text-[#a1a1a6] border-b border-black/[0.06] dark:border-white/10 mb-1 flex items-center justify-between">
                         <span>Công cụ Apple AI</span>
@@ -3947,7 +4242,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setShowCompactAiMenu(false);
                           handleExecuteWritingTool('summarize');
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-[#0071e3]/10 dark:hover:bg-white/10 active:scale-98 transition-all cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-[#0071e3]/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center shrink-0">
                           <SFDocument size={12} />
@@ -3961,7 +4256,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setShowCompactAiMenu(false);
                           handleExecuteWritingTool('keypoints');
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-amber-500/10 dark:hover:bg-white/10 active:scale-98 transition-all cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-amber-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
                           <SFListBullet size={12} />
@@ -3975,7 +4270,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setShowCompactAiMenu(false);
                           handleExecuteWritingTool('professional');
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-purple-500/10 dark:hover:bg-white/10 active:scale-98 transition-all cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-purple-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
                           <SFBriefcase size={12} />
@@ -3989,7 +4284,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setShowCompactAiMenu(false);
                           handleExecuteWritingTool('concise');
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-emerald-500/10 dark:hover:bg-white/10 active:scale-98 transition-all cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-emerald-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                           <SFTextQuote size={12} />
@@ -4003,7 +4298,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setShowCompactAiMenu(false);
                           handleExecuteWritingTool('proofread');
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-rose-500/10 dark:hover:bg-white/10 active:scale-98 transition-all cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-rose-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
                           <SFCheckmarkCircle size={12} />
@@ -4017,7 +4312,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setShowCompactAiMenu(false);
                           handleExecuteWritingTool('expand');
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-indigo-500/10 dark:hover:bg-white/10 active:scale-98 transition-all cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-indigo-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                           <SFSquareAndPencil size={12} />
@@ -4031,7 +4326,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setShowCompactAiMenu(false);
                           handleExecuteWritingTool('action_items');
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-sky-500/10 dark:hover:bg-white/10 active:scale-98 transition-all cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-sky-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
                           <SFCheckmarkSquare size={12} />
@@ -4045,7 +4340,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setShowCompactAiMenu(false);
                           handleExecuteWritingTool('translate_en');
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-blue-500/10 dark:hover:bg-white/10 active:scale-98 transition-all cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-blue-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
                           <Globe size={12} />
@@ -4059,7 +4354,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setShowCompactAiMenu(false);
                           handleExecuteWritingTool('translate_vi');
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-teal-500/10 dark:hover:bg-white/10 active:scale-98 transition-all cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-teal-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
                           <Globe size={12} />
@@ -4234,7 +4529,7 @@ export const QuickNoteWindow: React.FC = () => {
                         left: `${toolbarCoords.left}px`,
                         transform: 'translateX(-50%)',
                       }}
-                      className="absolute z-30 flex items-center gap-1 p-1 rounded-full bg-white/88 dark:bg-[#1c1c24]/88 backdrop-blur-3xl border border-white/80 dark:border-white/20 shadow-[0_16px_40px_rgba(0,0,0,0.18),inset_0_1px_1.5px_rgba(255,255,255,0.9)] animate-in fade-in zoom-in-95 duration-150 select-none transition-all"
+                      className="absolute z-30 flex items-center gap-1 p-1 rounded-full bg-white/90 dark:bg-[#1c1c24]/90 backdrop-blur-3xl border border-white/80 dark:border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.22),inset_0_1px_1.5px_rgba(255,255,255,0.95)] select-none apple-floating-toolbar-enter"
                     >
                       {/* Basic Typography Formatting Buttons */}
                       <div className="flex items-center gap-0.5 pr-1 border-r border-black/[0.08] dark:border-white/10">
@@ -4375,10 +4670,10 @@ export const QuickNoteWindow: React.FC = () => {
                             style={{
                               maxHeight: toolbarCoords.maxMenuHeight ? `${toolbarCoords.maxMenuHeight}px` : '220px',
                             }}
-                            className={`absolute right-0 w-60 rounded-[20px] bg-white dark:bg-[#1e1e24] border border-black/10 dark:border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.22)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7)] p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-0.5 text-left overflow-y-auto scrollbar-thin [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-black/20 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full ${
+                            className={`absolute right-0 w-60 rounded-[20px] bg-white/95 dark:bg-[#1e1e24]/95 backdrop-blur-3xl border border-black/10 dark:border-white/15 shadow-[0_24px_60px_-8px_rgba(0,0,0,0.22),0_4px_16px_rgba(0,0,0,0.06),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),inset_0_1px_1px_rgba(255,255,255,0.15)] p-1.5 z-50 space-y-0.5 text-left overflow-y-auto scrollbar-thin select-none ${
                               toolbarCoords.openMenuUp
-                                ? 'bottom-full mb-2 origin-bottom-right'
-                                : 'top-full mt-2 origin-top-right'
+                                ? 'bottom-full mb-2 apple-popover-br'
+                                : 'top-full mt-2 apple-popover-tr'
                             }`}
                           >
                             <div className="px-2.5 py-1.5 flex items-center justify-between border-b border-black/[0.06] dark:border-white/10 mb-1">
@@ -4520,6 +4815,7 @@ export const QuickNoteWindow: React.FC = () => {
                     ref={editorRef}
                     contentEditable
                     suppressContentEditableWarning
+                    onKeyDown={handleEditorKeyDown}
                     onInput={handleEditorInput}
                     onSelect={handleEditorSelect}
                     onMouseDown={handleEditorMouseDown}

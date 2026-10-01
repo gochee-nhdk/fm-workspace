@@ -21,20 +21,20 @@ export const QuickNoteFloatingButton: React.FC = () => {
           backdrop-blur-[36px] saturate-[210%] bg-white/70 dark:bg-[#1c1c24]/75
           border border-white/75 dark:border-white/20
           shadow-[0_16px_36px_-8px_rgba(0,0,0,0.14),inset_0_1.5px_1px_rgba(255,255,255,0.95),inset_0_-1.5px_1.5px_rgba(0,0,0,0.08)]
-          hover:shadow-[0_20px_44px_-8px_rgba(245,158,11,0.25),inset_0_1.5px_1px_rgba(255,255,255,1)]
-          hover:scale-[1.03] active:scale-[0.97]
-          transition-all duration-240 ease-out cursor-pointer
-          overflow-hidden
+          hover:shadow-[0_20px_44px_-8px_rgba(245,158,11,0.28),inset_0_1.5px_1px_rgba(255,255,255,1)]
+          hover:scale-[1.04] hover:-translate-y-0.5 active:scale-[0.94] active:translate-y-0
+          transition-[transform,box-shadow,background-color] duration-180 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer
+          overflow-hidden will-change-transform
         `}
       >
         {/* Specular Meniscus Highlight */}
         <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/80 dark:via-white/25 to-transparent pointer-events-none" />
 
         {/* Ambient Amber Glow behind icon on hover */}
-        <div className="absolute -left-2 -top-2 w-10 h-10 bg-amber-400/20 dark:bg-amber-400/10 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+        <div className="absolute -left-2 -top-2 w-10 h-10 bg-amber-400/20 dark:bg-amber-400/10 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
 
         {/* Icon */}
-        <div className="relative flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-tr from-amber-500 to-amber-400 text-white shadow-sm shadow-amber-500/30 group-hover:rotate-[-6deg] transition-transform duration-300">
+        <div className="relative flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-tr from-amber-500 to-amber-400 text-white shadow-sm shadow-amber-500/30 group-hover:rotate-[-8deg] group-hover:scale-110 active:scale-95 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]">
           <SFSquareAndPencil size={15} />
         </div>
 

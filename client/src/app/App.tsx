@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import toast, { Toaster, resolveValue } from 'react-hot-toast';
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import { SFCheckmarkCircleFill, SFExclamationmarkCircle, SFInfoCircle, SFArrowClockwise } from 'sf-symbols-lib';
 import RoutesConfig from './routes';
 import { useUiStore, resolveTheme } from '@/stores/ui-store';
@@ -19,32 +19,53 @@ const queryClient = new QueryClient({
 
 /**
  * ThemeSync — listens to the store theme, resolves system/auto preference,
- * and syncs the `dark` class on <html>. Also reacts to OS preference changes
- * in real-time so theme auto-updates when user changes system setting.
+ * and syncs the `dark` class on <html> with a smooth Apple crossfade transition.
+ * Also reacts to OS preference changes in real-time so theme auto-updates when
+ * user changes system setting.
  */
 function ThemeSync() {
   const theme = useUiStore((state) => state.theme);
+  const hasMountedRef = useRef(false);
 
   useEffect(() => {
     const applyTheme = () => {
       const resolved = resolveTheme(theme);
       const root = document.documentElement;
-      if (resolved === 'dark') {
-        root.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
+      const isCurrentlyDark = root.classList.contains('dark');
+      const willBeDark = resolved === 'dark';
+
+      // On initial mount, apply without triggering a transition jump
+      if (!hasMountedRef.current) {
+        hasMountedRef.current = true;
+        if (willBeDark) {
+          root.classList.add('dark');
+        } else {
+          root.classList.remove('dark');
+        }
+        return;
+      }
+
+      // Smooth Apple crossfade when switching modes
+      if (isCurrentlyDark !== willBeDark) {
+        root.classList.add('theme-transition');
+        if (willBeDark) {
+          root.classList.add('dark');
+        } else {
+          root.classList.remove('dark');
+        }
+        window.setTimeout(() => {
+          root.classList.remove('theme-transition');
+        }, 320);
       }
     };
 
     applyTheme();
 
-    // For 'auto_time' mode: check every 30 seconds to react immediately to time transitions
     if (theme === 'auto_time') {
       const interval = setInterval(applyTheme, 30_000);
       return () => clearInterval(interval);
     }
 
-    // For 'system' mode: listen to OS dark/light preference changes in real-time
     if (theme === 'system' && window.matchMedia) {
       const mq = window.matchMedia('(prefers-color-scheme: dark)');
       mq.addEventListener('change', applyTheme);
@@ -86,10 +107,8 @@ export default function App() {
             return (
               <div
                 onClick={() => toast.dismiss(t.id)}
-                className={`liquid-glass-macos27-toast group cursor-pointer select-none transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                  t.visible
-                    ? 'opacity-100 scale-100 translate-y-0 translate-x-0'
-                    : 'opacity-0 scale-95 -translate-y-2 translate-x-3 pointer-events-none'
+                className={`liquid-glass-macos27-toast group cursor-pointer select-none ${
+                  t.visible ? 'apple-toast-enter' : 'apple-toast-exit pointer-events-none'
                 }`}
               >
                 {/* Refractive dynamic shimmer sweep across glass surface */}

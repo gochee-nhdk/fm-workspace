@@ -323,15 +323,34 @@
     margin: 0;
     padding: 0;
     overflow: hidden;
-    font-family: "SF Pro Text", "SF Pro Display", "SF Pro", -apple-system, BlinkMacSystemFont, "Be Vietnam Pro", Inter, sans-serif;
+    font-family: "SF Pro Text", "SF Pro Display", "SF Pro", "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, "Be Vietnam Pro", Inter, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
   body {
     @apply bg-[var(--background)] text-[var(--foreground)] antialiased transition-colors duration-200 relative selection:bg-[#0066cc]/20 selection:text-[#0066cc];
     letter-spacing: -0.011em;
   }
+
+  /* Smooth Apple crossfade for light/dark theme transition without flashing or snapping */
+  html.theme-transition body,
+  html.theme-transition header,
+  html.theme-transition aside,
+  html.theme-transition main,
+  html.theme-transition .glass-container,
+  html.theme-transition .vision-glass-sidebar,
+  html.theme-transition table,
+  html.theme-transition tr,
+  html.theme-transition td,
+  html.theme-transition th {
+    transition: background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
   button, input, select, textarea {
     font-family: inherit;
   }
@@ -426,7 +445,11 @@
     0 16px 36px -8px rgba(0, 0, 0, 0.14),
     0 6px 14px -2px rgba(0, 0, 0, 0.06);
   position: relative;
-  transition: all 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  /* GPU composite only: no layout recalc, no paint */
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
 }
 
 .dark .liquid-lens-pill {
@@ -463,11 +486,15 @@
   justify-content: center;
   cursor: pointer;
   user-select: none;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease;
+  /* GPU composite: only transform + box-shadow, no layout triggers */
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
 }
 
 .liquid-lens-circle:hover {
-  transform: translateY(-2px) scale(1.05);
+  transform: translateY(-2px) scale(1.055);
   background: rgba(255, 255, 255, 0.75);
   box-shadow: 
     inset 0 2px 1.5px 0 rgba(255, 255, 255, 1),
@@ -479,8 +506,8 @@
 }
 
 .liquid-lens-circle:active {
-  transform: scale(0.91);
-  transition-duration: 90ms;
+  transform: scale(0.90);
+  transition-duration: 65ms;
 }
 
 .dark .liquid-lens-circle {
@@ -636,21 +663,17 @@
   position: relative;
   overflow: hidden;
   transform-style: preserve-3d;
-  transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.26s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, background 0.2s ease;
+  /* GPU-only: eliminates layout & paint during animation */
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
 
 .liquid-glass-3d:hover,
 .glass-material-interactive:hover {
-  background: rgba(255, 255, 255, 0.58);
-  border-color: rgba(255, 255, 255, 0.95);
-  box-shadow: 
-    inset 0 2px 2px 0 rgba(255, 255, 255, 1),
-    inset 0 0 26px 0 rgba(255, 255, 255, 0.35),
-    inset 0 -1.5px 1.5px 0 rgba(0, 0, 0, 0.06),
-    0 20px 48px -10px rgba(0, 102, 204, 0.10),
-    0 4px 12px -1px rgba(0, 0, 0, 0.04);
+  transform: translateY(-3px);
 }
 
 .dark .liquid-glass-3d,
@@ -748,19 +771,24 @@
     inset 0 0 10px rgba(255, 255, 255, 0.2),
     0 2px 8px rgba(0, 0, 0, 0.04);
   color: #1d1d1f;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  /* GPU composite only */
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
 }
 
 .glass-btn:hover {
   background: rgba(255, 255, 255, 0.72);
-  transform: translateY(-1px);
+  transform: translateY(-1.5px);
   box-shadow: 
     inset 0 1px 1.5px rgba(255, 255, 255, 1),
-    0 8px 18px rgba(0, 0, 0, 0.07);
+    0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
 .glass-btn:active {
-  transform: scale(0.97);
+  transform: scale(0.965) translateY(0px);
+  transition-duration: 60ms;
 }
 
 .dark .glass-btn {
@@ -788,17 +816,21 @@
     inset 0 1px 1px rgba(255, 255, 255, 0.6),
     0 4px 16px -2px rgba(0, 102, 204, 0.35);
   color: #ffffff;
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
 }
 .glass-btn-prominent:hover {
   background: linear-gradient(180deg, #0082fb 0%, #0071e3 100%);
-  transform: translateY(-1px);
+  transform: translateY(-1.5px);
   box-shadow: 
     inset 0 1px 1.5px rgba(255, 255, 255, 0.8),
-    0 6px 20px -2px rgba(0, 102, 204, 0.45);
+    0 6px 22px -2px rgba(0, 102, 204, 0.48);
 }
 .glass-btn-prominent:active {
-  transform: scale(0.975);
+  transform: scale(0.965) translateY(0);
+  transition-duration: 60ms;
 }
 
 /* ==========================================================================
@@ -1307,11 +1339,15 @@
   filter: blur(100px);
 }
 
-/* iOS Stagger Entrance Animations with 3D Spatial Spring */
+/* iOS Stagger Entrance Animations with 3D Spatial Spring — 120fps Edition */
 @keyframes iosEnter {
   0% {
     opacity: 0;
-    transform: translate3d(0, 12px, 0) scale(0.985);
+    transform: translate3d(0, 14px, 0) scale(0.982);
+  }
+  55% {
+    opacity: 1;
+    transform: translate3d(0, -1.5px, 0) scale(1.003);
   }
   100% {
     opacity: 1;
@@ -1320,41 +1356,48 @@
 }
 
 .ios-animate-in {
-  animation: iosEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: iosEnter 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
-.ios-stagger-1 { animation-delay: 30ms; }
-.ios-stagger-2 { animation-delay: 60ms; }
-.ios-stagger-3 { animation-delay: 90ms; }
-.ios-stagger-4 { animation-delay: 120ms; }
-.ios-stagger-5 { animation-delay: 150ms; }
-.ios-stagger-6 { animation-delay: 180ms; }
+/* Tighter stagger intervals for snappier feel */
+.ios-stagger-1 { animation-delay: 20ms; }
+.ios-stagger-2 { animation-delay: 45ms; }
+.ios-stagger-3 { animation-delay: 70ms; }
+.ios-stagger-4 { animation-delay: 95ms; }
+.ios-stagger-5 { animation-delay: 120ms; }
+.ios-stagger-6 { animation-delay: 145ms; }
 
-/* Spatial Glide Page Transition */
+/* Spatial Glide Page Transition — faster with micro-overshoot */
 .page-transition-enter,
 .page-glide-enter {
-  animation: pageGlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: pageGlideIn 0.20s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes pageGlideIn {
   0% {
     opacity: 0;
-    transform: translate3d(0, 6px, 0);
+    transform: translate3d(0, 8px, 0) scale(0.992);
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 /* ==========================================================================
-   MacBook Liquid Droplet Motion & Tab Open/Close Physics
+   MacBook Liquid Droplet Motion & Tab Open/Close Physics — 120fps
    ========================================================================== */
 
 @keyframes liquidDropletOpen {
   0% {
     opacity: 0;
-    transform: translate3d(0, 12px, 0) scale(0.975);
+    transform: translate3d(0, 14px, 0) scale(0.972);
+  }
+  60% {
+    opacity: 1;
+    transform: translate3d(0, -1.5px, 0) scale(1.005);
   }
   100% {
     opacity: 1;
@@ -1369,7 +1412,7 @@
   }
   100% {
     opacity: 0;
-    transform: translate3d(0, 8px, 0) scale(0.98);
+    transform: translate3d(0, 10px, 0) scale(0.976);
   }
 }
 
@@ -1391,43 +1434,48 @@
   }
 }
 
+/* Directional tab content glide — 120fps crisp */
 @keyframes liquidTabContentGlide {
   0% {
-    opacity: 0.94;
-    transform: translate3d(8px, 0, 0);
+    opacity: 0.88;
+    transform: translate3d(10px, 0, 0) scale(0.996);
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 @keyframes liquidTabContentGlideRev {
   0% {
-    opacity: 0.94;
-    transform: translate3d(-8px, 0, 0);
+    opacity: 0.88;
+    transform: translate3d(-10px, 0, 0) scale(0.996);
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 .apple-tab-content-enter {
-  animation: liquidTabContentGlide 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: liquidTabContentGlide 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
 
 .apple-tab-content-enter-rev {
-  animation: liquidTabContentGlideRev 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: liquidTabContentGlideRev 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
 
-/* Apple Item Materialize (Creation) & Dismiss (Deletion) */
+/* Apple Item Materialize (Creation) & Dismiss (Deletion) — with spring overshoot */
 @keyframes appleItemMaterialize {
   0% {
     opacity: 0;
-    transform: scale(0.97) translate3d(0, -6px, 0);
+    transform: scale(0.965) translate3d(0, -8px, 0);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.006) translate3d(0, 0.5px, 0);
   }
   100% {
     opacity: 1;
@@ -1442,25 +1490,29 @@
   }
   100% {
     opacity: 0;
-    transform: scale(0.96) translate3d(0, -4px, 0);
+    transform: scale(0.954) translate3d(0, -6px, 0);
   }
 }
 
 .apple-item-materialize {
-  animation: appleItemMaterialize 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: appleItemMaterialize 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
 
 .apple-item-dismiss {
-  animation: appleItemDismiss 0.18s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  animation: appleItemDismiss 0.16s cubic-bezier(0.3, 0, 0.8, 0.15) forwards;
   pointer-events: none;
 }
 
-/* Apple Popover Trigger-Origin Expansions */
+/* Apple Popover Trigger-Origin Expansions — spring overshoot from corner */
 @keyframes applePopoverOpenTR {
   0% {
     opacity: 0;
-    transform: scale(0.92) translate3d(4px, -4px, 0);
+    transform: scale(0.88) translate3d(6px, -6px, 0);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.006) translate3d(-0.5px, 0.5px, 0);
   }
   100% {
     opacity: 1;
@@ -1471,7 +1523,11 @@
 @keyframes applePopoverOpenTL {
   0% {
     opacity: 0;
-    transform: scale(0.92) translate3d(-4px, -4px, 0);
+    transform: scale(0.88) translate3d(-6px, -6px, 0);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.006) translate3d(0.5px, 0.5px, 0);
   }
   100% {
     opacity: 1;
@@ -1482,7 +1538,11 @@
 @keyframes applePopoverOpenBR {
   0% {
     opacity: 0;
-    transform: scale(0.92) translate3d(4px, 4px, 0);
+    transform: scale(0.88) translate3d(6px, 6px, 0);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.006) translate3d(-0.5px, -0.5px, 0);
   }
   100% {
     opacity: 1;
@@ -1493,7 +1553,11 @@
 @keyframes applePopoverOpenBL {
   0% {
     opacity: 0;
-    transform: scale(0.92) translate3d(-4px, 4px, 0);
+    transform: scale(0.88) translate3d(-6px, 6px, 0);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.006) translate3d(0.5px, -0.5px, 0);
   }
   100% {
     opacity: 1;
@@ -1503,29 +1567,37 @@
 
 .apple-popover-tr {
   transform-origin: top right;
-  animation: applePopoverOpenTR 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: applePopoverOpenTR 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
 }
 
 .apple-popover-tl {
   transform-origin: top left;
-  animation: applePopoverOpenTL 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: applePopoverOpenTL 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
 }
 
 .apple-popover-br {
   transform-origin: bottom right;
-  animation: applePopoverOpenBR 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: applePopoverOpenBR 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
 }
 
 .apple-popover-bl {
   transform-origin: bottom left;
-  animation: applePopoverOpenBL 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: applePopoverOpenBL 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
 }
 
-/* Apple Modal & Sheet Spatial Spring Entrances */
+/* Apple Modal & Sheet Spatial Spring Entrances — liquid glass spatial depth */
 @keyframes appleModalOpen {
   0% {
     opacity: 0;
-    transform: scale(0.96) translate3d(0, 10px, 0);
+    transform: scale(0.944) translate3d(0, 14px, 0);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.006) translate3d(0, -1px, 0);
   }
   100% {
     opacity: 1;
@@ -1540,42 +1612,43 @@
   }
   100% {
     opacity: 0;
-    transform: scale(0.97) translate3d(0, 8px, 0);
+    transform: scale(0.968) translate3d(0, 10px, 0);
   }
 }
 
 .apple-modal-enter,
 .liquid-droplet-enter {
-  animation: appleModalOpen 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: appleModalOpen 0.30s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: transform, opacity;
 }
 
 .apple-modal-exit,
 .liquid-droplet-exit {
-  animation: appleModalClose 0.16s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  animation: appleModalClose 0.14s cubic-bezier(0.3, 0, 0.8, 0.15) forwards;
   will-change: transform, opacity;
 }
 
 .liquid-backdrop-enter {
-  animation: liquidBackdropFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: liquidBackdropFadeIn 0.20s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .liquid-backdrop-exit {
-  animation: liquidBackdropFadeOut 0.16s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  animation: liquidBackdropFadeOut 0.14s cubic-bezier(0.3, 0, 0.8, 0.15) forwards;
 }
 
 .liquid-tab-enter {
-  animation: liquidTabContentGlide 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: liquidTabContentGlide 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Apple Sidebar Spatial Label Transitions */
+/* Apple Sidebar Spatial Label Transitions — faster with GPU composite only */
 .sidebar-label-transition {
-  transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity   0.18s cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform, opacity;
 }
 .sidebar-label-collapsed {
   opacity: 0;
-  transform: translate3d(-12px, 0, 0) scale(0.985);
+  transform: translate3d(-14px, 0, 0) scale(0.982);
   pointer-events: none;
 }
 .sidebar-label-expanded {
@@ -1594,46 +1667,30 @@
   -webkit-backface-visibility: hidden;
 }
 
-/* Reduced motion accessibility & Ultra Low-Power Mode */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  ::before,
-  ::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-  .ambient-glow-sunset,
-  .ambient-glow-azure,
-  .ambient-glow-violet {
-    animation: none !important;
-    transform: none !important;
-    filter: blur(50px) !important;
-    opacity: 0.5 !important;
-  }
-  .apple-toast-shimmer {
-    animation: none !important;
-  }
-  .apple-tab-content-enter,
-  .apple-tab-content-enter-rev,
-  .apple-item-materialize,
-  .apple-item-dismiss,
-  .apple-popover-tr,
-  .apple-popover-tl,
-  .apple-popover-br,
-  .apple-popover-bl,
-  .apple-modal-enter,
-  .apple-modal-exit,
-  .liquid-droplet-enter,
-  .liquid-droplet-exit,
-  .page-glide-enter,
-  .sidebar-label-transition {
-    transform: none !important;
-  }
+/* Fluid Animation Hardware Acceleration & GPU Compositing */
+.apple-tab-content-enter,
+.apple-tab-content-enter-rev,
+.apple-item-materialize,
+.apple-item-dismiss,
+.apple-modal-enter,
+.apple-modal-exit,
+.liquid-droplet-enter,
+.liquid-droplet-exit,
+.page-glide-enter,
+.sidebar-label-transition {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
-/* iOS Minimalist Frosted Scrollbar */
+/* Modern Minimalist Frosted Scrollbar (Optimized for Windows 10/11 & macOS) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.16) transparent;
+}
+.dark * {
+  scrollbar-color: rgba(255, 255, 255, 0.20) transparent;
+}
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -1642,17 +1699,20 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.14);
+  background: rgba(0, 0, 0, 0.16);
   border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
 }
 .dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.20);
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 102, 204, 0.4);
+  background: rgba(0, 102, 204, 0.5);
 }
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(41, 151, 255, 0.4);
+  background: rgba(41, 151, 255, 0.5);
 }
 
 /* ==========================================================================
@@ -1790,12 +1850,13 @@ tbody td {
   background-size: 200% 100%;
 }
 
+/* Glass specular gleam — faster, GPU-only background-position */
 @keyframes appleGlassGleam {
   0% {
-    background-position: 200% 0;
+    background-position: 220% 0;
   }
   100% {
-    background-position: -200% 0;
+    background-position: -220% 0;
   }
 }
 
@@ -2352,7 +2413,9 @@ tbody td {
   outline: none;
   opacity: 0;
   transform: scale(0.85);
-  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background 0.15s ease, box-shadow 0.15s ease;
+  transition: opacity 0.16s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
   z-index: 10;
   user-select: none;
 }
@@ -2448,20 +2511,103 @@ tbody td {
   }
 }
 
-/* Accessibility: Honor Reduce Motion */
-@media (prefers-reduced-motion: reduce) {
-  .macos-morph-window,
-  .macos-morph-close,
-  .macos-expand-modal,
-  .apple-shake,
-  .apple-math-result-badge,
-  [data-layout-id="active-navigation-pill"] {
-    animation: none !important;
-    transition: none !important;
+
+/* ──────────────── macOS 27 Quick Note Morphing Physics & Fluid Animations — 120fps ──────────────── */
+
+/* Window materialize: expands from bottom-right corner like liquid spreading */
+@keyframes macosMorphOpen {
+  0% {
+    opacity: 0;
+    transform: scale(0.28) translate3d(88px, 88px, 0);
+    filter: blur(3px);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02) translate3d(-2px, -2px, 0);
+    filter: blur(0px);
+  }
+  72% {
+    transform: scale(0.994) translate3d(0.5px, 0.5px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+    filter: blur(0px);
   }
 }
 
-/* ──────────────── Apple Math Notes Dynamic Result Animation (Frameless) ──────────────── */
+/* Window dismiss: contracts back to pill with fluid acceleration */
+@keyframes macosMorphClose {
+  0% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.28) translate3d(88px, 88px, 0);
+    filter: blur(2px);
+  }
+}
+
+/* Expand to full modal: larger window with gentle overshoot */
+@keyframes macosExpandModal {
+  0% {
+    opacity: 0;
+    transform: scale(0.65) translate3d(64px, 64px, 0);
+    filter: blur(2px);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.016) translate3d(-1.5px, -1.5px, 0);
+    filter: blur(0px);
+  }
+  78% {
+    transform: scale(0.997) translate3d(0.5px, 0.5px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+    filter: blur(0px);
+  }
+}
+
+.macos-morph-window {
+  transform-origin: bottom right;
+  animation: macosMorphOpen 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.macos-morph-close {
+  transform-origin: bottom right;
+  animation: macosMorphClose 0.18s cubic-bezier(0.4, 0, 1, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.macos-expand-modal {
+  transform-origin: bottom right;
+  animation: macosExpandModal 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* Apple Shake — more organic multi-axis spring shake */
+@keyframes appleShake {
+  0%   { transform: translate3d(0, 0, 0) rotate(0deg); }
+  15%  { transform: translate3d(-8px, 0, 0) rotate(-0.5deg); }
+  30%  { transform: translate3d(7px, 0, 0) rotate(0.5deg); }
+  45%  { transform: translate3d(-5px, 0, 0) rotate(-0.3deg); }
+  60%  { transform: translate3d(4px, 0, 0) rotate(0.2deg); }
+  75%  { transform: translate3d(-2px, 0, 0); }
+  90%  { transform: translate3d(1px, 0, 0); }
+  100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+}
+
+.apple-shake {
+  animation: appleShake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  will-change: transform;
+}
+
+
 @keyframes appleMathResultBounce {
   0% {
     opacity: 0;
@@ -2510,4 +2656,168 @@ tbody td {
 
 .animate-math-flash {
   animation: mathRowFlash 1.2s ease-out forwards;
+}
+
+/* ==========================================================================
+   Apple macOS High-Contrast Grab & Drag Cursors (Visible on Light & Dark)
+   Dual-tone: dark graphite silhouette with crisp 1.5px white outline & shadow
+   ========================================================================== */
+.cursor-apple-grab,
+.cursor-grab {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%231d1d1f' stroke='%23ffffff' stroke-width='1.5' stroke-linejoin='round' d='M10 5.5a1.5 1.5 0 0 1 3 0V11h.5a1.5 1.5 0 0 1 3 0v1a1.5 1.5 0 0 1 3 0v3.5a6.5 6.5 0 0 1-6.5 6.5h-1A6.5 6.5 0 0 1 5.5 15.5V11a1.5 1.5 0 0 1 3 0v.5h.5V5.5a1.5 1.5 0 0 1 1-1.42V5.5z'/%3E%3C/svg%3E") 12 12, grab, move !important;
+}
+
+.cursor-apple-grabbing,
+.cursor-grabbing,
+.cursor-grab:active,
+.cursor-apple-grab:active {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%231d1d1f' stroke='%23ffffff' stroke-width='1.5' stroke-linejoin='round' d='M14 9.5a1.5 1.5 0 0 0-3 0v1.5H9.5a1.5 1.5 0 0 0-3 0V13a1.5 1.5 0 0 0 1.5 1.5H9v1.5a5.5 5.5 0 0 0 11 0V13a1.5 1.5 0 0 0-1.5-1.5H17V9.5a1.5 1.5 0 0 0-3 0z'/%3E%3C/svg%3E") 12 12, grabbing, move !important;
+}
+
+/* ==========================================================================
+   Apple Dynamic Island Toast Spring Keyframes — 120fps Liquid Physics
+   ========================================================================== */
+
+/* Entry: slides in from right with spring overshoot — like Dynamic Island pill expansion */
+@keyframes appleToastSpringEnter {
+  0% {
+    opacity: 0;
+    transform: translate3d(42px, -10px, 0) scale(0.88);
+    filter: blur(2px);
+  }
+  55% {
+    opacity: 1;
+    transform: translate3d(-4px, 1.5px, 0) scale(1.024);
+    filter: blur(0px);
+  }
+  78% {
+    transform: translate3d(1.5px, -0.5px, 0) scale(0.996);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0px);
+  }
+}
+
+/* Exit: retreats to right with quick acceleration — like Dynamic Island shrinking */
+@keyframes appleToastSpringExit {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(36px, -10px, 0) scale(0.86);
+    filter: blur(1.5px);
+  }
+}
+
+.apple-toast-enter {
+  animation: appleToastSpringEnter 0.44s cubic-bezier(0.16, 1, 0.3, 1) both !important;
+  will-change: transform, opacity;
+}
+
+.apple-toast-exit {
+  animation: appleToastSpringExit 0.20s cubic-bezier(0.3, 0, 0.8, 0.15) forwards !important;
+}
+
+/* ==========================================================================
+   Apple Liquid Glass Floating Selection Toolbar — 120fps Spring
+   ========================================================================== */
+@keyframes appleFloatingToolbarEnter {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px) scale(0.88);
+    filter: blur(1.5px);
+  }
+  58% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(-2px) scale(1.022);
+    filter: blur(0px);
+  }
+  80% {
+    transform: translateX(-50%) translateY(0.5px) scale(0.996);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.apple-floating-toolbar-enter {
+  animation: appleFloatingToolbarEnter 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+/* ==========================================================================
+   Liquid Glass File Attachment Badge - Theme & Contrast Fixes
+   ========================================================================== */
+.apple-file-attachment {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.apple-file-attachment:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+.dark .apple-file-attachment {
+  background: rgba(255, 255, 255, 0.07) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+.dark .apple-file-attachment:hover {
+  background: rgba(255, 255, 255, 0.11) !important;
+  border-color: rgba(255, 255, 255, 0.24) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Force filename title to be crisp white in dark mode, overcoming inline color: #1d1d1f */
+.apple-file-attachment-title,
+.apple-file-attachment > span > span:first-child {
+  color: #1d1d1f !important;
+}
+
+.dark .apple-file-attachment-title,
+.dark .apple-file-attachment > span > span:first-child {
+  color: #f5f5f7 !important;
+}
+
+/* Subtitle size string */
+.apple-file-attachment-size,
+.apple-file-attachment > span > span:last-child {
+  color: #86868b !important;
+}
+
+.dark .apple-file-attachment-size,
+.dark .apple-file-attachment > span > span:last-child {
+  color: #a1a1a6 !important;
+}
+
+/* Action buttons in Dark Mode */
+.dark .apple-file-preview-btn {
+  background: rgba(41, 151, 255, 0.18) !important;
+  color: #2997ff !important;
+  border-color: rgba(41, 151, 255, 0.3) !important;
+}
+
+.dark .apple-file-preview-btn:hover {
+  background: rgba(41, 151, 255, 0.28) !important;
+  color: #ffffff !important;
+}
+
+.dark .apple-file-delete-btn {
+  background: rgba(244, 63, 94, 0.18) !important;
+  color: #fb7185 !important;
+  border-color: rgba(244, 63, 94, 0.3) !important;
+}
+
+.dark .apple-file-delete-btn:hover {
+  background: rgba(244, 63, 94, 0.3) !important;
+  color: #ffffff !important;
 }

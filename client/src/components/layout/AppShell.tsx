@@ -57,6 +57,12 @@ export const AppShell: React.FC = () => {
   const mainRef = useRef<HTMLElement>(null);
   const scrollRatio = useScrollInterpolation(mainRef, 48);
 
+  const activeNavIndex = navItems.findIndex((item) =>
+    item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to)
+  );
+  const activePillTop = activeNavIndex >= 0 ? activeNavIndex * 46 : 0;
+  const activePillOpacity = activeNavIndex >= 0 ? 1 : 0;
+
   // ✅ Initialize notes on app startup
   useEffect(() => {
     loadNotes();
@@ -187,48 +193,62 @@ export const AppShell: React.FC = () => {
           </button>
         </div>
 
-        {/* Navigation Items - Native macOS Sidebar Styling */}
-        <nav className="p-3 space-y-1.5 flex-1 overflow-y-auto select-none">
+        {/* Navigation Items - Native macOS Sidebar Styling with fluid sliding active indicator */}
+        <nav className="p-3 space-y-2 flex-1 overflow-y-auto select-none">
           {!isSidebarCollapsed && (
             <div className="px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider text-[#86868b] dark:text-[#a1a1a6]">
               Không gian làm việc
             </div>
           )}
 
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              title={isSidebarCollapsed ? item.label : undefined}
-              className={({ isActive }) =>
-                `flex items-center ${
-                  isSidebarCollapsed ? 'justify-center w-10 h-10 aspect-square shrink-0 mx-auto px-0' : 'gap-3 px-3.5 py-2.5'
-                } rounded-full text-[13px] transition-all duration-200 ease-out active:scale-[0.98] ${
-                  isActive
-                    ? 'bg-gradient-to-b from-[#0088FF] to-[#0071E3] text-white font-semibold border border-[#38a9ff]/40 shadow-[0_4px_16px_rgba(0,113,227,0.38),inset_0_1.5px_1px_rgba(255,255,255,0.45),inset_0_-1.5px_1.5px_rgba(0,0,0,0.18)] backdrop-blur-md'
-                    : 'text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium border border-transparent'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <span
-                    className={`p-1 rounded-lg transition-colors shrink-0 ${
-                      isActive ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]' : 'text-[#76767b] dark:text-[#8e8e93]'
-                    }`}
-                  >
-                    {item.icon}
-                  </span>
-                  {!isSidebarCollapsed && (
-                    <span className={`truncate whitespace-nowrap ${isActive ? 'text-white font-semibold drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]' : ''}`}>
-                      {item.label}
+          {/* Dedicated Tab Track Container with ZERO outer space-y interference */}
+          <div className="relative flex flex-col gap-1.5">
+            {/* Fluid Apple Spring Sliding Indicator for Sidebar Tabs */}
+            <div
+              style={{
+                transform: `translate3d(0, ${activePillTop}px, 0)`,
+                width: isSidebarCollapsed ? '40px' : '100%',
+                height: '40px',
+                opacity: activePillOpacity,
+              }}
+              className="absolute top-0 inset-x-0 mx-auto bg-gradient-to-b from-[#0088FF] to-[#0071E3] rounded-full border border-[#38a9ff]/40 shadow-[0_4px_16px_rgba(0,113,227,0.38),inset_0_1.5px_1px_rgba(255,255,255,0.45),inset_0_-1.5px_1.5px_rgba(0,0,0,0.18)] backdrop-blur-md pointer-events-none z-0 transition-[transform,width,opacity] duration-280 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform"
+            />
+
+            {navItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === '/'}
+                title={isSidebarCollapsed ? item.label : undefined}
+                className={({ isActive }) =>
+                  `relative z-10 flex items-center ${
+                    isSidebarCollapsed ? 'justify-center w-10 h-10 aspect-square shrink-0 mx-auto px-0' : 'gap-3 px-3.5 h-10'
+                  } rounded-full text-[13px] transition-colors duration-200 active:scale-[0.98] select-none ${
+                    isActive
+                      ? 'text-white font-semibold'
+                      : 'text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <span
+                      className={`p-1 rounded-lg transition-colors shrink-0 ${
+                        isActive ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]' : 'text-[#76767b] dark:text-[#8e8e93]'
+                      }`}
+                    >
+                      {item.icon}
                     </span>
-                  )}
-                </>
-              )}
-            </NavLink>
-          ))}
+                    {!isSidebarCollapsed && (
+                      <span className={`truncate whitespace-nowrap ${isActive ? 'text-white font-semibold drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]' : ''}`}>
+                        {item.label}
+                      </span>
+                    )}
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </div>
         </nav>
 
         {/* Sidebar Bottom Controls */}
@@ -251,10 +271,9 @@ export const AppShell: React.FC = () => {
             } text-[11px] text-[#7a7a7a]`}
           >
             <div className="flex items-center gap-1.5" title="IndexedDB Local - Dữ liệu bảo mật trên máy">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#0088FF] dark:bg-[#0091FF] shadow-xs shadow-[#0088FF]/60 animate-pulse" />
-              {!isSidebarCollapsed && <span className="text-[11px] font-normal">IndexedDB Local</span>}
+              <span className="w-2 rounded-full aspect-square bg-emerald-500 shadow-xs shadow-emerald-500/60 animate-pulse" />
+              {!isSidebarCollapsed && <span className="text-[11px] font-medium text-[#7a7a7a]">Dữ liệu cục bộ (Offline)</span>}
             </div>
-            {!isSidebarCollapsed && <span className="text-[10px] font-mono opacity-70">macOS 27 UI Kit</span>}
           </div>
         </div>
       </aside>

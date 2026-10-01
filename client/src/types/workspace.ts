@@ -113,3 +113,72 @@ export interface QuickNoteItem {
 }
 
 
+// ==================== BACKUP SYSTEM (.fmbackup) ====================
+
+export const FM_BACKUP_APP_NAME = 'FM_WORKSPACE' as const;
+export const FM_BACKUP_VERSION = '1.0' as const;
+
+/** Serialized representation of a binary attachment (Blob → base64) */
+export interface SerializedAttachment {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  dataBase64: string; // Blob converted to base64
+  createdAt: string;
+}
+
+/** Backup file payload (all user data) */
+export interface FMBackupPayload {
+  links: LinkItem[];
+  accounts: AccountItem[];
+  stores: StoreItem[];
+  notes: QuickNoteItem[]; // images[] stay as base64 data URLs
+  attachments: SerializedAttachment[];
+  activities: ActivityLogItem[];
+  settings: {
+    theme: string;
+  };
+}
+
+/** Top-level .fmbackup file structure */
+export interface FMBackupFile {
+  header: {
+    version: typeof FM_BACKUP_VERSION;
+    appName: typeof FM_BACKUP_APP_NAME;
+    exportedAt: string; // ISO timestamp
+    checksum: string;   // SHA-256 hex of serialized payload string
+    encrypted: boolean;
+    totalItems: {
+      links: number;
+      accounts: number;
+      stores: number;
+      notes: number;
+      attachments: number;
+    };
+  };
+  payload: string; // JSON string of FMBackupPayload
+}
+
+/** Options for export */
+export interface BackupExportOptions {
+  includeActivities?: boolean; // default: true
+}
+
+/** Options for import */
+export interface BackupImportOptions {
+  conflictStrategy: 'skip' | 'overwrite' | 'merge';
+  restoreSettings?: boolean; // default: false (safer)
+}
+
+/** Result summary of an import operation */
+export interface BackupImportResult {
+  success: boolean;
+  links: number;
+  accounts: number;
+  stores: number;
+  notes: number;
+  attachments: number;
+  skipped: number;
+  errors: string[];
+}

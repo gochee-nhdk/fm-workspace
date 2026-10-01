@@ -65,3 +65,31 @@ export function truncate(str: string, maxLength: number): string {
   if (str.length <= maxLength) return str;
   return str.slice(0, maxLength).trimEnd() + '...';
 }
+
+/**
+ * Sanitize external URLs to prevent javascript:, vbscript:, or malicious data: URI execution.
+ * Only allows http:, https:, mailto:, and tel: protocols.
+ */
+export function sanitizeUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+
+  // Prevent dangerous protocols
+  const lower = trimmed.toLowerCase();
+  if (
+    lower.startsWith('javascript:') ||
+    lower.startsWith('vbscript:') ||
+    lower.startsWith('data:text/html') ||
+    lower.startsWith('data:application/javascript')
+  ) {
+    return '';
+  }
+
+  // Auto-prefix protocol if missing
+  if (/^https?:\/\//i.test(trimmed) || /^mailto:/i.test(trimmed) || /^tel:/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  return `https://${trimmed}`;
+}
