@@ -191,12 +191,29 @@ export function useAppleTabSpring(
     const targetX = targetEl.offsetLeft;
     const targetW = targetEl.offsetWidth;
 
+    // If tab or container is currently unrendered / hidden (width 0), defer initialization until visible
+    if (targetW <= 0) {
+      const raf = requestAnimationFrame(() => {
+        const nextX = targetEl.offsetLeft;
+        const nextW = targetEl.offsetWidth;
+        if (nextW > 0) {
+          stateRef.current.x = nextX;
+          stateRef.current.w = nextW;
+          stateRef.current.targetX = nextX;
+          stateRef.current.targetW = nextW;
+          stateRef.current.initialized = true;
+          snap(nextX, nextW);
+        }
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+
     const state = stateRef.current;
     state.targetX = targetX;
     state.targetW = targetW;
 
     // First render initialization: place immediately without animation
-    if (!state.initialized) {
+    if (!state.initialized || state.w <= 0) {
       state.x = targetX;
       state.w = targetW;
       state.vx = 0; state.vw = 0;
@@ -285,7 +302,7 @@ export function useAppleTabSpring(
     };
   }, [activeTabId, stiffness, damping, mass, allowDeformation, reducedMotion, snap]);
 
-  // Handle container resize
+  // Handle container resize & visibility restoration
   useEffect(() => {
     const container = containerRef.current;
     const pill = pillRef.current;
@@ -296,11 +313,15 @@ export function useAppleTabSpring(
       if (!targetEl) return;
       const targetX = targetEl.offsetLeft;
       const targetW = targetEl.offsetWidth;
+      if (targetW <= 0) return;
+
       const state = stateRef.current;
       state.targetX = targetX;
       state.targetW = targetW;
-      if (!state.animating) {
-        state.x = targetX; state.w = targetW;
+      if (!state.animating || !state.initialized || state.w <= 0) {
+        state.x = targetX;
+        state.w = targetW;
+        state.initialized = true;
         pill.style.transform = `translate3d(${targetX}px, 0, 0) scale(1, 1)`;
         pill.style.width = `${targetW}px`;
         pill.style.opacity = '1';

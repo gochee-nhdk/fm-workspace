@@ -137,8 +137,8 @@ export default function App() {
                       {!isSuccess && !isError && !isLoading && <SFInfoCircle size={15} />}
                     </div>
 
-                    {/* Apple Typography Message Label */}
-                    <span className="text-[13px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight z-10 whitespace-nowrap truncate max-w-[360px]">
+                    {/* Apple Typography Message Label - Full Wrap, No Truncate */}
+                    <span className="text-[13px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight z-10 break-words whitespace-normal text-left max-w-[420px]">
                       {resolvedMsg}
                     </span>
                   </>

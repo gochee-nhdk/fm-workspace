@@ -23,6 +23,9 @@ import { Button } from '@/components/ui/button';
 import { CloseButton } from '@/components/ui/close-button';
 import { reminderService } from '@/services/reminderService';
 import { useScrollInterpolation, useTabIndicator } from '@/lib/motion';
+import { useSecurityStore } from '@/stores/security-store';
+import { LocalLockScreen } from '@/components/security/LocalLockScreen';
+import { Lock } from 'lucide-react';
 
 const navItems = [
   { to: '/', label: 'Bàn làm việc chính', icon: <SFSquareGrid2x2 size={16} /> },
@@ -52,10 +55,32 @@ export const AppShell: React.FC = () => {
 
   const { theme, setTheme } = useUiStore();
   const { loadNotes, openNote, toggleNote, notes } = useNoteStore();
+  const { isLockEnabled, isLocked, lockNow, recordActivity, checkAutoLock } = useSecurityStore();
   const location = useLocation();
   const navigate = useNavigate();
   const mainRef = useRef<HTMLElement>(null);
   const scrollRatio = useScrollInterpolation(mainRef, 48);
+
+  // Security: Activity monitor for auto-lock
+  useEffect(() => {
+    const handleUserActivity = () => {
+      recordActivity();
+    };
+    window.addEventListener('mousemove', handleUserActivity);
+    window.addEventListener('keydown', handleUserActivity);
+    window.addEventListener('click', handleUserActivity);
+
+    const interval = setInterval(() => {
+      checkAutoLock();
+    }, 15000); // Check auto-lock every 15s
+
+    return () => {
+      window.removeEventListener('mousemove', handleUserActivity);
+      window.removeEventListener('keydown', handleUserActivity);
+      window.removeEventListener('click', handleUserActivity);
+      clearInterval(interval);
+    };
+  }, [recordActivity, checkAutoLock]);
 
   const activeNavIndex = navItems.findIndex((item) =>
     item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to)
@@ -358,6 +383,18 @@ export const AppShell: React.FC = () => {
               Import Excel
             </Button>
 
+            {/* Local Privacy Lock Button (When PIN lock enabled) */}
+            {isLockEnabled && (
+              <button
+                onClick={() => lockNow()}
+                className="liquid-lens-circle w-10 h-10 group cursor-pointer"
+                title="Khóa bảo vệ màn hình ngay"
+                aria-label="Khóa màn hình làm việc"
+              >
+                <Lock size={15} className="text-[#0071e3] dark:text-[#2997ff] group-hover:scale-110 transition-transform duration-200" />
+              </button>
+            )}
+
             {/* Quick Note Button — Liquid Lens Circle */}
             <button
               onClick={() => openNote()}
@@ -499,6 +536,9 @@ export const AppShell: React.FC = () => {
       {/* Quick Note Floating Capsule & Interactive Window */}
       <QuickNoteWindow />
       <QuickNoteFloatingButton />
+
+      {/* Local Privacy Screen Shield */}
+      <LocalLockScreen />
     </div>
   );
 };

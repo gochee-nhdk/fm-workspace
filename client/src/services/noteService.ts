@@ -1,5 +1,6 @@
 import { STORES, idbGetAll, idbGetById, idbPut, idbDelete } from './storage/indexedDb';
 import { QuickNoteItem, QuickNoteColor } from '@/types/workspace';
+import { autoBackupManager } from './autoBackupManager';
 
 const LOCAL_STORAGE_KEY = 'fm_quick_notes_cache';
 
@@ -20,26 +21,29 @@ const getLocalStorageNotes = (): QuickNoteItem[] => {
 
 const saveLocalStorageNotes = (notes: QuickNoteItem[]): void => {
   try {
-    // Keep localStorage light (<1MB) by stripping only excessively huge inline data URLs
+    // Keep localStorage light without deleting actual user text content
     const lightweightNotes = notes.map((n) => ({
       ...n,
-      content: n.content && n.content.length > 50000 ? n.content.replace(/data:image\/[^"'\s)]+/g, '') : n.content,
+      // Strip oversized inline image data if exceeding 150KB to preserve localStorage quota
+      content: n.content && n.content.length > 150000 ? n.content.replace(/data:image\/[^"'\s)]+/g, '') : n.content,
       images: n.images?.map((img) => ({
         ...img,
-        url: img.url && img.url.startsWith('data:image') && img.url.length > 30000 ? '' : img.url,
+        url: img.url && img.url.startsWith('data:image') && img.url.length > 50000 ? '' : img.url,
       })),
     }));
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(lightweightNotes));
   } catch (_) {
-    // If quota exceeded, strip further
+    // If quota still exceeded, persist essential note info and truncated text, keeping IDB primary
     try {
       const stripped = notes.map((n) => ({
         id: n.id,
         title: n.title,
+        content: n.content ? n.content.slice(0, 10000) : '',
         updatedAt: n.updatedAt,
         pinned: n.pinned,
         color: n.color,
         tags: n.tags,
+        noteType: n.noteType,
       }));
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stripped));
     } catch (_) {}
@@ -49,19 +53,50 @@ const saveLocalStorageNotes = (notes: QuickNoteItem[]): void => {
 export const noteService = {
   /**
    * Retrieves all notes, sorted with pinned notes first, then latest updated first.
+   * Merges IDB with cache to ensure full content is never lost or overwritten.
    */
   async getAllNotes(): Promise<QuickNoteItem[]> {
+    let idbItems: QuickNoteItem[] = [];
     try {
-      const items = await idbGetAll<QuickNoteItem>(STORES.NOTES);
-      if (items && items.length > 0) {
-        saveLocalStorageNotes(items);
-        return this.sortNotes(items);
-      }
+      idbItems = await idbGetAll<QuickNoteItem>(STORES.NOTES);
     } catch (err) {
       console.warn('IDB note fetch error, falling back to cache:', err);
     }
-    // Fallback to cache if IDB is empty or offline
+
     const cached = getLocalStorageNotes();
+
+    // If IDB has notes, merge with cache so any note having fuller content in IDB or cache is preserved
+    if (idbItems && idbItems.length > 0) {
+      const mergedMap = new Map<string, QuickNoteItem>();
+      
+      // Seed with cached notes
+      for (const item of cached) {
+        mergedMap.set(item.id, item);
+      }
+
+      // Overwrite/merge with IDB notes (IDB contains the full unabridged images/content)
+      for (const item of idbItems) {
+        const existingCached = mergedMap.get(item.id);
+        if (!existingCached) {
+          mergedMap.set(item.id, item);
+        } else {
+          // Keep the one with longer/fresher content
+          const hasMoreContent = (item.content?.length || 0) >= (existingCached.content?.length || 0);
+          mergedMap.set(item.id, {
+            ...existingCached,
+            ...item,
+            content: hasMoreContent ? item.content : existingCached.content,
+            images: item.images && item.images.length > 0 ? item.images : existingCached.images,
+          });
+        }
+      }
+
+      const mergedList = Array.from(mergedMap.values());
+      saveLocalStorageNotes(mergedList);
+      return this.sortNotes(mergedList);
+    }
+
+    // Fallback to cache if IDB is empty or offline
     return this.sortNotes(cached);
   },
 
@@ -91,7 +126,7 @@ export const noteService = {
   },
 
   /**
-   * Create or update note with zero-delay auto-save
+   * Create or update note with zero-delay auto-save and anti-loss guard
    */
   async saveNote(data: Partial<QuickNoteItem> & { id?: string }): Promise<QuickNoteItem> {
     const now = new Date().toISOString();
@@ -102,13 +137,26 @@ export const noteService = {
     const existingFromCache = cached.find((n) => n.id === id);
     const existing = isNew ? null : ((await this.getNoteById(id)) || existingFromCache);
 
+    // Anti-loss guard: If existing note has content (> 0) and incoming content is undefined or empty string,
+    // ensure we don't accidentally wipe existing content unless explicit clear flag is provided
+    let contentToSave = data.content !== undefined ? data.content : (existing?.content ?? '');
+    if (
+      existing &&
+      existing.content &&
+      existing.content.trim().length > 0 &&
+      (contentToSave === '' || contentToSave === '<p><br></p>') &&
+      data.content !== ''
+    ) {
+      contentToSave = existing.content;
+    }
+
     // Preserve user title (allows clearing title completely while user is editing)
     const titleToSave = data.title !== undefined ? data.title : (existing?.title ?? 'Ghi chú mới');
 
     const noteToSave: QuickNoteItem = {
       id,
       title: titleToSave,
-      content: data.content ?? existing?.content ?? '',
+      content: contentToSave,
       checklistContent: data.checklistContent !== undefined ? data.checklistContent : (existing?.checklistContent ?? ''),
       pinned: data.pinned !== undefined ? Boolean(data.pinned) : (existing?.pinned ?? false),
       color: data.color ?? existing?.color ?? 'amber',
@@ -121,7 +169,7 @@ export const noteService = {
       reminderCompleted: data.reminderCompleted !== undefined ? data.reminderCompleted : (existing?.reminderCompleted ?? false),
       taskReminders: data.taskReminders !== undefined ? data.taskReminders : (existing?.taskReminders ?? []),
       emailProvider: data.emailProvider !== undefined ? data.emailProvider : (existing?.emailProvider ?? 'gmail'),
-      noteType: data.noteType !== undefined ? data.noteType : (existing?.noteType ?? (data.content && /^-\s*\[([ xX])\]/m.test(data.content) ? 'checklist' : 'note')),
+      noteType: data.noteType !== undefined ? data.noteType : (existing?.noteType ?? (contentToSave && /^-\s*\[([ xX])\]/m.test(contentToSave) ? 'checklist' : 'note')),
       isLocked: data.isLocked !== undefined ? Boolean(data.isLocked) : (existing?.isLocked ?? false),
       password: data.password !== undefined ? data.password : (existing?.password ?? ''),
       createdAt: existing?.createdAt || now,
@@ -138,6 +186,8 @@ export const noteService = {
     // 2. Persist to IndexedDB
     try {
       await idbPut<QuickNoteItem>(STORES.NOTES, noteToSave);
+      // Dual-Persistence: schedule background sync to server
+      autoBackupManager.scheduleSync();
     } catch (err) {
       console.error('Failed to save note to IDB:', err);
     }
@@ -156,6 +206,7 @@ export const noteService = {
     // 2. Remove from IndexedDB
     try {
       await idbDelete(STORES.NOTES, id);
+      autoBackupManager.scheduleSync();
       return true;
     } catch (err) {
       console.error('Failed to delete note from IDB:', err);

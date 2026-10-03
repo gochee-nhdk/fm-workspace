@@ -15,6 +15,7 @@ import {
   WorkspaceSummary,
 } from '@/types/workspace';
 import { initialLinks, initialAccounts, initialStores } from '@/data/seedData';
+import { autoBackupManager } from './autoBackupManager';
 
 const generateId = (): string => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -69,6 +70,8 @@ class DataService {
         details,
       };
       await idbPut(STORES.ACTIVITIES, activity);
+      // Auto-sync workspace to server dual-storage
+      autoBackupManager.scheduleSync();
     } catch (err) {
       console.warn('Failed to log workspace activity:', err);
     }

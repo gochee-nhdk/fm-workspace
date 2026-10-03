@@ -4,10 +4,10 @@ import {
   SFClock,
   SFChevronLeft,
   SFChevronRight,
-  SFWandAndSparkles,
   SFCheckmark,
 } from '@/components/ui/AppleIcon';
-import { Calendar as CalendarIcon, ChevronDown } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
 
 export interface AppleDateTimePickerProps {
   value?: string; // Format: YYYY-MM-DDTHH:mm
@@ -83,6 +83,8 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
   defaultOpen = false,
 }) => {
   const [isOpen, setIsOpen] = useState(embedded || defaultOpen);
+  const { shouldRender: shouldRenderDropdown, isExiting: isDropdownExiting } = useAnimatedPresence(isOpen, 200);
+
   // View mode: 'calendar' or 'monthYearPicker'
   const [viewMode, setViewMode] = useState<'calendar' | 'monthYearPicker'>('calendar');
 
@@ -181,24 +183,36 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     handleMinuteChange(nextMin);
   };
 
-  // Quick Presets
-  const handleApplyPreset = (minutesFromNow: number) => {
-    const target = new Date(Date.now() + minutesFromNow * 60 * 1000);
-    setNavMonth(target.getMonth());
-    setNavYear(target.getFullYear());
-    onChange(toDatetimeLocalString(target));
+  // Quick Date Presets
+  const handleApplyToday = () => {
+    const d = new Date();
+    d.setHours(hours, minutes, 0, 0);
+    setNavMonth(d.getMonth());
+    setNavYear(d.getFullYear());
+    onChange(toDatetimeLocalString(d));
+    setViewMode('calendar');
   };
 
-  const handleApplyPresetTime = (targetHours: number, targetMinutes: number, nextDay = false) => {
-    const target = new Date(currentDate);
-    if (nextDay) target.setDate(target.getDate() + 1);
-    target.setHours(targetHours, targetMinutes, 0, 0);
-    if (!nextDay && target.getTime() <= Date.now()) {
-      target.setDate(target.getDate() + 1);
-    }
-    setNavMonth(target.getMonth());
-    setNavYear(target.getFullYear());
-    onChange(toDatetimeLocalString(target));
+  const handleApplyTomorrow = () => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(9, 0, 0, 0); // Apple standard default: 09:00 AM next day
+    setHours(9);
+    setMinutes(0);
+    setNavMonth(d.getMonth());
+    setNavYear(d.getFullYear());
+    onChange(toDatetimeLocalString(d));
+    setViewMode('calendar');
+  };
+
+  const handleApplyPlus1Hour = () => {
+    const d = new Date(Date.now() + 60 * 60 * 1000);
+    setHours(d.getHours());
+    setMinutes(d.getMinutes());
+    setNavMonth(d.getMonth());
+    setNavYear(d.getFullYear());
+    onChange(toDatetimeLocalString(d));
+    setViewMode('calendar');
   };
 
   const handleApplyNextMonday = () => {
@@ -207,8 +221,19 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     const diff = (7 - day + 1) % 7 || 7;
     target.setDate(target.getDate() + diff);
     target.setHours(8, 30, 0, 0);
+    setHours(8);
+    setMinutes(30);
     setNavMonth(target.getMonth());
     setNavYear(target.getFullYear());
+    onChange(toDatetimeLocalString(target));
+    setViewMode('calendar');
+  };
+
+  const handleApplyPresetTime = (targetHours: number, targetMinutes: number) => {
+    const target = new Date(currentDate);
+    target.setHours(targetHours, targetMinutes, 0, 0);
+    setHours(targetHours);
+    setMinutes(targetMinutes);
     onChange(toDatetimeLocalString(target));
   };
 
@@ -230,16 +255,6 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     }
   };
 
-  const jumpToToday = () => {
-    const now = new Date();
-    setNavYear(now.getFullYear());
-    setNavMonth(now.getMonth());
-    const newDate = new Date(now);
-    newDate.setHours(hours, minutes, 0, 0);
-    onChange(toDatetimeLocalString(newDate));
-    setViewMode('calendar');
-  };
-
   const isToday = (d: Date) => {
     const now = new Date();
     return (
@@ -257,26 +272,19 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     );
   };
 
-  // Render the core compact picker panel
+  // Render the core compact Apple picker panel
   const renderPickerBody = () => (
-    <div className="w-full max-w-[340px] mx-auto p-3 rounded-2xl bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-2xl border border-black/[0.08] dark:border-white/12 shadow-[0_12px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.5)] space-y-2.5 select-none font-sans">
-      {/* 1. Compact Apple Quick Date Presets Row */}
-      <div className="flex items-center gap-1 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
+    <div className="w-full max-w-[325px] mx-auto p-3 rounded-[22px] bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-3xl border border-black/[0.08] dark:border-white/12 shadow-[0_16px_40px_rgba(0,0,0,0.08)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.55)] space-y-2.5 select-none font-sans text-left">
+      {/* 1. Apple Quick Date Segmented Bar */}
+      <div className="grid grid-cols-4 gap-1 p-0.5 rounded-xl bg-black/[0.035] dark:bg-white/[0.05]">
         <button
           type="button"
-          onClick={() => {
-            const d = new Date();
-            d.setHours(hours, minutes, 0, 0);
-            setNavMonth(d.getMonth());
-            setNavYear(d.getFullYear());
-            onChange(toDatetimeLocalString(d));
-            setViewMode('calendar');
-          }}
+          onClick={handleApplyToday}
           className={cn(
-            'px-2.5 py-0.5 rounded-full text-[11px] font-medium shrink-0 transition-all cursor-pointer border shadow-2xs active:scale-95',
+            'py-1 rounded-lg text-[10.5px] font-medium transition-all cursor-pointer text-center truncate',
             isToday(currentDate)
-              ? 'bg-[#0071e3] text-white border-[#0071e3]'
-              : 'bg-black/[0.03] dark:bg-white/[0.06] text-[#1d1d1f] dark:text-[#f5f5f7] border-black/[0.06] dark:border-white/10 hover:bg-black/[0.06]'
+              ? 'bg-white dark:bg-[#2c2c36] text-[#0071e3] dark:text-[#2997ff] font-semibold shadow-2xs'
+              : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white'
           )}
         >
           Hôm nay
@@ -284,46 +292,38 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
 
         <button
           type="button"
-          onClick={() => {
-            const d = new Date();
-            d.setDate(d.getDate() + 1);
-            d.setHours(hours, minutes, 0, 0);
-            setNavMonth(d.getMonth());
-            setNavYear(d.getFullYear());
-            onChange(toDatetimeLocalString(d));
-            setViewMode('calendar');
-          }}
-          className="px-2.5 py-0.5 rounded-full text-[11px] font-medium shrink-0 transition-all cursor-pointer border border-black/[0.06] dark:border-white/10 bg-black/[0.03] dark:bg-white/[0.06] text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/[0.06] active:scale-95 shadow-2xs"
+          onClick={handleApplyTomorrow}
+          className="py-1 rounded-lg text-[10.5px] font-medium transition-all cursor-pointer text-center truncate text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 active:scale-95"
         >
           Ngày mai
         </button>
 
         <button
           type="button"
-          onClick={() => handleApplyPreset(30)}
-          className="px-2.5 py-0.5 rounded-full text-[11px] font-medium shrink-0 transition-all cursor-pointer border border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 active:scale-95 shadow-2xs"
+          onClick={handleApplyPlus1Hour}
+          className="py-1 rounded-lg text-[10.5px] font-medium transition-all cursor-pointer text-center truncate text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 active:scale-95"
         >
-          ⚡ Sau 30p
+          Sau 1h
         </button>
 
         <button
           type="button"
           onClick={handleApplyNextMonday}
-          className="px-2.5 py-0.5 rounded-full text-[11px] font-medium shrink-0 transition-all cursor-pointer border border-black/[0.06] dark:border-white/10 bg-black/[0.03] dark:bg-white/[0.06] text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/[0.06] active:scale-95 shadow-2xs"
+          className="py-1 rounded-lg text-[10.5px] font-medium transition-all cursor-pointer text-center truncate text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 active:scale-95"
         >
-          Thứ Hai tới
+          Thứ Hai
         </button>
       </div>
 
-      {/* 2. Apple Calendar Month Header with Quick Month/Year Selector Toggle */}
-      <div className="flex items-center justify-between pb-1 border-b border-black/[0.06] dark:border-white/10">
+      {/* 2. Apple Calendar Month Header */}
+      <div className="flex items-center justify-between px-1 pb-1 border-b border-black/[0.06] dark:border-white/10">
         <button
           type="button"
           onClick={() => setViewMode(viewMode === 'calendar' ? 'monthYearPicker' : 'calendar')}
-          className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer group"
-          title="Nhấp để chọn nhanh tháng và năm"
+          className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer group"
+          title="Nhấp để chuyển xem tháng và năm"
         >
-          <span className="text-[13px] font-bold text-[#1d1d1f] dark:text-white tracking-tight">
+          <span className="text-[13px] font-semibold text-[#1d1d1f] dark:text-white tracking-tight">
             {MONTH_NAMES[navMonth]}, {navYear}
           </span>
           <ChevronDown
@@ -335,14 +335,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
           />
         </button>
 
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={jumpToToday}
-            className="px-2 py-0.5 rounded-full text-[10.5px] font-medium text-[#0071e3] dark:text-[#2997ff] hover:bg-[#0071e3]/10 transition-colors cursor-pointer"
-          >
-            Hôm nay
-          </button>
+        <div className="flex items-center gap-0.5">
           <button
             type="button"
             onClick={prevMonth}
@@ -362,25 +355,25 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
         </div>
       </div>
 
-      {/* 3. Conditional: Month & Year Quick Picker View OR Calendar Days View */}
+      {/* 3. Month & Year Quick Picker View OR Calendar Days View */}
       {viewMode === 'monthYearPicker' ? (
-        <div className="space-y-2 py-1 animate-in fade-in zoom-in-95 duration-200">
+        <div className="space-y-2 py-1">
           {/* Year Stepper Bar */}
           <div className="flex items-center justify-between px-3 py-1 bg-black/[0.03] dark:bg-white/[0.06] rounded-xl">
             <button
               type="button"
               onClick={() => setNavYear((y) => y - 1)}
-              className="p-1 rounded text-[#86868b] hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              className="p-1 rounded text-[#86868b] hover:text-[#0071e3] transition-colors"
             >
               <SFChevronLeft size={12} />
             </button>
-            <span className="text-[13px] font-bold text-[#1d1d1f] dark:text-white font-mono">
+            <span className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-white font-mono">
               Năm {navYear}
             </span>
             <button
               type="button"
               onClick={() => setNavYear((y) => y + 1)}
-              className="p-1 rounded text-[#86868b] hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              className="p-1 rounded text-[#86868b] hover:text-[#0071e3] transition-colors"
             >
               <SFChevronRight size={12} />
             </button>
@@ -403,7 +396,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
                     setViewMode('calendar');
                   }}
                   className={cn(
-                    'py-1.5 rounded-xl text-[11.5px] font-medium transition-all cursor-pointer',
+                    'py-1.5 rounded-xl text-[11px] font-medium transition-all cursor-pointer',
                     isCurrMonth
                       ? 'bg-[#0071e3] text-white font-semibold shadow-xs'
                       : 'hover:bg-black/5 dark:hover:bg-white/10 text-[#1d1d1f] dark:text-[#f5f5f7]'
@@ -416,7 +409,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
           </div>
         </div>
       ) : (
-        <div className="space-y-1 animate-in fade-in duration-150">
+        <div className="space-y-1">
           {/* Weekday Row */}
           <div className="grid grid-cols-7 gap-0.5 text-center">
             {WEEKDAYS.map((wd, i) => (
@@ -444,12 +437,12 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
                   type="button"
                   onClick={() => handleSelectDay(item.date)}
                   className={cn(
-                    'h-7 w-7 mx-auto rounded-full text-[11.5px] font-medium flex items-center justify-center transition-all cursor-pointer relative',
+                    'h-7 w-7 mx-auto rounded-full text-[11px] font-medium flex items-center justify-center transition-all cursor-pointer relative',
                     item.isCurrentMonth
                       ? 'text-[#1d1d1f] dark:text-[#f5f5f7]'
                       : 'text-[#86868b]/30 dark:text-[#a1a1a6]/25',
                     selected
-                      ? 'bg-[#0071e3] text-white font-semibold shadow-[0_2px_6px_rgba(0,113,227,0.4)] scale-105'
+                      ? 'bg-[#0071e3] text-white font-semibold shadow-[0_2px_8px_rgba(0,113,227,0.4)] scale-105'
                       : 'hover:bg-black/[0.05] dark:hover:bg-white/[0.08]',
                     today && !selected && 'font-bold text-[#0071e3] dark:text-[#2997ff]'
                   )}
@@ -465,85 +458,101 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
         </div>
       )}
 
-      {/* 4. Apple Time Picker - Clean, Compact & Perfectly Aligned */}
+      {/* 4. Apple Time Picker - Clean Digital Time Capsule & Smart Minute Chips */}
       <div className="pt-2 border-t border-black/[0.06] dark:border-white/10 space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-[11.5px] font-semibold text-[#1d1d1f] dark:text-white flex items-center gap-1.5">
             <SFClock size={12} className="text-[#0071e3]" />
-            <span>Giờ nhắc</span>
+            <span>Giờ nhắc hẹn</span>
           </span>
 
-          {/* Quick hour pills */}
+          {/* Quick period hour chips: 09:00, 14:00, 20:00 */}
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => handleApplyPresetTime(9, 0)}
-              className="px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-[#0071e3]/10 text-[#555] dark:text-[#a1a1a6] hover:text-[#0071e3] transition-colors cursor-pointer"
+              className={cn(
+                'px-1.5 py-0.5 rounded-md text-[10px] font-medium transition-colors cursor-pointer',
+                hours === 9 && minutes === 0
+                  ? 'bg-[#0071e3] text-white font-semibold shadow-2xs'
+                  : 'bg-black/[0.035] dark:bg-white/[0.06] hover:bg-[#0071e3]/10 text-[#555] dark:text-[#a1a1a6] hover:text-[#0071e3]'
+              )}
             >
               09:00
             </button>
             <button
               type="button"
-              onClick={() => handleApplyPresetTime(15, 0)}
-              className="px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-[#0071e3]/10 text-[#555] dark:text-[#a1a1a6] hover:text-[#0071e3] transition-colors cursor-pointer"
+              onClick={() => handleApplyPresetTime(14, 0)}
+              className={cn(
+                'px-1.5 py-0.5 rounded-md text-[10px] font-medium transition-colors cursor-pointer',
+                hours === 14 && minutes === 0
+                  ? 'bg-[#0071e3] text-white font-semibold shadow-2xs'
+                  : 'bg-black/[0.035] dark:bg-white/[0.06] hover:bg-[#0071e3]/10 text-[#555] dark:text-[#a1a1a6] hover:text-[#0071e3]'
+              )}
             >
-              15:00
+              14:00
             </button>
             <button
               type="button"
               onClick={() => handleApplyPresetTime(20, 0)}
-              className="px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-[#0071e3]/10 text-[#555] dark:text-[#a1a1a6] hover:text-[#0071e3] transition-colors cursor-pointer"
+              className={cn(
+                'px-1.5 py-0.5 rounded-md text-[10px] font-medium transition-colors cursor-pointer',
+                hours === 20 && minutes === 0
+                  ? 'bg-[#0071e3] text-white font-semibold shadow-2xs'
+                  : 'bg-black/[0.035] dark:bg-white/[0.06] hover:bg-[#0071e3]/10 text-[#555] dark:text-[#a1a1a6] hover:text-[#0071e3]'
+              )}
             >
               20:00
             </button>
           </div>
         </div>
 
-        {/* Stepper capsule: Compact, sleek, no broken borders */}
-        <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-black/[0.025] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10">
-          <div className="flex items-center gap-1.5">
-            {/* Hours stepper */}
-            <div className="flex items-center bg-white dark:bg-[#252530] rounded-lg border border-black/10 dark:border-white/10 shadow-2xs px-1 py-0.5">
+        {/* Unified Apple Digital Time Capsule: Clean, Elegant, No visual clutter */}
+        <div className="flex items-center justify-between p-1.5 rounded-xl bg-black/[0.025] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10">
+          {/* Digital Time display with micro steppers */}
+          <div className="flex items-center gap-1 bg-white dark:bg-[#252530] px-2.5 py-1 rounded-lg border border-black/10 dark:border-white/15 shadow-2xs">
+            {/* Hour */}
+            <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => handleStepHour(-1)}
-                className="w-5 h-5 flex items-center justify-center text-[#86868b] hover:text-[#0071e3] transition-colors cursor-pointer text-[12px] font-bold select-none"
+                className="w-4 h-4 rounded flex items-center justify-center text-[#86868b] hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/10 text-[10px] cursor-pointer"
                 title="Giảm 1 giờ"
               >
                 −
               </button>
-              <span className="w-6 text-center text-[13px] font-bold font-mono text-[#1d1d1f] dark:text-white select-none">
+              <span className="w-5 text-center text-[14px] font-bold font-mono text-[#1d1d1f] dark:text-white select-none">
                 {pad(hours)}
               </span>
               <button
                 type="button"
                 onClick={() => handleStepHour(1)}
-                className="w-5 h-5 flex items-center justify-center text-[#86868b] hover:text-[#0071e3] transition-colors cursor-pointer text-[12px] font-bold select-none"
+                className="w-4 h-4 rounded flex items-center justify-center text-[#86868b] hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/10 text-[10px] cursor-pointer"
                 title="Tăng 1 giờ"
               >
                 +
               </button>
             </div>
 
-            <span className="font-bold text-[#86868b] text-[13px]">:</span>
+            <span className="font-bold text-[#86868b] text-[13px] px-0.5">:</span>
 
-            {/* Minutes stepper */}
-            <div className="flex items-center bg-white dark:bg-[#252530] rounded-lg border border-black/10 dark:border-white/10 shadow-2xs px-1 py-0.5">
+            {/* Minute */}
+            <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => handleStepMinute(-5)}
-                className="w-5 h-5 flex items-center justify-center text-[#86868b] hover:text-[#0071e3] transition-colors cursor-pointer text-[12px] font-bold select-none"
+                className="w-4 h-4 rounded flex items-center justify-center text-[#86868b] hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/10 text-[10px] cursor-pointer"
                 title="Giảm 5 phút"
               >
                 −
               </button>
-              <span className="w-6 text-center text-[13px] font-bold font-mono text-[#1d1d1f] dark:text-white select-none">
+              <span className="w-5 text-center text-[14px] font-bold font-mono text-[#1d1d1f] dark:text-white select-none">
                 {pad(minutes)}
               </span>
               <button
                 type="button"
                 onClick={() => handleStepMinute(5)}
-                className="w-5 h-5 flex items-center justify-center text-[#86868b] hover:text-[#0071e3] transition-colors cursor-pointer text-[12px] font-bold select-none"
+                className="w-4 h-4 rounded flex items-center justify-center text-[#86868b] hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/10 text-[10px] cursor-pointer"
                 title="Tăng 5 phút"
               >
                 +
@@ -551,27 +560,31 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
             </div>
           </div>
 
-          {/* Quick step chips */}
+          {/* Quick 15-minute intervals: :00, :15, :30, :45 */}
           <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => handleStepMinute(15)}
-              className="px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-black/[0.04] dark:bg-white/[0.08] hover:bg-[#0071e3]/15 text-[#333] dark:text-[#ddd] hover:text-[#0071e3] transition-colors cursor-pointer"
-            >
-              +15p
-            </button>
-            <button
-              type="button"
-              onClick={() => handleStepMinute(30)}
-              className="px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-black/[0.04] dark:bg-white/[0.08] hover:bg-[#0071e3]/15 text-[#333] dark:text-[#ddd] hover:text-[#0071e3] transition-colors cursor-pointer"
-            >
-              +30p
-            </button>
+            {[0, 15, 30, 45].map((m) => {
+              const active = minutes === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => handleMinuteChange(m)}
+                  className={cn(
+                    'px-1.5 py-1 rounded-md text-[10px] font-mono font-semibold transition-all cursor-pointer',
+                    active
+                      ? 'bg-[#0071e3] text-white shadow-2xs'
+                      : 'bg-black/[0.035] dark:bg-white/[0.06] hover:bg-black/[0.06] text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white'
+                  )}
+                >
+                  :{pad(m)}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      {/* 5. Non-embedded Done button */}
+      {/* 5. Done button (for non-embedded dropdowns) */}
       {!embedded && (
         <div className="pt-1.5 border-t border-black/[0.06] dark:border-white/10 flex justify-end">
           <button
@@ -595,7 +608,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     );
   }
 
-  // Dropdown / Expandable Trigger Mode (with 120 FPS Apple Liquid Spring Animation)
+  // Dropdown / Expandable Trigger Mode (with Apple Liquid Spring Animation)
   return (
     <div className={cn('w-full select-none font-sans', className)}>
       {/* ─────────────────── Apple Liquid Glass Trigger Capsule ─────────────────── */}
@@ -633,16 +646,18 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
       </button>
 
       {/* ─────────────────── Smooth Apple Spring Expand/Collapse Container (120 FPS) ─────────────────── */}
-      <div
-        className={cn(
-          'overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]',
-          isOpen
-            ? 'max-h-[500px] opacity-100 mt-2 transform-none'
-            : 'max-h-0 opacity-0 mt-0 pointer-events-none -translate-y-2'
-        )}
-      >
-        {renderPickerBody()}
-      </div>
+      {shouldRenderDropdown && (
+        <div
+          className={cn(
+            'overflow-hidden transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] mt-2',
+            isDropdownExiting
+              ? 'opacity-0 scale-95 pointer-events-none -translate-y-2'
+              : 'opacity-100 scale-100 transform-none'
+          )}
+        >
+          {renderPickerBody()}
+        </div>
+      )}
     </div>
   );
 };

@@ -9,37 +9,10 @@ const PREFERRED_EMAIL_KEY = 'fm_user_preferred_reminder_email';
 const PREFERRED_PROVIDER_KEY = 'fm_user_preferred_email_provider';
 
 /**
- * Synthesizes a subtle Apple visionOS / iOS glass bell chime using Web Audio API
+ * Sound effects disabled per user request
  */
 export const playAppleChime = () => {
-  try {
-    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
-
-    const now = ctx.currentTime;
-    // Harmonic frequencies for an ethereal crystal glass bell
-    const freqs = [880, 1320, 1760]; // A5, E6, A6
-
-    freqs.forEach((freq, idx) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, now + idx * 0.04);
-
-      gain.gain.setValueAtTime(0.08 / (idx + 1), now + idx * 0.04);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2 + idx * 0.1);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start(now + idx * 0.04);
-      osc.stop(now + 1.5);
-    });
-  } catch (_) {
-    // Audio context may be restricted before user interaction
-  }
+  // Silent no-op: sound effects disabled across app
 };
 
 class ReminderService {
@@ -158,6 +131,24 @@ class ReminderService {
       return {
         success: false,
         message: err.response?.data?.message || err.message || 'Lỗi khi kết nối máy chủ SMTP',
+      };
+    }
+  }
+
+  /**
+   * Disconnect / Remove SMTP configuration
+   */
+  async disconnectSmtp(): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await api.post('/notifications/smtp-disconnect');
+      return {
+        success: res.data?.success ?? true,
+        message: res.data?.message || 'Đã ngắt kết nối cấu hình gửi thư',
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.response?.data?.message || err.message || 'Lỗi khi ngắt kết nối',
       };
     }
   }

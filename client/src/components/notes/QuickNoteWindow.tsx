@@ -86,6 +86,7 @@ import { attachmentService } from '@/services/attachmentService';
 import { CloseButton } from '@/components/ui/close-button';
 import { AppleLiquidDialog } from '@/components/ui/AppleLiquidDialog';
 import { AppleDateTimePicker } from '@/components/ui/AppleDateTimePicker';
+import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
 import toast from 'react-hot-toast';
 
 const COLOR_MAP: Record<
@@ -196,25 +197,10 @@ const formatReminderBadge = (isoString?: string | null): string => {
 };
 
 /**
- * Subtle tactile pop sound when clicking checkbox
+ * Sound effects disabled per user request
  */
 const playPopSound = () => {
-  try {
-    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(650, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(320, ctx.currentTime + 0.04);
-    gain.gain.setValueAtTime(0.04, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.05);
-  } catch (_) {}
+  // Silent no-op: sound effects disabled across app
 };
 
 interface ChecklistRow {
@@ -654,19 +640,12 @@ const escapeRegex = (str: string): string => {
 const generateInlineImageHtml = (dataUrl: string, name: string): string => {
   return `<p><span class="apple-img-wrapper" contenteditable="false" data-media-type="image" style="position: relative; display: inline-flex; line-height: 0; font-size: 0; padding: 0; margin: 6px 0; max-width: 100%; vertical-align: middle; border-radius: 14px; overflow: hidden; box-shadow: 0 3px 12px rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.08); background: transparent;">
     <img src="${dataUrl}" alt="${name}" class="apple-note-inline-img" style="max-width: 320px; max-height: 220px; width: auto; height: auto; object-fit: contain; border-radius: 13px; display: block; margin: 0; padding: 0; border: none; box-shadow: none; vertical-align: top; line-height: 0; cursor: zoom-in;" title="Nhấp để xem ảnh đầy đủ" />
-    <button type="button" class="apple-img-delete-btn" style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; background: rgba(22,22,26,0.52); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #ffffff; border: 0.5px solid rgba(255,255,255,0.35); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; outline: none; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.25);" title="Xóa hình ảnh này"><svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg></button>
+    <button type="button" class="apple-img-delete-btn" style="position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; background: rgba(22,22,26,0.65); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #ff453a; border: 0.5px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; outline: none; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);" title="Xóa hình ảnh này"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333a1.333 1.333 0 0 1-1.334 1.334H4.667a1.333 1.333 0 0 1-1.334-1.334V4"/><line x1="6.5" y1="7" x2="6.5" y2="12"/><line x1="9.5" y1="7" x2="9.5" y2="12"/></svg></button>
   </span></p><p><br></p>`;
 };
 
 const generateFileCardHtml = (fileIdOrUrl: string, fileName: string, ext: string, sizeStr: string): string => {
   const docSvg = getAppleDocSvg(ext);
-  let badgeColor = '#0071e3';
-  if (ext === 'pdf') { badgeColor = '#e03e2d'; }
-  else if (['doc', 'docx'].includes(ext)) { badgeColor = '#2b579a'; }
-  else if (['xls', 'xlsx', 'csv'].includes(ext)) { badgeColor = '#217346'; }
-  else if (['ppt', 'pptx'].includes(ext)) { badgeColor = '#d24726'; }
-  else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) { badgeColor = '#805ad5'; }
-  else if (['txt', 'md', 'json'].includes(ext)) { badgeColor = '#718096'; }
 
   const isAttachmentId = fileIdOrUrl.startsWith('att_');
   const fileIdAttr = isAttachmentId ? `data-file-id="${fileIdOrUrl}"` : '';
@@ -680,9 +659,9 @@ const generateFileCardHtml = (fileIdOrUrl: string, fileName: string, ext: string
       <span class="apple-file-attachment-size" style="font-size: 10.5px; font-family: ui-monospace, SFMono-Regular, monospace; margin-top: 1px;">${sizeStr}</span>
     </span>
     <span style="display: inline-flex; align-items: center; gap: 4px; margin-left: 6px;">
-      <button type="button" class="apple-file-preview-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,113,227,0.12); color: #0071e3; border: 1px solid rgba(0,113,227,0.2); cursor: pointer; padding: 0; outline: none;" title="Xem trước tệp (Quick Look)"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2.5"/></svg></button>
-      <a href="${downloadHref}" download="${fileName}" class="apple-file-download-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: ${badgeColor}; color: white; border: none; text-decoration: none; cursor: pointer;" title="Tải xuống tệp ${fileName}"><svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v8M3.5 7L7 10.5 10.5 7M2 12h10"/></svg></a>
-      <button type="button" class="apple-file-delete-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.25); cursor: pointer; padding: 0; outline: none;" title="Xóa tệp đính kèm"><svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg></button>
+      <button type="button" class="apple-file-preview-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,113,227,0.08); color: #0071e3; border: 1px solid rgba(0,113,227,0.18); cursor: pointer; padding: 0; outline: none; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 1px 2px rgba(0,0,0,0.03);" title="Xem trước tệp (Quick Look)"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2.5"/></svg></button>
+      <a href="${downloadHref}" download="${fileName}" class="apple-file-download-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(52,199,89,0.10); color: #28a745; border: 1px solid rgba(52,199,89,0.22); text-decoration: none; cursor: pointer; padding: 0; outline: none; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 1px 2px rgba(0,0,0,0.03);" title="Tải xuống tệp ${fileName}"><svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v8M3.5 7L7 10.5 10.5 7M2 12h10"/></svg></a>
+      <button type="button" class="apple-file-delete-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(255,59,48,0.10); color: #ff3b30; border: 1px solid rgba(255,59,48,0.22); cursor: pointer; padding: 0; outline: none; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 1px 2px rgba(0,0,0,0.03);" title="Xóa tệp đính kèm"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333a1.333 1.333 0 0 1-1.334 1.334H4.667a1.333 1.333 0 0 1-1.334-1.334V4"/><line x1="6.5" y1="7" x2="6.5" y2="12"/><line x1="9.5" y1="7" x2="9.5" y2="12"/></svg></button>
     </span>
   </span></p><p><br></p>`;
 };
@@ -793,6 +772,7 @@ export const QuickNoteWindow: React.FC = () => {
 
   // Compact AI dropdown menu & outside click ref
   const [showCompactAiMenu, setShowCompactAiMenu] = useState(false);
+  const compactAiPresence = useAnimatedPresence(showCompactAiMenu, 180);
   const compactAiMenuRef = useRef<HTMLDivElement>(null);
 
   // Dedicated To-do item reminder modal state (Separate from note reminder modal)
@@ -1087,6 +1067,11 @@ export const QuickNoteWindow: React.FC = () => {
   const [isCapturingScreen, setIsCapturingScreen] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<NoteImageAttachment | null>(null);
+  const lightboxPresence = useAnimatedPresence(Boolean(lightboxImage), 200);
+  const lastLightboxImageRef = useRef<NoteImageAttachment | null>(null);
+  if (lightboxImage) {
+    lastLightboxImageRef.current = lightboxImage;
+  }
   const [lightboxZoom, setLightboxZoom] = useState(1);
   const [snippingSnapshot, setSnippingSnapshot] = useState<string | null>(null);
   const [filePreviewModal, setFilePreviewModal] = useState<{
@@ -1131,6 +1116,29 @@ export const QuickNoteWindow: React.FC = () => {
     maxMenuHeight?: number;
   } | null>(null);
   const [showFloatingAiMenu, setShowFloatingAiMenu] = useState(false);
+  const floatingAiPresence = useAnimatedPresence(showFloatingAiMenu, 180);
+  const floatingAiContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-close Floating Writing Tools menu when clicking outside or pressing Escape
+  useEffect(() => {
+    if (!showFloatingAiMenu) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (floatingAiContainerRef.current && !floatingAiContainerRef.current.contains(e.target as Node)) {
+        setShowFloatingAiMenu(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowFloatingAiMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showFloatingAiMenu]);
   const [geminiApiKeyInput, setGeminiApiKeyInput] = useState(getStoredGeminiKey());
   const [showApiKeySetting, setShowApiKeySetting] = useState(false);
   const [showApiKeyPassword, setShowApiKeyPassword] = useState(false);
@@ -1149,7 +1157,7 @@ export const QuickNoteWindow: React.FC = () => {
     italic: boolean;
     underline: boolean;
     strike: boolean;
-    heading: boolean;
+    headingLevel: 0 | 1 | 2 | 3; // 0 = normal text, 1 = h1, 2 = h2, 3 = h3
     bullet: boolean;
     number: boolean;
   }>({
@@ -1157,7 +1165,7 @@ export const QuickNoteWindow: React.FC = () => {
     italic: false,
     underline: false,
     strike: false,
-    heading: false,
+    headingLevel: 0,
     bullet: false,
     number: false,
   });
@@ -1168,7 +1176,7 @@ export const QuickNoteWindow: React.FC = () => {
   }, [loadNotes]);
 
   const activeNote = notes.find((n) => n.id === activeNoteId) || notes[0];
-  const isNoteLocked = Boolean(activeNote?.isLocked && !unlockedNoteIds.includes(activeNote.id));
+  const isNoteLocked = Boolean(activeNote?.isLocked && !unlockedNoteIds.includes(activeNote?.id || ''));
 
   // ──────── Auto-extract unique #tags across all notes ────────
   const allUniqueTags = useMemo(() => {
@@ -1738,6 +1746,17 @@ export const QuickNoteWindow: React.FC = () => {
     toast.success('Đã gỡ bỏ mật khẩu ghi chú', { id: 'note-lock-removed' });
   };
 
+  /** Returns heading level (1–3) for the node at the current cursor position, 0 if not a heading */
+  const detectHeadingLevel = (sel: Selection | null): 0 | 1 | 2 | 3 => {
+    if (!sel) return 0;
+    const anchor = sel.anchorNode;
+    const el = anchor instanceof Element ? anchor : (anchor as Text | null)?.parentElement;
+    if (el?.closest('h1')) return 1;
+    if (el?.closest('h2')) return 2;
+    if (el?.closest('h3')) return 3;
+    return 0;
+  };
+
   const handleEditorSelect = useCallback(() => {
     if (!editorRef.current || !canvasRef.current) return;
     const sel = window.getSelection();
@@ -1821,10 +1840,8 @@ export const QuickNoteWindow: React.FC = () => {
           const strike = document.queryCommandState('strikeThrough');
           const bullet = document.queryCommandState('insertUnorderedList');
           const number = document.queryCommandState('insertOrderedList');
-          const anchor = sel?.anchorNode;
-          const el = anchor instanceof Element ? anchor : anchor?.parentElement;
-          const heading = !!el?.closest('h2, h1');
-          setActiveFormats({ bold, italic, underline, strike, heading, bullet, number });
+          const headingLevel = detectHeadingLevel(sel);
+          setActiveFormats({ bold, italic, underline, strike, headingLevel, bullet, number });
         } catch (_) {}
 
         return;
@@ -1840,10 +1857,8 @@ export const QuickNoteWindow: React.FC = () => {
       const bullet = document.queryCommandState('insertUnorderedList');
       const number = document.queryCommandState('insertOrderedList');
       const sel = window.getSelection();
-      const anchor = sel?.anchorNode;
-      const el = anchor instanceof Element ? anchor : anchor?.parentElement;
-      const heading = !!el?.closest('h2, h1');
-      setActiveFormats({ bold, italic, underline, strike, heading, bullet, number });
+      const headingLevel = detectHeadingLevel(sel);
+      setActiveFormats({ bold, italic, underline, strike, headingLevel, bullet, number });
     } catch (_) {}
 
     setSelectionState(null);
@@ -1860,7 +1875,7 @@ export const QuickNoteWindow: React.FC = () => {
   }, [handleEditorSelect]);
 
   const handleApplyFormat = (
-    format: 'bold' | 'italic' | 'underline' | 'strike' | 'bullet' | 'number' | 'heading'
+    format: 'bold' | 'italic' | 'underline' | 'strike' | 'bullet' | 'number' | 'h1' | 'h2' | 'h3'
   ) => {
     const targetEl = editorRef.current;
     if (!targetEl) return;
@@ -1885,14 +1900,36 @@ export const QuickNoteWindow: React.FC = () => {
       case 'number':
         document.execCommand('insertOrderedList', false);
         break;
-      case 'heading': {
+      case 'h1': {
         const sel = window.getSelection();
         const anchor = sel?.anchorNode;
         const el = anchor instanceof Element ? anchor : anchor?.parentElement;
-        if (el?.closest('h2, h1')) {
-          document.execCommand('formatBlock', false, '<p>');
+        if (el?.closest('h1')) {
+          document.execCommand('formatBlock', false, '<p>'); // toggle off
+        } else {
+          document.execCommand('formatBlock', false, '<h1>');
+        }
+        break;
+      }
+      case 'h2': {
+        const sel = window.getSelection();
+        const anchor = sel?.anchorNode;
+        const el = anchor instanceof Element ? anchor : anchor?.parentElement;
+        if (el?.closest('h2')) {
+          document.execCommand('formatBlock', false, '<p>'); // toggle off
         } else {
           document.execCommand('formatBlock', false, '<h2>');
+        }
+        break;
+      }
+      case 'h3': {
+        const sel = window.getSelection();
+        const anchor = sel?.anchorNode;
+        const el = anchor instanceof Element ? anchor : anchor?.parentElement;
+        if (el?.closest('h3')) {
+          document.execCommand('formatBlock', false, '<p>'); // toggle off
+        } else {
+          document.execCommand('formatBlock', false, '<h3>');
         }
         break;
       }
@@ -1906,11 +1943,8 @@ export const QuickNoteWindow: React.FC = () => {
       const strike = document.queryCommandState('strikeThrough');
       const bullet = document.queryCommandState('insertUnorderedList');
       const number = document.queryCommandState('insertOrderedList');
-      const sel = window.getSelection();
-      const anchor = sel?.anchorNode;
-      const el = anchor instanceof Element ? anchor : anchor?.parentElement;
-      const heading = !!el?.closest('h2, h1');
-      setActiveFormats({ bold, italic, underline, strike, heading, bullet, number });
+      const headingLevel = detectHeadingLevel(window.getSelection());
+      setActiveFormats({ bold, italic, underline, strike, headingLevel, bullet, number });
     } catch (_) {}
 
     const updatedHtml = targetEl.innerHTML;
@@ -2369,6 +2403,18 @@ export const QuickNoteWindow: React.FC = () => {
         const current = notes.find((n) => n.id === noteId);
         const newTitle = localTitleRef.current;
         const newContent = localContentRef.current;
+        
+        // Safety guard: Don't overwrite an existing note with empty content if editor was not even rendered or typed in
+        if (
+          current &&
+          current.content &&
+          current.content.trim().length > 0 &&
+          (!newContent || newContent === '<p><br></p>') &&
+          !editorRef.current
+        ) {
+          return;
+        }
+
         // Only trigger update if content or title actually changed
         if (current && (current.title !== newTitle || current.content !== newContent)) {
           updateNote(noteId, {
@@ -2466,8 +2512,14 @@ export const QuickNoteWindow: React.FC = () => {
         showFloatingAiMenu ||
         showSmtpConfig
       ) {
+        if (showFloatingAiMenu) setShowFloatingAiMenu(false);
         if (showCompactAiMenu) setShowCompactAiMenu(false);
+        if (showWritingToolsMenu) setShowWritingToolsMenu(false);
+        if (showApiKeySetting) setShowApiKeySetting(false);
+        if (showReminderModal) setShowReminderModal(false);
         if (todoReminderTarget) setTodoReminderTarget(null);
+        if (showLockConfigModal) setShowLockConfigModal(false);
+        if (showSmtpConfig) setShowSmtpConfig(false);
         return;
       }
 
@@ -2514,8 +2566,8 @@ export const QuickNoteWindow: React.FC = () => {
           savePendingDraft(activeNoteIdRef.current);
         }
         activeNoteIdRef.current = activeNote.id;
-        const initialTitle = activeNote.title || '';
-        const initialContent = activeNote.content || '';
+        const initialTitle = activeNote?.title || '';
+        const initialContent = activeNote?.content || '';
         const initialChecklist = (activeNote as any).checklistContent || '';
 
         setLocalTitle(initialTitle);
@@ -2675,6 +2727,82 @@ export const QuickNoteWindow: React.FC = () => {
         }
       }
     }
+
+    // ── Markdown auto-format shortcuts triggered on Space ──────────────────────
+    // Guards: skip during IME composition, skip delete events
+    const isInsertingSpace =
+      nativeEvent?.data === ' ' &&
+      nativeEvent?.inputType === 'insertText' &&
+      !nativeEvent?.isComposing;
+    if (isInsertingSpace && !isDeleting) {
+      const sel = window.getSelection();
+      if (sel && sel.focusNode && editorRef.current?.contains(sel.focusNode)) {
+        const node = sel.focusNode;
+        const offset = sel.focusOffset;
+        const fullText = node.textContent || '';
+        // Text before the space that was just inserted (space is already in DOM at offset-1)
+        const beforeSpace = fullText.substring(0, offset - 1);
+        // Only trigger when this text is at the very START of the block (no other content before it)
+        const trimmedBefore = beforeSpace.trimStart();
+
+        /**
+         * applyBlockShortcut:
+         *  - deleteCount: number of trigger chars to remove (not counting the space itself)
+         *  - execFn: the formatting command to run
+         */
+        const applyBlockShortcut = (deleteCount: number, execFn: () => void) => {
+          try {
+            const range = sel.getRangeAt(0);
+            // Select from start of trigger to current position (including the space)
+            const startOffset = offset - 1 - deleteCount;
+            if (startOffset < 0) return;
+            range.setStart(node, startOffset);
+            range.setEnd(node, offset);
+            range.deleteContents();
+            execFn();
+            const updated = editorRef.current?.innerHTML || '';
+            setLocalContent(updated);
+            localContentRef.current = updated;
+            if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = setTimeout(() => {
+              if (activeNoteIdRef.current) updateNote(activeNoteIdRef.current, { content: updated });
+            }, 300);
+          } catch (_) {}
+        };
+
+        // "- " → unordered list
+        if (trimmedBefore === '-') {
+          applyBlockShortcut(1, () => document.execCommand('insertUnorderedList', false));
+          return;
+        }
+        // "* " → unordered list
+        if (trimmedBefore === '*') {
+          applyBlockShortcut(1, () => document.execCommand('insertUnorderedList', false));
+          return;
+        }
+        // "1. " or "1) " → ordered list
+        if (trimmedBefore === '1.' || trimmedBefore === '1)') {
+          applyBlockShortcut(trimmedBefore.length, () => document.execCommand('insertOrderedList', false));
+          return;
+        }
+        // "### " → H3 (must check before ## and #)
+        if (trimmedBefore === '###') {
+          applyBlockShortcut(3, () => document.execCommand('formatBlock', false, '<h3>'));
+          return;
+        }
+        // "## " → H2
+        if (trimmedBefore === '##') {
+          applyBlockShortcut(2, () => document.execCommand('formatBlock', false, '<h2>'));
+          return;
+        }
+        // "# " → H1
+        if (trimmedBefore === '#') {
+          applyBlockShortcut(1, () => document.execCommand('formatBlock', false, '<h1>'));
+          return;
+        }
+      }
+    }
+    // ── End Markdown shortcuts ──────────────────────────────────────────────────
   };
 
   const handleEditorPaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
@@ -2733,7 +2861,7 @@ export const QuickNoteWindow: React.FC = () => {
       return;
     }
 
-    // 3. Enter key handling in list items (Word-like list exit on empty line)
+    // 3. Enter key handling — Word-like behavior
     if (e.key === 'Enter') {
       const sel = window.getSelection();
       if (sel && sel.rangeCount > 0) {
@@ -2743,8 +2871,8 @@ export const QuickNoteWindow: React.FC = () => {
           : range.commonAncestorContainer.parentElement)?.closest('li');
 
         if (liNode) {
+          // 3a. Shift+Enter inside a list → soft line break (<br>) within same bullet
           if (e.shiftKey) {
-            // Shift + Enter inside a list: insert soft line break (<br>) within the same bullet
             e.preventDefault();
             document.execCommand('insertLineBreak', false);
             if (editorRef.current) {
@@ -2753,8 +2881,7 @@ export const QuickNoteWindow: React.FC = () => {
             return;
           }
 
-          // If the current list item is empty:
-          // Pressing Enter in Word un-lists the item and converts it into a normal paragraph
+          // 3b. Enter on EMPTY list item → exit list (become normal paragraph)
           const textContent = liNode.textContent || '';
           const isEmpty = textContent.trim().length === 0 && !liNode.querySelector('img, .apple-file-attachment');
           if (isEmpty) {
@@ -2765,6 +2892,18 @@ export const QuickNoteWindow: React.FC = () => {
             }
             return;
           }
+
+          // 3c. Enter on NON-EMPTY list item → let browser handle it naturally.
+          // The browser contentEditable already creates the next <li> (with bullet or incremented number).
+          // We only need to sync state after the browser finishes.
+          // Do NOT preventDefault here — allow the default browser behavior.
+          // Sync after a microtask so the DOM is updated.
+          requestAnimationFrame(() => {
+            if (editorRef.current) {
+              handleEditorInput({ currentTarget: editorRef.current, nativeEvent: e.nativeEvent } as any);
+            }
+          });
+          return;
         }
       }
     }
@@ -3193,7 +3332,7 @@ export const QuickNoteWindow: React.FC = () => {
   // 1-Click copy whole note
   const handleCopyNote = () => {
     if (!activeNote) return;
-    const title = localTitle.trim() || activeNote.title || 'Ghi chú';
+    const title = localTitle.trim() || activeNote?.title || 'Ghi chú';
     const plain = extractPlainText(localContent);
     let text = `${title}\n\n${plain}`.trim();
     if (activeNote.images && activeNote.images.length > 0) {
@@ -3644,6 +3783,18 @@ export const QuickNoteWindow: React.FC = () => {
                       className="w-full pl-8 pr-3 py-1.5 rounded-full text-[12px] bg-white/80 dark:bg-white/10 border border-black/10 dark:border-white/10 focus:border-[#0071e3]/40 focus:ring-0 focus:outline-none outline-none text-[#1d1d1f] dark:text-[#f5f5f7] placeholder:text-[#86868b]"
                     />
                   </div>
+
+                  {/* Nút tạo sổ ghi chú mới trên sidebar chuẩn Apple Design */}
+                  <button
+                    type="button"
+                    onClick={() => handleCreateNewNote(editorMode === 'checklist' ? 'checklist' : 'note')}
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-[#0071e3] dark:text-[#2997ff] bg-[#0071e3]/10 hover:bg-[#0071e3]/20 dark:bg-[#0071e3]/15 dark:hover:bg-[#0071e3]/25 transition-all cursor-pointer shrink-0 active:scale-95 shadow-2xs"
+                    title="Tạo sổ ghi chú mới"
+                    aria-label="Tạo ghi chú mới"
+                  >
+                    <SFSquareAndPencil size={14} />
+                  </button>
+
                   {/* Nút đóng sidebar */}
                   <button
                     type="button"
@@ -3764,7 +3915,7 @@ export const QuickNoteWindow: React.FC = () => {
                           <h5 className={`text-[12.5px] font-semibold truncate leading-snug ${
                             isSelected ? 'text-[#1d1d1f] dark:text-white' : 'text-[#1d1d1f]/90 dark:text-[#f5f5f7]/85'
                           }`}>
-                            {note.title || (isChecklistNote ? 'Danh sách việc mới' : 'Ghi chú mới')}
+                            {note?.title || (isChecklistNote ? 'Danh sách việc mới' : 'Ghi chú mới')}
                           </h5>
                         </div>
 
@@ -4306,15 +4457,41 @@ export const QuickNoteWindow: React.FC = () => {
                   <button
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => handleApplyFormat('heading')}
-                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center font-bold text-[11.5px] transition-all cursor-pointer ${
-                      activeFormats.heading
+                    onClick={() => handleApplyFormat('h1')}
+                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center font-black text-[10px] transition-all cursor-pointer ${
+                      activeFormats.headingLevel === 1
                         ? 'bg-[#0071e3] text-white shadow-xs'
                         : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/6 dark:hover:bg-white/10'
                     }`}
-                    title="Tiêu đề mục (Heading)"
+                    title="Tiêu đề lớn H1 (phím tắt: # + Space)"
                   >
-                    H
+                    H1
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleApplyFormat('h2')}
+                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center font-black text-[10px] transition-all cursor-pointer ${
+                      activeFormats.headingLevel === 2
+                        ? 'bg-[#0071e3] text-white shadow-xs'
+                        : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/6 dark:hover:bg-white/10'
+                    }`}
+                    title="Tiêu đề mục H2 (phím tắt: ## + Space)"
+                  >
+                    H2
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleApplyFormat('h3')}
+                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center font-black text-[10px] transition-all cursor-pointer ${
+                      activeFormats.headingLevel === 3
+                        ? 'bg-[#0071e3] text-white shadow-xs'
+                        : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/6 dark:hover:bg-white/10'
+                    }`}
+                    title="Tiêu đề phụ H3 (phím tắt: ### + Space)"
+                  >
+                    H3
                   </button>
 
                   <div className="w-[1px] h-4 bg-black/10 dark:bg-white/10 mx-0.5 shrink-0" />
@@ -4364,10 +4541,14 @@ export const QuickNoteWindow: React.FC = () => {
                     <ChevronDown size={10} className={`transition-transform duration-150 ${showCompactAiMenu ? 'rotate-180' : ''}`} />
                   </button>
 
-                  {showCompactAiMenu && (
+                  {compactAiPresence.shouldRender && (
                     <div
                       onClick={(e) => e.stopPropagation()}
-                      className="absolute right-0 top-full mt-1.5 w-60 rounded-2xl bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-3xl border border-black/10 dark:border-white/15 shadow-[0_24px_60px_-8px_rgba(0,0,0,0.22),0_4px_16px_rgba(0,0,0,0.06),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),inset_0_1px_1px_rgba(255,255,255,0.15)] p-1.5 z-50 apple-popover-tr space-y-0.5 text-left max-h-[380px] overflow-y-auto select-none"
+                      className={`absolute right-0 top-full mt-1.5 w-60 rounded-2xl bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-3xl border border-black/10 dark:border-white/15 shadow-[0_24px_60px_-8px_rgba(0,0,0,0.22),0_4px_16px_rgba(0,0,0,0.06),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),inset_0_1px_1px_rgba(255,255,255,0.15)] p-1.5 z-50 space-y-0.5 text-left max-h-[380px] overflow-y-auto select-none ${
+                        compactAiPresence.isExiting
+                          ? 'apple-popover-close-tr'
+                          : 'apple-popover-tr'
+                      }`}
                     >
                       <div className="px-2.5 py-1 text-[10.5px] font-bold text-[#86868b] dark:text-[#a1a1a6] border-b border-black/[0.06] dark:border-white/10 mb-1 flex items-center justify-between">
                         <span>Writing Tools</span>
@@ -4771,58 +4952,96 @@ export const QuickNoteWindow: React.FC = () => {
                         <button
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => handleApplyFormat('heading')}
-                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-all cursor-pointer font-bold text-xs ${
-                            activeFormats.heading
+                          onClick={() => handleApplyFormat('h1')}
+                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-all cursor-pointer font-black text-[10px] ${
+                            activeFormats.headingLevel === 1
                               ? 'bg-[#0071e3] text-white shadow-xs'
                               : 'text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
                           }`}
-                          title="Tiêu đề đề mục (Heading)"
-                          aria-label="Tiêu đề"
+                          title="Tiêu đề lớn H1 (# + Space)"
+                          aria-label="Tiêu đề H1"
                         >
-                          <Heading size={14} />
+                          H1
                         </button>
-                      </div>
-
-                      {/* Apple Writing Tools Button */}
-                      <div className="relative pl-0.5">
                         <button
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => setShowFloatingAiMenu(!showFloatingAiMenu)}
+                          onClick={() => handleApplyFormat('h2')}
+                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-all cursor-pointer font-black text-[10px] ${
+                            activeFormats.headingLevel === 2
+                              ? 'bg-[#0071e3] text-white shadow-xs'
+                              : 'text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
+                          }`}
+                          title="Tiêu đề mục H2 (## + Space)"
+                          aria-label="Tiêu đề H2"
+                        >
+                          H2
+                        </button>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => handleApplyFormat('h3')}
+                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-all cursor-pointer font-black text-[10px] ${
+                            activeFormats.headingLevel === 3
+                              ? 'bg-[#0071e3] text-white shadow-xs'
+                              : 'text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
+                          }`}
+                          title="Tiêu đề phụ H3 (### + Space)"
+                          aria-label="Tiêu đề H3"
+                        >
+                          H3
+                        </button>
+                      </div>
+
+                      {/* Apple Writing Tools Button & Contextual Popover */}
+                      <div ref={floatingAiContainerRef} className="relative pl-0.5">
+                        <button
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowFloatingAiMenu((prev) => !prev);
+                          }}
                           className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-90 relative overflow-hidden group ${
                             showFloatingAiMenu
                               ? 'bg-[#0071e3] text-white shadow-xs scale-105'
                               : 'bg-black/[0.05] dark:bg-white/[0.1] hover:bg-black/10 dark:hover:bg-white/15 text-[#1d1d1f] dark:text-white border border-black/[0.08] dark:border-white/[0.12] shadow-2xs hover:scale-105'
                           }`}
-                          title="Công cụ soạn thảo Apple"
+                          title={showFloatingAiMenu ? 'Đóng Writing Tools' : 'Công cụ soạn thảo Apple'}
                           aria-label="Công cụ soạn thảo Apple"
                         >
                           <SFWandAndSparkles size={13.5} />
                         </button>
 
                         {/* Apple Writing Tools Contextual Menu — Tự động tính chiều cao để không bao giờ bị cắt xén ngoài đỉnh/đáy */}
-                        {showFloatingAiMenu && (
+                        {floatingAiPresence.shouldRender && (
                           <div
-                            onMouseDown={(e) => e.preventDefault()}
+                            onMouseDown={(e) => {
+                              if (!(e.target as HTMLElement).closest('button, input')) {
+                                e.preventDefault();
+                              }
+                            }}
                             style={{
                               maxHeight: toolbarCoords.maxMenuHeight ? `${toolbarCoords.maxMenuHeight}px` : '220px',
                             }}
                             className={`absolute right-0 w-60 rounded-[20px] bg-white/95 dark:bg-[#1e1e24]/95 backdrop-blur-3xl border border-black/10 dark:border-white/15 shadow-[0_24px_60px_-8px_rgba(0,0,0,0.22),0_4px_16px_rgba(0,0,0,0.06),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),inset_0_1px_1px_rgba(255,255,255,0.15)] p-1.5 z-50 space-y-0.5 text-left overflow-y-auto scrollbar-thin select-none ${
                               toolbarCoords.openMenuUp
-                                ? 'bottom-full mb-2 apple-popover-br'
-                                : 'top-full mt-2 apple-popover-tr'
+                                ? (floatingAiPresence.isExiting ? 'bottom-full mb-2 apple-popover-close-br' : 'bottom-full mb-2 apple-popover-br')
+                                : (floatingAiPresence.isExiting ? 'top-full mt-2 apple-popover-close-tr' : 'top-full mt-2 apple-popover-tr')
                             }`}
                           >
                             <div className="px-2.5 py-1.5 flex items-center justify-between border-b border-black/[0.06] dark:border-white/10 mb-1">
                               <div className="flex items-center gap-1.5 text-[#0071e3] dark:text-[#2997ff]">
                                 <SFWandAndSparkles size={12.5} />
                                 <span className="text-[11.5px] font-bold text-[#1d1d1f] dark:text-white">
-                                  Công cụ soạn thảo
+                                  Writing Tools
                                 </span>
                               </div>
-                              <span className="text-[10px] text-[#0071e3] dark:text-[#2997ff] font-medium bg-[#0071e3]/10 px-2 py-0.5 rounded-full">
-                                {selectionState.text.length} ký tự
+                              <span className="text-[9.5px] bg-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff] px-1.5 py-0.5 rounded-full font-semibold">
+                                Intelligence
                               </span>
                             </div>
 
@@ -4962,7 +5181,7 @@ export const QuickNoteWindow: React.FC = () => {
                     onScroll={handleEditorSelect}
                     onPaste={handleEditorPaste}
                     onClick={handleEditorClick}
-                    className="flex-1 w-full bg-transparent border-0 outline-none shadow-none ring-0 focus:ring-0 focus:outline-none focus:border-none font-sans text-[14.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] p-0 pr-1 selection:bg-purple-500/25 selection:text-[#1d1d1f] dark:selection:text-white overflow-y-auto min-h-0 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-[#1d1d1f] dark:[&_h2]:text-white [&_h2]:mt-2 [&_h2]:mb-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline [&_s]:line-through [&_img]:!max-w-[320px] [&_img]:!max-h-[220px] [&_img]:!w-auto [&_img]:!h-auto [&_img]:object-contain [&_img]:rounded-xl [&_img]:cursor-zoom-in [&_.apple-img-wrapper]:my-2 [&_.apple-img-wrapper_img]:!m-0 [&_.apple-img-wrapper_img]:!p-0 [&_.apple-img-wrapper_img]:!border-0 [&_.apple-img-wrapper_img]:!shadow-none [&_.apple-img-wrapper_img]:!block [&_.apple-file-attachment]:transition-all hover:[&_.apple-file-attachment]:bg-black/[0.07] dark:hover:[&_.apple-file-attachment]:bg-white/[0.08] cursor-text scrollbar-thin [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-black/30"
+                    className="flex-1 w-full bg-transparent border-0 outline-none shadow-none ring-0 focus:ring-0 focus:outline-none focus:border-none font-sans text-[14.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] p-0 pr-1 selection:bg-purple-500/25 selection:text-[#1d1d1f] dark:selection:text-white overflow-y-auto min-h-0 [&_h1]:text-2xl [&_h1]:font-extrabold [&_h1]:text-[#1d1d1f] dark:[&_h1]:text-white [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:leading-tight [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-[#1d1d1f] dark:[&_h2]:text-white [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[17px] [&_h3]:font-semibold [&_h3]:text-[#1d1d1f] dark:[&_h3]:text-white [&_h3]:mt-2 [&_h3]:mb-0.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline [&_s]:line-through [&_img]:!max-w-[320px] [&_img]:!max-h-[220px] [&_img]:!w-auto [&_img]:!h-auto [&_img]:object-contain [&_img]:rounded-xl [&_img]:cursor-zoom-in [&_.apple-img-wrapper]:my-2 [&_.apple-img-wrapper_img]:!m-0 [&_.apple-img-wrapper_img]:!p-0 [&_.apple-img-wrapper_img]:!border-0 [&_.apple-img-wrapper_img]:!shadow-none [&_.apple-img-wrapper_img]:!block [&_.apple-file-attachment]:transition-all hover:[&_.apple-file-attachment]:bg-black/[0.07] dark:hover:[&_.apple-file-attachment]:bg-white/[0.08] cursor-text scrollbar-thin [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-black/30"
                     style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
                   />
                 </div>
@@ -5215,13 +5434,15 @@ export const QuickNoteWindow: React.FC = () => {
 
       {/* ─────────────────── Apple Liquid Glass Master Reminder Modal (Apple Liquid Glass Blur & Translucency) ─────────────────── */}
       <AppleLiquidDialog
-        isOpen={showReminderModal}
+        isOpen={Boolean(showReminderModal && activeNote)}
         onClose={() => setShowReminderModal(false)}
         zIndex={10005}
         title="Cài lịch nhắc nhở"
         overlayClassName="p-4"
         contentClassName="w-full max-w-[460px] max-h-[85vh] flex flex-col bg-white/90 dark:bg-[#1c1c24]/90 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/12 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] overflow-hidden text-left"
       >
+        {activeNote && (
+          <>
         {/* Fixed Header */}
         <div className="p-4 sm:px-5 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between shrink-0 bg-black/[0.01] dark:bg-white/[0.02]">
           <div className="flex items-center gap-2.5 min-w-0">
@@ -5233,7 +5454,7 @@ export const QuickNoteWindow: React.FC = () => {
                 Cài Lịch Nhắc Nhở
               </h4>
               <p className="text-[11.5px] text-[#6e6e73] dark:text-[#a1a1a6] truncate mt-0.5">
-                {activeNote.title ? `Cho "${activeNote.title}"` : 'Hẹn giờ thông báo tự động'}
+                {activeNote?.title ? `Cho "${activeNote.title}"` : 'Hẹn giờ thông báo tự động'}
               </p>
             </div>
           </div>
@@ -5355,7 +5576,7 @@ export const QuickNoteWindow: React.FC = () => {
                       type="email"
                       value={reminderEmail}
                       onChange={(e) => setReminderEmail(e.target.value)}
-                      placeholder="Địa chỉ email nhận (VD: kaka.nhdk@gmail.com)"
+                      placeholder="Địa chỉ email nhận (VD: your_email@gmail.com)"
                       className="flex-1 px-3 py-2 rounded-xl text-[12px] bg-white dark:bg-black/20 border border-black/15 dark:border-white/20 outline-none focus:border-[#0071e3] text-[#1d1d1f] dark:text-white shadow-2xs"
                     />
                     <button
@@ -5467,6 +5688,8 @@ export const QuickNoteWindow: React.FC = () => {
             </button>
           </div>
         </div>
+        </>
+        )}
       </AppleLiquidDialog>
 
       {/* ─────────────────── Dedicated Apple Liquid Glass To-do Item Reminder Modal ─────────────────── */}
@@ -5756,179 +5979,209 @@ export const QuickNoteWindow: React.FC = () => {
 
 
       {/* ─────────────────── Liquid Glass Full-Size Image Lightbox Portal ─────────────────── */}
-      {lightboxImage &&
-        createPortal(
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Xem ảnh chi tiết"
-            onClick={(e) => {
-              if (e.target === e.currentTarget) {
-                e.stopPropagation();
-                setLightboxImage(null);
-                setLightboxZoom(1);
-              }
-            }}
-            className="fixed inset-0 z-[10002] bg-black/80 dark:bg-black/90 backdrop-blur-2xl flex flex-col items-center justify-between p-4 sm:p-6 select-none animate-in fade-in duration-200"
-          >
-            {/* Top Floating Pill Capsule Toolbar */}
-            <header
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-xl flex items-center justify-between px-4 py-2 rounded-full bg-white/10 dark:bg-white/[0.08] backdrop-blur-3xl border border-white/20 shadow-[0_12px_40px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.3)] text-white shrink-0 z-20 animate-in slide-in-from-top-2 duration-200"
-            >
-              <div className="flex items-center gap-2.5 min-w-0 pr-3">
-                <div className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-white/80 shrink-0">
-                  <SFPhoto size={13} />
-                </div>
-                <span className="text-[13px] font-semibold truncate max-w-xs text-white">
-                  {lightboxImage.name || 'Ảnh ghi chú'}
-                </span>
-                {lightboxImage.size && (
-                  <span className="text-[11px] font-mono text-white/70 bg-white/10 px-2 py-0.5 rounded-full shrink-0">
-                    {formatFileSize(lightboxImage.size)}
-                  </span>
-                )}
-              </div>
-
-              {/* Pure Icon Buttons - Liquid Glass Style */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => handleCopyImage(lightboxImage)}
-                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 active:scale-90 text-white flex items-center justify-center transition-all cursor-pointer border border-white/15 shadow-xs"
-                  title="Sao chép ảnh (Ctrl+C)"
-                >
-                  <SFSquareOnSquare size={14} />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => downloadImage(lightboxImage.url, lightboxImage.name)}
-                  className="w-8 h-8 rounded-full bg-[#0071e3] hover:bg-[#0077ed] active:scale-90 text-white flex items-center justify-center transition-all cursor-pointer shadow-md shadow-[#0071e3]/40 border border-white/25"
-                  title="Tải ảnh về máy"
-                >
-                  <SFArrowDownToLine size={14} />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleDeleteImage(lightboxImage.id, lightboxImage.url);
-                    setLightboxImage(null);
-                    setLightboxZoom(1);
-                  }}
-                  className="w-8 h-8 rounded-full bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white active:scale-90 flex items-center justify-center transition-all cursor-pointer border border-rose-500/30"
-                  title="Xóa ảnh khỏi ghi chú"
-                >
-                  <SFTrash size={14} />
-                </button>
-
-                <CloseButton
-                  onClick={() => {
-                    setLightboxImage(null);
-                    setLightboxZoom(1);
-                  }}
-                  size="md"
-                  className="bg-white/15 hover:bg-white/30 text-white dark:bg-white/15 dark:hover:bg-white/30 border border-white/20 ml-1"
-                  title="Đóng xem ảnh (Esc)"
-                />
-              </div>
-            </header>
-
-            {/* Main Stage with Floating Image & Chevrons & Outside Click Listener */}
-            <main
+      {lightboxPresence.shouldRender &&
+        (() => {
+          const activeImg = lightboxImage || lastLightboxImageRef.current;
+          if (!activeImg) return null;
+          return createPortal(
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Xem ảnh chi tiết"
               onClick={(e) => {
-                if (e.target === e.currentTarget) {
+                if (e.target === e.currentTarget && !lightboxPresence.isExiting) {
                   e.stopPropagation();
                   setLightboxImage(null);
                   setLightboxZoom(1);
                 }
               }}
-              className="flex-1 w-full flex items-center justify-center relative my-2 overflow-hidden cursor-zoom-out"
-            >
-              {/* Previous Image Chevron */}
-              {noteImages.length > 1 && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handlePrevImage();
-                  }}
-                  className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 active:scale-90 text-white backdrop-blur-2xl border border-white/15 flex items-center justify-center transition-all cursor-pointer shadow-lg z-20"
-                  title="Ảnh trước (Phím Mũi tên trái)"
-                >
-                  <SFChevronLeft size={18} />
-                </button>
+              className={cn(
+                "fixed inset-0 z-[10002] bg-black/80 dark:bg-black/90 backdrop-blur-2xl flex flex-col items-center justify-between p-4 sm:p-6 select-none will-change-[backdrop-filter,opacity]",
+                lightboxPresence.isExiting
+                  ? "liquid-backdrop-exit pointer-events-none"
+                  : "liquid-backdrop-enter pointer-events-auto"
               )}
-
-              <img
-                src={lightboxImage.url}
-                alt={lightboxImage.name || 'Ảnh chi tiết'}
+            >
+              {/* Top Floating Pill Capsule Toolbar */}
+              <header
                 onClick={(e) => e.stopPropagation()}
-                style={{ transform: `scale(${lightboxZoom})` }}
-                className="max-h-[calc(100vh-170px)] max-w-[90vw] object-contain rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.85),0_4px_16px_rgba(0,0,0,0.5)] border border-white/15 select-none transition-transform duration-200 cursor-default"
-              />
+                className={cn(
+                  "w-full max-w-xl flex items-center justify-between px-4 py-2 rounded-full bg-white/10 dark:bg-white/[0.08] backdrop-blur-3xl border border-white/20 shadow-[0_12px_40px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.3)] text-white shrink-0 z-20 transition-all duration-200 ease-out",
+                  lightboxPresence.isExiting
+                    ? "-translate-y-4 opacity-0 scale-95 pointer-events-none"
+                    : "translate-y-0 opacity-100 scale-100"
+                )}
+              >
+                <div className="flex items-center gap-2.5 min-w-0 pr-3">
+                  <div className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-white/80 shrink-0">
+                    <SFPhoto size={13} />
+                  </div>
+                  <span className="text-[13px] font-semibold truncate max-w-xs text-white">
+                    {activeImg.name || 'Ảnh ghi chú'}
+                  </span>
+                  {activeImg.size && (
+                    <span className="text-[11px] font-mono text-white/70 bg-white/10 px-2 py-0.5 rounded-full shrink-0">
+                      {formatFileSize(activeImg.size)}
+                    </span>
+                  )}
+                </div>
 
-              {/* Next Image Chevron */}
-              {noteImages.length > 1 && (
+                {/* Pure Icon Buttons - Apple Dark Liquid Glass Capsule */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleCopyImage(activeImg)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 active:scale-90 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 cursor-pointer shadow-xs shrink-0"
+                    title="Sao chép ảnh (Ctrl+C)"
+                  >
+                    <SFSquareOnSquare size={14} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => downloadImage(activeImg.url, activeImg.name)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-[#0071e3] text-white/90 hover:text-white border border-white/15 hover:border-[#0071e3] backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-xs hover:shadow-[#0071e3]/30 shrink-0"
+                    title="Tải ảnh về máy"
+                  >
+                    <SFArrowDownToLine size={14} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleDeleteImage(activeImg.id, activeImg.url);
+                      setLightboxImage(null);
+                      setLightboxZoom(1);
+                    }}
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-[#ff3b30] text-rose-300 hover:text-white border border-white/15 hover:border-[#ff3b30] backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-xs hover:shadow-[#ff3b30]/30 shrink-0"
+                    title="Xóa ảnh khỏi ghi chú"
+                  >
+                    <SFTrash size={14} />
+                  </button>
+
+                  <CloseButton
+                    onClick={() => {
+                      setLightboxImage(null);
+                      setLightboxZoom(1);
+                    }}
+                    size="md"
+                    className="w-8 h-8 min-w-[32px] min-h-[32px] bg-white/10 hover:bg-white/25 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 active:scale-90 shadow-xs"
+                    title="Đóng xem ảnh (Esc)"
+                  />
+                </div>
+              </header>
+
+              {/* Main Stage with Floating Image & Chevrons & Outside Click Listener */}
+              <main
+                onClick={(e) => {
+                  if (e.target === e.currentTarget && !lightboxPresence.isExiting) {
+                    e.stopPropagation();
+                    setLightboxImage(null);
+                    setLightboxZoom(1);
+                  }
+                }}
+                className="flex-1 w-full flex items-center justify-center relative my-2 overflow-hidden cursor-zoom-out"
+              >
+                {/* Previous Image Chevron */}
+                {noteImages.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePrevImage();
+                    }}
+                    className={cn(
+                      "absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 active:scale-90 text-white backdrop-blur-2xl border border-white/15 flex items-center justify-center transition-all cursor-pointer shadow-lg z-20",
+                      lightboxPresence.isExiting && "opacity-0 scale-90 pointer-events-none"
+                    )}
+                    title="Ảnh trước (Phím Mũi tên trái)"
+                  >
+                    <SFChevronLeft size={18} />
+                  </button>
+                )}
+
+                <img
+                  src={activeImg.url}
+                  alt={activeImg.name || 'Ảnh chi tiết'}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ transform: `scale(${lightboxZoom})` }}
+                  className={cn(
+                    "max-h-[calc(100vh-170px)] max-w-[90vw] object-contain rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.85),0_4px_16px_rgba(0,0,0,0.5)] border border-white/15 select-none transition-transform duration-200 cursor-default will-change-[transform,opacity,filter]",
+                    lightboxPresence.isExiting
+                      ? "apple-lightbox-img-exit"
+                      : "apple-lightbox-img-enter"
+                  )}
+                />
+
+                {/* Next Image Chevron */}
+                {noteImages.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleNextImage();
+                    }}
+                    className={cn(
+                      "absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 active:scale-90 text-white backdrop-blur-2xl border border-white/15 flex items-center justify-center transition-all cursor-pointer shadow-lg z-20",
+                      lightboxPresence.isExiting && "opacity-0 scale-90 pointer-events-none"
+                    )}
+                    title="Ảnh kế tiếp (Phím Mũi tên phải)"
+                  >
+                    <SFChevronRight size={18} />
+                  </button>
+                )}
+              </main>
+
+              {/* Bottom Floating Pill - Zoom Controls & Counter */}
+              <footer
+                onClick={(e) => e.stopPropagation()}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-2 rounded-full bg-white/10 dark:bg-white/[0.08] backdrop-blur-3xl border border-white/20 shadow-[0_12px_40px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.3)] text-white text-[12px] shrink-0 z-20 transition-all duration-200 ease-out",
+                  lightboxPresence.isExiting
+                    ? "translate-y-4 opacity-0 scale-95 pointer-events-none"
+                    : "translate-y-0 opacity-100 scale-100"
+                )}
+              >
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleNextImage();
-                  }}
-                  className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 active:scale-90 text-white backdrop-blur-2xl border border-white/15 flex items-center justify-center transition-all cursor-pointer shadow-lg z-20"
-                  title="Ảnh kế tiếp (Phím Mũi tên phải)"
+                  onClick={() => setLightboxZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))}
+                  className="w-7 h-7 rounded-full hover:bg-white/15 text-white/80 hover:text-white flex items-center justify-center transition-colors cursor-pointer text-sm font-bold"
+                  title="Thu nhỏ (-)"
                 >
-                  <SFChevronRight size={18} />
+                  -
                 </button>
-              )}
-            </main>
 
-            {/* Bottom Floating Pill - Zoom Controls & Counter */}
-            <footer
-              onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-3 px-4 py-2 rounded-full bg-white/10 dark:bg-white/[0.08] backdrop-blur-3xl border border-white/20 shadow-[0_12px_40px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.3)] text-white text-[12px] shrink-0 z-20 animate-in slide-in-from-bottom-2 duration-200"
-            >
-              <button
-                type="button"
-                onClick={() => setLightboxZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))}
-                className="w-7 h-7 rounded-full hover:bg-white/15 text-white/80 hover:text-white flex items-center justify-center transition-colors cursor-pointer text-sm font-bold"
-                title="Thu nhỏ (-)"
-              >
-                -
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setLightboxZoom(1)}
+                  className="px-2 py-0.5 rounded-full hover:bg-white/15 text-white/80 hover:text-white transition-colors cursor-pointer font-mono text-[11px]"
+                  title="Tỉ lệ ban đầu (Phím 0)"
+                >
+                  {Math.round(lightboxZoom * 100)}%
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setLightboxZoom(1)}
-                className="px-2 py-0.5 rounded-full hover:bg-white/15 text-white/80 hover:text-white transition-colors cursor-pointer font-mono text-[11px]"
-                title="Tỉ lệ ban đầu (Phím 0)"
-              >
-                {Math.round(lightboxZoom * 100)}%
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setLightboxZoom((z) => Math.min(3, +(z + 0.25).toFixed(2)))}
+                  className="w-7 h-7 rounded-full hover:bg-white/15 text-white/80 hover:text-white flex items-center justify-center transition-colors cursor-pointer text-sm font-bold"
+                  title="Phóng to (+)"
+                >
+                  +
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setLightboxZoom((z) => Math.min(3, +(z + 0.25).toFixed(2)))}
-                className="w-7 h-7 rounded-full hover:bg-white/15 text-white/80 hover:text-white flex items-center justify-center transition-colors cursor-pointer text-sm font-bold"
-                title="Phóng to (+)"
-              >
-                +
-              </button>
-
-              {noteImages.length > 1 && (
-                <>
-                  <span className="w-[1px] h-3.5 bg-white/20" />
-                  <span className="font-mono text-white/70 text-[11px]">
-                    {currentImageIndex + 1} / {noteImages.length}
-                  </span>
-                </>
-              )}
-            </footer>
-          </div>,
-          document.body
-        )}
+                {noteImages.length > 1 && (
+                  <>
+                    <span className="w-[1px] h-3.5 bg-white/20" />
+                    <span className="font-mono text-white/70 text-[11px]">
+                      {currentImageIndex + 1} / {noteImages.length}
+                    </span>
+                  </>
+                )}
+              </footer>
+            </div>,
+            document.body
+          );
+        })()}
 
       {/* ─────────────────── Apple QuickLook File Preview Modal ─────────────────── */}
       <AppleLiquidDialog
@@ -5971,7 +6224,7 @@ export const QuickNoteWindow: React.FC = () => {
                   <a
                     href={filePreviewModal.url}
                     download={filePreviewModal.name}
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-[#0071e3]/10 hover:bg-[#0071e3] text-[#0071e3] hover:text-white dark:bg-[#0071e3]/20 dark:hover:bg-[#0071e3] dark:text-[#3898ff] dark:hover:text-white transition-all shadow-xs cursor-pointer active:scale-95"
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-[#0071e3] text-[#0071e3] hover:text-white dark:text-[#2997ff] dark:hover:text-white border border-black/[0.06] dark:border-white/10 hover:border-[#0071e3] transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs hover:shadow-xs shrink-0"
                     title="Tải xuống tệp tin"
                   >
                     <SFArrowDownToLine size={14} />
@@ -5979,7 +6232,7 @@ export const QuickNoteWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsPreviewFullscreen((prev) => !prev)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-[#6e6e73] hover:text-[#1d1d1f] dark:text-[#a1a1a6] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all cursor-pointer active:scale-95"
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs shrink-0"
                     title={isPreviewFullscreen ? 'Thu nhỏ cửa sổ' : 'Phóng to toàn màn hình'}
                   >
                     {isPreviewFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
@@ -5987,7 +6240,7 @@ export const QuickNoteWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleDeleteFileFromPreview(filePreviewModal.url, filePreviewModal.name)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:bg-rose-500/20 dark:text-rose-400 dark:hover:text-white transition-all shadow-xs cursor-pointer active:scale-95 border border-rose-500/20"
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-[#ff3b30] text-[#ff3b30] hover:text-white dark:text-[#ff453a] dark:hover:text-white border border-black/[0.06] dark:border-white/10 hover:border-[#ff3b30] transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs hover:shadow-xs shrink-0"
                     title="Xóa tệp này khỏi ghi chú"
                   >
                     <SFTrash size={14} />
@@ -5998,7 +6251,8 @@ export const QuickNoteWindow: React.FC = () => {
                       setIsPreviewFullscreen(false);
                     }}
                     size="md"
-                    title="Đóng (Esc)"
+                    className="w-8 h-8 min-w-[32px] min-h-[32px] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] border border-black/[0.06] dark:border-white/10 transition-all duration-200 ease-out hover:scale-105 active:scale-90 shadow-2xs"
+                    title="Đóng xem trước (Esc)"
                   />
                 </div>
               </div>

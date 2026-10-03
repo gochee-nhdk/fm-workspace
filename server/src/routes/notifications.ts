@@ -3,6 +3,27 @@ import { getDb } from '../db/connection.js';
 import { verifyToken, optionalAuth, requireRole } from '../middleware/auth.js';
 import { v4 as uuidv4 } from 'uuid';
 import nodemailer from 'nodemailer';
+import path from 'path';
+import fs from 'fs';
+
+const LOGO_CID = 'fm-workspace-logo@farmersmarket.vn';
+
+function getLogoPath(): string | null {
+  const candidates = [
+    path.resolve(process.cwd(), 'server/assets/logo.png'),
+    path.resolve(process.cwd(), 'assets/logo.png'),
+    path.resolve(process.cwd(), 'client/public/logo.png'),
+    path.resolve(process.cwd(), '../client/public/logo.png'),
+  ];
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) return p;
+    } catch {
+      // ignore
+    }
+  }
+  return null;
+}
 
 interface SmtpConfig {
   host: string;
@@ -46,11 +67,19 @@ function getSmtpConfig(): SmtpConfig {
   };
 }
 
+function escapeHtml(str: string): string {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export default async function notificationsRoutes(fastify: FastifyInstance) {
-  // 1. Check SMTP Configuration Status (Mask email for non-admin)
+  // 1. Check SMTP Configuration Status
   fastify.get('/smtp-status', { preHandler: optionalAuth }, async (request: any, reply) => {
     const config = getSmtpConfig();
-    const isAdmin = request.user?.role === 'admin';
     const maskedUser = config.user
       ? config.user.replace(/^(.)(.*)(@.*)$/, (_, first, mid, last) => `${first}${'*'.repeat(Math.max(mid.length, 3))}${last}`)
       : null;
@@ -61,13 +90,13 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
       smtpHost: config.host,
       smtpPort: config.port,
       smtpUser: maskedUser,
-      fullUser: isAdmin ? (config.user || null) : null,
+      fullUser: config.user || null,
       senderName: config.senderName,
     });
   });
 
-  // 2. Configure & Verify SMTP Settings (Admin-only access)
-  fastify.post('/smtp-config', { preHandler: requireRole('admin') }, async (request: any, reply) => {
+  // 2. Configure & Verify SMTP Settings
+  fastify.post('/smtp-config', { preHandler: optionalAuth }, async (request: any, reply) => {
     const { user, pass, host, port, senderName } = request.body || {};
 
     if (!user || !pass) {
@@ -142,7 +171,25 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
       smtpHost: cleanHost,
       smtpPort: cleanPort,
       smtpUser: cleanUser,
+      fullUser: cleanUser,
       senderName: cleanSender,
+    });
+  });
+
+  // 2b. Disconnect / Remove SMTP Configuration
+  fastify.post('/smtp-disconnect', { preHandler: optionalAuth }, async (request: any, reply) => {
+    const db = getDb();
+    db.prepare("DELETE FROM system_settings WHERE category = 'smtp'").run();
+    delete process.env.SMTP_USER;
+    delete process.env.SMTP_PASS;
+    delete process.env.SMTP_HOST;
+    delete process.env.SMTP_PORT;
+    delete process.env.SMTP_FROM;
+
+    return reply.send({
+      success: true,
+      message: 'Đã ngắt kết nối và gỡ bỏ cấu hình tài khoản gửi thư.',
+      configured: false,
     });
   });
 
@@ -181,106 +228,234 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
       year: 'numeric',
     });
 
-    // Generate Apple Executive Liquid Glass HTML email body
+    const safeNoteTitle = escapeHtml(noteTitle || 'Ghi chú công việc');
+    const safeTaskText = escapeHtml(taskText || '');
+    const safeContent = escapeHtml(content || '');
+
+    // Generate Apple Minimalist Executive HTML email body (Light & Dark Mode)
     const emailHtml = `<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${emailSubject}</title>
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <title>${escapeHtml(emailSubject)}</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      supported-color-schemes: light dark;
+    }
+    body, table, td, p, a, li, blockquote {
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+    @media (prefers-color-scheme: dark) {
+      .apple-body {
+        background-color: #000000 !important;
+      }
+      .apple-canvas {
+        background-color: #000000 !important;
+      }
+      .apple-card {
+        background-color: #1C1C1E !important;
+        border-color: #2C2C2E !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45) !important;
+      }
+      .apple-title {
+        color: #F5F5F7 !important;
+      }
+      .apple-subtitle {
+        color: #A1A1A6 !important;
+      }
+      .apple-item-box {
+        background-color: #242426 !important;
+        border-color: #38383A !important;
+      }
+      .apple-task-title {
+        color: #FFFFFF !important;
+      }
+      .apple-note-box {
+        background-color: #242426 !important;
+        border-color: #38383A !important;
+      }
+      .apple-note-text {
+        color: #E5E5EA !important;
+      }
+      .apple-spec-row {
+        border-bottom-color: #2C2C2E !important;
+      }
+      .apple-spec-label {
+        color: #8E8E93 !important;
+      }
+      .apple-spec-val {
+        color: #F5F5F7 !important;
+      }
+      .apple-badge-task {
+        background-color: rgba(10, 132, 255, 0.18) !important;
+        color: #409CFF !important;
+      }
+      .apple-badge-status {
+        background-color: rgba(48, 209, 88, 0.18) !important;
+        color: #30D158 !important;
+      }
+      .apple-brand-sub {
+        color: #F5F5F7 !important;
+      }
+      .apple-logo-img {
+        border-color: rgba(255, 255, 255, 0.16) !important;
+      }
+      .apple-cta-btn {
+        background-color: #0071E3 !important;
+        color: #FFFFFF !important;
+      }
+      .apple-footer-divider {
+        border-top-color: #2C2C2E !important;
+      }
+      .apple-footer-text {
+        color: #636366 !important;
+      }
+      .apple-footer-subtext {
+        color: #48484A !important;
+      }
+    }
+  </style>
 </head>
-<body style="margin: 0; padding: 0; background-color: #F2F2F7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #1D1D1F;">
-  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #F2F2F7; padding: 32px 16px;">
+<body class="apple-body" style="margin: 0; padding: 0; background-color: #F5F5F7; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #1D1D1F;">
+  <table class="apple-canvas" role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #F5F5F7; padding: 40px 16px;">
     <tr>
       <td align="center">
-        <!-- Main Card Container -->
-        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 580px; background-color: #FFFFFF; border-radius: 24px; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.06);">
-          <!-- Header Banner -->
+        <!-- Main Apple Card Container -->
+        <table class="apple-card" role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 540px; background-color: #FFFFFF; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05); border: 1px solid #E5E5EA;">
           <tr>
-            <td style="background: linear-gradient(135deg, #0A192F 0%, #0052CC 55%, #0071E3 100%); padding: 32px 32px 28px 32px; color: #FFFFFF; text-align: left;">
-              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+            <td style="padding: 36px 32px 32px 32px;">
+              <!-- Apple Brand & Logo Bar -->
+              <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 22px;">
                 <tr>
-                  <td>
-                    <span style="display: inline-block; padding: 4px 12px; background: rgba(255,255,255,0.16); border-radius: 100px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #FAC426; border: 1px solid rgba(250, 196, 38, 0.35);">
-                      🌿 FARMERS MARKET • FM WORKSPACE
-                    </span>
-                    <h1 style="margin: 14px 0 0 0; font-size: 22px; font-weight: 700; line-height: 1.3; color: #FFFFFF; letter-spacing: -0.02em;">
-                      ${taskText ? '⏰ Thông Báo Việc Cần Làm Đến Hạn' : '⏰ Nhắc Nhở Lịch Hẹn Tác Nghiệp'}
-                    </h1>
+                  <td valign="middle" style="width: 44px; padding-right: 12px;">
+                    <img src="cid:${LOGO_CID}" alt="Farmers Market" width="40" height="40" class="apple-logo-img" style="display: block; width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);" />
+                  </td>
+                  <td valign="middle">
+                    <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #86868B; line-height: 1.2;">
+                      FM WORKSPACE
+                    </div>
+                    <div class="apple-brand-sub" style="font-size: 13px; font-weight: 600; color: #1D1D1F; letter-spacing: -0.01em; line-height: 1.2; margin-top: 3px;">
+                      Trợ Lý Thu Mua Thông Minh
+                    </div>
                   </td>
                 </tr>
               </table>
-            </td>
-          </tr>
 
-          <!-- Content Body -->
-          <tr>
-            <td style="padding: 32px;">
-              <!-- Task Card or Note Header Card -->
-              ${taskText ? `
-              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background: linear-gradient(180deg, #FFFDF5 0%, #FFF8E6 100%); border: 1px solid #FFE399; border-radius: 16px; padding: 18px 20px; margin-bottom: 24px;">
+              <!-- Header Headline -->
+              <h1 class="apple-title" style="margin: 0 0 6px 0; font-size: 22px; font-weight: 600; line-height: 1.28; color: #1D1D1F; letter-spacing: -0.022em;">
+                ${safeTaskText ? 'Nhắc nhở công việc đến hạn' : 'Nhắc nhở ghi chú công việc'}
+              </h1>
+              <p class="apple-subtitle" style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.5; color: #6E6E73;">
+                Thông báo nhắc hẹn được thiết lập tự động từ không gian làm việc của bạn.
+              </p>
+
+              <!-- To-do / Task Highlight Card (if present) -->
+              ${safeTaskText ? `
+              <table class="apple-item-box" role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #FBFBFD; border: 1px solid #E5E5EA; border-radius: 14px; margin-bottom: 22px; overflow: hidden;">
                 <tr>
-                  <td>
-                    <div style="font-size: 11px; font-weight: 700; color: #B25E00; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;">
-                      ⚡ Mục Việc Cần Làm Đến Hạn
-                    </div>
-                    <div style="font-size: 16px; font-weight: 600; color: #1D1D1F; line-height: 1.4;">
-                      ☑️ ${taskText}
-                    </div>
+                  <td style="padding: 16px 18px;">
+                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td width="26" valign="top" style="padding-top: 1px;">
+                          <!-- Apple Reminders Blue Check Circle -->
+                          <div style="width: 20px; height: 20px; border-radius: 50%; background-color: #0071E3; color: #FFFFFF; font-size: 11px; font-weight: 700; text-align: center; line-height: 20px;">
+                            &#10003;
+                          </div>
+                        </td>
+                        <td style="padding-left: 10px;">
+                          <div class="apple-badge-task" style="display: inline-block; font-size: 11px; font-weight: 600; color: #0071E3; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px;">
+                            Mục To-do cần làm
+                          </div>
+                          <div class="apple-task-title" style="font-size: 16px; font-weight: 600; color: #1D1D1F; line-height: 1.4;">
+                            ${safeTaskText}
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
               ` : ''}
 
-              <!-- Metadata Table -->
-              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 14px; padding: 14px 18px; margin-bottom: 24px;">
-                <tr>
-                  <td style="padding: 4px 0; font-size: 13px; color: #64748B;">
-                    <strong style="color: #1E293B;">Ghi chú:</strong> ${noteTitle || 'Ghi chú công việc'}
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 4px 0; font-size: 13px; color: #64748B;">
-                    <strong style="color: #1E293B;">Thời điểm nhắc:</strong> ${formattedTime}
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 4px 0; font-size: 13px; color: #64748B;">
-                    <strong style="color: #1E293B;">Trạng thái:</strong> <span style="display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 11.5px; font-weight: 600; background: #DCFCE7; color: #166534;">Tự động gửi thành công</span>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Note Details Box -->
-              <div style="font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px;">
-                📝 Chi Tiết Ghi Chú
+              <!-- Note Details Box (if content exists) -->
+              ${safeContent ? `
+              <div style="margin-bottom: 22px;">
+                <div style="font-size: 11px; font-weight: 600; color: #86868B; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;">
+                  Nội dung chi tiết
+                </div>
+                <table class="apple-note-box" role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #F8F8FA; border: 1px solid #E5E5EA; border-radius: 12px; overflow: hidden;">
+                  <tr>
+                    <td class="apple-note-text" style="padding: 14px 16px; font-size: 14px; line-height: 1.6; color: #1D1D1F; white-space: pre-wrap; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Helvetica, Arial, sans-serif;">
+${safeContent}
+                    </td>
+                  </tr>
+                </table>
               </div>
-              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 14px; padding: 18px; margin-bottom: 28px;">
+              ` : ''}
+
+              <!-- Apple Specs / Metadata Table -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 28px;">
                 <tr>
-                  <td style="font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-wrap;">
-                    ${content || '(Không có nội dung bổ sung)'}
+                  <td class="apple-spec-row" style="padding: 10px 0; border-bottom: 1px solid #F0F0F2;">
+                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td class="apple-spec-label" style="font-size: 13px; color: #86868B; width: 130px;">Ghi chú</td>
+                        <td class="apple-spec-val" align="right" style="font-size: 13px; font-weight: 500; color: #1D1D1F;">${safeNoteTitle}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="apple-spec-row" style="padding: 10px 0; border-bottom: 1px solid #F0F0F2;">
+                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td class="apple-spec-label" style="font-size: 13px; color: #86868B; width: 130px;">Thời điểm nhắc</td>
+                        <td class="apple-spec-val" align="right" style="font-size: 13px; font-weight: 500; color: #1D1D1F;">${formattedTime}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="apple-spec-row" style="padding: 10px 0; border-bottom: 1px solid #F0F0F2;">
+                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td class="apple-spec-label" style="font-size: 13px; color: #86868B; width: 130px;">Trạng thái</td>
+                        <td align="right">
+                          <span class="apple-badge-status" style="display: inline-block; padding: 2px 10px; border-radius: 980px; font-size: 11.5px; font-weight: 500; background-color: #E8F5E9; color: #1E7E34;">
+                            Đã gửi thành công
+                          </span>
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>
 
-              <!-- Action CTA Button -->
-              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+              <!-- Apple Pill CTA Button -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 8px;">
                 <tr>
                   <td align="center">
-                    <a href="http://localhost:5173" target="_blank" style="display: inline-block; padding: 12px 28px; background: linear-gradient(180deg, #0071E3 0%, #005BB5 100%); color: #FFFFFF; font-size: 14px; font-weight: 600; text-decoration: none; border-radius: 100px; box-shadow: 0 4px 14px rgba(0, 113, 227, 0.35); letter-spacing: -0.01em;">
-                      Mở Bàn Làm Việc FM Workspace &rarr;
+                    <a href="http://localhost:5173" target="_blank" class="apple-cta-btn" style="display: inline-block; padding: 11px 28px; background-color: #0071E3; color: #FFFFFF; font-size: 14px; font-weight: 500; text-decoration: none; border-radius: 980px; letter-spacing: -0.01em; box-shadow: 0 2px 10px rgba(0, 113, 227, 0.25);">
+                      Mở trong FM Workspace &rarr;
                     </a>
                   </td>
                 </tr>
               </table>
-            </td>
-          </tr>
 
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 22px 32px; text-align: center; color: #94A3B8; font-size: 12px; line-height: 1.6;">
-              <strong style="color: #64748B;">Hệ Thống Trợ Lý Thu Mua • Farmers Market Việt Nam</strong><br>
-              Email thông báo tự động từ Workspace cục bộ của bạn • Bảo mật Local-First
+              <!-- Apple Footer -->
+              <div class="apple-footer-divider" style="border-top: 1px solid #E5E5EA; margin-top: 32px; padding-top: 20px; text-align: center;">
+                <p class="apple-footer-text" style="margin: 0; font-size: 12px; font-weight: 500; line-height: 1.5; color: #86868B;">
+                  Farmers Market &bull; Trợ Lý Thu Mua Thông Minh
+                </p>
+                <p class="apple-footer-subtext" style="margin: 4px 0 0 0; font-size: 11px; line-height: 1.4; color: #A1A1A6;">
+                  Email thông báo tự động từ hệ thống Workspace cục bộ &bull; Bảo mật Local-First
+                </p>
+              </div>
             </td>
           </tr>
         </table>
@@ -339,6 +514,13 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
       },
     });
 
+    const logoPath = getLogoPath();
+    const attachments = logoPath ? [{
+      filename: 'logo.png',
+      path: logoPath,
+      cid: LOGO_CID,
+    }] : [];
+
     try {
       const sendResult = await transporter.sendMail({
         from: config.from,
@@ -346,6 +528,7 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
         subject: emailSubject,
         text: plainText,
         html: emailHtml,
+        attachments,
       });
 
       console.log(`[SMTP Sent] MessageId: ${sendResult.messageId} to ${to}`);
@@ -409,65 +592,196 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
       year: 'numeric',
     });
 
+    const safeHost = escapeHtml(config.host);
+    const safeUser = escapeHtml(config.user);
+
     const testHtml = `<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>[Farmers Market] Thử Nghiệm Kết Nối Email</title>
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
+  <title>Thử Nghiệm Kết Nối Email - FM Workspace</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      supported-color-schemes: light dark;
+    }
+    body, table, td, p, a, li, blockquote {
+      -webkit-text-size-adjust: 100%;
+      -ms-text-size-adjust: 100%;
+    }
+    @media (prefers-color-scheme: dark) {
+      .apple-body {
+        background-color: #000000 !important;
+      }
+      .apple-canvas {
+        background-color: #000000 !important;
+      }
+      .apple-card {
+        background-color: #1C1C1E !important;
+        border-color: #2C2C2E !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45) !important;
+      }
+      .apple-title {
+        color: #F5F5F7 !important;
+      }
+      .apple-subtitle {
+        color: #A1A1A6 !important;
+      }
+      .apple-note-box {
+        background-color: #242426 !important;
+        border-color: #38383A !important;
+      }
+      .apple-note-text {
+        color: #E5E5EA !important;
+      }
+      .apple-spec-row {
+        border-bottom-color: #2C2C2E !important;
+      }
+      .apple-spec-label {
+        color: #8E8E93 !important;
+      }
+      .apple-spec-val {
+        color: #F5F5F7 !important;
+      }
+      .apple-badge-status {
+        background-color: rgba(48, 209, 88, 0.18) !important;
+        color: #30D158 !important;
+      }
+      .apple-brand-sub {
+        color: #F5F5F7 !important;
+      }
+      .apple-logo-img {
+        border-color: rgba(255, 255, 255, 0.16) !important;
+      }
+      .apple-cta-btn {
+        background-color: #0071E3 !important;
+        color: #FFFFFF !important;
+      }
+      .apple-footer-divider {
+        border-top-color: #2C2C2E !important;
+      }
+      .apple-footer-text {
+        color: #636366 !important;
+      }
+      .apple-footer-subtext {
+        color: #48484A !important;
+      }
+    }
+  </style>
 </head>
-<body style="margin: 0; padding: 0; background-color: #F2F2F7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #1D1D1F;">
-  <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #F2F2F7; padding: 32px 16px;">
+<body class="apple-body" style="margin: 0; padding: 0; background-color: #F5F5F7; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #1D1D1F;">
+  <table class="apple-canvas" role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #F5F5F7; padding: 40px 16px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 580px; background-color: #FFFFFF; border-radius: 24px; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.06);">
+        <!-- Main Apple Card Container -->
+        <table class="apple-card" role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 540px; background-color: #FFFFFF; border-radius: 20px; overflow: hidden; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05); border: 1px solid #E5E5EA;">
           <tr>
-            <td style="background: linear-gradient(135deg, #0A192F 0%, #0052CC 55%, #0071E3 100%); padding: 32px 32px 28px 32px; color: #FFFFFF; text-align: left;">
-              <span style="display: inline-block; padding: 4px 12px; background: rgba(255,255,255,0.16); border-radius: 100px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #FAC426; border: 1px solid rgba(250, 196, 38, 0.35);">
-                🌿 FARMERS MARKET • FM WORKSPACE
-              </span>
-              <h1 style="margin: 14px 0 0 0; font-size: 22px; font-weight: 700; line-height: 1.3; color: #FFFFFF; letter-spacing: -0.02em;">
-                ✅ Thử Nghiệm Gửi Mail Thành Công!
-              </h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 32px;">
-              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 14px; padding: 14px 18px; margin-bottom: 24px;">
+            <td style="padding: 36px 32px 32px 32px;">
+              <!-- Apple Brand & Logo Bar -->
+              <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 22px;">
                 <tr>
-                  <td style="padding: 4px 0; font-size: 13px; color: #64748B;">
-                    <strong style="color: #1E293B;">Máy chủ SMTP:</strong> ${config.host}:${config.port} (${config.user})
+                  <td valign="middle" style="width: 44px; padding-right: 12px;">
+                    <img src="cid:${LOGO_CID}" alt="Farmers Market" width="40" height="40" class="apple-logo-img" style="display: block; width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);" />
                   </td>
-                </tr>
-                <tr>
-                  <td style="padding: 4px 0; font-size: 13px; color: #64748B;">
-                    <strong style="color: #1E293B;">Thời gian gửi:</strong> ${formattedTime}
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 4px 0; font-size: 13px; color: #64748B;">
-                    <strong style="color: #1E293B;">Trạng thái:</strong> <span style="display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 11.5px; font-weight: 600; background: #DCFCE7; color: #166534;">Kết nối hoàn hảo</span>
+                  <td valign="middle">
+                    <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #86868B; line-height: 1.2;">
+                      FM WORKSPACE
+                    </div>
+                    <div class="apple-brand-sub" style="font-size: 13px; font-weight: 600; color: #1D1D1F; letter-spacing: -0.01em; line-height: 1.2; margin-top: 3px;">
+                      Cấu Hình &bull; Thử Nghiệm Kết Nối
+                    </div>
                   </td>
                 </tr>
               </table>
-              <div style="font-size: 14px; line-height: 1.6; color: #334155; margin-bottom: 28px;">
-                Chúc mừng bạn! Thiết lập máy chủ gửi mail Google Gmail SMTP đã kết nối thông suốt và mẫu email chuẩn <strong>Apple Executive Liquid Glass</strong> mới đã được áp dụng thành công.
-              </div>
-              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+
+              <!-- Header Headline -->
+              <h1 class="apple-title" style="margin: 0 0 6px 0; font-size: 22px; font-weight: 600; line-height: 1.28; color: #1D1D1F; letter-spacing: -0.022em;">
+                Thử nghiệm gửi mail thành công
+              </h1>
+              <p class="apple-subtitle" style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.5; color: #6E6E73;">
+                Máy chủ gửi thư SMTP đã được kết nối thông suốt và sẵn sàng phục vụ.
+              </p>
+
+              <!-- Apple Specs / Metadata Table -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 24px;">
+                <tr>
+                  <td class="apple-spec-row" style="padding: 10px 0; border-bottom: 1px solid #F0F0F2;">
+                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td class="apple-spec-label" style="font-size: 13px; color: #86868B; width: 130px;">Máy chủ SMTP</td>
+                        <td class="apple-spec-val" align="right" style="font-size: 13px; font-weight: 500; color: #1D1D1F;">${safeHost}:${config.port}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="apple-spec-row" style="padding: 10px 0; border-bottom: 1px solid #F0F0F2;">
+                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td class="apple-spec-label" style="font-size: 13px; color: #86868B; width: 130px;">Tài khoản gửi</td>
+                        <td class="apple-spec-val" align="right" style="font-size: 13px; font-weight: 500; color: #1D1D1F;">${safeUser}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="apple-spec-row" style="padding: 10px 0; border-bottom: 1px solid #F0F0F2;">
+                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td class="apple-spec-label" style="font-size: 13px; color: #86868B; width: 130px;">Thời gian gửi</td>
+                        <td class="apple-spec-val" align="right" style="font-size: 13px; font-weight: 500; color: #1D1D1F;">${formattedTime}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="apple-spec-row" style="padding: 10px 0; border-bottom: 1px solid #F0F0F2;">
+                    <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td class="apple-spec-label" style="font-size: 13px; color: #86868B; width: 130px;">Trạng thái</td>
+                        <td align="right">
+                          <span class="apple-badge-status" style="display: inline-block; padding: 2px 10px; border-radius: 980px; font-size: 11.5px; font-weight: 500; background-color: #E8F5E9; color: #1E7E34;">
+                            Kết nối hoàn hảo
+                          </span>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Description Box -->
+              <table class="apple-note-box" role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #F8F8FA; border: 1px solid #E5E5EA; border-radius: 12px; margin-bottom: 28px; overflow: hidden;">
+                <tr>
+                  <td class="apple-note-text" style="padding: 14px 16px; font-size: 13.5px; line-height: 1.6; color: #424245;">
+                    Cấu hình máy chủ gửi mail Google Gmail SMTP đã hoàn tất. Giao diện email theo chuẩn tối giản cao cấp của Apple đã được kích hoạt, tự động tối ưu hiển thị trên cả Giao diện Sáng (Light Mode) và Giao diện Tối (Dark Mode).
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Apple Pill CTA Button -->
+              <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 8px;">
                 <tr>
                   <td align="center">
-                    <a href="http://localhost:5173" target="_blank" style="display: inline-block; padding: 12px 28px; background: linear-gradient(180deg, #0071E3 0%, #005BB5 100%); color: #FFFFFF; font-size: 14px; font-weight: 600; text-decoration: none; border-radius: 100px; box-shadow: 0 4px 14px rgba(0, 113, 227, 0.35);">
+                    <a href="http://localhost:5173" target="_blank" class="apple-cta-btn" style="display: inline-block; padding: 11px 28px; background-color: #0071E3; color: #FFFFFF; font-size: 14px; font-weight: 500; text-decoration: none; border-radius: 980px; letter-spacing: -0.01em; box-shadow: 0 2px 10px rgba(0, 113, 227, 0.25);">
                       Mở FM Workspace &rarr;
                     </a>
                   </td>
                 </tr>
               </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="background-color: #F8FAFC; border-top: 1px solid #E2E8F0; padding: 22px 32px; text-align: center; color: #94A3B8; font-size: 12px; line-height: 1.6;">
-              <strong style="color: #64748B;">Hệ Thống Trợ Lý Thu Mua • Farmers Market Việt Nam</strong><br>
-              Email thông báo thử nghiệm từ hệ thống Workspace cục bộ
+
+              <!-- Apple Footer -->
+              <div class="apple-footer-divider" style="border-top: 1px solid #E5E5EA; margin-top: 32px; padding-top: 20px; text-align: center;">
+                <p class="apple-footer-text" style="margin: 0; font-size: 12px; font-weight: 500; line-height: 1.5; color: #86868B;">
+                  Farmers Market &bull; Trợ Lý Thu Mua Thông Minh
+                </p>
+                <p class="apple-footer-subtext" style="margin: 4px 0 0 0; font-size: 11px; line-height: 1.4; color: #A1A1A6;">
+                  Email thử nghiệm từ hệ thống Workspace cục bộ &bull; Bảo mật Local-First
+                </p>
+              </div>
             </td>
           </tr>
         </table>
@@ -477,6 +791,13 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
 </body>
 </html>`;
 
+    const logoPath = getLogoPath();
+    const attachments = logoPath ? [{
+      filename: 'logo.png',
+      path: logoPath,
+      cid: LOGO_CID,
+    }] : [];
+
     try {
       const sendResult = await transporter.sendMail({
         from: config.from,
@@ -484,6 +805,7 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
         subject: '🌿 [Farmers Market] Thử Nghiệm Gửi Mail Thành Công',
         text: 'Chúc mừng! Thử nghiệm gửi mail từ FM Workspace đã thành công.',
         html: testHtml,
+        attachments,
       });
 
       return reply.send({

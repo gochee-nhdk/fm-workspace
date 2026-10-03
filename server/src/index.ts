@@ -25,6 +25,7 @@ import auditRoutes from './routes/audit.js';
 import settingsRoutes from './routes/settings.js';
 import searchRoutes from './routes/search.js';
 import knowledgeRoutes from './routes/knowledge.js';
+import syncRoutes from './routes/sync.js';
 
 const fastify = Fastify({
   bodyLimit: 100 * 1024 * 1024, // 100MB max payload
@@ -64,6 +65,26 @@ async function build() {
 
   // Fail-fast JWT Secret verification
   getJwtSecret();
+
+  // Security Hardening: Anti-DNS Rebinding (Validate Host Header)
+  fastify.addHook('onRequest', async (request, reply) => {
+    const rawHost = request.headers.host || '';
+    const hostname = rawHost.split(':')[0].toLowerCase();
+    const isProd = process.env.NODE_ENV === 'production';
+
+    // In local development or local servers, only accept localhost and 127.0.0.1
+    if (!isProd) {
+      const allowedLocalHosts = ['localhost', '127.0.0.1'];
+      if (!allowedLocalHosts.includes(hostname)) {
+        reply.status(403).send({
+          success: false,
+          error: 'SecurityBlocked',
+          message: 'DNS Rebinding Protection: Host header blocked.',
+        });
+        return;
+      }
+    }
+  });
 
   // Enterprise Security Headers (Anti-Clickjacking, Anti-MIME sniffing, XSS Filter, CSP, HSTS)
   fastify.addHook('onSend', async (_request, reply) => {
@@ -113,6 +134,7 @@ async function build() {
   fastify.register(settingsRoutes, { prefix: '/api/settings' });
   fastify.register(searchRoutes, { prefix: '/api/search' });
   fastify.register(knowledgeRoutes, { prefix: '/api/knowledge' });
+  fastify.register(syncRoutes, { prefix: '/api/sync' });
 
   // Security Guardian Heartbeat & Health Check
   fastify.get('/health', async () => {
@@ -150,8 +172,8 @@ const start = async () => {
   try {
     const server = await build();
     const port = Number(process.env.PORT) || 3000;
-    // Security: Bind strictly to 127.0.0.1 in local dev, or 0.0.0.0 in production cloud (Render/Railway/Docker)
-    const host = process.env.HOST || (process.env.NODE_ENV === 'production' || process.env.PORT ? '0.0.0.0' : '127.0.0.1');
+    // Security: Bind strictly to 127.0.0.1 in local dev, avoiding 0.0.0.0 public interface exposure
+    const host = process.env.HOST || (process.env.NODE_ENV === 'production' && !process.env.LOCAL_DEV ? '0.0.0.0' : '127.0.0.1');
     await server.listen({ port, host });
     console.log(`[FM Security Shield] Server securely listening on http://${host}:${port}`);
   } catch (err) {

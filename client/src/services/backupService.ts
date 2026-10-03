@@ -15,6 +15,8 @@
 
 import { STORES, idbGetAll, idbPut, idbClear, getDB } from './storage/indexedDb';
 import { noteService } from './noteService';
+import { cryptoService } from './cryptoService';
+import { api } from '@/lib/api';
 import {
   LinkItem,
   AccountItem,
@@ -180,6 +182,16 @@ async function exportFullBackup(options: BackupExportOptions = {}): Promise<void
   const payloadStr = JSON.stringify(payload);
   const checksum = await sha256Hex(payloadStr);
 
+  let finalPayloadStr = payloadStr;
+  let isEncrypted = false;
+
+  // If user provided passphrase, encrypt using military-grade AES-GCM-256
+  if (options.passphrase && options.passphrase.trim().length > 0) {
+    const encPackage = await cryptoService.encrypt(payloadStr, options.passphrase.trim());
+    finalPayloadStr = JSON.stringify(encPackage);
+    isEncrypted = true;
+  }
+
   // 6. Build backup file envelope
   const backupFile: FMBackupFile = {
     header: {
@@ -187,7 +199,7 @@ async function exportFullBackup(options: BackupExportOptions = {}): Promise<void
       appName: FM_BACKUP_APP_NAME,
       exportedAt: new Date().toISOString(),
       checksum,
-      encrypted: false,
+      encrypted: isEncrypted,
       totalItems: {
         links: links.length,
         accounts: accounts.length,
@@ -196,7 +208,7 @@ async function exportFullBackup(options: BackupExportOptions = {}): Promise<void
         attachments: attachments.length,
       },
     },
-    payload: payloadStr,
+    payload: finalPayloadStr,
   };
 
   // 7. Trigger download
@@ -204,8 +216,9 @@ async function exportFullBackup(options: BackupExportOptions = {}): Promise<void
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   const dateStr = new Date().toISOString().slice(0, 10);
+  const encSuffix = isEncrypted ? '_Encrypted' : '';
   a.href = url;
-  a.download = `FM_Workspace_Backup_${dateStr}${BACKUP_FILE_EXT}`;
+  a.download = `FM_Workspace_Backup_${dateStr}${encSuffix}${BACKUP_FILE_EXT}`;
   document.body.appendChild(a);
   a.click();
   setTimeout(() => {
@@ -314,7 +327,24 @@ async function importFullBackup(
   try {
     const raw = await file.text();
     const backupFile = JSON.parse(raw) as FMBackupFile;
-    payload = JSON.parse(backupFile.payload) as FMBackupPayload;
+
+    // Check if backup is encrypted
+    if (backupFile.header.encrypted) {
+      if (!options.passphrase || options.passphrase.trim().length === 0) {
+        result.errors.push('File sao lưu này đã được mã hóa bảo vệ. Vui lòng nhập mật khẩu để giải mã.');
+        return result;
+      }
+      try {
+        const encPackage = JSON.parse(backupFile.payload);
+        const decryptedStr = await cryptoService.decrypt(encPackage, options.passphrase.trim());
+        payload = JSON.parse(decryptedStr) as FMBackupPayload;
+      } catch (decErr: any) {
+        result.errors.push(decErr.message || 'Mật khẩu giải mã không chính xác.');
+        return result;
+      }
+    } else {
+      payload = JSON.parse(backupFile.payload) as FMBackupPayload;
+    }
   } catch (_) {
     result.errors.push('Không thể giải mã payload từ file backup.');
     return result;
@@ -494,6 +524,148 @@ async function importFullBackup(
   return result;
 }
 
+/**
+ * Generate full backup payload object without triggering a file download.
+ * Used for automated background server sync.
+ */
+async function generateBackupPayload(): Promise<{ payloadStr: string; checksum: string; itemCounts: any }> {
+  const [links, accounts, stores, notes, rawActivities, rawAttachments] = await Promise.all([
+    idbGetAll<LinkItem>(STORES.LINKS),
+    idbGetAll<AccountItem>(STORES.ACCOUNTS),
+    idbGetAll<StoreItem>(STORES.STORES),
+    idbGetAll<QuickNoteItem>(STORES.NOTES),
+    idbGetAll<ActivityLogItem>(STORES.ACTIVITIES),
+    idbGetAll<StoredAttachment>(STORES.ATTACHMENTS),
+  ]);
+
+  const attachments: SerializedAttachment[] = [];
+  for (const att of rawAttachments) {
+    try {
+      if (!att.blob && !att.dataUrl) continue;
+      let dataBase64 = '';
+      if (att.blob) {
+        dataBase64 = await blobToBase64(att.blob);
+      } else if (att.dataUrl) {
+        const parts = att.dataUrl.split(',');
+        dataBase64 = parts[1] ?? '';
+      }
+      if (!dataBase64) continue;
+      attachments.push({
+        id: att.id,
+        name: att.name,
+        type: att.type,
+        size: att.size,
+        dataBase64,
+        createdAt: att.createdAt,
+      });
+    } catch (_) {}
+  }
+
+  let theme = 'system';
+  try {
+    const uiPref = localStorage.getItem('fm-ui-preferences');
+    if (uiPref) {
+      const parsed = JSON.parse(uiPref);
+      theme = parsed?.state?.theme ?? 'system';
+    }
+  } catch (_) {}
+
+  const payload: FMBackupPayload = {
+    links,
+    accounts,
+    stores,
+    notes,
+    attachments,
+    activities: rawActivities,
+    settings: { theme },
+  };
+
+  const payloadStr = JSON.stringify(payload);
+  const checksum = await sha256Hex(payloadStr);
+
+  return {
+    payloadStr,
+    checksum,
+    itemCounts: {
+      links: links.length,
+      accounts: accounts.length,
+      stores: stores.length,
+      notes: notes.length,
+      attachments: attachments.length,
+    },
+  };
+}
+
+/**
+ * Sync current workspace state to backend dual-storage (Server SQLite & Disk Vault)
+ */
+async function syncToServer(backupType: 'auto' | 'manual' | 'snapshot' = 'auto'): Promise<{ success: boolean; message?: string }> {
+  try {
+    const { payloadStr, checksum, itemCounts } = await generateBackupPayload();
+
+    const res = await api.post('/sync/backup', {
+      backupType,
+      deviceName: typeof navigator !== 'undefined' ? `${navigator.platform || 'Device'} (${navigator.userAgent.slice(0, 30)})` : 'Web Client',
+      checksum,
+      itemCounts,
+      payload: payloadStr,
+      isEncrypted: false,
+    });
+
+    return { success: res.data?.success ?? true };
+  } catch (err: any) {
+    console.warn('Failed to sync workspace to server:', err);
+    return { success: false, message: err.message };
+  }
+}
+
+/**
+ * Fetch latest backup metadata and list from server
+ */
+async function getServerBackupHistory(): Promise<any[]> {
+  try {
+    const res = await api.get('/sync/history');
+    return res.data?.data || [];
+  } catch (err) {
+    console.warn('Failed to fetch server backup history:', err);
+    return [];
+  }
+}
+
+/**
+ * Restore workspace directly from server backup
+ */
+async function restoreFromServer(backupId?: string): Promise<BackupImportResult> {
+  const url = backupId ? `/sync/download/${backupId}` : '/sync/latest';
+  const res = await api.get(url);
+  const serverRecord = res.data?.data;
+
+  if (!serverRecord || !serverRecord.payload) {
+    throw new Error('Không tìm thấy dữ liệu sao lưu hợp lệ trên máy chủ.');
+  }
+
+  // Create a synthetic File object to pass into importFullBackup
+  const syntheticFile = new File(
+    [
+      JSON.stringify({
+        header: {
+          version: FM_BACKUP_VERSION,
+          appName: FM_BACKUP_APP_NAME,
+          exportedAt: serverRecord.created_at || new Date().toISOString(),
+          checksum: serverRecord.checksum,
+          encrypted: Boolean(serverRecord.is_encrypted),
+          totalItems: typeof serverRecord.item_counts === 'string' ? JSON.parse(serverRecord.item_counts) : (serverRecord.item_counts || {}),
+        },
+        payload: serverRecord.payload,
+      })
+    ],
+    `server_restore_${Date.now()}.fmbackup`,
+    { type: 'application/json' }
+  );
+
+  return importFullBackup(syntheticFile, { conflictStrategy: 'overwrite', restoreSettings: true });
+}
+
 // ──────────────────────────────────────────────
 // PUBLIC API
 // ──────────────────────────────────────────────
@@ -502,4 +674,8 @@ export const backupService = {
   importFullBackup,
   validateBackupFile,
   sanitizeNoteHTML,
+  generateBackupPayload,
+  syncToServer,
+  getServerBackupHistory,
+  restoreFromServer,
 };

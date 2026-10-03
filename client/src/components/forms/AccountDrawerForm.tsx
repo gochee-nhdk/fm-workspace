@@ -143,7 +143,7 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
           <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
             Mật khẩu
           </label>
-          <div className="relative">
+          <div className="relative flex items-center">
             <input
               type={showPassword ? 'text' : 'password'}
               placeholder="Nhập mật khẩu..."
@@ -151,11 +151,11 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <SFLockFill size={16} className="text-[#86868b] absolute left-3 top-3 pointer-events-none" />
+            <SFLockFill size={16} className="text-[#86868b] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-3 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white transition-colors"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-90"
               title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
             >
               {showPassword ? <SFEyeSlash size={16} /> : <SFEye size={16} />}

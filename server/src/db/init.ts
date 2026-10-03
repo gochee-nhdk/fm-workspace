@@ -291,6 +291,19 @@ async function initDb() {
       updated_at TEXT
     );
 
+    -- Dual-Persistence Workspace Backups (Prevents OS crash / browser cache data loss)
+    CREATE TABLE IF NOT EXISTS user_workspace_backups (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      backup_type TEXT DEFAULT 'auto', -- 'auto' | 'manual' | 'snapshot'
+      device_name TEXT,
+      checksum TEXT,
+      item_counts TEXT, -- JSON summary { links, accounts, stores, notes, attachments }
+      payload TEXT, -- Complete JSON payload (plain or encrypted)
+      is_encrypted INTEGER DEFAULT 0,
+      created_at TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS store_product_settings (
       id TEXT PRIMARY KEY,
       store_id TEXT REFERENCES stores(id),

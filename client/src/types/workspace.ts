@@ -163,12 +163,14 @@ export interface FMBackupFile {
 /** Options for export */
 export interface BackupExportOptions {
   includeActivities?: boolean; // default: true
+  passphrase?: string;         // Optional: AES-GCM-256 encryption password
 }
 
 /** Options for import */
 export interface BackupImportOptions {
   conflictStrategy: 'skip' | 'overwrite' | 'merge';
-  restoreSettings?: boolean; // default: false (safer)
+  restoreSettings?: boolean;   // default: false (safer)
+  passphrase?: string;         // Required if backup was encrypted
 }
 
 /** Result summary of an import operation */

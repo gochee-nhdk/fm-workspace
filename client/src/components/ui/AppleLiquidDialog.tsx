@@ -39,6 +39,7 @@ export const AppleLiquidDialog: React.FC<AppleLiquidDialogProps> = ({
   const [isMounted, setIsMounted] = useState(isOpen);
   const [isClosing, setIsClosing] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastChildrenRef = useRef<React.ReactNode | null>(null);
 
   // Synchronize mount and closing states strictly when isOpen changes
   useEffect(() => {
@@ -60,6 +61,16 @@ export const AppleLiquidDialog: React.FC<AppleLiquidDialogProps> = ({
     }
   }, [isOpen]);
 
+  const handleClose = useCallback(() => {
+    if (isClosing) return;
+    onClose();
+  }, [isClosing, onClose]);
+
+  // Keep last non-null children rendered during the 160ms exit animation
+  if (isOpen && children) {
+    lastChildrenRef.current = typeof children === 'function' ? children({ handleClose, isClosing: false }) : children;
+  }
+
   // Clean up timer when the whole component unmounts
   useEffect(() => {
     return () => {
@@ -68,11 +79,6 @@ export const AppleLiquidDialog: React.FC<AppleLiquidDialogProps> = ({
       }
     };
   }, []);
-
-  const handleClose = useCallback(() => {
-    if (isClosing) return;
-    onClose();
-  }, [isClosing, onClose]);
 
   // Escape key handler
   useEffect(() => {
@@ -115,7 +121,11 @@ export const AppleLiquidDialog: React.FC<AppleLiquidDialogProps> = ({
           contentClassName
         )}
       >
-        {typeof children === 'function' ? children({ handleClose, isClosing }) : children}
+        {isClosing && lastChildrenRef.current
+          ? lastChildrenRef.current
+          : typeof children === 'function'
+            ? children({ handleClose, isClosing })
+            : children}
       </div>
     </div>,
     document.body
