@@ -67,6 +67,11 @@
 
 > 📖 *Xem hướng dẫn chi tiết có hình ảnh tại: **[HUONG_DAN_CAI_DAT.md](HUONG_DAN_CAI_DAT.md)***
 
+> **🔤 Lưu ý Font chữ SF Pro:** Ứng dụng sử dụng font **Apple SF Pro** để tái hiện giao diện macOS. Font này có bản quyền Apple và không được phân phối trong repo.
+> - Tải miễn phí tại: [developer.apple.com/fonts](https://developer.apple.com/fonts/)
+> - Sau khi tải, giải nén và copy toàn bộ file `.otf` vào thư mục `client/public/fonts/`
+> - **Nếu không cài:** app vẫn chạy bình thường với font hệ thống mặc định (Segoe UI trên Windows, San Francisco trên macOS).
+
 ---
 
 ### 🍎 Dành cho máy tính Apple macOS

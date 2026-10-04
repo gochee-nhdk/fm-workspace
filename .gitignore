@@ -55,3 +55,10 @@ yarn-error.log*
 2026-*/
 scratch/
 tmp/
+
+# Apple SF Pro Fonts — Apple-copyrighted, cannot be distributed publicly
+# Users must install fonts separately: https://developer.apple.com/fonts/
+client/public/fonts/*.otf
+client/public/fonts/*.ttf
+client/public/fonts/*.woff
+client/public/fonts/*.woff2

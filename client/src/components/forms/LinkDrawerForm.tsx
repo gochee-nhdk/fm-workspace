@@ -134,7 +134,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
     >
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
+          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
             Tên Hạng mục / Công cụ <span className="text-[#ff3b30] font-bold ml-0.5">*</span>
           </label>
           <Input
@@ -150,7 +150,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
+          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
             Đường dẫn (URL)
           </label>
           <div className="relative">
@@ -179,7 +179,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
+            <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
               Phân nhóm
             </label>
             <div className="relative">
@@ -224,7 +224,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
           </div>
 
           <div>
-            <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
+            <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
               Thứ tự (STT)
             </label>
             <Input
@@ -237,7 +237,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
+          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
             Ghi chú / Hướng dẫn
           </label>
           <textarea

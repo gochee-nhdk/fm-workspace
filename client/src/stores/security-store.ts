@@ -19,9 +19,24 @@ interface SecurityState {
   checkAutoLock: () => void;
 }
 
-// Compute SHA-256 hash using Web Crypto API
+// Per-device unique salt — generated once, stored independently from PIN hash
+// This ensures rainbow table attacks against the stored hash are infeasible
+const DEVICE_SALT_KEY = 'fm_device_salt_v1';
+
+function getOrCreateDeviceSalt(): string {
+  let salt = localStorage.getItem(DEVICE_SALT_KEY);
+  if (!salt) {
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    salt = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+    localStorage.setItem(DEVICE_SALT_KEY, salt);
+  }
+  return salt;
+}
+
+// Compute SHA-256 hash using Web Crypto API with per-device salt
 async function sha256(message: string): Promise<string> {
-  const msgBuffer = new TextEncoder().encode(message + '::FM_LOCAL_SALT_2026');
+  const deviceSalt = getOrCreateDeviceSalt();
+  const msgBuffer = new TextEncoder().encode(message + '::FM_WORKSPACE::' + deviceSalt);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');

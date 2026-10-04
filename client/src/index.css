@@ -1847,38 +1847,6 @@
   -webkit-backface-visibility: hidden;
 }
 
-/* Modern Minimalist Frosted Scrollbar (Optimized for Windows 10/11 & macOS) */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.16) transparent;
-}
-.dark * {
-  scrollbar-color: rgba(255, 255, 255, 0.20) transparent;
-}
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.16);
-  border-radius: 9999px;
-  border: 1px solid transparent;
-  background-clip: padding-box;
-}
-.dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.20);
-  background-clip: padding-box;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 102, 204, 0.5);
-}
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(41, 151, 255, 0.5);
-}
-
 /* ==========================================================================
    Universal Table Header & Cell Rules: Lock Single Line & Prevent Header Jumps
    ========================================================================== */
@@ -2315,10 +2283,18 @@ tbody td {
   color: #98989d !important;
 }
 
-/* Dark mode: improve contrast for secondary text in tables/cards */
+/* Dark mode: table body cells — primary text */
+.dark tbody td {
+  color: #f5f5f7;
+}
+/* Dark mode: table header cells — secondary/muted text for visual hierarchy */
+.dark thead th {
+  color: #a1a1a6;
+}
+/* Dark mode: table borders */
+.dark table,
 .dark td,
 .dark th {
-  color: #f5f5f7;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
@@ -2416,73 +2392,6 @@ tbody td {
 /* Dark mode: focus rings use accent blue */
 .dark *:focus-visible {
   outline-color: #2997ff;
-}
-
-/* ──────────────── macOS 27 Quick Note Morphing Physics & Fluid Animations ──────────────── */
-@keyframes macosMorphOpen {
-  0% {
-    opacity: 0;
-    transform: scale(0.35) translate3d(80px, 80px, 0);
-  }
-  65% {
-    opacity: 1;
-    transform: scale(1.015) translate3d(-2px, -2px, 0);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1) translate3d(0, 0, 0);
-  }
-}
-
-@keyframes macosMorphClose {
-  0% {
-    opacity: 1;
-    transform: scale(1) translate3d(0, 0, 0);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(0.35) translate3d(80px, 80px, 0);
-  }
-}
-
-@keyframes macosExpandModal {
-  0% {
-    opacity: 0;
-    transform: scale(0.7) translate3d(60px, 60px, 0);
-  }
-  65% {
-    opacity: 1;
-    transform: scale(1.012) translate3d(-1px, -1px, 0);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1) translate3d(0, 0, 0);
-  }
-}
-
-.macos-morph-window {
-  transform-origin: bottom right;
-  animation: macosMorphOpen 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.macos-morph-close {
-  transform-origin: bottom right;
-  animation: macosMorphClose 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
-}
-
-.macos-expand-modal {
-  transform-origin: bottom right;
-  animation: macosExpandModal 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes appleShake {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-7px); }
-  40%, 80% { transform: translateX(7px); }
-}
-
-.apple-shake {
-  animation: appleShake 0.35s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 
 /* ==========================================================================

@@ -109,7 +109,7 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
+          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
             Phần mềm / Hệ thống <span className="text-[#ff3b30] font-bold ml-0.5">*</span>
           </label>
           <Input
@@ -125,7 +125,7 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
+          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
             Tên đăng nhập / Email / ID <span className="text-[#ff3b30] font-bold ml-0.5">*</span>
           </label>
           <Input
@@ -140,7 +140,7 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
+          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
             Mật khẩu
           </label>
           <div className="relative flex items-center">
@@ -164,7 +164,7 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
+          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
             Đường dẫn đăng nhập (URL)
           </label>
           <Input
@@ -179,7 +179,7 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
+          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
             Thứ tự (STT)
           </label>
           <Input
@@ -191,7 +191,7 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider mb-1.5">
+          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
             Ghi chú
           </label>
           <textarea
