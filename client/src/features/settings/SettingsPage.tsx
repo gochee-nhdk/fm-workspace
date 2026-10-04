@@ -32,7 +32,7 @@ import { useUiStore, resolveTheme } from '@/stores/ui-store';
 import { useSecurityStore } from '@/stores/security-store';
 import { Clock, Monitor, Lock, Unlock, Server, ShieldCheck, Database, KeyRound, Bookmark, Info } from 'lucide-react';
 import { formatBytes } from '@/lib/utils';
-import { useAppleTabSpring } from '@/lib/motion';
+import { useAppleTabSpring, useDirectionalTab } from '@/lib/motion';
 import toast from 'react-hot-toast';
 import type { BackupImportOptions, BackupImportResult } from '@/types/workspace';
 
@@ -159,12 +159,15 @@ export const SettingsPage: React.FC = () => {
   const [isSendingTest, setIsSendingTest] = useState(false);
 
   // Apple Segmented Tab Navigation State
-  const [activeTab, setActiveTab] = useState<'backup' | 'shield' | 'smtp' | 'appearance'>('backup');
+  const SETTINGS_TABS = ['backup', 'shield', 'smtp', 'appearance'] as const;
+  type SettingsTab = typeof SETTINGS_TABS[number];
+  const [activeTab, setActiveTab] = useState<SettingsTab>('backup');
   const [showSmtpPassword, setShowSmtpPassword] = useState(false);
   const [isDisconnectingSmtp, setIsDisconnectingSmtp] = useState(false);
 
   const tabTrackRef = useRef<HTMLDivElement>(null);
   const tabPillRef = useRef<HTMLDivElement>(null);
+  const { animationClass } = useDirectionalTab(activeTab, SETTINGS_TABS);
 
   useAppleTabSpring(tabTrackRef, tabPillRef, activeTab, {
     stiffness: 360,
@@ -650,9 +653,11 @@ export const SettingsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── TAB 1: DỮ LIỆU & SAO LƯU ── */}
-      {activeTab === 'backup' && (
-        <div className="space-y-6 animate-fade-in">
+      {/* ── Spatial Animated Settings Tab Content Container ── */}
+      <div key={activeTab} className={animationClass}>
+        {/* ── TAB 1: DỮ LIỆU & SAO LƯU ── */}
+        {activeTab === 'backup' && (
+          <div className="space-y-6">
           {/* Storage Health & Stats */}
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-5">
             <div className="flex items-center justify-between pb-3.5 border-b border-[#e0e0e0] dark:border-white/10 flex-wrap gap-2">
@@ -1021,7 +1026,7 @@ export const SettingsPage: React.FC = () => {
 
       {/* ── TAB 2: LÁ CHẮN AN TOÀN ── */}
       {activeTab === 'shield' && (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-6">
           {/* Dual-Persistence Shield */}
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-4 border border-emerald-500/20 bg-emerald-500/[0.02]">
             <div className="flex items-center justify-between pb-3 border-b border-[#e0e0e0] dark:border-white/10 flex-wrap gap-2">
@@ -1244,7 +1249,7 @@ export const SettingsPage: React.FC = () => {
 
       {/* ── TAB 3: GỬI MAIL TỰ ĐỘNG (GMAIL SMTP) ── */}
       {activeTab === 'smtp' && (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-6">
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-5">
             <div className="flex items-center justify-between pb-3.5 border-b border-[#e0e0e0] dark:border-white/10 flex-wrap gap-2">
               <div className="flex items-center gap-2">
@@ -1393,7 +1398,7 @@ export const SettingsPage: React.FC = () => {
 
       {/* ── TAB 4: GIAO DIỆN (THEME & APPEARANCE) ── */}
       {activeTab === 'appearance' && (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-6">
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
@@ -1429,6 +1434,7 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
 
 
 

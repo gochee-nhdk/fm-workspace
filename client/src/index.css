@@ -1434,11 +1434,15 @@
   }
 }
 
-/* Directional tab content glide — 120fps crisp */
+/* Directional tab content glide — Apple Liquid Motion Physics 120fps */
 @keyframes liquidTabContentGlide {
   0% {
-    opacity: 0.88;
-    transform: translate3d(10px, 0, 0) scale(0.996);
+    opacity: 0.72;
+    transform: translate3d(14px, 0, 0) scale(0.992);
+  }
+  60% {
+    opacity: 1;
+    transform: translate3d(-1px, 0, 0) scale(1.002);
   }
   100% {
     opacity: 1;
@@ -1448,8 +1452,12 @@
 
 @keyframes liquidTabContentGlideRev {
   0% {
-    opacity: 0.88;
-    transform: translate3d(-10px, 0, 0) scale(0.996);
+    opacity: 0.72;
+    transform: translate3d(-14px, 0, 0) scale(0.992);
+  }
+  60% {
+    opacity: 1;
+    transform: translate3d(1px, 0, 0) scale(1.002);
   }
   100% {
     opacity: 1;
@@ -1458,12 +1466,12 @@
 }
 
 .apple-tab-content-enter {
-  animation: liquidTabContentGlide 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: liquidTabContentGlide 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
 
 .apple-tab-content-enter-rev {
-  animation: liquidTabContentGlideRev 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: liquidTabContentGlideRev 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
 

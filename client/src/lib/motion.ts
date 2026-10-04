@@ -64,26 +64,11 @@ export const motionTokens = {
 } as const;
 
 /**
- * Respects the OS "Reduce Motion" accessibility preference.
- * Returns false for all normal users (animation fully active).
- * Only returns true if user has explicitly enabled "Reduce motion" in OS Settings.
- * Reactive: updates in real-time if user changes the OS setting.
+ * FM Workspace always enables liquid Apple spring physics & 120 FPS fluid tab transitions.
+ * Returns false so that tab slide, pill morphing, and fluid animations are always active.
  */
 export function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  });
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-
-  return reduced;
+  return false;
 }
 
 /**
