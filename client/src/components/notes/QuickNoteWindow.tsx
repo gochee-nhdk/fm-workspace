@@ -87,6 +87,7 @@ import { CloseButton } from '@/components/ui/close-button';
 import { AppleLiquidDialog } from '@/components/ui/AppleLiquidDialog';
 import { AppleDateTimePicker } from '@/components/ui/AppleDateTimePicker';
 import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
+import { sanitizeNoteHTML } from '@/services/backupService';
 import toast from 'react-hot-toast';
 
 const COLOR_MAP: Record<
@@ -212,12 +213,15 @@ interface ChecklistRow {
 }
 
 /**
- * Ensure note content is well-formed HTML for rich text editing
+ * Ensure note content is well-formed & strictly sanitized HTML for rich text editing
  */
 const ensureHtml = (content: string): string => {
   if (!content) return '<p><br></p>';
+  // 1. Sanitize HTML to prevent Stored & DOM-based XSS attacks
+  let cleaned = sanitizeNoteHTML(content);
+
   // Clean up any accidentally escaped or nested <p> tags
-  let cleaned = content
+  cleaned = cleaned
     .replace(/&lt;p&gt;/gi, '')
     .replace(/&lt;\/p&gt;/gi, '')
     .replace(/<p>\s*<p>/gi, '<p>')
@@ -1208,6 +1212,9 @@ export const QuickNoteWindow: React.FC = () => {
     if (!targetEl) return '';
     targetEl.focus();
 
+    // Sanitize injected HTML to prevent XSS execution
+    const safeHtml = sanitizeNoteHTML(html);
+
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0 && targetEl.contains(sel.anchorNode)) {
       const range = sel.getRangeAt(0);
@@ -1232,7 +1239,7 @@ export const QuickNoteWindow: React.FC = () => {
       }
 
       const el = document.createElement('div');
-      el.innerHTML = html;
+      el.innerHTML = safeHtml;
       const frag = document.createDocumentFragment();
       let node: ChildNode | null;
       let lastNode: ChildNode | null = null;
@@ -1248,7 +1255,7 @@ export const QuickNoteWindow: React.FC = () => {
       }
     } else {
       // Nếu chưa focus trong editor, thêm vào cuối nội dung
-      targetEl.innerHTML = (targetEl.innerHTML || '') + html;
+      targetEl.innerHTML = (targetEl.innerHTML || '') + safeHtml;
     }
 
     const updated = targetEl.innerHTML;
@@ -1530,10 +1537,11 @@ export const QuickNoteWindow: React.FC = () => {
               document.execCommand('insertText', false, aiDraft.result);
             } else {
               const currentHtml = targetEl.innerHTML;
+              const safeDraftResult = sanitizeNoteHTML(aiDraft.result);
               if (currentHtml.includes(aiDraft.originalText)) {
-                targetEl.innerHTML = currentHtml.replace(aiDraft.originalText, aiDraft.result);
+                targetEl.innerHTML = currentHtml.replace(aiDraft.originalText, safeDraftResult);
               } else {
-                targetEl.innerHTML = ensureHtml(aiDraft.result);
+                targetEl.innerHTML = ensureHtml(safeDraftResult);
               }
             }
           } else {

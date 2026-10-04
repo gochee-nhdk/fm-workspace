@@ -22,8 +22,6 @@ export async function verifyToken(request: FastifyRequest, reply: FastifyReply) 
     const authHeader = request.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.split(' ')[1];
-    } else if ((request.query as any)?.token) {
-      token = (request.query as any).token;
     }
 
     if (!token) {

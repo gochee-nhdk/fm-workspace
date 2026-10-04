@@ -1,6 +1,7 @@
 import { STORES, idbGetAll, idbGetById, idbPut, idbDelete } from './storage/indexedDb';
 import { QuickNoteItem, QuickNoteColor } from '@/types/workspace';
 import { autoBackupManager } from './autoBackupManager';
+import { sanitizeNoteHTML } from './backupService';
 
 const LOCAL_STORAGE_KEY = 'fm_quick_notes_cache';
 
@@ -69,24 +70,33 @@ export const noteService = {
     if (idbItems && idbItems.length > 0) {
       const mergedMap = new Map<string, QuickNoteItem>();
       
-      // Seed with cached notes
+      // Seed with cached notes (sanitized)
       for (const item of cached) {
-        mergedMap.set(item.id, item);
+        mergedMap.set(item.id, {
+          ...item,
+          content: sanitizeNoteHTML(item.content || ''),
+        });
       }
 
-      // Overwrite/merge with IDB notes (IDB contains the full unabridged images/content)
+      // Overwrite/merge with IDB notes based on newest timestamp
       for (const item of idbItems) {
+        const sanitizedItem = {
+          ...item,
+          content: sanitizeNoteHTML(item.content || ''),
+        };
         const existingCached = mergedMap.get(item.id);
         if (!existingCached) {
-          mergedMap.set(item.id, item);
+          mergedMap.set(item.id, sanitizedItem);
         } else {
-          // Keep the one with longer/fresher content
-          const hasMoreContent = (item.content?.length || 0) >= (existingCached.content?.length || 0);
+          // Compare updatedAt timestamps: fresher note wins
+          const itemTime = new Date(item.updatedAt || 0).getTime();
+          const cacheTime = new Date(existingCached.updatedAt || 0).getTime();
+          const isItemFresher = itemTime >= cacheTime;
           mergedMap.set(item.id, {
             ...existingCached,
-            ...item,
-            content: hasMoreContent ? item.content : existingCached.content,
-            images: item.images && item.images.length > 0 ? item.images : existingCached.images,
+            ...sanitizedItem,
+            content: isItemFresher ? sanitizedItem.content : existingCached.content,
+            images: (sanitizedItem.images && sanitizedItem.images.length > 0) ? sanitizedItem.images : existingCached.images,
           });
         }
       }
@@ -152,11 +162,13 @@ export const noteService = {
 
     // Preserve user title (allows clearing title completely while user is editing)
     const titleToSave = data.title !== undefined ? data.title : (existing?.title ?? 'Ghi chú mới');
+    // Ensure all saved HTML content is sanitized against XSS
+    const sanitizedContent = sanitizeNoteHTML(contentToSave);
 
     const noteToSave: QuickNoteItem = {
       id,
       title: titleToSave,
-      content: contentToSave,
+      content: sanitizedContent,
       checklistContent: data.checklistContent !== undefined ? data.checklistContent : (existing?.checklistContent ?? ''),
       pinned: data.pinned !== undefined ? Boolean(data.pinned) : (existing?.pinned ?? false),
       color: data.color ?? existing?.color ?? 'amber',

@@ -58,7 +58,9 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
     };
   };
 
+  // Primary endpoint for Gemini status
   fastify.get('/gemini-status', getGeminiStatusHandler);
+  // Backward compatibility alias for legacy client requests (D-02 documented alias)
   fastify.get('/gemini-key-status', getGeminiStatusHandler);
 
   /**

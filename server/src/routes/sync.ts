@@ -4,13 +4,16 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { verifyToken } from '../middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Ensure local file vault directory exists on server disk
-function getVaultDir(): string {
-  const vaultPath = path.resolve(__dirname, '../../data/vaults');
+function getVaultDir(userId: string): string {
+  // Sanitize userId to prevent directory traversal
+  const safeUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const vaultPath = path.resolve(__dirname, '../../data/vaults', safeUserId);
   try {
     if (!fs.existsSync(vaultPath)) {
       fs.mkdirSync(vaultPath, { recursive: true });
@@ -22,9 +25,12 @@ function getVaultDir(): string {
 }
 
 export default async function syncRoutes(fastify: FastifyInstance) {
+  // Enforce authentication for all sync & backup endpoints
+  fastify.addHook('preHandler', verifyToken);
+
   /**
    * 1. POST /api/sync/backup
-   * Accepts workspace backup payload from client, persists to SQLite and server disk file
+   * Accepts workspace backup payload from authenticated client, persists to SQLite and user's isolated vault
    */
   fastify.post('/backup', async (request: any, reply) => {
     try {
@@ -44,14 +50,21 @@ export default async function syncRoutes(fastify: FastifyInstance) {
         });
       }
 
+      const userId = request.user?.id;
+      if (!userId) {
+        return reply.code(401).send({
+          success: false,
+          message: 'Yêu cầu đăng nhập để thực hiện sao lưu.',
+        });
+      }
+
       const db = getDb();
       const id = uuidv4();
       const now = new Date().toISOString();
-      const userId = request.user?.id || 'default_user';
       const itemCountsStr = typeof itemCounts === 'string' ? itemCounts : JSON.stringify(itemCounts || {});
       const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
 
-      // 1. Lưu vào SQLite database
+      // 1. Lưu vào SQLite database gắn liền với user_id
       db.prepare(`
         INSERT INTO user_workspace_backups (
           id, user_id, backup_type, device_name, checksum, item_counts, payload, is_encrypted, created_at
@@ -68,22 +81,24 @@ export default async function syncRoutes(fastify: FastifyInstance) {
         now
       );
 
-      // Giữ tối đa 20 bản sao lưu gần nhất trong DB để dọn dẹp bộ nhớ
+      // Giữ tối đa 20 bản sao lưu gần nhất của chính user này
       db.prepare(`
         DELETE FROM user_workspace_backups
-        WHERE id NOT IN (
+        WHERE user_id = ? AND id NOT IN (
           SELECT id FROM user_workspace_backups
+          WHERE user_id = ?
           ORDER BY created_at DESC
           LIMIT 20
         )
-      `).run();
+      `).run(userId, userId);
 
-      // 2. Lưu bản sao an toàn vào file nhị phân trên ổ đĩa máy chủ (Disk File Vault)
+      // 2. Lưu bản sao an toàn vào vault riêng của user trên ổ đĩa
       try {
-        const vaultDir = getVaultDir();
-        const diskFile = path.join(vaultDir, 'backup_latest.json');
+        const userVaultDir = getVaultDir(userId);
+        const diskFile = path.join(userVaultDir, 'backup_latest.json');
         fs.writeFileSync(diskFile, JSON.stringify({
           id,
+          userId,
           checksum,
           isEncrypted,
           itemCounts,
@@ -114,43 +129,52 @@ export default async function syncRoutes(fastify: FastifyInstance) {
 
   /**
    * 2. GET /api/sync/latest
-   * Returns the latest backup available on server
+   * Returns the latest backup belonging to the requesting authenticated user
    */
   fastify.get('/latest', async (request: any, reply) => {
     try {
+      const userId = request.user?.id;
+      if (!userId) {
+        return reply.code(401).send({ success: false, message: 'Yêu cầu đăng nhập.' });
+      }
+
       const db = getDb();
       const latest = db.prepare(`
         SELECT id, backup_type, device_name, checksum, item_counts, payload, is_encrypted, created_at
         FROM user_workspace_backups
+        WHERE user_id = ?
         ORDER BY created_at DESC
         LIMIT 1
-      `).get() as any;
+      `).get(userId) as any;
 
       if (!latest) {
-        // Fallback to disk vault if DB record is missing
+        // Fallback to user's isolated disk vault if DB record is missing
         try {
-          const diskFile = path.join(getVaultDir(), 'backup_latest.json');
+          const userVaultDir = getVaultDir(userId);
+          const diskFile = path.join(userVaultDir, 'backup_latest.json');
           if (fs.existsSync(diskFile)) {
             const diskContent = JSON.parse(fs.readFileSync(diskFile, 'utf8'));
-            return {
-              success: true,
-              data: {
-                id: diskContent.id,
-                backup_type: 'auto',
-                deviceName: 'Local Vault File',
-                checksum: diskContent.checksum,
-                item_counts: JSON.stringify(diskContent.itemCounts || {}),
-                payload: diskContent.payload,
-                is_encrypted: diskContent.isEncrypted ? 1 : 0,
-                created_at: diskContent.createdAt,
-              },
-            };
+            if (diskContent.userId === userId) {
+              return {
+                success: true,
+                data: {
+                  id: diskContent.id,
+                  backup_type: 'auto',
+                  deviceName: 'Local Vault File',
+                  checksum: diskContent.checksum,
+                  item_counts: JSON.stringify(diskContent.itemCounts || {}),
+                  payload: diskContent.payload,
+                  is_encrypted: diskContent.isEncrypted ? 1 : 0,
+                  created_at: diskContent.createdAt,
+                },
+              };
+            }
           }
         } catch (_) {}
 
         return reply.code(404).send({
           success: false,
-          message: 'Chưa có bản sao lưu nào trên máy chủ.',
+          message: 'Chưa có bản sao lưu nào của bạn trên máy chủ.',
         });
       }
 
@@ -169,17 +193,23 @@ export default async function syncRoutes(fastify: FastifyInstance) {
 
   /**
    * 3. GET /api/sync/history
-   * Lists the most recent 10 backups metadata (without heavy payload)
+   * Lists the most recent 10 backups metadata for the requesting user
    */
   fastify.get('/history', async (request: any, reply) => {
     try {
+      const userId = request.user?.id;
+      if (!userId) {
+        return reply.code(401).send({ success: false, message: 'Yêu cầu đăng nhập.' });
+      }
+
       const db = getDb();
       const list = db.prepare(`
         SELECT id, backup_type, device_name, checksum, item_counts, is_encrypted, created_at
         FROM user_workspace_backups
+        WHERE user_id = ?
         ORDER BY created_at DESC
         LIMIT 10
-      `).all() as any[];
+      `).all(userId) as any[];
 
       const parsedList = list.map((item) => ({
         ...item,
@@ -202,20 +232,26 @@ export default async function syncRoutes(fastify: FastifyInstance) {
 
   /**
    * 4. GET /api/sync/download/:id
-   * Fetch full payload for a specific backup
+   * Fetch full payload for a specific backup — verified by user ownership
    */
   fastify.get('/download/:id', async (request: any, reply) => {
     try {
       const { id } = request.params;
+      const userId = request.user?.id;
+      if (!userId) {
+        return reply.code(401).send({ success: false, message: 'Yêu cầu đăng nhập.' });
+      }
+
       const db = getDb();
+      // Ensure backup belongs to requesting user (or user is admin)
       const record = db.prepare(`
-        SELECT * FROM user_workspace_backups WHERE id = ?
-      `).get(id) as any;
+        SELECT * FROM user_workspace_backups WHERE id = ? AND (user_id = ? OR ? = 'admin')
+      `).get(id, userId, request.user.role) as any;
 
       if (!record) {
         return reply.code(404).send({
           success: false,
-          message: 'Không tìm thấy bản sao lưu yêu cầu.',
+          message: 'Không tìm thấy bản sao lưu hoặc bạn không có quyền truy cập.',
         });
       }
 
@@ -232,3 +268,4 @@ export default async function syncRoutes(fastify: FastifyInstance) {
     }
   });
 }
+

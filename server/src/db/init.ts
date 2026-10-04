@@ -427,15 +427,38 @@ async function initDb() {
 
   const now = new Date().toISOString();
 
-  // Create default admin user
-  const adminExists = db.prepare('SELECT id FROM users WHERE email = ?').get('admin@farmersmarket.vn');
+  // Create initial admin user if no users exist
+  const adminEmail = process.env.INITIAL_ADMIN_EMAIL || 'admin@farmersmarket.vn';
+  const adminExists = db.prepare('SELECT id FROM users WHERE email = ?').get(adminEmail);
   if (!adminExists) {
-    const passwordHash = await argon2.hash('admin123');
+    let initialPassword = process.env.INITIAL_ADMIN_PASSWORD;
+    let isGenerated = false;
+    if (!initialPassword) {
+      if (process.env.NODE_ENV === 'production') {
+        console.warn('⚠️ [SECURITY NOTICE] INITIAL_ADMIN_PASSWORD is not set in environment! Generating a secure random one-time admin password...');
+      }
+      // Generate a cryptographically secure 16-character alphanumeric password
+      const randBytes = crypto.getRandomValues(new Uint8Array(12));
+      initialPassword = Array.from(randBytes).map((b) => b.toString(36)).join('').slice(0, 16) + '!Aa1';
+      isGenerated = true;
+    }
+
+    const passwordHash = await argon2.hash(initialPassword);
     db.prepare(`
       INSERT INTO users (id, email, full_name, password_hash, role, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(uuidv4(), 'admin@farmersmarket.vn', 'System Administrator', passwordHash, 'admin', now, now);
-    console.log('Default admin user created.');
+    `).run(uuidv4(), adminEmail, 'System Administrator', passwordHash, 'admin', now, now);
+
+    if (isGenerated) {
+      console.log('════════════════════════════════════════════════════════════════════');
+      console.log('🔐 [INITIAL ADMIN SETUP] Admin account created:');
+      console.log(`   Email:    ${adminEmail}`);
+      console.log(`   Password: ${initialPassword}`);
+      console.log('   ⚠️ Please login and change this password immediately!');
+      console.log('════════════════════════════════════════════════════════════════════');
+    } else {
+      console.log(`[INITIAL ADMIN SETUP] Admin user created with environment-provided password (${adminEmail}).`);
+    }
   }
 
   // Insert default settings

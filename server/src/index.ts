@@ -95,7 +95,7 @@ async function build() {
     reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     reply.header(
       'Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: http: ws: wss:; frame-ancestors 'none';"
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: http: ws: wss:; frame-ancestors 'none';"
     );
     if (process.env.NODE_ENV === 'production') {
       reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
@@ -103,13 +103,14 @@ async function build() {
   });
 
   await fastify.register(cookie);
-  await fastify.register(rateLimit, { max: 1000, timeWindow: '1 minute' });
+  // Tiered rate limit: 200 requests/minute default (down from 1000)
+  await fastify.register(rateLimit, { max: 200, timeWindow: '1 minute' });
   await fastify.register(multipart, {
     limits: {
-      fieldNameSize: 200,
-      fieldSize: 100 * 1024 * 1024,
+      fieldNameSize: 100,
+      fieldSize: 50 * 1024 * 1024,
       fields: 20,
-      fileSize: 100 * 1024 * 1024, // 100MB max file size
+      fileSize: 50 * 1024 * 1024, // 50MB max file size (aligned with backup max size)
       files: 1
     }
   });
@@ -136,14 +137,13 @@ async function build() {
   fastify.register(knowledgeRoutes, { prefix: '/api/knowledge' });
   fastify.register(syncRoutes, { prefix: '/api/sync' });
 
-  // Security Guardian Heartbeat & Health Check
+  // Security Guardian Heartbeat & Health Check (Redacted in production)
   fastify.get('/health', async () => {
+    const isProd = process.env.NODE_ENV === 'production';
     return {
       status: 'ok',
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString(),
       service: 'FM Procurement Engine',
-      environment: process.env.NODE_ENV || 'production'
+      ...(isProd ? {} : { uptime: process.uptime(), environment: 'development' }),
     };
   });
 
