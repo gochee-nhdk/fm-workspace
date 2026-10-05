@@ -11,7 +11,7 @@ import {
   ColumnFiltersState
 } from '@tanstack/react-table';
 import { cn } from '@/lib/utils';
-import { SFChevronLeft, SFChevronRight, SFBackwardEnd, SFForwardEnd, SFArrowUpArrowDown, SFArrowDownDocument } from 'sf-symbols-lib';
+import { SFChevronLeft, SFChevronRight, SFBackwardEnd, SFForwardEnd, SFArrowUpArrowDown, SFArrowUpDocument } from 'sf-symbols-lib';
 import { Button } from './button';
 import { EmptyState } from './empty-state';
 import { Spinner } from './loading';
@@ -70,7 +70,7 @@ export function DataTable<TData, TValue>({
             variant="glass"
             size="sm"
             onClick={onExport}
-            icon={<SFArrowDownDocument size={14} className="text-[#0066cc] dark:text-[#2997ff]" />}
+            icon={<SFArrowUpDocument size={14} className="text-[#0066cc] dark:text-[#2997ff]" />}
           >
             {exportLabel}
           </Button>

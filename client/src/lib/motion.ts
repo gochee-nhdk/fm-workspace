@@ -146,6 +146,7 @@ export interface AppleTabSpringOptions {
   damping?: number;
   mass?: number;
   allowDeformation?: boolean;
+  orientation?: 'horizontal' | 'vertical';
 }
 
 export function useAppleTabSpring(
@@ -159,26 +160,33 @@ export function useAppleTabSpring(
     damping   = motionTokens.spring.damping,
     mass      = motionTokens.spring.mass,
     allowDeformation = true,
+    orientation = 'horizontal',
   } = options;
 
+  const isVertical = orientation === 'vertical';
   const reducedMotion = useReducedMotion();
   const stateRef = useRef({
-    x: 0, w: 0,
-    vx: 0, vw: 0,
-    targetX: 0, targetW: 0,
+    pos: 0, size: 0,
+    vPos: 0, vSize: 0,
+    targetPos: 0, targetSize: 0,
     animating: false,
     lastTime: 0,
     initialized: false,
     rafId: 0,
   });
 
-  const snap = useCallback((x: number, w: number) => {
+  const snap = useCallback((pos: number, size: number) => {
     const pill = pillRef.current;
     if (!pill) return;
-    pill.style.transform = `translate3d(${x}px, 0, 0) scale(1, 1)`;
-    pill.style.width = `${w}px`;
+    if (isVertical) {
+      pill.style.transform = `translate3d(0, ${pos}px, 0) scale(1, 1)`;
+      pill.style.height = `${size}px`;
+    } else {
+      pill.style.transform = `translate3d(${pos}px, 0, 0) scale(1, 1)`;
+      pill.style.width = `${size}px`;
+    }
     pill.style.opacity = '1';
-  }, [pillRef]);
+  }, [pillRef, isVertical]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -188,46 +196,46 @@ export function useAppleTabSpring(
     const targetEl = container.querySelector<HTMLElement>(`[data-tab-id="${activeTabId}"]`);
     if (!targetEl) return;
 
-    const targetX = targetEl.offsetLeft;
-    const targetW = targetEl.offsetWidth;
+    const targetPos = isVertical ? targetEl.offsetTop : targetEl.offsetLeft;
+    const targetSize = isVertical ? targetEl.offsetHeight : targetEl.offsetWidth;
 
-    // If tab or container is currently unrendered / hidden (width 0), defer initialization until visible
-    if (targetW <= 0) {
+    // If tab or container is currently unrendered / hidden (size 0), defer initialization until visible
+    if (targetSize <= 0) {
       const raf = requestAnimationFrame(() => {
-        const nextX = targetEl.offsetLeft;
-        const nextW = targetEl.offsetWidth;
-        if (nextW > 0) {
-          stateRef.current.x = nextX;
-          stateRef.current.w = nextW;
-          stateRef.current.targetX = nextX;
-          stateRef.current.targetW = nextW;
+        const nextPos = isVertical ? targetEl.offsetTop : targetEl.offsetLeft;
+        const nextSize = isVertical ? targetEl.offsetHeight : targetEl.offsetWidth;
+        if (nextSize > 0) {
+          stateRef.current.pos = nextPos;
+          stateRef.current.size = nextSize;
+          stateRef.current.targetPos = nextPos;
+          stateRef.current.targetSize = nextSize;
           stateRef.current.initialized = true;
-          snap(nextX, nextW);
+          snap(nextPos, nextSize);
         }
       });
       return () => cancelAnimationFrame(raf);
     }
 
     const state = stateRef.current;
-    state.targetX = targetX;
-    state.targetW = targetW;
+    state.targetPos = targetPos;
+    state.targetSize = targetSize;
 
     // First render initialization: place immediately without animation
-    if (!state.initialized || state.w <= 0) {
-      state.x = targetX;
-      state.w = targetW;
-      state.vx = 0; state.vw = 0;
+    if (!state.initialized || state.size <= 0) {
+      state.pos = targetPos;
+      state.size = targetSize;
+      state.vPos = 0; state.vSize = 0;
       state.initialized = true;
-      snap(targetX, targetW);
+      snap(targetPos, targetSize);
       return;
     }
 
     // Snap immediately if reduced motion
     if (reducedMotion) {
-      state.x = targetX; state.w = targetW;
-      state.vx = 0; state.vw = 0;
+      state.pos = targetPos; state.size = targetSize;
+      state.vPos = 0; state.vSize = 0;
       state.animating = false;
-      snap(targetX, targetW);
+      snap(targetPos, targetSize);
       return;
     }
 
@@ -252,45 +260,56 @@ export function useAppleTabSpring(
 
       for (let i = 0; i < SUB; i++) {
         // Position spring
-        const fx = -stiffness * (state.x - state.targetX) - damping * state.vx;
-        state.vx += (fx / mass) * dt;
-        state.x  += state.vx * dt;
+        const fPos = -stiffness * (state.pos - state.targetPos) - damping * state.vPos;
+        state.vPos += (fPos / mass) * dt;
+        state.pos  += state.vPos * dt;
 
-        // Width spring
-        const fw = -stiffness * (state.w - state.targetW) - damping * state.vw;
-        state.vw += (fw / mass) * dt;
-        state.w  += state.vw * dt;
+        // Size spring
+        const fSize = -stiffness * (state.size - state.targetSize) - damping * state.vSize;
+        state.vSize += (fSize / mass) * dt;
+        state.size  += state.vSize * dt;
       }
 
-      const dist  = Math.abs(state.x - state.targetX) + Math.abs(state.w - state.targetW);
-      const speed = Math.abs(state.vx) + Math.abs(state.vw);
+      const dist  = Math.abs(state.pos - state.targetPos) + Math.abs(state.size - state.targetSize);
+      const speed = Math.abs(state.vPos) + Math.abs(state.vSize);
 
       // Tight settling — eliminates micro-jitter at rest
       if (dist < 0.08 && speed < 0.8) {
-        state.x = state.targetX;
-        state.w = state.targetW;
-        state.vx = 0; state.vw = 0;
+        state.pos = state.targetPos;
+        state.size = state.targetSize;
+        state.vPos = 0; state.vSize = 0;
         state.animating = false;
-        snap(state.x, state.w);
+        snap(state.pos, state.size);
         return;
       }
 
-      // Velocity-based liquid deformation
+      // Authentic Apple Liquid Spring Deformation (Mercury droplet / Fluid glass dynamics)
       let scaleX = 1;
       let scaleY = 1;
       if (allowDeformation) {
-        const vAbs = Math.abs(state.vx);
-        // Horizontal stretch: liquid elongates in direction of motion (max 4.2%)
-        const stretch  = Math.min(vAbs * 0.000042, 0.042);
-        // Vertical squash: conservation of area (max 1.6% compression)
-        const compress = Math.min(vAbs * 0.000018, 0.016);
+        const vAbs = Math.abs(state.vPos);
+        // Stretch dynamically along travel axis, compress perpendicular axis to conserve apparent volume
+        const stretch  = Math.min(vAbs * 0.00014, 0.14);
+        const compress = Math.min(vAbs * 0.00007, 0.07);
 
-        scaleX = +(1 + stretch).toFixed(4);
-        scaleY = +(1 - compress).toFixed(4);
+        if (isVertical) {
+          // Vertical motion: stretch vertically, squash horizontally
+          scaleY = +(1 + stretch).toFixed(4);
+          scaleX = +(1 - compress).toFixed(4);
+        } else {
+          // Horizontal motion: stretch horizontally, squash vertically
+          scaleX = +(1 + stretch).toFixed(4);
+          scaleY = +(1 - compress).toFixed(4);
+        }
       }
 
-      pill.style.transform = `translate3d(${state.x.toFixed(3)}px, 0, 0) scale(${scaleX}, ${scaleY})`;
-      pill.style.width     = `${state.w.toFixed(3)}px`;
+      if (isVertical) {
+        pill.style.transform = `translate3d(0, ${state.pos.toFixed(3)}px, 0) scale(${scaleX}, ${scaleY})`;
+        pill.style.height    = `${state.size.toFixed(3)}px`;
+      } else {
+        pill.style.transform = `translate3d(${state.pos.toFixed(3)}px, 0, 0) scale(${scaleX}, ${scaleY})`;
+        pill.style.width     = `${state.size.toFixed(3)}px`;
+      }
 
       state.rafId = requestAnimationFrame(step);
     };
@@ -300,7 +319,7 @@ export function useAppleTabSpring(
     return () => {
       if (state.rafId) cancelAnimationFrame(state.rafId);
     };
-  }, [activeTabId, stiffness, damping, mass, allowDeformation, reducedMotion, snap]);
+  }, [activeTabId, stiffness, damping, mass, allowDeformation, isVertical, reducedMotion, snap]);
 
   // Handle container resize & visibility restoration
   useEffect(() => {
@@ -311,26 +330,24 @@ export function useAppleTabSpring(
     const observer = new ResizeObserver(() => {
       const targetEl = container.querySelector<HTMLElement>(`[data-tab-id="${activeTabId}"]`);
       if (!targetEl) return;
-      const targetX = targetEl.offsetLeft;
-      const targetW = targetEl.offsetWidth;
-      if (targetW <= 0) return;
+      const targetPos = isVertical ? targetEl.offsetTop : targetEl.offsetLeft;
+      const targetSize = isVertical ? targetEl.offsetHeight : targetEl.offsetWidth;
+      if (targetSize <= 0) return;
 
       const state = stateRef.current;
-      state.targetX = targetX;
-      state.targetW = targetW;
-      if (!state.animating || !state.initialized || state.w <= 0) {
-        state.x = targetX;
-        state.w = targetW;
+      state.targetPos = targetPos;
+      state.targetSize = targetSize;
+      if (!state.animating || !state.initialized || state.size <= 0) {
+        state.pos = targetPos;
+        state.size = targetSize;
         state.initialized = true;
-        pill.style.transform = `translate3d(${targetX}px, 0, 0) scale(1, 1)`;
-        pill.style.width = `${targetW}px`;
-        pill.style.opacity = '1';
+        snap(targetPos, targetSize);
       }
     });
 
     observer.observe(container);
     return () => observer.disconnect();
-  }, [activeTabId]);
+  }, [activeTabId, isVertical, snap]);
 }
 
 /**

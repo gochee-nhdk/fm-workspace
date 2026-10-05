@@ -8,6 +8,7 @@ import {
   SFLine3Horizontal,
   SFXmark,
   SFTablecells,
+  SFArrowDownDocument,
   SFMoonFill,
   SFSunMaxFill,
   SFSidebarLeft,
@@ -22,7 +23,7 @@ import { useNoteStore } from '@/stores/note-store';
 import { Button } from '@/components/ui/button';
 import { CloseButton } from '@/components/ui/close-button';
 import { reminderService } from '@/services/reminderService';
-import { useScrollInterpolation, useTabIndicator } from '@/lib/motion';
+import { useScrollInterpolation, useTabIndicator, useAppleTabSpring } from '@/lib/motion';
 import { useSecurityStore } from '@/stores/security-store';
 import { LocalLockScreen } from '@/components/security/LocalLockScreen';
 import { Lock } from 'lucide-react';
@@ -53,22 +54,37 @@ export const AppShell: React.FC = () => {
     });
   };
 
-  const { theme, setTheme } = useUiStore();
-  const { loadNotes, openNote, toggleNote, notes } = useNoteStore();
-  const { isLockEnabled, isLocked, lockNow, recordActivity, checkAutoLock } = useSecurityStore();
+  const theme = useUiStore((state) => state.theme);
+  const setTheme = useUiStore((state) => state.setTheme);
+
+  const loadNotes = useNoteStore((state) => state.loadNotes);
+  const openNote = useNoteStore((state) => state.openNote);
+  const toggleNote = useNoteStore((state) => state.toggleNote);
+  const notesCount = useNoteStore((state) => state.notes.length);
+
+  const isLockEnabled = useSecurityStore((state) => state.isLockEnabled);
+  const lockNow = useSecurityStore((state) => state.lockNow);
+  const recordActivity = useSecurityStore((state) => state.recordActivity);
+  const checkAutoLock = useSecurityStore((state) => state.checkAutoLock);
+
   const location = useLocation();
   const navigate = useNavigate();
   const mainRef = useRef<HTMLElement>(null);
   const scrollRatio = useScrollInterpolation(mainRef, 48);
 
-  // Security: Activity monitor for auto-lock
+  // Security: Activity monitor for auto-lock (throttled to save CPU & battery)
   useEffect(() => {
+    let lastHandled = 0;
     const handleUserActivity = () => {
-      recordActivity();
+      const now = Date.now();
+      if (now - lastHandled > 15_000) {
+        lastHandled = now;
+        recordActivity();
+      }
     };
-    window.addEventListener('mousemove', handleUserActivity);
-    window.addEventListener('keydown', handleUserActivity);
-    window.addEventListener('click', handleUserActivity);
+    window.addEventListener('mousemove', handleUserActivity, { passive: true });
+    window.addEventListener('keydown', handleUserActivity, { passive: true });
+    window.addEventListener('click', handleUserActivity, { passive: true });
 
     const interval = setInterval(() => {
       checkAutoLock();
@@ -82,11 +98,17 @@ export const AppShell: React.FC = () => {
     };
   }, [recordActivity, checkAutoLock]);
 
-  const activeNavIndex = navItems.findIndex((item) =>
-    item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to)
-  );
-  const activePillTop = activeNavIndex >= 0 ? activeNavIndex * 46 : 0;
-  const activePillOpacity = activeNavIndex >= 0 ? 1 : 0;
+  const activeTabKey = location.pathname.startsWith('/settings') ? '/settings' : '/';
+  const sidebarTrackRef = useRef<HTMLDivElement>(null);
+  const sidebarPillRef = useRef<HTMLDivElement>(null);
+
+  useAppleTabSpring(sidebarTrackRef, sidebarPillRef, activeTabKey, {
+    stiffness: 440,
+    damping: 26,
+    mass: 0.65,
+    allowDeformation: true,
+    orientation: 'vertical',
+  });
 
   // ✅ Initialize notes on app startup
   useEffect(() => {
@@ -226,17 +248,17 @@ export const AppShell: React.FC = () => {
             </div>
           )}
 
-          {/* Dedicated Tab Track Container with ZERO outer space-y interference */}
-          <div className="relative flex flex-col gap-1.5">
+          {/* Dedicated Tab Track Container with Apple Spring Sliding Pill */}
+          <div ref={sidebarTrackRef} className="relative flex flex-col gap-1.5">
             {/* Fluid Apple Spring Sliding Indicator for Sidebar Tabs */}
             <div
-              style={{
-                transform: `translate3d(0, ${activePillTop}px, 0)`,
-                width: isSidebarCollapsed ? '40px' : '100%',
-                height: '40px',
-                opacity: activePillOpacity,
-              }}
-              className="absolute top-0 inset-x-0 mx-auto bg-gradient-to-b from-[#0088FF] to-[#0071E3] rounded-full border border-[#38a9ff]/40 shadow-[0_4px_16px_rgba(0,113,227,0.38),inset_0_1.5px_1px_rgba(255,255,255,0.45),inset_0_-1.5px_1.5px_rgba(0,0,0,0.18)] backdrop-blur-md pointer-events-none z-0 transition-[transform,width,opacity] duration-280 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform"
+              ref={sidebarPillRef}
+              data-layout-id="active-sidebar-pill"
+              aria-hidden="true"
+              className={`absolute top-0 inset-x-0 mx-auto bg-gradient-to-b from-[#0088FF] to-[#0071E3] rounded-full border border-[#52b5ff]/60 shadow-[0_6px_20px_rgba(0,113,227,0.45),0_1px_4px_rgba(0,113,227,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.7),inset_0_-1.5px_1.5px_rgba(0,0,0,0.22)] backdrop-blur-md pointer-events-none z-0 will-change-transform ${
+                isSidebarCollapsed ? 'w-10' : 'w-full'
+              }`}
+              style={{ opacity: 0 }}
             />
 
             {navItems.map((item) => (
@@ -244,11 +266,12 @@ export const AppShell: React.FC = () => {
                 key={item.to}
                 to={item.to}
                 end={item.to === '/'}
+                data-tab-id={item.to}
                 title={isSidebarCollapsed ? item.label : undefined}
                 className={({ isActive }) =>
                   `relative z-10 flex items-center ${
                     isSidebarCollapsed ? 'justify-center w-10 h-10 aspect-square shrink-0 mx-auto px-0' : 'gap-3 px-3.5 h-10'
-                  } rounded-full text-[13px] transition-colors duration-200 active:scale-[0.98] select-none ${
+                  } rounded-full text-[13px] transition-colors duration-120 active:scale-[0.98] select-none ${
                     isActive
                       ? 'text-white font-semibold'
                       : 'text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium'
@@ -378,9 +401,10 @@ export const AppShell: React.FC = () => {
               size="sm"
               onClick={() => setImportModalOpen(true)}
               className="hidden sm:inline-flex"
-              icon={<SFTablecells size={14} className="text-[#0066cc] dark:text-[#2997ff]" />}
+              icon={<SFArrowDownDocument size={14} className="text-emerald-600 dark:text-emerald-400" />}
+              title="Nhập file Excel vào hệ thống"
             >
-              Import Excel
+              Nhập
             </Button>
 
             {/* Local Privacy Lock Button (When PIN lock enabled) */}
@@ -403,9 +427,9 @@ export const AppShell: React.FC = () => {
               aria-label="Mở Notes"
             >
               <SFSquareAndPencil size={16} className="text-amber-500 dark:text-amber-400 group-hover:scale-110 transition-transform duration-200" />
-              {notes.length > 0 && (
+              {notesCount > 0 && (
                 <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 text-[9.5px] font-bold bg-amber-500 text-white rounded-full flex items-center justify-center shadow-xs border border-white dark:border-zinc-900 pointer-events-none">
-                  {notes.length}
+                  {notesCount}
                 </span>
               )}
             </button>

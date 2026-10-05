@@ -15,6 +15,7 @@ import {
   SFEnvelope,
   SFPaperplaneFill,
   SFShieldFill,
+  SFArchivebox,
   SFArrowUpDocument,
   SFEye,
   SFEyeSlash,
@@ -562,13 +563,13 @@ export const SettingsPage: React.FC = () => {
             aria-selected={activeTab === 'backup'}
             data-tab-id="backup"
             onClick={() => setActiveTab('backup')}
-            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[120px] sm:min-w-[136px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-[color,transform] duration-140 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer whitespace-nowrap active:scale-[0.95] select-none will-change-transform ${
+            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] sm:min-w-[120px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-[color,transform] duration-140 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer whitespace-nowrap active:scale-[0.95] select-none will-change-transform ${
               activeTab === 'backup'
                 ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold'
                 : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
             }`}
           >
-            <SFArrowDownDocument
+            <SFArchivebox
               size={15}
               className={`transition-all duration-140 ease-out shrink-0 ${
                 activeTab === 'backup'
@@ -576,7 +577,7 @@ export const SettingsPage: React.FC = () => {
                   : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
               }`}
             />
-            <span className="transition-colors duration-140 leading-none">Dữ Liệu &amp; Sao Lưu</span>
+            <span className="transition-colors duration-140 leading-none">Sao lưu &amp; Dữ liệu</span>
           </button>
 
           {/* Tab 2: Shield */}
@@ -586,13 +587,13 @@ export const SettingsPage: React.FC = () => {
             aria-selected={activeTab === 'shield'}
             data-tab-id="shield"
             onClick={() => setActiveTab('shield')}
-            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[120px] sm:min-w-[136px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-[color,transform] duration-140 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer whitespace-nowrap active:scale-[0.95] select-none will-change-transform ${
+            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] sm:min-w-[116px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-[color,transform] duration-140 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer whitespace-nowrap active:scale-[0.95] select-none will-change-transform ${
               activeTab === 'shield'
                 ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold'
                 : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
             }`}
           >
-            <ShieldCheck
+            <SFShieldFill
               size={15}
               className={`transition-all duration-140 ease-out shrink-0 ${
                 activeTab === 'shield'
@@ -600,7 +601,7 @@ export const SettingsPage: React.FC = () => {
                   : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
               }`}
             />
-            <span className="transition-colors duration-140 leading-none">Lá Chắn An Toàn</span>
+            <span className="transition-colors duration-140 leading-none">Bảo mật</span>
           </button>
 
           {/* Tab 3: SMTP */}
@@ -610,7 +611,7 @@ export const SettingsPage: React.FC = () => {
             aria-selected={activeTab === 'smtp'}
             data-tab-id="smtp"
             onClick={() => setActiveTab('smtp')}
-            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[120px] sm:min-w-[136px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-[color,transform] duration-140 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer whitespace-nowrap active:scale-[0.95] select-none will-change-transform ${
+            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] sm:min-w-[116px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-[color,transform] duration-140 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer whitespace-nowrap active:scale-[0.95] select-none will-change-transform ${
               activeTab === 'smtp'
                 ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold'
                 : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
@@ -624,7 +625,7 @@ export const SettingsPage: React.FC = () => {
                   : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
               }`}
             />
-            <span className="transition-colors duration-140 leading-none">Gửi Mail Tự Động</span>
+            <span className="transition-colors duration-140 leading-none">Gửi mail</span>
           </button>
 
           {/* Tab 4: Appearance */}
@@ -634,7 +635,7 @@ export const SettingsPage: React.FC = () => {
             aria-selected={activeTab === 'appearance'}
             data-tab-id="appearance"
             onClick={() => setActiveTab('appearance')}
-            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[110px] sm:min-w-[120px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-[color,transform] duration-140 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer whitespace-nowrap active:scale-[0.95] select-none will-change-transform ${
+            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] sm:min-w-[116px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-[color,transform] duration-140 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer whitespace-nowrap active:scale-[0.95] select-none will-change-transform ${
               activeTab === 'appearance'
                 ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold'
                 : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
@@ -775,7 +776,7 @@ export const SettingsPage: React.FC = () => {
                 disabled={isExportingBackup}
                 icon={isExportingBackup
                   ? <SFArrowClockwise size={16} className="animate-spin" />
-                  : <SFArrowDownDocument size={16} />
+                  : <SFArrowUpDocument size={16} />
                 }
               >
                 {isExportingBackup ? 'Đang xuất...' : exportPassword.trim() ? 'Xuất File Mã Hoá (.fmbackup)' : 'Xuất Toàn Bộ (.fmbackup)'}
@@ -788,7 +789,7 @@ export const SettingsPage: React.FC = () => {
                 disabled={isImportingBackup}
                 icon={isImportingBackup
                   ? <SFArrowClockwise size={16} className="animate-spin" />
-                  : <SFArrowUpDocument size={16} className="text-emerald-600 dark:text-emerald-400" />
+                  : <SFArrowDownDocument size={16} className="text-emerald-600 dark:text-emerald-400" />
                 }
               >
                 {isImportingBackup ? 'Đang nhập...' : 'Nhập Backup (.fmbackup)'}
@@ -925,7 +926,7 @@ export const SettingsPage: React.FC = () => {
                 variant="glassProminent"
                 size="sm"
                 onClick={handleExportBackup}
-                icon={<SFArrowDownDocument size={16} />}
+                icon={<SFArrowUpDocument size={16} />}
               >
                 Xuất Toàn Bộ Workspace (.xlsx)
               </Button>
@@ -934,7 +935,7 @@ export const SettingsPage: React.FC = () => {
                 variant="glass"
                 size="sm"
                 onClick={() => window.dispatchEvent(new CustomEvent('fm:open-import'))}
-                icon={<SFInternaldrive size={16} className="text-emerald-600 dark:text-emerald-400" />}
+                icon={<SFArrowDownDocument size={16} className="text-emerald-600 dark:text-emerald-400" />}
               >
                 Nạp File Excel Vào App
               </Button>

@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { verifyToken } from '../middleware/auth.js';
+import { verifyToken, optionalAuth } from '../middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,12 +25,14 @@ function getVaultDir(userId: string): string {
 }
 
 export default async function syncRoutes(fastify: FastifyInstance) {
-  // Enforce authentication for all sync & backup endpoints
-  fastify.addHook('preHandler', verifyToken);
+  // Flexible authentication for local offline-first workspace backup:
+  // If JWT is present, backup is strictly isolated to request.user.id.
+  // If not logged in (local single-user offline app), fallback to 'default_user' with isolated vault.
+  fastify.addHook('preHandler', optionalAuth);
 
   /**
    * 1. POST /api/sync/backup
-   * Accepts workspace backup payload from authenticated client, persists to SQLite and user's isolated vault
+   * Accepts workspace backup payload from authenticated client or local app, persists to SQLite and user's isolated vault
    */
   fastify.post('/backup', async (request: any, reply) => {
     try {
@@ -50,13 +52,7 @@ export default async function syncRoutes(fastify: FastifyInstance) {
         });
       }
 
-      const userId = request.user?.id;
-      if (!userId) {
-        return reply.code(401).send({
-          success: false,
-          message: 'Yêu cầu đăng nhập để thực hiện sao lưu.',
-        });
-      }
+      const userId = request.user?.id || 'default_user';
 
       const db = getDb();
       const id = uuidv4();
@@ -129,14 +125,11 @@ export default async function syncRoutes(fastify: FastifyInstance) {
 
   /**
    * 2. GET /api/sync/latest
-   * Returns the latest backup belonging to the requesting authenticated user
+   * Returns the latest backup belonging to the requesting authenticated user or default_user
    */
   fastify.get('/latest', async (request: any, reply) => {
     try {
-      const userId = request.user?.id;
-      if (!userId) {
-        return reply.code(401).send({ success: false, message: 'Yêu cầu đăng nhập.' });
-      }
+      const userId = request.user?.id || 'default_user';
 
       const db = getDb();
       const latest = db.prepare(`
@@ -193,14 +186,11 @@ export default async function syncRoutes(fastify: FastifyInstance) {
 
   /**
    * 3. GET /api/sync/history
-   * Lists the most recent 10 backups metadata for the requesting user
+   * Lists the most recent 10 backups metadata for the requesting user or default_user
    */
   fastify.get('/history', async (request: any, reply) => {
     try {
-      const userId = request.user?.id;
-      if (!userId) {
-        return reply.code(401).send({ success: false, message: 'Yêu cầu đăng nhập.' });
-      }
+      const userId = request.user?.id || 'default_user';
 
       const db = getDb();
       const list = db.prepare(`
@@ -237,16 +227,14 @@ export default async function syncRoutes(fastify: FastifyInstance) {
   fastify.get('/download/:id', async (request: any, reply) => {
     try {
       const { id } = request.params;
-      const userId = request.user?.id;
-      if (!userId) {
-        return reply.code(401).send({ success: false, message: 'Yêu cầu đăng nhập.' });
-      }
+      const userId = request.user?.id || 'default_user';
+      const userRole = request.user?.role || 'user';
 
       const db = getDb();
       // Ensure backup belongs to requesting user (or user is admin)
       const record = db.prepare(`
         SELECT * FROM user_workspace_backups WHERE id = ? AND (user_id = ? OR ? = 'admin')
-      `).get(id, userId, request.user.role) as any;
+      `).get(id, userId, userRole) as any;
 
       if (!record) {
         return reply.code(404).send({

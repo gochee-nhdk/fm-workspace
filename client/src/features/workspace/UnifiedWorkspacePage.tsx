@@ -53,10 +53,11 @@ export const UnifiedWorkspacePage: React.FC = () => {
   const { animationClass } = useDirectionalTab(activeTab, TAB_ORDER);
 
   useAppleTabSpring(tabTrackRef, pillRef, activeTab, {
-    stiffness: 360,
-    damping: 23,
-    mass: 0.82,
+    stiffness: 440,
+    damping: 26,
+    mass: 0.65,
     allowDeformation: true,
+    orientation: 'horizontal',
   });
 
   const [links, setLinks] = useState<LinkItem[]>([]);
@@ -66,10 +67,19 @@ export const UnifiedWorkspacePage: React.FC = () => {
 
   // Search & Filter
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Debounce search input to maintain 60-120fps typing experience
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 120);
+    return () => clearTimeout(handler);
+  }, [search]);
 
   // Close category dropdown on click outside
   useEffect(() => {
@@ -278,8 +288,8 @@ export const UnifiedWorkspacePage: React.FC = () => {
     if (selectedCategory !== 'ALL') {
       result = result.filter((l) => l.category === selectedCategory);
     }
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.trim().toLowerCase();
       result = result.filter(
         (l) =>
           l.hangMuc.toLowerCase().includes(q) ||
@@ -289,12 +299,12 @@ export const UnifiedWorkspacePage: React.FC = () => {
       );
     }
     return result;
-  }, [links, search, selectedCategory, onlyFavorites]);
+  }, [links, debouncedSearch, selectedCategory, onlyFavorites]);
 
   // Filtered accounts
   const filteredAccounts = useMemo(() => {
-    if (!search.trim()) return accounts;
-    const q = search.trim().toLowerCase();
+    if (!debouncedSearch.trim()) return accounts;
+    const q = debouncedSearch.trim().toLowerCase();
     return accounts.filter(
       (a) =>
         a.software.toLowerCase().includes(q) ||
@@ -302,19 +312,19 @@ export const UnifiedWorkspacePage: React.FC = () => {
         (a.link && a.link.toLowerCase().includes(q)) ||
         (a.note && a.note.toLowerCase().includes(q))
     );
-  }, [accounts, search]);
+  }, [accounts, debouncedSearch]);
 
   // Filtered stores
   const filteredStores = useMemo(() => {
-    if (!search.trim()) return stores;
-    const q = search.trim().toLowerCase();
+    if (!debouncedSearch.trim()) return stores;
+    const q = debouncedSearch.trim().toLowerCase();
     return stores.filter(
       (s) =>
         s.storeCode.toLowerCase().includes(q) ||
         s.address.toLowerCase().includes(q) ||
         (s.type && s.type.toLowerCase().includes(q))
     );
-  }, [stores, search]);
+  }, [stores, debouncedSearch]);
 
   // Quick Add handler according to current sheet
   const handleOpenAdd = () => {
@@ -450,20 +460,20 @@ export const UnifiedWorkspacePage: React.FC = () => {
             variant="glass"
             className="h-[38px] px-4 rounded-full text-[13px] leading-none font-medium"
             onClick={handleExport}
-            icon={<SFArrowDownDocument size={14} className="text-[#0066cc] dark:text-[#2997ff]" />}
-            title="Tải bảng tính hiện tại về máy dạng Excel (.xlsx)"
+            icon={<SFArrowUpDocument size={14} className="text-[#0066cc] dark:text-[#2997ff]" />}
+            title="Xuất bảng tính hiện tại ra file Excel (.xlsx)"
           >
-            Xuất Excel
+            Xuất
           </Button>
 
           <Button
             variant="glass"
             className="h-[38px] px-4 rounded-full text-[13px] leading-none font-medium"
             onClick={() => window.dispatchEvent(new CustomEvent('fm:open-import'))}
-            icon={<SFArrowUpDocument size={14} className="text-emerald-600 dark:text-emerald-400" />}
-            title="Nhập file Excel từ máy"
+            icon={<SFArrowDownDocument size={14} className="text-emerald-600 dark:text-emerald-400" />}
+            title="Nhập file Excel vào hệ thống"
           >
-            Import Excel
+            Nhập
           </Button>
 
           <Button

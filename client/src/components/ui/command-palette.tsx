@@ -14,6 +14,7 @@ import {
   SFSparkles,
   SFXmark,
   SFTablecells,
+  SFArrowDownDocument,
   SFMoonFill,
   SFSunMaxFill,
   SFReturn,
@@ -299,10 +300,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         type: 'action' as const,
         id: 'act-import',
-        label: 'Import dữ liệu từ file Excel',
+        label: 'Nhập dữ liệu từ file Excel',
         sub: 'Mở cửa sổ tải tệp bảng tính (.xlsx, .xls, .csv) vào hệ thống',
         tag: 'Excel Hub',
-        icon: <SFTablecells size={16} />,
+        icon: <SFArrowDownDocument size={16} />,
         iconBg: 'bg-emerald-500/12 dark:bg-emerald-500/20',
         iconColor: 'text-emerald-600 dark:text-emerald-400',
         action: () => {

@@ -99,7 +99,11 @@ export const useSecurityStore = create<SecurityState>()(
       },
 
       recordActivity: () => {
-        set({ lastActiveTimestamp: Date.now() });
+        const now = Date.now();
+        // Throttle updates: only write to store if >30 seconds have elapsed since last recorded activity
+        if (now - get().lastActiveTimestamp > 30_000) {
+          set({ lastActiveTimestamp: now });
+        }
       },
 
       checkAutoLock: () => {

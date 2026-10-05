@@ -615,7 +615,8 @@ async function syncToServer(backupType: 'auto' | 'manual' | 'snapshot' = 'auto')
     return { success: res.data?.success ?? true };
   } catch (err: any) {
     console.warn('Failed to sync workspace to server:', err);
-    return { success: false, message: err.message };
+    const msg = err.response?.data?.message || err.response?.data?.error || err.message;
+    return { success: false, message: msg };
   }
 }
 
