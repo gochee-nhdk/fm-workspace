@@ -68,9 +68,10 @@ export function sanitizeNoteHTML(dirty: string): string {
   // 2. Remove <style> ... </style> blocks
   clean = clean.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '');
 
-  // 3. Remove dangerous tags entirely (iframe, object, embed, form, input, button, base, meta, link)
+  // 3. Remove dangerous tags entirely (iframe, object, embed, form, input, base, meta, link)
+  // NOTE: Keep <svg> (vector icons/badges) and <button> (interactive action triggers) safe
   clean = clean.replace(
-    /<\/?(?:iframe|object|embed|form|input|button|select|textarea|base|meta|link|frame|frameset|applet|svg|math)\b[^>]*>/gi,
+    /<\/?(?:iframe|object|embed|form|input|select|textarea|base|meta|link|frame|frameset|applet)\b[^>]*>/gi,
     ''
   );
 

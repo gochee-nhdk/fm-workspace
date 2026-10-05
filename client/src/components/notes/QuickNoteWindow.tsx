@@ -271,6 +271,46 @@ const ensureHtml = (content: string): string => {
     } catch (_) {}
   }
 
+  // Tự động phục hồi (Self-Healing) các thẻ file đính kèm nếu từng bị strip mất SVG hoặc button
+  if (typeof document !== 'undefined' && cleaned.includes('apple-file-attachment')) {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(cleaned, 'text/html');
+      let modified = false;
+      const fileCards = Array.from(doc.querySelectorAll('.apple-file-attachment'));
+      fileCards.forEach((card) => {
+        // Kiểm tra xem thẻ có bị thiếu SVG, thiếu nút hành động hoặc đang dùng màu sặc sỡ cũ không
+        const hasSvg = !!card.querySelector('svg');
+        const hasActions = !!card.querySelector('.apple-file-preview-btn, .apple-file-download-btn, .apple-file-delete-btn');
+        const hasOldColoredStyle = card.outerHTML.includes('rgba(0,113,227') || card.outerHTML.includes('rgba(52,199,89') || card.outerHTML.includes('rgba(255,59,48');
+        if (!hasSvg || !hasActions || hasOldColoredStyle) {
+          modified = true;
+          const fileId = card.getAttribute('data-file-id') || '';
+          const fileUrl = card.getAttribute('data-file-url') || '';
+          const fileName = card.getAttribute('data-file-name') || card.querySelector('.apple-file-attachment-title')?.textContent?.trim() || 'Tệp đính kèm';
+          let ext = card.getAttribute('data-file-ext') || '';
+          if (!ext && fileName.includes('.')) {
+            ext = fileName.split('.').pop() || '';
+          }
+          const sizeStr = card.getAttribute('data-file-size') || card.querySelector('.apple-file-attachment-size')?.textContent?.trim() || '';
+
+          const fileIdOrUrl = fileId || fileUrl || '#';
+          const freshHtml = generateFileCardHtml(fileIdOrUrl, fileName, ext, sizeStr);
+          
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = freshHtml;
+          const freshCard = tempDiv.querySelector('.apple-file-attachment');
+          if (freshCard) {
+            card.replaceWith(freshCard);
+          }
+        }
+      });
+      if (modified) {
+        cleaned = doc.body.innerHTML;
+      }
+    } catch (_) {}
+  }
+
   // If already contains HTML tags
   if (/<(p|div|h[1-6]|ul|ol|li|b|strong|i|em|u|s|strike|br|span|img)\b[^>]*>/i.test(cleaned)) {
     return cleaned.replace(/^#\s+(.*?)$/gm, '<h2>$1</h2>');
@@ -302,7 +342,9 @@ const extractPlainText = (html: string): string => {
     return html;
   }
   // Strip heavy data: URLs (>50k chars) before parsing DOM to prevent main thread freezing
-  const cleaned = html.length > 50000 ? html.replace(/data:[^"'\s)]+/g, '') : html;
+  let cleaned = html.length > 50000 ? html.replace(/data:[^"'\s)]+/g, '') : html;
+  cleaned = cleaned.replace(/<span\b[^>]*class=["'][^"']*apple-file-attachment[^"']*["'][^>]*data-file-name=["']([^"']+)["'][^>]*>[\s\S]*?<\/span>/gi, ' 📎 $1 ');
+  cleaned = cleaned.replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, '');
   const formatted = cleaned
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n')
@@ -320,25 +362,41 @@ const extractPlainText = (html: string): string => {
  */
 const formatNotePreview = (content: string): string => {
   if (!content || !content.trim()) return 'Trống...';
-  // Fast path for preview: only inspect first chunk up to 800 chars and strip tags via regex
-  const firstChunk = content.length > 800 ? content.slice(0, 800) : content;
-  const plain = firstChunk
-    .replace(/data:[^"'\s)]+/g, '')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n')
-    .replace(/<\/div>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .trim();
-  if (!plain) return 'Trống...';
-  const lines = plain.split('\n').map((l) => l.trim()).filter(Boolean);
-  if (lines.length === 0) return 'Trống...';
-  return lines[0].replace(/^(?:-\s*)?\[([ xX])\]\s*/, (_, check) =>
-    check.toLowerCase() === 'x' ? '☑ ' : '☐ '
-  );
+  try {
+    if (typeof document !== 'undefined') {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(content, 'text/html');
+
+      // 1. Remove all SVGs and scripts/styles
+      doc.querySelectorAll('svg, script, style').forEach((el) => el.remove());
+
+      // 2. Replace file attachment badges with clean readable text
+      doc.querySelectorAll('.apple-file-attachment').forEach((card) => {
+        const name = card.getAttribute('data-file-name') || card.querySelector('.apple-file-attachment-title')?.textContent?.trim() || 'Tệp đính kèm';
+        const txt = document.createTextNode(` 📎 ${name} `);
+        card.replaceWith(txt);
+      });
+
+      // 3. Replace image wrappers with clean readable text
+      doc.querySelectorAll('.apple-img-wrapper').forEach((wrapper) => {
+        const alt = wrapper.querySelector('img')?.getAttribute('alt') || 'Hình ảnh';
+        const txt = document.createTextNode(` 🖼️ ${alt} `);
+        wrapper.replaceWith(txt);
+      });
+
+      const raw = (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!raw) return 'Trống...';
+      return raw.replace(/^(?:-\s*)?\[([ xX])\]\s*/, (_, check) =>
+        check.toLowerCase() === 'x' ? '☑ ' : '☐ '
+      );
+    }
+  } catch (_) {}
+
+  // Regex fallback:
+  let plain = content.replace(/<span\b[^>]*class=["'][^"']*apple-file-attachment[^"']*["'][^>]*data-file-name=["']([^"']+)["'][^>]*>[\s\S]*?<\/span>/gi, ' 📎 $1 ');
+  plain = plain.replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, '');
+  plain = plain.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+  return plain || 'Trống...';
 };
 
 /**
@@ -663,9 +721,9 @@ const generateFileCardHtml = (fileIdOrUrl: string, fileName: string, ext: string
       <span class="apple-file-attachment-size" style="font-size: 10.5px; font-family: ui-monospace, SFMono-Regular, monospace; margin-top: 1px;">${sizeStr}</span>
     </span>
     <span style="display: inline-flex; align-items: center; gap: 4px; margin-left: 6px;">
-      <button type="button" class="apple-file-preview-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,113,227,0.08); color: #0071e3; border: 1px solid rgba(0,113,227,0.18); cursor: pointer; padding: 0; outline: none; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 1px 2px rgba(0,0,0,0.03);" title="Xem trước tệp (Quick Look)"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2.5"/></svg></button>
-      <a href="${downloadHref}" download="${fileName}" class="apple-file-download-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(52,199,89,0.10); color: #28a745; border: 1px solid rgba(52,199,89,0.22); text-decoration: none; cursor: pointer; padding: 0; outline: none; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 1px 2px rgba(0,0,0,0.03);" title="Tải xuống tệp ${fileName}"><svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v8M3.5 7L7 10.5 10.5 7M2 12h10"/></svg></a>
-      <button type="button" class="apple-file-delete-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(255,59,48,0.10); color: #ff3b30; border: 1px solid rgba(255,59,48,0.22); cursor: pointer; padding: 0; outline: none; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 1px 2px rgba(0,0,0,0.03);" title="Xóa tệp đính kèm"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333a1.333 1.333 0 0 1-1.334 1.334H4.667a1.333 1.333 0 0 1-1.334-1.334V4"/><line x1="6.5" y1="7" x2="6.5" y2="12"/><line x1="9.5" y1="7" x2="9.5" y2="12"/></svg></button>
+      <button type="button" class="apple-file-preview-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,0.04); color: #48484a; border: 1px solid rgba(0,0,0,0.08); cursor: pointer; padding: 0; outline: none; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 1px 2px rgba(0,0,0,0.02);" title="Xem trước tệp (Quick Look)"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2.5"/></svg></button>
+      <a href="${downloadHref}" download="${fileName}" class="apple-file-download-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,0.04); color: #48484a; border: 1px solid rgba(0,0,0,0.08); text-decoration: none; cursor: pointer; padding: 0; outline: none; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 1px 2px rgba(0,0,0,0.02);" title="Tải xuống tệp ${fileName}"><svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v8M3.5 7L7 10.5 10.5 7M2 12h10"/></svg></a>
+      <button type="button" class="apple-file-delete-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,0.04); color: #48484a; border: 1px solid rgba(0,0,0,0.08); cursor: pointer; padding: 0; outline: none; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 1px 2px rgba(0,0,0,0.02);" title="Xóa tệp đính kèm"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333a1.333 1.333 0 0 1-1.334 1.334H4.667a1.333 1.333 0 0 1-1.334-1.334V4"/><line x1="6.5" y1="7" x2="6.5" y2="12"/><line x1="9.5" y1="7" x2="9.5" y2="12"/></svg></button>
     </span>
   </span></p><p><br></p>`;
 };
@@ -3952,21 +4010,22 @@ export const QuickNoteWindow: React.FC = () => {
 
                         {/* Footer info: Date & Reminder Icons aligned harmoniously */}
                         <div className="flex items-center justify-between mt-1.5 pt-1 border-t border-black/[0.03] dark:border-white/[0.04]">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] text-[#86868b] dark:text-[#76767b] font-mono">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-[10px] text-[#86868b] dark:text-[#76767b] font-mono shrink-0">
                               {new Date(note.updatedAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}
                             </span>
                             {note.isLocked && (
-                              <span className="text-[9.5px] px-1.5 py-0.2 rounded-full font-medium bg-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff]">
+                              <span className="text-[9.5px] px-1.5 py-0.2 rounded-full font-medium bg-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff] shrink-0">
                                 {isLockedAndHidden ? 'Đã khóa' : 'Bảo vệ'}
                               </span>
                             )}
+                            {(hasNoteReminder || hasTaskReminder) && (
+                              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500/10 dark:bg-amber-400/10 text-amber-600 dark:text-amber-400 font-medium shrink-0" title="Có cài lịch nhắc nhở">
+                                <SFClock size={10} className="shrink-0" />
+                                <span>Nhắc</span>
+                              </span>
+                            )}
                           </div>
-                          {(hasNoteReminder || hasTaskReminder) && (
-                            <div className="flex items-center gap-1" title="Có cài lịch nhắc nhở">
-                              <SFClock size={10.5} className={isChecklistNote ? 'text-[#0071e3]' : 'text-amber-500'} />
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -6048,7 +6107,7 @@ export const QuickNoteWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => downloadImage(activeImg.url, activeImg.name)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-[#0071e3] text-white/90 hover:text-white border border-white/15 hover:border-[#0071e3] backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-xs hover:shadow-[#0071e3]/30 shrink-0"
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-90 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 cursor-pointer shadow-xs shrink-0"
                     title="Tải ảnh về máy"
                   >
                     <SFArrowDownToLine size={14} />
@@ -6061,7 +6120,7 @@ export const QuickNoteWindow: React.FC = () => {
                       setLightboxImage(null);
                       setLightboxZoom(1);
                     }}
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-[#ff3b30] text-rose-300 hover:text-white border border-white/15 hover:border-[#ff3b30] backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-xs hover:shadow-[#ff3b30]/30 shrink-0"
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-90 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 cursor-pointer shadow-xs shrink-0"
                     title="Xóa ảnh khỏi ghi chú"
                   >
                     <SFTrash size={14} />
@@ -6073,7 +6132,7 @@ export const QuickNoteWindow: React.FC = () => {
                       setLightboxZoom(1);
                     }}
                     size="md"
-                    className="w-8 h-8 min-w-[32px] min-h-[32px] bg-white/10 hover:bg-white/25 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 active:scale-90 shadow-xs"
+                    className="w-8 h-8 min-w-[32px] min-h-[32px] bg-white/10 hover:bg-white/20 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 active:scale-90 shadow-xs"
                     title="Đóng xem ảnh (Esc)"
                   />
                 </div>
@@ -6202,9 +6261,9 @@ export const QuickNoteWindow: React.FC = () => {
         title={filePreviewModal ? `Xem trước tệp ${filePreviewModal.name}` : 'Xem trước tệp'}
         overlayClassName={isPreviewFullscreen ? "p-0" : "p-3 sm:p-6"}
         contentClassName={cn(
-          "relative bg-white dark:bg-[#1c1c24] flex flex-col overflow-hidden transition-all duration-200",
+          "relative bg-white dark:bg-[#1c1c24] flex flex-col overflow-hidden transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width,height,transform]",
           isPreviewFullscreen
-            ? "w-full h-full max-w-none max-h-none rounded-none shadow-none border-0"
+            ? "fixed inset-0 w-full h-full max-w-none max-h-none rounded-none shadow-none border-0 z-50"
             : "w-full max-w-4xl h-[85vh] max-h-[850px] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.55)] border border-black/10 dark:border-white/12"
         )}
       >
@@ -6228,15 +6287,29 @@ export const QuickNoteWindow: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Thứ tự nút chuẩn Apple: Tải về -> Xóa -> Phóng to/Thu nhỏ -> Đóng (Thống nhất màu sắc trung tính thanh lịch) */}
                 <div className="flex items-center gap-1.5 shrink-0">
+                  {/* 1. Nút Tải về */}
                   <a
                     href={filePreviewModal.url}
                     download={filePreviewModal.name}
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-[#0071e3] text-[#0071e3] hover:text-white dark:text-[#2997ff] dark:hover:text-white border border-black/[0.06] dark:border-white/10 hover:border-[#0071e3] transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs hover:shadow-xs shrink-0"
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs shrink-0"
                     title="Tải xuống tệp tin"
                   >
                     <SFArrowDownToLine size={14} />
                   </a>
+
+                  {/* 2. Nút Xóa */}
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteFileFromPreview(filePreviewModal.url, filePreviewModal.name)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs shrink-0"
+                    title="Xóa tệp này khỏi ghi chú"
+                  >
+                    <SFTrash size={14} />
+                  </button>
+
+                  {/* 3. Nút Phóng to / Thu nhỏ */}
                   <button
                     type="button"
                     onClick={() => setIsPreviewFullscreen((prev) => !prev)}
@@ -6245,21 +6318,15 @@ export const QuickNoteWindow: React.FC = () => {
                   >
                     {isPreviewFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteFileFromPreview(filePreviewModal.url, filePreviewModal.name)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-[#ff3b30] text-[#ff3b30] hover:text-white dark:text-[#ff453a] dark:hover:text-white border border-black/[0.06] dark:border-white/10 hover:border-[#ff3b30] transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs hover:shadow-xs shrink-0"
-                    title="Xóa tệp này khỏi ghi chú"
-                  >
-                    <SFTrash size={14} />
-                  </button>
+
+                  {/* 4. Nút Đóng */}
                   <CloseButton
                     onClick={() => {
                       setFilePreviewModal(null);
                       setIsPreviewFullscreen(false);
                     }}
                     size="md"
-                    className="w-8 h-8 min-w-[32px] min-h-[32px] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] border border-black/[0.06] dark:border-white/10 transition-all duration-200 ease-out hover:scale-105 active:scale-90 shadow-2xs"
+                    className="w-8 h-8 min-w-[32px] min-h-[32px] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-all duration-200 ease-out hover:scale-105 active:scale-90 shadow-2xs"
                     title="Đóng xem trước (Esc)"
                   />
                 </div>

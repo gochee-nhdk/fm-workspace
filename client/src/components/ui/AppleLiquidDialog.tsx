@@ -57,7 +57,7 @@ export const AppleLiquidDialog: React.FC<AppleLiquidDialogProps> = ({
         setIsMounted(false);
         setIsClosing(false);
         timerRef.current = null;
-      }, 160);
+      }, 200);
     }
   }, [isOpen]);
 

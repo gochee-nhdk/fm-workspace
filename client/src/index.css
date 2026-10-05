@@ -1676,19 +1676,22 @@
   pointer-events: none;
 }
 
-/* Apple Modal & Sheet Spatial Spring Entrances — liquid glass spatial depth */
+/* Apple Modal & Sheet Spatial Spring Entrances — liquid glass spatial depth 120fps */
 @keyframes appleModalOpen {
   0% {
     opacity: 0;
-    transform: scale(0.944) translate3d(0, 14px, 0);
+    transform: scale(0.92) translate3d(0, 18px, 0);
+    filter: blur(4px);
   }
   60% {
     opacity: 1;
-    transform: scale(1.006) translate3d(0, -1px, 0);
+    transform: scale(1.008) translate3d(0, -1.5px, 0);
+    filter: blur(0px);
   }
   100% {
     opacity: 1;
     transform: scale(1) translate3d(0, 0, 0);
+    filter: blur(0px);
   }
 }
 
@@ -1696,31 +1699,33 @@
   0% {
     opacity: 1;
     transform: scale(1) translate3d(0, 0, 0);
+    filter: blur(0px);
   }
   100% {
     opacity: 0;
-    transform: scale(0.968) translate3d(0, 10px, 0);
+    transform: scale(0.94) translate3d(0, 14px, 0);
+    filter: blur(3px);
   }
 }
 
 .apple-modal-enter,
 .liquid-droplet-enter {
-  animation: appleModalOpen 0.30s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: transform, opacity;
+  animation: appleModalOpen 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity, filter;
 }
 
 .apple-modal-exit,
 .liquid-droplet-exit {
-  animation: appleModalClose 0.14s cubic-bezier(0.3, 0, 0.8, 0.15) forwards;
-  will-change: transform, opacity;
+  animation: appleModalClose 0.20s cubic-bezier(0.32, 0, 0.67, 0) forwards;
+  will-change: transform, opacity, filter;
 }
 
 .liquid-backdrop-enter {
-  animation: liquidBackdropFadeIn 0.20s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: liquidBackdropFadeIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .liquid-backdrop-exit {
-  animation: liquidBackdropFadeOut 0.14s cubic-bezier(0.3, 0, 0.8, 0.15) forwards;
+  animation: liquidBackdropFadeOut 0.20s cubic-bezier(0.32, 0, 0.67, 0) forwards;
 }
 
 /* Apple Liquid Glass Image Lightbox Spring Physics */
@@ -2521,28 +2526,36 @@ tbody td {
   }
 }
 
-/* Apple File Attachment Card Buttons (Preview, Download, Delete) */
+/* Apple File Attachment Card Buttons (Preview, Download, Delete) - Apple Neutral Minimalist Glass */
 .apple-file-attachment button,
 .apple-file-attachment a {
-  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-.apple-file-attachment .apple-file-preview-btn:hover {
-  background: rgba(0, 113, 227, 0.22) !important;
-  transform: scale(1.08);
+.apple-file-attachment .apple-file-preview-btn,
+.apple-file-attachment .apple-file-download-btn,
+.apple-file-attachment .apple-file-delete-btn {
+  background: rgba(0, 0, 0, 0.04) !important;
+  color: #48484a !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
 }
 
-.apple-file-attachment .apple-file-download-btn:hover {
-  filter: brightness(1.12);
-  transform: scale(1.08);
-}
-
+.apple-file-attachment .apple-file-preview-btn:hover,
+.apple-file-attachment .apple-file-download-btn:hover,
 .apple-file-attachment .apple-file-delete-btn:hover {
-  background: #ef4444 !important;
-  color: #ffffff !important;
-  border-color: #ef4444 !important;
-  transform: scale(1.08);
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+  background: rgba(0, 0, 0, 0.08) !important;
+  color: #1d1d1f !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  transform: scale(1.08) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06) !important;
+}
+
+.apple-file-attachment .apple-file-preview-btn:active,
+.apple-file-attachment .apple-file-download-btn:active,
+.apple-file-attachment .apple-file-delete-btn:active {
+  transform: scale(0.92) !important;
+  background: rgba(0, 0, 0, 0.12) !important;
 }
 
 /* Concentric Apple Focus Rings for Liquid Glass Controls */
@@ -2880,27 +2893,27 @@ tbody td {
   color: #a1a1a6 !important;
 }
 
-/* Action buttons in Dark Mode */
-.dark .apple-file-preview-btn {
-  background: rgba(41, 151, 255, 0.18) !important;
-  color: #2997ff !important;
-  border-color: rgba(41, 151, 255, 0.3) !important;
-}
-
-.dark .apple-file-preview-btn:hover {
-  background: rgba(41, 151, 255, 0.28) !important;
-  color: #ffffff !important;
-}
-
+/* Action buttons in Dark Mode - Apple Neutral Minimalist Glass */
+.dark .apple-file-preview-btn,
+.dark .apple-file-download-btn,
 .dark .apple-file-delete-btn {
-  background: rgba(244, 63, 94, 0.18) !important;
-  color: #fb7185 !important;
-  border-color: rgba(244, 63, 94, 0.3) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ebebf5 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
+.dark .apple-file-preview-btn:hover,
+.dark .apple-file-download-btn:hover,
 .dark .apple-file-delete-btn:hover {
-  background: rgba(244, 63, 94, 0.3) !important;
+  background: rgba(255, 255, 255, 0.16) !important;
   color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+.dark .apple-file-preview-btn:active,
+.dark .apple-file-download-btn:active,
+.dark .apple-file-delete-btn:active {
+  background: rgba(255, 255, 255, 0.22) !important;
 }
 
 /* ==========================================================================
@@ -2970,4 +2983,50 @@ tbody td {
   background: rgba(255, 255, 255, 0.08);
   color: #a1a1a6;
   border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* ==========================================================================
+   Apple QuickLook Fullscreen Fluid Morphing Animation — 120fps Spring
+   ========================================================================== */
+@keyframes appleQuickLookExpand {
+  0% {
+    transform: scale(0.965);
+    opacity: 0.85;
+    filter: blur(1.5px);
+  }
+  50% {
+    transform: scale(1.004);
+    opacity: 1;
+    filter: blur(0px);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    filter: blur(0px);
+  }
+}
+
+@keyframes appleQuickLookShrink {
+  0% {
+    transform: scale(1.02);
+    opacity: 0.9;
+  }
+  55% {
+    transform: scale(0.995);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.apple-quicklook-morph-expand {
+  animation: appleQuickLookExpand 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity, filter;
+}
+
+.apple-quicklook-morph-shrink {
+  animation: appleQuickLookShrink 0.30s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
 }
