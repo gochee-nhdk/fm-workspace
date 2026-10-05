@@ -48,7 +48,10 @@ export function calculateRecommendedOrderQty(productId: string, storeId: string)
   const currentStock = Math.max(0, Number(stock?.available_qty || 0));
 
   const avgSales = calculateAverageDailySales(productId, storeId, 30);
-  const leadTime = Math.max(0, Number(productInfo?.lead_time_days) || 3);
+  const rawLeadTime = productInfo?.lead_time_days;
+  const leadTime = (rawLeadTime !== undefined && rawLeadTime !== null && !isNaN(Number(rawLeadTime)))
+    ? Math.max(0, Number(rawLeadTime))
+    : 3;
   const moq = Math.max(1, Number(productInfo?.moq) || 1);
   const orderMultiple = Math.max(1, Number(productInfo?.order_multiple) || 1);
   
@@ -69,10 +72,10 @@ export function calculateRecommendedOrderQty(productId: string, storeId: string)
   let incomingStock = 0;
   try {
     const onOrderRow = db.prepare(`
-      SELECT COALESCE(SUM(poi.order_qty), 0) as incoming
+      SELECT COALESCE(SUM(poi.ordered_qty - COALESCE(poi.received_qty, 0)), 0) as incoming
       FROM po_items poi
       JOIN purchase_orders po ON po.id = poi.po_id
-      WHERE poi.product_id = ? AND po.store_id = ? AND po.status IN ('submitted', 'approved', 'ordered')
+      WHERE poi.product_id = ? AND po.store_id = ? AND po.status IN ('submitted', 'approved', 'ordered', 'partial_received')
     `).get(productId, storeId) as any;
     incomingStock = Math.max(0, Number(onOrderRow?.incoming) || 0);
   } catch (_) {

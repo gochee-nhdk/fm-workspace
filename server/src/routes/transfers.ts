@@ -12,9 +12,13 @@ export default async function transfersRoutes(fastify: FastifyInstance) {
    * 1. GET /: List transfers with pagination
    */
   fastify.get('/', async (request: any, reply) => {
-    const { page = 1, limit = 20 } = request.query;
+    const rawPage = Number(request.query?.page || 1);
+    const rawLimit = Number(request.query?.limit || 20);
+    const page = isNaN(rawPage) || rawPage < 1 ? 1 : Math.floor(rawPage);
+    const limit = isNaN(rawLimit) || rawLimit < 1 ? 20 : Math.min(100, Math.floor(rawLimit));
+
     const db = getDb();
-    const offset = (Number(page) - 1) * Number(limit);
+    const offset = (page - 1) * limit;
 
     const query = `
       SELECT t.*, sf.name as from_store, st.name as to_store,
@@ -24,16 +28,16 @@ export default async function transfersRoutes(fastify: FastifyInstance) {
       JOIN stores st ON t.to_store_id = st.id
     `;
     const count = (db.prepare('SELECT COUNT(*) as total FROM stock_transfers').get() as any).total;
-    const data = db.prepare(`${query} ORDER BY t.created_at DESC LIMIT ? OFFSET ?`).all(Number(limit), Number(offset));
+    const data = db.prepare(`${query} ORDER BY t.created_at DESC LIMIT ? OFFSET ?`).all(limit, offset);
 
     return {
       success: true,
       data,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
+        page,
+        limit,
         total: count,
-        total_pages: Math.ceil(count / Number(limit))
+        total_pages: Math.ceil(count / limit)
       }
     };
   });
@@ -48,12 +52,19 @@ export default async function transfersRoutes(fastify: FastifyInstance) {
     const now = new Date().toISOString();
     const transferNumber = `TRF-${Date.now().toString().slice(-8)}`;
 
-    if (!from_store_id || !to_store_id || !items || !items.length) {
+    if (!from_store_id || !to_store_id || !Array.isArray(items) || !items.length) {
       return reply.code(400).send({ success: false, message: 'Vui lòng cung cấp kho đi, kho đến và danh sách hàng.' });
     }
 
     if (from_store_id === to_store_id) {
       return reply.code(400).send({ success: false, message: 'Kho đi và kho đến không thể trùng nhau.' });
+    }
+
+    for (const item of items) {
+      const qty = Number(item.quantity);
+      if (isNaN(qty) || qty <= 0) {
+        return reply.code(400).send({ success: false, message: 'Số lượng điều chuyển của mỗi sản phẩm phải lớn hơn 0.' });
+      }
     }
 
     const tx = db.transaction(() => {
@@ -68,7 +79,7 @@ export default async function transfersRoutes(fastify: FastifyInstance) {
       `);
 
       for (const item of items) {
-        insertItem.run(uuidv4(), id, item.product_id, Number(item.quantity || 1), item.reason || 'Cân đối tồn kho');
+        insertItem.run(uuidv4(), id, item.product_id, Number(item.quantity), item.reason || 'Cân đối tồn kho');
       }
     });
 
@@ -185,11 +196,27 @@ export default async function transfersRoutes(fastify: FastifyInstance) {
     const transfer = db.prepare('SELECT * FROM stock_transfers WHERE id = ?').get(id) as any;
     if (!transfer) return reply.code(404).send({ success: false, message: 'Không tìm thấy yêu cầu điều chuyển.' });
 
+    // Validate state machine transitions
+    const validTransitions: Record<string, string[]> = {
+      draft: ['in_transit', 'cancelled'],
+      in_transit: ['received', 'cancelled'],
+      received: [], // Terminal state
+      cancelled: [], // Terminal state
+    };
+
+    const allowedNext = validTransitions[transfer.status] || [];
+    if (!allowedNext.includes(status)) {
+      return reply.code(400).send({
+        success: false,
+        message: `Chuyển đổi trạng thái không hợp lệ từ "${transfer.status}" sang "${status}". Các trạng thái hợp lệ tiếp theo: [${allowedNext.join(', ')}]`
+      });
+    }
+
     const items = db.prepare('SELECT * FROM transfer_items WHERE transfer_id = ?').all(id) as any[];
 
     const statusTx = db.transaction(() => {
       // 1. If moving to 'in_transit', deduct stock from source store
-      if (status === 'in_transit' && transfer.status !== 'in_transit') {
+      if (status === 'in_transit' && transfer.status === 'draft') {
         const deductStmt = db.prepare(`
           UPDATE inventory
           SET available_qty = MAX(0, available_qty - ?),
@@ -202,8 +229,8 @@ export default async function transfersRoutes(fastify: FastifyInstance) {
         }
       }
 
-      // 2. If moving to 'received', add stock to destination store
-      if (status === 'received' && transfer.status !== 'received') {
+      // 2. If moving to 'received', add stock to destination store (must have been in_transit)
+      if (status === 'received' && transfer.status === 'in_transit') {
         const addStmt = db.prepare(`
           INSERT INTO inventory (id, store_id, product_id, quantity, available_qty, updated_at)
           VALUES (?, ?, ?, ?, ?, ?)
@@ -214,6 +241,21 @@ export default async function transfersRoutes(fastify: FastifyInstance) {
         `);
         for (const item of items) {
           addStmt.run(uuidv4(), transfer.to_store_id, item.product_id, item.quantity, item.quantity, now);
+        }
+      }
+
+      // 3. If cancelling from in_transit, rollback deducted inventory back to source store
+      if (status === 'cancelled' && transfer.status === 'in_transit') {
+        const rollbackStmt = db.prepare(`
+          INSERT INTO inventory (id, store_id, product_id, quantity, available_qty, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(store_id, product_id) DO UPDATE SET
+            quantity = quantity + excluded.quantity,
+            available_qty = available_qty + excluded.available_qty,
+            updated_at = excluded.updated_at
+        `);
+        for (const item of items) {
+          rollbackStmt.run(uuidv4(), transfer.from_store_id, item.product_id, item.quantity, item.quantity, now);
         }
       }
 

@@ -179,10 +179,7 @@ async function exportFullBackup(options: BackupExportOptions = {}): Promise<void
     settings: { theme },
   };
 
-  // 5. Serialize and compute checksum
   const payloadStr = JSON.stringify(payload);
-  const checksum = await sha256Hex(payloadStr);
-
   let finalPayloadStr = payloadStr;
   let isEncrypted = false;
 
@@ -192,6 +189,9 @@ async function exportFullBackup(options: BackupExportOptions = {}): Promise<void
     finalPayloadStr = JSON.stringify(encPackage);
     isEncrypted = true;
   }
+
+  // 5. Compute checksum over the actual payload being saved (ciphertext if encrypted, plaintext if not)
+  const checksum = await sha256Hex(finalPayloadStr);
 
   // 6. Build backup file envelope
   const backupFile: FMBackupFile = {

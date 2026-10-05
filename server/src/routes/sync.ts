@@ -25,9 +25,7 @@ function getVaultDir(userId: string): string {
 }
 
 export default async function syncRoutes(fastify: FastifyInstance) {
-  // Flexible authentication for local offline-first workspace backup:
-  // If JWT is present, backup is strictly isolated to request.user.id.
-  // If not logged in (local single-user offline app), fallback to 'default_user' with isolated vault.
+  // Support both authenticated multi-user isolation and local offline-first single user
   fastify.addHook('preHandler', optionalAuth);
 
   /**

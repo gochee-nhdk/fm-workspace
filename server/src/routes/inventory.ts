@@ -109,7 +109,7 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
   fastify.get('/stockout-risk', async (request: any, reply) => {
     const db = getDb();
     const rows = db.prepare(`
-      SELECT i.*, p.sku_code, p.name as product_name, s.name as store_name, sup.name as supplier_name, ps.lead_time_days
+      SELECT i.*, p.sku_code, p.name as product_name, s.name as store_name, sup.name as supplier_name, sup.lead_time_days
       FROM inventory i
       JOIN products p ON i.product_id = p.id
       JOIN stores s ON i.store_id = s.id
@@ -190,6 +190,12 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
    * 6. PUT /:id: Adjust inventory balances
    */
   fastify.put('/:id', async (request: any, reply) => {
+    // Only manager or admin can adjust physical inventory
+    const userRole = request.user?.role;
+    if (userRole !== 'admin' && userRole !== 'manager') {
+      return reply.code(403).send({ success: false, message: 'Chỉ Quản lý hoặc Quản trị viên mới có quyền điều chỉnh tồn kho.' });
+    }
+
     const db = getDb();
     const { available_qty, reserved_qty, damaged_qty, reason } = request.body || {};
     const { id } = request.params;
@@ -203,6 +209,11 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
     const newAvail = available_qty !== undefined ? Number(available_qty) : existing.available_qty;
     const newRes = reserved_qty !== undefined ? Number(reserved_qty) : existing.reserved_qty;
     const newDam = damaged_qty !== undefined ? Number(damaged_qty) : existing.damaged_qty;
+
+    if (isNaN(newAvail) || newAvail < 0 || isNaN(newRes) || newRes < 0 || isNaN(newDam) || newDam < 0) {
+      return reply.code(400).send({ success: false, message: 'Số lượng tồn kho (khả dụng, giữ hàng, hư hỏng) không thể là số âm hoặc không hợp lệ.' });
+    }
+
     const newTotal = newAvail + newRes + newDam;
 
     db.prepare(`

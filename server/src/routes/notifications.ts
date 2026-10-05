@@ -97,6 +97,9 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
 
   // 2. Configure & Verify SMTP Settings
   fastify.post('/smtp-config', { preHandler: optionalAuth }, async (request: any, reply) => {
+    if (request.user && request.user.role && request.user.role !== 'admin') {
+      return reply.code(403).send({ error: 'Forbidden', message: 'Chỉ quản trị viên mới có quyền cấu hình SMTP.' });
+    }
     const { user, pass, host, port, senderName } = request.body || {};
 
     if (!user || !pass) {
@@ -178,6 +181,9 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
 
   // 2b. Disconnect / Remove SMTP Configuration
   fastify.post('/smtp-disconnect', { preHandler: optionalAuth }, async (request: any, reply) => {
+    if (request.user && request.user.role && request.user.role !== 'admin') {
+      return reply.code(403).send({ error: 'Forbidden', message: 'Chỉ quản trị viên mới có quyền ngắt kết nối SMTP.' });
+    }
     const db = getDb();
     db.prepare("DELETE FROM system_settings WHERE category = 'smtp'").run();
     delete process.env.SMTP_USER;

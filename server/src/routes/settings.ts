@@ -10,10 +10,10 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', verifyToken);
 
   /**
-   * 1. GET /: Get all system settings (excluding Gemini key)
+   * 1. GET /: Get all system settings (excluding Gemini key and SMTP pass)
    */
   fastify.get('/', async (request: any, reply) => {
-    const data = getDb().prepare("SELECT * FROM system_settings WHERE key != 'gemini_api_key' ORDER BY category, key").all();
+    const data = getDb().prepare("SELECT * FROM system_settings WHERE key NOT IN ('gemini_api_key', 'smtp_pass') ORDER BY category, key").all();
     return { success: true, data };
   });
 

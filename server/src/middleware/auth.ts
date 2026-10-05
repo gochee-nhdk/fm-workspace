@@ -59,10 +59,19 @@ export async function optionalAuth(request: FastifyRequest, reply: FastifyReply)
     const authHeader = request.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
+      if (!token) {
+        return reply.code(401).send({ error: 'Unauthorized', message: 'Missing token' });
+      }
       const decoded = jwt.verify(token, getJwtSecret()) as AuthUser;
+      
+      const db = getDb();
+      const user = db.prepare('SELECT id, is_active FROM users WHERE id = ?').get(decoded.id) as any;
+      if (!user || user.is_active === 0) {
+        return reply.code(401).send({ error: 'Unauthorized', message: 'User inactive or not found' });
+      }
       request.user = decoded;
     }
   } catch (error) {
-    // Ignore error for optional auth
+    return reply.code(401).send({ error: 'Unauthorized', message: 'Invalid or expired token' });
   }
 }

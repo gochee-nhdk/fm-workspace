@@ -135,6 +135,19 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
 
     const createTransaction = db.transaction(() => {
       let totalValue = 0;
+      for (const item of items) {
+        const qty = Number(item.ordered_qty || 0);
+        const price = Number(item.unit_price || 0);
+        totalValue += qty * price;
+      }
+
+      // 1. Insert parent purchase_orders first to satisfy foreign key constraint
+      db.prepare(`
+        INSERT INTO purchase_orders (id, po_number, supplier_id, store_id, status, total_value, notes, created_by, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?)
+      `).run(poId, poNumber, supplier_id, store_id, totalValue, notes || '', request.user?.id || 'admin', now, now);
+
+      // 2. Insert child po_items
       const insertItem = db.prepare(`
         INSERT INTO po_items (id, po_id, product_id, ordered_qty, unit_price, status)
         VALUES (?, ?, ?, ?, ?, 'pending')
@@ -144,13 +157,7 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
         const qty = Number(item.ordered_qty || 0);
         const price = Number(item.unit_price || 0);
         insertItem.run(uuidv4(), poId, item.product_id, qty, price);
-        totalValue += qty * price;
       }
-
-      db.prepare(`
-        INSERT INTO purchase_orders (id, po_number, supplier_id, store_id, status, total_value, notes, created_by, created_at, updated_at)
-        VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?)
-      `).run(poId, poNumber, supplier_id, store_id, totalValue, notes || '', request.user?.id || 'admin', now, now);
     });
 
     createTransaction();
@@ -167,6 +174,14 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
     const { status } = request.body || {};
     const { id } = request.params;
     const now = new Date().toISOString();
+
+    const validStatuses = ['draft', 'submitted', 'approved', 'ordered', 'partial_received', 'received', 'cancelled'];
+    if (!status || !validStatuses.includes(status)) {
+      return reply.code(400).send({
+        success: false,
+        message: `Trạng thái PO không hợp lệ. Các trạng thái cho phép: ${validStatuses.join(', ')}`
+      });
+    }
 
     const existing = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(id) as any;
     if (!existing) {
@@ -193,9 +208,46 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
       return reply.code(404).send({ success: false, message: 'Không tìm thấy đơn hàng.' });
     }
 
+    if (po.status === 'received') {
+      return reply.code(400).send({ success: false, message: 'Đơn hàng này đã được nhập kho đầy đủ trước đó (không thể nhận thêm).' });
+    }
+    if (po.status === 'cancelled') {
+      return reply.code(400).send({ success: false, message: 'Không thể nhận hàng cho đơn hàng đã hủy.' });
+    }
+
+    if (!Array.isArray(received_items) || received_items.length === 0) {
+      return reply.code(400).send({ success: false, message: 'Danh sách sản phẩm nhận hàng không hợp lệ.' });
+    }
+
+    // Get current po_items to validate and track remaining quantities
+    const existingPoItems = db.prepare('SELECT * FROM po_items WHERE po_id = ?').all(id) as any[];
+    const poItemsMap = new Map<string, any>();
+    for (const pi of existingPoItems) {
+      poItemsMap.set(pi.product_id, pi);
+    }
+
+    // Validate that all received items belong to this PO
+    for (const item of received_items) {
+      if (!poItemsMap.has(item.product_id)) {
+        return reply.code(400).send({
+          success: false,
+          message: `Sản phẩm ID ${item.product_id} không có trong danh sách đặt hàng của PO này.`
+        });
+      }
+      const qty = Number(item.received_qty);
+      if (isNaN(qty) || qty <= 0) {
+        return reply.code(400).send({
+          success: false,
+          message: `Số lượng nhận cho sản phẩm ID ${item.product_id} phải là số dương lớn hơn 0.`
+        });
+      }
+    }
+
+    let allFullyReceived = true;
+
     const receiveTransaction = db.transaction(() => {
       const updatePoItem = db.prepare(`
-        UPDATE po_items SET received_qty = ?, status = 'received' WHERE po_id = ? AND product_id = ?
+        UPDATE po_items SET received_qty = ?, status = ? WHERE po_id = ? AND product_id = ?
       `);
 
       const upsertInventory = db.prepare(`
@@ -212,29 +264,49 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
         VALUES (?, ?, ?, ?, ?, ?, 'active', ?)
       `);
 
-      for (const item of (received_items || [])) {
-        const qty = Number(item.received_qty || 0);
-        if (qty <= 0) continue;
+      for (const item of received_items) {
+        const addQty = Number(item.received_qty || 0);
+        const pi = poItemsMap.get(item.product_id);
+        const currentReceived = Number(pi.received_qty || 0);
+        const newTotalReceived = currentReceived + addQty;
+        const ordered = Number(pi.ordered_qty || 0);
+        const itemStatus = newTotalReceived >= ordered ? 'received' : 'partial';
 
-        updatePoItem.run(qty, id, item.product_id);
-        upsertInventory.run(uuidv4(), po.store_id, item.product_id, qty, qty, now);
+        updatePoItem.run(newTotalReceived, itemStatus, id, item.product_id);
+        upsertInventory.run(uuidv4(), po.store_id, item.product_id, addQty, addQty, now);
 
         if (item.expiry_date) {
           insertExpiryLot.run(
             uuidv4(), po.store_id, item.product_id,
-            item.lot_number || `LOT-${Date.now()}`, qty, item.expiry_date, now
+            item.lot_number || `LOT-${Date.now()}`, addQty, item.expiry_date, now
           );
+        }
+
+        // Update local map state
+        pi.received_qty = newTotalReceived;
+      }
+
+      // Check if all items in PO are fully received
+      for (const pi of poItemsMap.values()) {
+        const received = Number(pi.received_qty || 0);
+        const ordered = Number(pi.ordered_qty || 0);
+        if (received < ordered) {
+          allFullyReceived = false;
         }
       }
 
+      const finalPoStatus = allFullyReceived ? 'received' : 'partial_received';
       db.prepare(`
-        UPDATE purchase_orders SET status = 'received', received_date = ?, updated_at = ? WHERE id = ?
-      `).run(now, now, id);
+        UPDATE purchase_orders SET status = ?, received_date = ?, updated_at = ? WHERE id = ?
+      `).run(finalPoStatus, now, now, id);
     });
 
     receiveTransaction();
-    auditLog(request, 'RECEIVE_PO_GOODS', 'purchase_orders', id, po, { receivedItemsCount: received_items?.length || 0 });
+    auditLog(request, 'RECEIVE_PO_GOODS', 'purchase_orders', id, po, { receivedItemsCount: received_items.length });
 
-    return { success: true, message: 'Đã nhập kho hàng hóa từ PO và cập nhật tồn kho thành công.' };
+    return {
+      success: true,
+      message: allFullyReceived ? 'Đã nhập kho đầy đủ đơn hàng thành công.' : 'Đã nhập kho một phần đơn hàng thành công.'
+    };
   });
 }

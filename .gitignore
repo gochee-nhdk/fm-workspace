@@ -34,7 +34,10 @@ build/
 *.db-shm
 *.sqlite
 *.sqlite3
-data/
+/data/
+/server/data/
+open-design/**/data/
+!client/src/data/
 *.fmbackup
 
 # Certificates, Keys & PEM files

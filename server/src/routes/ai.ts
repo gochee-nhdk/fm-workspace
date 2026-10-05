@@ -142,6 +142,14 @@ export default async function aiRoutes(fastify: FastifyInstance) {
         db.prepare('INSERT INTO ai_conversations (id, user_id, title, created_at) VALUES (?, ?, ?, ?)').run(
           convId, request.user.id, message.substring(0, 50), now
         );
+      } else {
+        const existingConv = db.prepare('SELECT user_id FROM ai_conversations WHERE id = ?').get(convId) as any;
+        if (!existingConv) {
+          return reply.code(404).send({ success: false, message: 'Không tìm thấy cuộc trò chuyện.' });
+        }
+        if (existingConv.user_id !== request.user.id && request.user.role !== 'admin') {
+          return reply.code(403).send({ success: false, message: 'Bạn không có quyền gửi tin nhắn vào cuộc hội thoại của người khác.' });
+        }
       }
       
       db.prepare('INSERT INTO ai_messages (id, conversation_id, role, content, data_context, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(

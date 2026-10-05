@@ -36,9 +36,10 @@ export class DataQualityService {
 
     const seenKeys = new Set<string>();
 
+    const invalidRowIndices = new Set<number>();
+
     rows.forEach((row, index) => {
       const rowNum = index + 2; // header is row 1
-      let rowHasCritical = false;
 
       // 1. Check SKU Code
       const sku = row.sku_code || row.sku || row.barcode;
@@ -51,7 +52,7 @@ export class DataQualityService {
           message: `Dòng ${rowNum}: Thiếu mã SKU/Sản phẩm bắt buộc.`
         });
         missingSkuCount++;
-        rowHasCritical = true;
+        invalidRowIndices.add(index);
       }
 
       // 2. Check Duplicates (Store + SKU or SKU alone)
@@ -77,7 +78,7 @@ export class DataQualityService {
       for (const f of qtyFields) {
         if (row[f] !== undefined && row[f] !== null && row[f] !== '') {
           const num = Number(row[f]);
-          if (isNaN(num)) {
+          if (!Number.isFinite(num)) {
             issues.push({
               rowNumber: rowNum,
               field: f,
@@ -86,7 +87,7 @@ export class DataQualityService {
               message: `Dòng ${rowNum}: Giá trị "${row[f]}" trong cột ${f} không phải là số hợp lệ.`,
               rawValue: row[f]
             });
-            rowHasCritical = true;
+            invalidRowIndices.add(index);
           } else if (num < 0) {
             issues.push({
               rowNumber: rowNum,
@@ -97,7 +98,7 @@ export class DataQualityService {
               rawValue: num
             });
             negativeValueCount++;
-            rowHasCritical = true;
+            invalidRowIndices.add(index);
           }
         }
       }
@@ -129,7 +130,7 @@ export class DataQualityService {
     // Quality score formula: 100 - (critical * 5 + warning * 1) / totalRows * 100
     const deductions = totalRows > 0 ? ((criticalCount * 5 + warningCount * 1) / totalRows) * 100 : 0;
     const qualityScore = Math.max(0, Math.min(100, Math.round(100 - deductions)));
-    const validRows = Math.max(0, totalRows - criticalCount);
+    const validRows = Math.max(0, totalRows - invalidRowIndices.size);
 
     return {
       totalRows,

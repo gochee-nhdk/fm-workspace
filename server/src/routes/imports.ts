@@ -161,6 +161,14 @@ export default async function importsRoutes(fastify: FastifyInstance) {
       return reply.code(404).send({ success: false, message: 'Phiên tải lên không tồn tại hoặc đã hết hạn.' });
     }
 
+    const allowedEntityTypes = ['inventory', 'sales', 'products', 'expiry', 'general'];
+    if (!entityType || !allowedEntityTypes.includes(entityType)) {
+      return reply.code(400).send({
+        success: false,
+        message: `Loại dữ liệu (entityType) không hợp lệ hoặc bị thiếu. Các loại được phép: ${allowedEntityTypes.join(', ')}`
+      });
+    }
+
     const { fileName, buffer, profile } = uploadCache.get(uploadId)!;
     const db = getDb();
     const now = new Date().toISOString();
@@ -182,7 +190,16 @@ export default async function importsRoutes(fastify: FastifyInstance) {
       });
 
       // Run quality check on full dataset
-      const qualityReport = DataQualityService.evaluate(mappedRows, entityType || 'inventory');
+      const qualityReport = DataQualityService.evaluate(mappedRows, entityType);
+
+      // Block import if critical data quality errors are found (e.g., negative stock, corrupt IDs)
+      if (qualityReport.criticalCount > 0) {
+        return reply.code(400).send({
+          success: false,
+          message: `Dữ liệu có ${qualityReport.criticalCount} lỗi nghiêm trọng (giá trị âm hoặc sai định dạng). Vui lòng khắc phục trước khi nạp vào hệ thống.`,
+          data: { qualityReport }
+        });
+      }
 
       // Begin SQLite transaction
       let importedCount = 0;
@@ -323,7 +340,8 @@ export default async function importsRoutes(fastify: FastifyInstance) {
 
             const rawDate = row.date || now.split('T')[0];
             const saleDate = ExcelParserService.cleanCellValue(rawDate) || now.split('T')[0];
-            const qty = Number(row.sales_qty || row.quantity || 1);
+            const rawQty = row.sales_qty !== undefined ? row.sales_qty : (row.quantity !== undefined ? row.quantity : 1);
+            const qty = Number.isFinite(Number(rawQty)) ? Number(rawQty) : 1;
             const rev = Number(row.sales_revenue || row.revenue || 0);
 
             insertSale.run(uuidv4(), storeId, prod.id, saleDate, qty, rev, now);
