@@ -193,7 +193,7 @@ export const AppShell: React.FC = () => {
       <aside
         className={`hidden md:flex flex-col ${
           isSidebarCollapsed ? 'w-[72px]' : 'w-[268px]'
-        } vision-glass-sidebar shrink-0 h-full select-none z-30 transition-[width] duration-280 ease-[cubic-bezier(0.16,1,0.3,1)] relative overflow-hidden will-change-[width]`}
+        } vision-glass-sidebar shrink-0 h-full select-none z-30 transition-[width] duration-[var(--motion-duration-sidebar)] ease-[var(--motion-ease-spring)] relative overflow-hidden will-change-[width]`}
       >
 
         {/* Workspace Brand Header */}
@@ -255,7 +255,7 @@ export const AppShell: React.FC = () => {
               ref={sidebarPillRef}
               data-layout-id="active-sidebar-pill"
               aria-hidden="true"
-              className={`absolute top-0 inset-x-0 mx-auto bg-gradient-to-b from-[#0088FF] to-[#0071E3] rounded-full border border-[#52b5ff]/60 shadow-[0_6px_20px_rgba(0,113,227,0.45),0_1px_4px_rgba(0,113,227,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.7),inset_0_-1.5px_1.5px_rgba(0,0,0,0.22)] backdrop-blur-md pointer-events-none z-0 will-change-transform ${
+              className={`absolute top-0 inset-x-0 mx-auto fm-primary-pill-surface rounded-full pointer-events-none z-0 will-change-transform ${
                 isSidebarCollapsed ? 'w-10' : 'w-full'
               }`}
               style={{ opacity: 0 }}

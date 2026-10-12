@@ -148,9 +148,11 @@ export const noteService = {
     const existing = isNew ? null : ((await this.getNoteById(id)) || existingFromCache);
 
     // Anti-loss guard: If existing note has content (> 0) and incoming content is undefined or empty string,
-    // ensure we don't accidentally wipe existing content unless explicit clear flag is provided
+    // ensure we don't accidentally wipe existing content unless explicit clear flag is provided or note is checklist
+    const incomingType = data.noteType ?? existing?.noteType;
     let contentToSave = data.content !== undefined ? data.content : (existing?.content ?? '');
     if (
+      incomingType !== 'checklist' &&
       existing &&
       existing.content &&
       existing.content.trim().length > 0 &&
@@ -158,6 +160,22 @@ export const noteService = {
       data.content !== ''
     ) {
       contentToSave = existing.content;
+    }
+
+    // Strict Two-Compartment Isolation:
+    // Ngăn Ghi chú (note): checklistContent LUÔN rỗng ('')
+    // Ngăn To-do (checklist): content LUÔN '<p><br></p>', images rỗng, checklistContent CHỈ chứa các dòng to-do
+    let rawChecklist = data.checklistContent !== undefined ? data.checklistContent : (existing?.checklistContent ?? '');
+    if (incomingType === 'checklist') {
+      contentToSave = '<p><br></p>';
+      // Lọc sạch mọi dòng văn bản không phải checkbox trong checklistContent của to-do
+      if (rawChecklist && rawChecklist.trim()) {
+        const lines = rawChecklist.replace(/<[^>]+>/g, '\n').replace(/&nbsp;/g, ' ').split('\n').map((l: string) => l.trim()).filter(Boolean);
+        const validTodo = lines.filter((l: string) => /^(?:-\s*)?\[([ xX])\]/.test(l));
+        rawChecklist = validTodo.length > 0 ? validTodo.join('\n') : '- [ ] ';
+      }
+    } else {
+      rawChecklist = '';
     }
 
     // Preserve user title (allows clearing title completely while user is editing)
@@ -169,11 +187,11 @@ export const noteService = {
       id,
       title: titleToSave,
       content: sanitizedContent,
-      checklistContent: data.checklistContent !== undefined ? data.checklistContent : (existing?.checklistContent ?? ''),
+      checklistContent: rawChecklist,
       pinned: data.pinned !== undefined ? Boolean(data.pinned) : (existing?.pinned ?? false),
       color: data.color ?? existing?.color ?? 'amber',
       tags: data.tags ?? existing?.tags ?? [],
-      images: data.images !== undefined ? data.images : (existing?.images ?? []),
+      images: incomingType === 'checklist' ? [] : (data.images !== undefined ? data.images : (existing?.images ?? [])),
       reminderAt: data.reminderAt !== undefined ? data.reminderAt : (existing?.reminderAt ?? null),
       reminderEmail: data.reminderEmail !== undefined ? data.reminderEmail : (existing?.reminderEmail ?? null),
       reminderNotifyDesktop: data.reminderNotifyDesktop !== undefined ? data.reminderNotifyDesktop : (existing?.reminderNotifyDesktop ?? true),
@@ -181,7 +199,7 @@ export const noteService = {
       reminderCompleted: data.reminderCompleted !== undefined ? data.reminderCompleted : (existing?.reminderCompleted ?? false),
       taskReminders: data.taskReminders !== undefined ? data.taskReminders : (existing?.taskReminders ?? []),
       emailProvider: data.emailProvider !== undefined ? data.emailProvider : (existing?.emailProvider ?? 'gmail'),
-      noteType: data.noteType !== undefined ? data.noteType : (existing?.noteType ?? (contentToSave && /^-\s*\[([ xX])\]/m.test(contentToSave) ? 'checklist' : 'note')),
+      noteType: data.noteType !== undefined ? data.noteType : (existing?.noteType ?? 'note'),
       isLocked: data.isLocked !== undefined ? Boolean(data.isLocked) : (existing?.isLocked ?? false),
       password: data.password !== undefined ? data.password : (existing?.password ?? ''),
       createdAt: existing?.createdAt || now,

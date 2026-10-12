@@ -2,7 +2,12 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './app/App'
 import './index.css'
+import '@liqui-design/glass/tokens.css'
 import { autoBackupManager } from './services/autoBackupManager'
+import { motionGuardian } from './services/motionGuardian'
+
+// Kích hoạt Motion Guardian Agent để bảo vệ 100% animation Apple Liquid Glass
+motionGuardian.enforceMotion();
 
 // Normalize origin: Always ensure browser runs under 'localhost' so IndexedDB data is never split or lost
 if (typeof window !== 'undefined' && window.location.hostname === '127.0.0.1') {

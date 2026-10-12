@@ -4,8 +4,12 @@ import { AppShell } from '@/components/layout/AppShell';
 import { ErrorBoundary } from '@/components/ui';
 import { NotFoundPage } from '@/components/ui/NotFoundPage';
 
-import { UnifiedWorkspacePage } from '@/features/workspace/UnifiedWorkspacePage';
-import { SettingsPage } from '@/features/settings/SettingsPage';
+const UnifiedWorkspacePage = React.lazy(() =>
+  import('@/features/workspace/UnifiedWorkspacePage').then((m) => ({ default: m.UnifiedWorkspacePage }))
+);
+const SettingsPage = React.lazy(() =>
+  import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage }))
+);
 
 const PageFallback: React.FC = () => (
   <div className="flex-1 flex items-center justify-center min-h-[60vh]">

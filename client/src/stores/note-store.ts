@@ -8,6 +8,8 @@ interface NoteStoreState {
   isMinimized: boolean;
   isPinned: boolean;
   activeNoteId: string | null;
+  activeTextNoteId: string | null;
+  activeChecklistId: string | null;
   notes: QuickNoteItem[];
   loading: boolean;
   searchQuery: string;
@@ -34,6 +36,8 @@ export const useNoteStore = create<NoteStoreState>((set, get) => ({
   isMinimized: false,
   isPinned: false,
   activeNoteId: null,
+  activeTextNoteId: null,
+  activeChecklistId: null,
   notes: [],
   loading: false,
   searchQuery: '',
@@ -41,13 +45,136 @@ export const useNoteStore = create<NoteStoreState>((set, get) => ({
   loadNotes: async () => {
     set({ loading: true });
     try {
-      const notes = await noteService.getAllNotes();
-      set({ notes, loading: false });
+      const rawNotes = await noteService.getAllNotes();
 
-      // If activeNoteId is not set, select the first note if exists
-      if (!get().activeNoteId && notes.length > 0) {
-        set({ activeNoteId: notes[0].id });
+      // --- Self-Healing Data Decoupling Migration (2-Compartment Notebook Model) ---
+      // Phân tách triệt để 100%: Ngăn Ghi chú và Ngăn To-do là 2 thực thể hoàn toàn độc lập,
+      // không chia sẻ id, không để lẫn nội dung của nhau.
+      let notes = [...rawNotes];
+      let migrated = false;
+
+      for (const n of rawNotes) {
+        // 1. Nếu một note có noteType === 'checklist':
+        //    Tách mọi dòng văn bản thường (không có [ ] hoặc [x]) sang 1 ghi chú văn bản thuần túy.
+        //    Ngăn to-do CHỈ giữ lại các dòng việc cần làm hợp lệ.
+        if (n.noteType === 'checklist') {
+          const rawChecklist = n.checklistContent || '';
+          const rawContent = n.content || '';
+          const combined = `${rawChecklist}\n${rawContent}`.replace(/<[^>]+>/g, '\n').replace(/&nbsp;/g, ' ');
+          const allLines = combined.split('\n').map((l) => l.trim()).filter(Boolean);
+
+          const todoLines: string[] = [];
+          const textLines: string[] = [];
+
+          allLines.forEach((line) => {
+            if (/^(?:-\s*)?\[([ xX])\]/.test(line)) {
+              todoLines.push(line);
+            } else if (line !== '<p><br></p>' && line !== '<br>') {
+              textLines.push(line);
+            }
+          });
+
+          // Nếu note to-do này đang chứa lẫn các dòng văn bản ghi chú (như danh sách nhà cung cấp...)
+          if (textLines.length > 0) {
+            migrated = true;
+            // Tạo 1 bản ghi Ghi chú riêng cho phần văn bản đó
+            const textHtml = textLines.map((l) => `<p>${l}</p>`).join('');
+            const cleanTitle = (n.title || '').replace(/\s*\((?:Ghi chú|To-do)\)/gi, '').trim();
+            await noteService.saveNote({
+              title: cleanTitle ? `${cleanTitle} (Ghi chú)` : 'Ghi chú',
+              content: textHtml,
+              checklistContent: '',
+              noteType: 'note',
+              color: 'amber',
+              pinned: n.pinned,
+              images: n.images || [],
+            });
+
+            // Làm sạch note to-do hiện tại: CHỈ giữ lại các dòng checklist, đặt title chuẩn To-do
+            await noteService.saveNote({
+              ...n,
+              title: cleanTitle ? `${cleanTitle} (To-do)` : 'Danh sách việc cần làm',
+              noteType: 'checklist',
+              content: '<p><br></p>',
+              checklistContent: todoLines.length > 0 ? todoLines.join('\n') : '- [ ] ',
+              images: [],
+            });
+          } else if (n.content && n.content !== '<p><br></p>') {
+            // Dọn sạch n.content trong note checklist nếu còn dư
+            migrated = true;
+            await noteService.saveNote({
+              ...n,
+              content: '<p><br></p>',
+              images: [],
+            });
+          }
+        } else {
+          // 2. Nếu một note có noteType === 'note' (hoặc chưa gán type):
+          //    Nếu lỡ chứa checklistContent, tách phần checklistContent thành 1 to-do độc lập.
+          const hasText = Boolean(n.content && n.content.trim() && n.content !== '<p><br></p>');
+          const hasChecklist = Boolean(
+            n.checklistContent &&
+            n.checklistContent.trim() &&
+            n.checklistContent !== '- [ ] ' &&
+            /\[([ xX])\]/.test(n.checklistContent)
+          );
+
+          if (hasText && hasChecklist) {
+            migrated = true;
+            // Giữ note hiện tại làm ghi chú văn bản thuần túy
+            await noteService.saveNote({
+              ...n,
+              noteType: 'note',
+              checklistContent: '',
+            });
+            // Tạo to-do riêng biệt
+            await noteService.saveNote({
+              title: n.title ? `${n.title} (To-do)` : 'Danh sách việc cần làm',
+              content: '<p><br></p>',
+              checklistContent: n.checklistContent,
+              noteType: 'checklist',
+              color: 'blue',
+              pinned: n.pinned,
+              images: [],
+              taskReminders: n.taskReminders || [],
+            });
+          } else if (n.checklistContent && !hasChecklist) {
+            // Dọn sạch checklistContent rác
+            migrated = true;
+            await noteService.saveNote({
+              ...n,
+              noteType: 'note',
+              checklistContent: '',
+            });
+          }
+        }
       }
+
+      if (migrated) {
+        notes = await noteService.getAllNotes();
+      }
+
+      const textNotes = notes.filter((n) => n.noteType !== 'checklist');
+      const checklistNotes = notes.filter((n) => n.noteType === 'checklist');
+
+      const currentActiveTextId = get().activeTextNoteId;
+      const currentActiveChecklistId = get().activeChecklistId;
+
+      const nextActiveTextId = (currentActiveTextId && textNotes.some((n) => n.id === currentActiveTextId))
+        ? currentActiveTextId
+        : (textNotes[0]?.id || null);
+
+      const nextActiveChecklistId = (currentActiveChecklistId && checklistNotes.some((n) => n.id === currentActiveChecklistId))
+        ? currentActiveChecklistId
+        : (checklistNotes[0]?.id || null);
+
+      set({
+        notes,
+        loading: false,
+        activeTextNoteId: nextActiveTextId,
+        activeChecklistId: nextActiveChecklistId,
+        activeNoteId: get().activeNoteId || nextActiveTextId || nextActiveChecklistId,
+      });
     } catch (err) {
       console.error('Failed to load notes:', err);
       set({ loading: false });
@@ -55,11 +182,29 @@ export const useNoteStore = create<NoteStoreState>((set, get) => ({
   },
 
   openNote: (id?: string) => {
-    const { notes } = get();
+    const { notes, activeTextNoteId, activeChecklistId, activeNoteId } = get();
     if (id) {
-      set({ isOpen: true, isMinimized: false, activeNoteId: id });
+      const target = notes.find((n) => n.id === id);
+      const isChecklist = target?.noteType === 'checklist';
+      set({
+        isOpen: true,
+        isMinimized: false,
+        activeNoteId: id,
+        activeTextNoteId: isChecklist ? activeTextNoteId : id,
+        activeChecklistId: isChecklist ? id : activeChecklistId,
+      });
     } else if (notes.length > 0) {
-      set({ isOpen: true, isMinimized: false, activeNoteId: get().activeNoteId || notes[0].id });
+      const textNotes = notes.filter((n) => n.noteType !== 'checklist');
+      const checklistNotes = notes.filter((n) => n.noteType === 'checklist');
+      const validTextId = (activeTextNoteId && textNotes.some((n) => n.id === activeTextNoteId)) ? activeTextNoteId : textNotes[0]?.id || null;
+      const validChecklistId = (activeChecklistId && checklistNotes.some((n) => n.id === activeChecklistId)) ? activeChecklistId : checklistNotes[0]?.id || null;
+      set({
+        isOpen: true,
+        isMinimized: false,
+        activeTextNoteId: validTextId,
+        activeChecklistId: validChecklistId,
+        activeNoteId: activeNoteId || validTextId || validChecklistId,
+      });
     } else {
       // If no notes exist, auto-create one
       get().createNote();
@@ -92,22 +237,27 @@ export const useNoteStore = create<NoteStoreState>((set, get) => ({
 
   createNote: async (type: 'note' | 'checklist' = 'note', initialContent?: string) => {
     const isChecklist = type === 'checklist';
-    const defaultContent = isChecklist
+    const defaultChecklist = isChecklist
       ? (initialContent ?? '- [ ] Việc cần làm 1\n- [ ] Việc cần làm 2')
-      : (initialContent ?? '');
+      : '';
+    const defaultContent = isChecklist ? '<p><br></p>' : (initialContent ?? '');
     const defaultTitle = isChecklist ? 'Danh sách việc mới' : 'Ghi chú mới';
 
     const newNote = await noteService.saveNote({
       title: defaultTitle,
       content: defaultContent,
+      checklistContent: defaultChecklist,
       noteType: type,
       color: isChecklist ? 'blue' : 'amber',
       pinned: false,
+      images: [],
     });
 
     set((state) => ({
       notes: [newNote, ...state.notes],
       activeNoteId: newNote.id,
+      activeTextNoteId: isChecklist ? state.activeTextNoteId : newNote.id,
+      activeChecklistId: isChecklist ? newNote.id : state.activeChecklistId,
       isOpen: true,
       isMinimized: false,
     }));
@@ -116,7 +266,15 @@ export const useNoteStore = create<NoteStoreState>((set, get) => ({
   },
 
   selectNote: (id: string) => {
-    set({ activeNoteId: id, isMinimized: false });
+    const { notes } = get();
+    const target = notes.find((n) => n.id === id);
+    const isChecklist = target?.noteType === 'checklist';
+    set((state) => ({
+      activeNoteId: id,
+      activeTextNoteId: isChecklist ? state.activeTextNoteId : id,
+      activeChecklistId: isChecklist ? id : state.activeChecklistId,
+      isMinimized: false,
+    }));
   },
 
   updateNote: async (id: string, fields: Partial<QuickNoteItem>) => {
@@ -124,10 +282,19 @@ export const useNoteStore = create<NoteStoreState>((set, get) => ({
     const current = notes.find((n) => n.id === id);
     if (!current) return;
 
+    const isChecklist = (fields.noteType ?? current.noteType) === 'checklist';
+    const sanitizedFields: Partial<QuickNoteItem> = { ...fields };
+    if (isChecklist) {
+      sanitizedFields.content = '<p><br></p>';
+      sanitizedFields.images = [];
+    } else {
+      sanitizedFields.checklistContent = '';
+    }
+
     // Optimistic in-memory update immediately so typing/switching has 0 delay and no data loss
     const optimistic: QuickNoteItem = {
       ...current,
-      ...fields,
+      ...sanitizedFields,
       id,
       updatedAt: new Date().toISOString(),
     };
@@ -139,7 +306,7 @@ export const useNoteStore = create<NoteStoreState>((set, get) => ({
     // Asynchronously persist
     const updated = await noteService.saveNote({
       ...current,
-      ...fields,
+      ...sanitizedFields,
       id,
     });
 
@@ -161,24 +328,46 @@ export const useNoteStore = create<NoteStoreState>((set, get) => ({
 
   deleteNote: async (id: string) => {
     await noteService.deleteNote(id);
-    const { notes, activeNoteId } = get();
+    const { notes, activeNoteId, activeTextNoteId, activeChecklistId } = get();
+    const target = notes.find((n) => n.id === id);
+    const isChecklist = target?.noteType === 'checklist';
     const remaining = notes.filter((n) => n.id !== id);
+
+    const remainingTextNotes = remaining.filter((n) => n.noteType !== 'checklist');
+    const remainingChecklistNotes = remaining.filter((n) => n.noteType === 'checklist');
+
+    let nextActiveTextId = activeTextNoteId;
+    let nextActiveChecklistId = activeChecklistId;
+
+    if (isChecklist) {
+      if (activeChecklistId === id) {
+        nextActiveChecklistId = remainingChecklistNotes.length > 0 ? remainingChecklistNotes[0].id : null;
+      }
+    } else {
+      if (activeTextNoteId === id) {
+        nextActiveTextId = remainingTextNotes.length > 0 ? remainingTextNotes[0].id : null;
+      }
+    }
 
     let nextActiveId = activeNoteId;
     if (activeNoteId === id) {
-      nextActiveId = remaining.length > 0 ? remaining[0].id : null;
+      nextActiveId = isChecklist ? (nextActiveChecklistId || nextActiveTextId) : (nextActiveTextId || nextActiveChecklistId);
     }
 
     set({
       notes: remaining,
       activeNoteId: nextActiveId,
+      activeTextNoteId: nextActiveTextId,
+      activeChecklistId: nextActiveChecklistId,
     });
 
-    toast.success('Đã xóa ghi chú', { id: 'note-delete' });
+    toast.success(isChecklist ? 'Đã xóa danh sách to-do' : 'Đã xóa ghi chú', { id: 'note-delete' });
 
-    // If no notes remain, create an empty one
-    if (remaining.length === 0) {
-      await get().createNote();
+    // If no notes remain in the deleted compartment, create an empty one for that compartment
+    if (isChecklist && remainingChecklistNotes.length === 0) {
+      await get().createNote('checklist');
+    } else if (!isChecklist && remainingTextNotes.length === 0) {
+      await get().createNote('note');
     }
   },
 

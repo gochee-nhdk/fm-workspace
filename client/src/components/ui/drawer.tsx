@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { CloseButton } from '@/components/ui/close-button';
+import { motionTokens } from '@/lib/motion';
 
 export interface DrawerProps {
   isOpen: boolean;
@@ -36,7 +37,7 @@ export const Drawer: React.FC<DrawerProps> = ({
         setIsMounted(false);
         setIsClosing(false);
         document.body.style.overflow = '';
-      }, 160);
+      }, motionTokens.duration.exit);
     }
 
     return () => {
@@ -53,7 +54,7 @@ export const Drawer: React.FC<DrawerProps> = ({
       setIsClosing(false);
       setIsMounted(false);
       document.body.style.overflow = '';
-    }, 160);
+    }, motionTokens.duration.exit);
   };
 
   useEffect(() => {

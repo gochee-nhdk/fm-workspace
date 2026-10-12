@@ -204,6 +204,57 @@ const playPopSound = () => {
   // Silent no-op: sound effects disabled across app
 };
 
+/**
+ * Ensures checklist text is clean markdown checkboxes without any HTML tags or file attachments
+ */
+const cleanChecklistText = (raw?: string | null): string => {
+  if (!raw || !raw.trim()) return '- [ ] ';
+  let text = raw
+    .replace(/<span\b[^>]*class=["'][^"']*apple-file-attachment[^"']*["'][\s\S]*?<\/span>/gi, '')
+    .replace(/<div\b[^>]*class=["'][^"']*apple-img-wrapper[^"']*["'][\s\S]*?<\/div>/gi, '')
+    .replace(/<img\b[^>]*>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\r\n/g, '\n');
+
+  const lines = text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => Boolean(l));
+
+  const validLines = lines.filter((l) => /^(?:-\s*)?\[([ xX])\]/.test(l));
+  if (validLines.length > 0) return validLines.join('\n');
+  return '- [ ] ';
+};
+
+/**
+ * Convert AI/plain-text output into checklist-only content.
+ * To-do must never persist generated text in the note HTML `content` field.
+ */
+const normalizeChecklistDraft = (raw?: string | null): string => {
+  if (!raw || !raw.trim()) return '- [ ] ';
+
+  const cleaned = raw
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/(?:p|div|li)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\r\n/g, '\n');
+
+  const lines = cleaned
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/^(?:[-*•]\s*|\d+[.)]\s*)/, '').trim())
+    .filter(Boolean);
+
+  return lines.length > 0 ? lines.map((line) => `- [ ] ${line}`).join('\n') : '- [ ] ';
+};
+
 interface ChecklistRow {
   lineIndex: number;
   taskId: string;
@@ -799,6 +850,8 @@ export const QuickNoteWindow: React.FC = () => {
     isMinimized,
     isPinned,
     activeNoteId,
+    activeTextNoteId,
+    activeChecklistId,
     notes,
     loadNotes,
     closeNote,
@@ -1135,8 +1188,12 @@ export const QuickNoteWindow: React.FC = () => {
     lastLightboxImageRef.current = lightboxImage;
   }
   const [lightboxZoom, setLightboxZoom] = useState(1);
+  const [lightboxPan, setLightboxPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [isLightboxPanning, setIsLightboxPanning] = useState(false);
+  const lightboxPanStartRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
   const [snippingSnapshot, setSnippingSnapshot] = useState<string | null>(null);
   const [filePreviewModal, setFilePreviewModal] = useState<{
+    fileId?: string;
     url: string;
     name: string;
     ext: string;
@@ -1237,7 +1294,47 @@ export const QuickNoteWindow: React.FC = () => {
     loadNotes();
   }, [loadNotes]);
 
-  const activeNote = notes.find((n) => n.id === activeNoteId) || notes[0];
+  // One-time self-healing data repair: restore notes corrupted by old regex noteType bug
+  useEffect(() => {
+    if (notes.length > 0) {
+      notes.forEach((n) => {
+        if (
+          n.noteType === 'checklist' &&
+          (!n.checklistContent || !n.checklistContent.trim()) &&
+          n.content &&
+          n.content !== '<p><br></p>'
+        ) {
+          updateNote(n.id, { noteType: 'note' });
+        }
+      });
+    }
+  }, [notes, updateNote]);
+
+  const activeNote = useMemo(() => {
+    if (editorMode === 'checklist') {
+      const checklistNotes = notes.filter((n) => n.noteType === 'checklist');
+      if (activeChecklistId) {
+        const found = checklistNotes.find((n) => n.id === activeChecklistId);
+        if (found) return found;
+      }
+      if (activeNoteId) {
+        const found = checklistNotes.find((n) => n.id === activeNoteId);
+        if (found) return found;
+      }
+      return checklistNotes[0] || null;
+    } else {
+      const textNotes = notes.filter((n) => n.noteType !== 'checklist');
+      if (activeTextNoteId) {
+        const found = textNotes.find((n) => n.id === activeTextNoteId);
+        if (found) return found;
+      }
+      if (activeNoteId) {
+        const found = textNotes.find((n) => n.id === activeNoteId);
+        if (found) return found;
+      }
+      return textNotes[0] || null;
+    }
+  }, [notes, activeTextNoteId, activeChecklistId, activeNoteId, editorMode]);
   const isNoteLocked = Boolean(activeNote?.isLocked && !unlockedNoteIds.includes(activeNote?.id || ''));
 
   // ──────── Auto-extract unique #tags across all notes ────────
@@ -1330,6 +1427,11 @@ export const QuickNoteWindow: React.FC = () => {
     const files = e.target.files;
     if (!files || files.length === 0 || !activeNote) return;
 
+    if (editorMode === 'checklist') {
+      toast('Chế độ To-do chỉ quản lý việc cần làm, vui lòng chuyển sang Ghi chú để đính kèm hình ảnh.', { icon: 'ℹ️' });
+      return;
+    }
+
     toast.loading('Đang xử lý hình ảnh...', { id: 'note-img-process' });
     try {
       const newAttachments: NoteImageAttachment[] = [];
@@ -1355,22 +1457,10 @@ export const QuickNoteWindow: React.FC = () => {
         const currentImages = activeNote.images || [];
         const nextImages = [...currentImages, ...newAttachments];
 
-        if (editorMode === 'checklist') {
-          const lines = newAttachments.map((a) => `- [ ] 📷 [Hình ảnh: ${a.name}]`).join('\n');
-          const nextChecklist = `${localChecklistRef.current.trim()}\n${lines}`.trim();
-          setLocalChecklist(nextChecklist);
-          localChecklistRef.current = nextChecklist;
-          await updateActiveNote({
-            content: updatedHtml,
-            images: nextImages,
-            checklistContent: nextChecklist,
-          } as any);
-        } else {
-          await updateActiveNote({
-            content: updatedHtml,
-            images: nextImages,
-          });
-        }
+        await updateActiveNote({
+          content: updatedHtml,
+          images: nextImages,
+        });
 
         playAppleChime();
         toast.success(`Đã chèn ${newAttachments.length} hình ảnh trực tiếp vào ghi chú!`, { id: 'note-img-process' });
@@ -1389,11 +1479,15 @@ export const QuickNoteWindow: React.FC = () => {
     const files = e.target.files;
     if (!files || files.length === 0 || !activeNote) return;
 
+    if (editorMode === 'checklist') {
+      toast('Chế độ To-do chỉ quản lý việc cần làm, vui lòng chuyển sang Ghi chú để đính kèm tệp tin.', { icon: 'ℹ️' });
+      return;
+    }
+
     toast.loading('Đang xử lý tệp tin...', { id: 'note-file-process' });
     try {
       const newAttachments: NoteImageAttachment[] = [];
       let combinedHtml = '';
-      const newChecklistLines: string[] = [];
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
@@ -1409,13 +1503,11 @@ export const QuickNoteWindow: React.FC = () => {
           };
           newAttachments.push(newAttachment);
           combinedHtml += generateInlineImageHtml(dataUrl, file.name);
-          newChecklistLines.push(`- [ ] 📷 [Hình ảnh: ${file.name}]`);
         } else {
           // File tài liệu: lưu nhị phân trực tiếp vào IndexedDB (không nhúng base64 nặng vào HTML)
           const { id, sizeStr } = await attachmentService.saveAttachment(file, file.name);
           const ext = file.name.split('.').pop()?.toLowerCase() || '';
           combinedHtml += generateFileCardHtml(id, file.name, ext, sizeStr);
-          newChecklistLines.push(`- [ ] [${ext.toUpperCase()} - ${file.name}] (${sizeStr})`);
         }
       }
 
@@ -1424,24 +1516,13 @@ export const QuickNoteWindow: React.FC = () => {
         const currentImages = activeNote.images || [];
         const nextImages = [...currentImages, ...newAttachments];
 
-        if (editorMode === 'checklist' && newChecklistLines.length > 0) {
-          const nextChecklist = `${localChecklistRef.current.trim()}\n${newChecklistLines.join('\n')}`.trim();
-          setLocalChecklist(nextChecklist);
-          localChecklistRef.current = nextChecklist;
-          await updateActiveNote({
-            content: updatedHtml,
-            images: nextImages,
-            checklistContent: nextChecklist,
-          } as any);
-        } else {
-          await updateActiveNote({
-            content: updatedHtml,
-            images: nextImages,
-          });
-        }
+        await updateActiveNote({
+          content: updatedHtml,
+          images: nextImages,
+        });
 
         playAppleChime();
-        toast.success(`Đã đính kèm ${files.length} tệp tin trực tiếp vào văn bản!`, { id: 'note-file-process' });
+        toast.success(`Đã đính kèm ${files.length} tệp tin vào văn bản ghi chú!`, { id: 'note-file-process' });
       } else {
         toast.dismiss('note-file-process');
       }
@@ -1492,21 +1573,11 @@ export const QuickNoteWindow: React.FC = () => {
       const imgHtml = generateInlineImageHtml(croppedDataUrl, fileName);
       const updatedHtml = insertHtmlIntoEditor(imgHtml, { skipSave: true });
 
-      if (editorMode === 'checklist') {
-        const nextChecklist = `${localChecklistRef.current.trim()}\n- [ ] ✂️ [Ảnh chụp màn hình: ${fileName}]`.trim();
-        setLocalChecklist(nextChecklist);
-        localChecklistRef.current = nextChecklist;
-        await updateActiveNote({
-          content: updatedHtml,
-          images: nextImages,
-          checklistContent: nextChecklist,
-        } as any);
-      } else {
-        await updateActiveNote({
-          content: updatedHtml,
-          images: nextImages,
-        });
-      }
+      // Note và To-do hoàn toàn tách biệt: không can thiệp checklistContent
+      await updateActiveNote({
+        content: updatedHtml,
+        images: nextImages,
+      });
 
       playAppleChime();
       toast.success('✂️ Đã chèn ảnh chụp màn hình vào văn bản ghi chú!', { id: 'note-crop-save' });
@@ -1579,11 +1650,15 @@ export const QuickNoteWindow: React.FC = () => {
 
     if (mode === 'replace') {
       if (editorMode === 'checklist') {
-        const newContent = aiDraft.result;
-        setLocalContent(newContent);
-        localContentRef.current = newContent;
+        const newChecklist = normalizeChecklistDraft(aiDraft.result);
+        setLocalChecklist(newChecklist);
+        localChecklistRef.current = newChecklist;
         if (activeNoteIdRef.current) {
-          updateNote(activeNoteIdRef.current, { content: newContent });
+          updateNote(activeNoteIdRef.current, {
+            content: '<p><br></p>',
+            checklistContent: newChecklist,
+            images: [],
+          });
         }
       } else {
         const targetEl = editorRef.current;
@@ -1616,11 +1691,21 @@ export const QuickNoteWindow: React.FC = () => {
     } else {
       // Append mode
       if (editorMode === 'checklist') {
-        const newContent = `${localContent}\n${aiDraft.result}`.trim();
-        setLocalContent(newContent);
-        localContentRef.current = newContent;
+        const draftChecklist = normalizeChecklistDraft(aiDraft.result);
+        const baseChecklist = localChecklist.trim() && localChecklist.trim() !== '- [ ] '
+          ? localChecklist.trim()
+          : '';
+        const newChecklist = [baseChecklist, draftChecklist]
+          .filter(Boolean)
+          .join('\n');
+        setLocalChecklist(newChecklist);
+        localChecklistRef.current = newChecklist;
         if (activeNoteIdRef.current) {
-          updateNote(activeNoteIdRef.current, { content: newContent });
+          updateNote(activeNoteIdRef.current, {
+            content: '<p><br></p>',
+            checklistContent: newChecklist,
+            images: [],
+          });
         }
       } else if (editorRef.current) {
         const p = document.createElement('p');
@@ -1660,40 +1745,57 @@ export const QuickNoteWindow: React.FC = () => {
     setAiDraftCopied(false);
   };
 
-  // Switch format of CURRENT note between Note and Checklist - 2 content hoàn toàn tách biệt
+  // Switch between Ghi chú (Notes) and To-do (Reminders) modules - 2 ngăn hoàn toàn độc lập
   const handleSwitchNoteMode = async (targetMode: 'note' | 'checklist') => {
-    if (!activeNote) return;
-    const currentMode = editorMode === 'checklist' ? 'checklist' : 'note';
-    if (currentMode === targetMode) return;
+    const isTargetChecklist = targetMode === 'checklist';
+    const isCurrentChecklist = editorMode === 'checklist';
+    if (isTargetChecklist === isCurrentChecklist) return;
 
     playPopSound();
-    if (targetMode === 'checklist') {
-      // Switching from Note → Checklist: chỉ đổi mode, dùng localChecklist riêng biệt
+    savePendingDraft(activeNoteIdRef.current);
+
+    // Drop the previous editor's live DOM immediately; the next mode is hydrated
+    // only from its own store fields by the active-note synchronization effect.
+    if (editorRef.current) editorRef.current.replaceChildren();
+    setLocalContent('');
+    localContentRef.current = '';
+
+    if (isTargetChecklist) {
       setEditorMode('checklist');
-      if (!localChecklistRef.current.trim()) {
-        const defaultChecklist = (activeNote as any).checklistContent?.trim() || '- [ ] ';
-        setLocalChecklist(defaultChecklist);
-        localChecklistRef.current = defaultChecklist;
+      setTypeFilter('checklist');
+      setLocalChecklist('- [ ] ');
+      localChecklistRef.current = '- [ ] ';
+
+      const checklistNotes = notes.filter((n) => n.noteType === 'checklist');
+      if (checklistNotes.length > 0) {
+        const targetId = (activeChecklistId && checklistNotes.some((n) => n.id === activeChecklistId))
+          ? activeChecklistId
+          : checklistNotes[0].id;
+        activeNoteIdRef.current = null; // Bắt buộc re-sync toàn bộ state ngăn to-do
+        selectNote(targetId);
+      } else {
+        activeNoteIdRef.current = null;
+        await createNote('checklist');
       }
-      await updateNote(activeNote.id, {
-        noteType: 'checklist',
-        checklistContent: localChecklistRef.current,
-      });
-      toast.success('Đã chuyển sang To-do việc cần làm', { id: 'note-mode-toggle', duration: 1500 });
+      toast.success('Chế độ To-do việc cần làm', { id: 'note-mode-toggle', duration: 1200 });
     } else {
-      // Switching from Checklist → Note: chỉ đổi mode, dùng localContent text riêng
       setEditorMode('text');
-      const html = ensureHtml(localContentRef.current || activeNote.content || '');
-      setLocalContent(html);
-      localContentRef.current = html;
-      if (editorRef.current) {
-        editorRef.current.innerHTML = html;
+      setTypeFilter('note');
+      setLocalChecklist('- [ ] ');
+      localChecklistRef.current = '- [ ] ';
+
+      const textNotes = notes.filter((n) => n.noteType !== 'checklist');
+      if (textNotes.length > 0) {
+        const targetId = (activeTextNoteId && textNotes.some((n) => n.id === activeTextNoteId))
+          ? activeTextNoteId
+          : textNotes[0].id;
+        activeNoteIdRef.current = null; // Bắt buộc re-sync toàn bộ state ngăn ghi chú
+        selectNote(targetId);
+      } else {
+        activeNoteIdRef.current = null;
+        await createNote('note');
       }
-      await updateNote(activeNote.id, {
-        noteType: 'note',
-        content: html,
-      });
-      toast.success('Đã chuyển sang Ghi chú văn bản', { id: 'note-mode-toggle', duration: 1500 });
+      toast.success('Chế độ Ghi chú văn bản', { id: 'note-mode-toggle', duration: 1200 });
     }
   };
 
@@ -2138,7 +2240,11 @@ export const QuickNoteWindow: React.FC = () => {
     toast.success('Đã xóa hình ảnh khỏi ghi chú', { id: 'note-img-del' });
   };
 
-  const handleDeleteFileFromPreview = async (fileUrl: string, fileName?: string) => {
+  const handleDeleteFileFromPreview = async (fileUrl: string, fileName?: string, fileId?: string) => {
+    if (fileId) {
+      attachmentService.deleteAttachment(fileId).catch(console.error);
+    }
+
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = null;
@@ -2150,10 +2256,12 @@ export const QuickNoteWindow: React.FC = () => {
       elements.forEach((el) => {
         const isFile = el.classList.contains('apple-file-attachment');
         if (isFile) {
+          const fid = el.getAttribute('data-file-id');
           const u = el.getAttribute('data-file-url');
           const n = el.getAttribute('data-file-name');
           const a = el.querySelector('a');
           if (
+            (fileId && fid === fileId) ||
             (fileUrl && (u === fileUrl || a?.getAttribute('href') === fileUrl)) ||
             (fileName && (n === fileName || a?.getAttribute('download') === fileName))
           ) {
@@ -2232,6 +2340,44 @@ export const QuickNoteWindow: React.FC = () => {
         }
       }
 
+      if (editorMode === 'checklist') {
+        if (imageFiles.length > 0) {
+          e.preventDefault();
+          toast('Chế độ To-do chỉ quản lý danh sách việc cần làm. Vui lòng chuyển sang Ghi chú để dán hình ảnh.', {
+            icon: 'ℹ️',
+            id: 'note-paste-checklist-hint',
+          });
+          return;
+        }
+
+        const text = e.clipboardData?.getData('text/plain');
+        const activeTag = document.activeElement?.tagName?.toLowerCase();
+        if (text && activeTag !== 'input' && activeTag !== 'textarea') {
+          e.preventDefault();
+          const cleanLines = text
+            .split('\n')
+            .map((l) => l.trim())
+            .filter(Boolean)
+            .map((l) => {
+              const cleaned = l.replace(/^(?:-\s*)?\[([ xX])\]\s*/, '').replace(/^[-*•]\s*/, '').trim();
+              return cleaned ? `- [ ] ${cleaned}` : '';
+            })
+            .filter(Boolean);
+
+          if (cleanLines.length > 0) {
+            const currentLines = localChecklist.split('\n').filter((l) => l.trim() && l.trim() !== '- [ ]');
+            const combined = [...currentLines, ...cleanLines].join('\n');
+            setLocalChecklist(combined);
+            localChecklistRef.current = combined;
+            if (activeNoteIdRef.current) {
+              updateNote(activeNoteIdRef.current, { checklistContent: combined });
+            }
+            toast.success(`Đã thêm ${cleanLines.length} đầu việc vào danh sách to-do!`, { id: 'note-paste-todo' });
+          }
+        }
+        return;
+      }
+
       if (imageFiles.length > 0) {
         e.preventDefault();
         toast.loading('Đang dán ảnh từ clipboard...', { id: 'note-img-paste' });
@@ -2266,7 +2412,7 @@ export const QuickNoteWindow: React.FC = () => {
 
     window.addEventListener('paste', handleGlobalPaste);
     return () => window.removeEventListener('paste', handleGlobalPaste);
-  }, [isOpen, isMinimized, activeNote, updateActiveNote, insertHtmlIntoEditor]);
+  }, [isOpen, isMinimized, activeNote, editorMode, updateActiveNote, insertHtmlIntoEditor, localChecklist, updateNote]);
 
   // Load and parse in-app file preview when filePreviewModal changes
   useEffect(() => {
@@ -2286,61 +2432,84 @@ export const QuickNoteWindow: React.FC = () => {
     const ext = filePreviewModal.ext.toLowerCase();
     setIsPreviewLoading(true);
 
-    // Create a native blob URL for PDF, audio, video, etc.
-    let bUrl: string | null = null;
     let isCancelled = false;
+    let localBlobUrl: string | null = null;
 
-    if (filePreviewModal.url.startsWith('data:')) {
-      dataUrlToBlob(filePreviewModal.url).then((blob) => {
-        if (isCancelled) return;
-        bUrl = URL.createObjectURL(blob);
-        setPreviewBlobUrl(bUrl);
-      }).catch(() => {
-        if (!isCancelled) setPreviewBlobUrl(filePreviewModal.url);
-      });
-    } else {
-      setPreviewBlobUrl(filePreviewModal.url);
-    }
+    const loadPreview = async () => {
+      try {
+        let blob: Blob | null = null;
+        if (filePreviewModal.fileId) {
+          const res = await attachmentService.getAttachmentBlob(filePreviewModal.fileId);
+          blob = res?.blob || null;
+        }
 
-    if (['txt', 'md', 'json', 'csv', 'js', 'ts', 'jsx', 'tsx', 'html', 'css', 'py', 'log', 'xml', 'yaml', 'yml'].includes(ext)) {
-      decodeDataUrlText(filePreviewModal.url).then((text) => {
-        if (!isCancelled) {
-          setPreviewTextContent(text);
-          setIsPreviewLoading(false);
+        if (!blob) {
+          if (filePreviewModal.url.startsWith('data:') || filePreviewModal.url.startsWith('blob:')) {
+            blob = await dataUrlToBlob(filePreviewModal.url);
+          } else if (filePreviewModal.url.startsWith('http')) {
+            const res = await fetch(filePreviewModal.url);
+            blob = await res.blob();
+          }
         }
-      }).catch(() => {
-        if (!isCancelled) setIsPreviewLoading(false);
-      });
-    } else if (['xlsx', 'xls'].includes(ext)) {
-      parseExcelFromDataUrl(filePreviewModal.url).then((data) => {
-        if (!isCancelled) {
-          setExcelPreview(data);
-          setIsPreviewLoading(false);
+
+        if (isCancelled || !blob) {
+          if (!isCancelled) setIsPreviewLoading(false);
+          return;
         }
-      }).catch(() => {
-        if (!isCancelled) setIsPreviewLoading(false);
-      });
-    } else if (['docx'].includes(ext)) {
-      parseDocxFromDataUrl(filePreviewModal.url).then((res) => {
-        if (!isCancelled) {
-          setDocxPreview(res);
-          setIsPreviewLoading(false);
+
+        // Tạo fresh blob URL cho session preview hiện tại
+        localBlobUrl = URL.createObjectURL(blob);
+        setPreviewBlobUrl(localBlobUrl);
+
+        if (['txt', 'md', 'json', 'csv', 'js', 'ts', 'jsx', 'tsx', 'html', 'css', 'py', 'log', 'xml', 'yaml', 'yml'].includes(ext)) {
+          const text = await blob.text();
+          if (!isCancelled) {
+            setPreviewTextContent(text);
+            setIsPreviewLoading(false);
+          }
+        } else if (['xlsx', 'xls'].includes(ext)) {
+          const buf = await blob.arrayBuffer();
+          const workbook = XLSX.read(new Uint8Array(buf), { type: 'array' });
+          const sheets: ExcelSheetPreview[] = workbook.SheetNames.map((name) => {
+            const sheet = workbook.Sheets[name];
+            const rawData = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: '' });
+            let maxCols = 0;
+            rawData.forEach((row) => {
+              if (Array.isArray(row) && row.length > maxCols) maxCols = row.length;
+            });
+            return {
+              name,
+              rows: rawData.slice(0, 300),
+              totalRows: rawData.length,
+              totalCols: maxCols,
+            };
+          });
+          if (!isCancelled) {
+            setExcelPreview({ sheets, activeSheetIndex: 0 });
+            setIsPreviewLoading(false);
+          }
+        } else if (['docx'].includes(ext)) {
+          const res = await parseDocxFromDataUrl(localBlobUrl);
+          if (!isCancelled) {
+            setDocxPreview(res);
+            setIsPreviewLoading(false);
+          }
+        } else if (['pptx'].includes(ext)) {
+          const res = await parsePptxFromDataUrl(localBlobUrl);
+          if (!isCancelled) {
+            setPptxPreview(res);
+            setIsPreviewLoading(false);
+          }
+        } else {
+          if (!isCancelled) setIsPreviewLoading(false);
         }
-      }).catch(() => {
+      } catch (err) {
+        console.error('Lỗi khi nạp bản xem trước tệp:', err);
         if (!isCancelled) setIsPreviewLoading(false);
-      });
-    } else if (['pptx'].includes(ext)) {
-      parsePptxFromDataUrl(filePreviewModal.url).then((res) => {
-        if (!isCancelled) {
-          setPptxPreview(res);
-          setIsPreviewLoading(false);
-        }
-      }).catch(() => {
-        if (!isCancelled) setIsPreviewLoading(false);
-      });
-    } else {
-      setIsPreviewLoading(false);
-    }
+      }
+    };
+
+    loadPreview();
 
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -2353,8 +2522,8 @@ export const QuickNoteWindow: React.FC = () => {
     return () => {
       isCancelled = true;
       window.removeEventListener('keydown', handleEsc);
-      if (bUrl) {
-        URL.revokeObjectURL(bUrl);
+      if (localBlobUrl) {
+        URL.revokeObjectURL(localBlobUrl);
       }
     };
   }, [filePreviewModal]);
@@ -2398,19 +2567,71 @@ export const QuickNoteWindow: React.FC = () => {
       )
     : -1;
 
+  const handleResetLightboxZoom = useCallback(() => {
+    setLightboxZoom(1);
+    setLightboxPan({ x: 0, y: 0 });
+    setIsLightboxPanning(false);
+  }, []);
+
+  const handleZoomInLightbox = useCallback(() => {
+    setLightboxZoom((z) => Math.min(4, +(z + 0.25).toFixed(2)));
+  }, []);
+
+  const handleZoomOutLightbox = useCallback(() => {
+    setLightboxZoom((z) => {
+      const nextZoom = Math.max(0.5, +(z - 0.25).toFixed(2));
+      if (nextZoom <= 1) {
+        setLightboxPan({ x: 0, y: 0 });
+      }
+      return nextZoom;
+    });
+  }, []);
+
+  const handleToggleDoubleZoom = useCallback(() => {
+    if (lightboxZoom > 1.05) {
+      handleResetLightboxZoom();
+    } else {
+      setLightboxZoom(2);
+    }
+  }, [lightboxZoom, handleResetLightboxZoom]);
+
   const handlePrevImage = useCallback(() => {
     if (noteImages.length <= 1 || currentImageIndex === -1) return;
     const prevIdx = (currentImageIndex - 1 + noteImages.length) % noteImages.length;
     setLightboxImage(noteImages[prevIdx]);
-    setLightboxZoom(1);
-  }, [noteImages, currentImageIndex]);
+    handleResetLightboxZoom();
+  }, [noteImages, currentImageIndex, handleResetLightboxZoom]);
 
   const handleNextImage = useCallback(() => {
     if (noteImages.length <= 1 || currentImageIndex === -1) return;
     const nextIdx = (currentImageIndex + 1) % noteImages.length;
     setLightboxImage(noteImages[nextIdx]);
-    setLightboxZoom(1);
-  }, [noteImages, currentImageIndex]);
+    handleResetLightboxZoom();
+  }, [noteImages, currentImageIndex, handleResetLightboxZoom]);
+
+  // Global mousemove and mouseup listeners for Lightbox Pan Dragging
+  useEffect(() => {
+    if (!isLightboxPanning) return;
+    const onMouseMove = (e: MouseEvent) => {
+      if (!lightboxPanStartRef.current) return;
+      const dx = e.clientX - lightboxPanStartRef.current.startX;
+      const dy = e.clientY - lightboxPanStartRef.current.startY;
+      setLightboxPan({
+        x: lightboxPanStartRef.current.originX + dx,
+        y: lightboxPanStartRef.current.originY + dy,
+      });
+    };
+    const onMouseUp = () => {
+      setIsLightboxPanning(false);
+      lightboxPanStartRef.current = null;
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [isLightboxPanning]);
 
   // Keyboard controls for Lightbox (Escape, ArrowLeft, ArrowRight, Zoom)
   useEffect(() => {
@@ -2421,7 +2642,7 @@ export const QuickNoteWindow: React.FC = () => {
         e.preventDefault();
         e.stopPropagation();
         setLightboxImage(null);
-        setLightboxZoom(1);
+        handleResetLightboxZoom();
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
         handlePrevImage();
@@ -2430,19 +2651,19 @@ export const QuickNoteWindow: React.FC = () => {
         handleNextImage();
       } else if (e.key === '+' || e.key === '=') {
         e.preventDefault();
-        setLightboxZoom((z) => Math.min(3, +(z + 0.25).toFixed(2)));
+        handleZoomInLightbox();
       } else if (e.key === '-') {
         e.preventDefault();
-        setLightboxZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)));
+        handleZoomOutLightbox();
       } else if (e.key === '0') {
         e.preventDefault();
-        setLightboxZoom(1);
+        handleResetLightboxZoom();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-  }, [lightboxImage, handlePrevImage, handleNextImage]);
+  }, [lightboxImage, handlePrevImage, handleNextImage, handleZoomInLightbox, handleZoomOutLightbox, handleResetLightboxZoom]);
 
   // Auto-dismiss Writing Tools menu on outside click
   useEffect(() => {
@@ -2467,26 +2688,40 @@ export const QuickNoteWindow: React.FC = () => {
       }
       if (noteId) {
         const current = notes.find((n) => n.id === noteId);
+        if (!current) return;
         const newTitle = localTitleRef.current;
-        const newContent = localContentRef.current;
-        
-        // Safety guard: Don't overwrite an existing note with empty content if editor was not even rendered or typed in
-        if (
-          current &&
-          current.content &&
-          current.content.trim().length > 0 &&
-          (!newContent || newContent === '<p><br></p>') &&
-          !editorRef.current
-        ) {
-          return;
-        }
 
-        // Only trigger update if content or title actually changed
-        if (current && (current.title !== newTitle || current.content !== newContent)) {
-          updateNote(noteId, {
-            title: newTitle,
-            content: newContent,
-          });
+        if (current.noteType === 'checklist') {
+          const newChecklist = localChecklistRef.current;
+          if (current.title !== newTitle || (current as any).checklistContent !== newChecklist) {
+            updateNote(noteId, {
+              title: newTitle,
+              checklistContent: newChecklist,
+              content: '<p><br></p>',
+              images: [],
+            });
+          }
+        } else {
+          const newContent = localContentRef.current;
+          
+          // Safety guard: Don't overwrite an existing note with empty content if editor was not even rendered or typed in
+          if (
+            current.content &&
+            current.content.trim().length > 0 &&
+            (!newContent || newContent === '<p><br></p>') &&
+            !editorRef.current
+          ) {
+            return;
+          }
+
+          // Only trigger update if content or title actually changed
+          if (current.title !== newTitle || current.content !== newContent) {
+            updateNote(noteId, {
+              title: newTitle,
+              content: newContent,
+              checklistContent: '',
+            });
+          }
         }
       }
     },
@@ -2495,11 +2730,13 @@ export const QuickNoteWindow: React.FC = () => {
 
   const handleCreateNewNote = async (type: 'note' | 'checklist' = 'note') => {
     savePendingDraft(activeNoteIdRef.current);
-    // Auto-sync filter so new note is immediately visible in sidebar
-    if (type === 'note' && typeFilter === 'checklist') {
+    // Auto-sync filter & editorMode so new note is immediately visible and opened
+    if (type === 'note') {
       setTypeFilter('note');
-    } else if (type === 'checklist' && typeFilter === 'note') {
+      setEditorMode('text');
+    } else if (type === 'checklist') {
       setTypeFilter('checklist');
+      setEditorMode('checklist');
     }
     await createNote(type);
   };
@@ -2510,17 +2747,13 @@ export const QuickNoteWindow: React.FC = () => {
 
     // Check if active note matches the new filter; if not, switch to first matching note
     if (activeNote) {
-      const isChecklist =
-        activeNote.noteType === 'checklist' ||
-        (/^-\s*\[([ xX])\]/m.test(activeNote.content) && activeNote.noteType !== 'note');
+      const isChecklist = activeNote.noteType === 'checklist';
       const isMatch = filter === 'note' ? !isChecklist : isChecklist;
       if (isMatch) return;
     }
 
     const matching = notes.find((n) => {
-      const isChecklist =
-        n.noteType === 'checklist' ||
-        (/^-\s*\[([ xX])\]/m.test(n.content) && n.noteType !== 'note');
+      const isChecklist = n.noteType === 'checklist';
       return filter === 'note' ? !isChecklist : isChecklist;
     });
 
@@ -2624,11 +2857,14 @@ export const QuickNoteWindow: React.FC = () => {
     }
   };
 
-  // Sync local draft when active note switches
+  // Sync local draft when active note switches or editorMode switches
   useEffect(() => {
     if (activeNote) {
-      if (activeNoteIdRef.current !== activeNote.id) {
-        if (activeNoteIdRef.current) {
+      const modeMismatch = (activeNote.noteType === 'checklist' && editorMode !== 'checklist') ||
+                           (activeNote.noteType !== 'checklist' && editorMode === 'checklist');
+
+      if (activeNoteIdRef.current !== activeNote.id || modeMismatch) {
+        if (activeNoteIdRef.current && activeNoteIdRef.current !== activeNote.id) {
           savePendingDraft(activeNoteIdRef.current);
         }
         activeNoteIdRef.current = activeNote.id;
@@ -2643,20 +2879,32 @@ export const QuickNoteWindow: React.FC = () => {
 
         if (isChecklist) {
           setEditorMode('checklist');
-          const checklistData = initialChecklist || initialContent;
+          // Ghi chú và To-do hoàn toàn tách biệt: checklist CHỈ lấy từ checklistContent
+          // Tuyệt đối không nạp HTML/file attachments từ note content vào checklist
+          const rawChecklist = (activeNote as any).checklistContent || '';
+          const checklistData = cleanChecklistText(rawChecklist);
           setLocalChecklist(checklistData);
           localChecklistRef.current = checklistData;
-          const html = ensureHtml(initialContent);
-          setLocalContent(html);
-          localContentRef.current = html;
+          setLocalContent('');
+          localContentRef.current = '';
+
+          // Dọn dẹp triệt để nếu note checklist này từng bị dính content hoặc file từ các phiên bản trước
+          if (
+            (activeNote.images && activeNote.images.length > 0) ||
+            (activeNote.content && activeNote.content !== '<p><br></p>')
+          ) {
+            updateNote(activeNote.id, {
+              content: '<p><br></p>',
+              images: [],
+            });
+          }
         } else {
           setEditorMode('text');
           const html = ensureHtml(initialContent);
           setLocalContent(html);
           localContentRef.current = html;
-          const checklistData = initialChecklist || (initialContent && /^-\s*\[([ xX])\]/m.test(initialContent) ? initialContent : '');
-          setLocalChecklist(checklistData);
-          localChecklistRef.current = checklistData;
+          setLocalChecklist('- [ ] ');
+          localChecklistRef.current = '- [ ] ';
           if (editorRef.current) {
             editorRef.current.innerHTML = html;
           }
@@ -2676,7 +2924,7 @@ export const QuickNoteWindow: React.FC = () => {
         setReminderDesktop(activeNote.reminderNotifyDesktop ?? true);
       }
     }
-  }, [activeNote, savePendingDraft]);
+  }, [activeNote, editorMode, savePendingDraft]);
 
   // Ensure editorRef.current has the content when mounted, switching to text mode, or active note changes
   useEffect(() => {
@@ -2700,9 +2948,11 @@ export const QuickNoteWindow: React.FC = () => {
   const filteredNotes = useMemo(() => {
     return notes
       .filter((n) => {
-        const isChecklist =
-          n.noteType === 'checklist' ||
-          (/^-\s*\[([ xX])\]/m.test(n.content) && n.noteType !== 'note');
+        const isChecklist = n.noteType === 'checklist';
+
+        // 2 Ngăn độc lập: Ngăn Ghi chú chỉ hiển thị note văn bản, Ngăn To-do chỉ hiển thị việc cần làm
+        if (editorMode === 'checklist' && !isChecklist) return false;
+        if (editorMode === 'text' && isChecklist) return false;
 
         if (typeFilter === 'note' && isChecklist) return false;
         if (typeFilter === 'checklist' && !isChecklist) return false;
@@ -2727,19 +2977,8 @@ export const QuickNoteWindow: React.FC = () => {
       });
   }, [notes, typeFilter, activeTagFilter, searchTerm]);
 
-  const countNotes = notes.filter(
-    (n) =>
-      !(
-        n.noteType === 'checklist' ||
-        (/^-\s*\[([ xX])\]/m.test(n.content) && n.noteType !== 'note')
-      )
-  ).length;
-
-  const countChecklists = notes.filter(
-    (n) =>
-      n.noteType === 'checklist' ||
-      (/^-\s*\[([ xX])\]/m.test(n.content) && n.noteType !== 'note')
-  ).length;
+  const countNotes = notes.filter((n) => n.noteType !== 'checklist').length;
+  const countChecklists = notes.filter((n) => n.noteType === 'checklist').length;
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -3149,7 +3388,7 @@ export const QuickNoteWindow: React.FC = () => {
           size: matched?.size,
           createdAt: matched?.createdAt || new Date().toISOString(),
         });
-        setLightboxZoom(1);
+        handleResetLightboxZoom();
         playPopSound();
       }
       return;
@@ -3172,7 +3411,7 @@ export const QuickNoteWindow: React.FC = () => {
         if (fileId) {
           attachmentService.getAttachment(fileId).then((att) => {
             if (att) {
-              setFilePreviewModal({ url: att.url, name, ext, size: att.sizeStr || size });
+              setFilePreviewModal({ fileId, url: att.url, name, ext, size: att.sizeStr || size });
               playPopSound();
             } else {
               toast.error('Không tìm thấy tệp đính kèm trong bộ nhớ');
@@ -3211,7 +3450,7 @@ export const QuickNoteWindow: React.FC = () => {
           size: matched?.size,
           createdAt: matched?.createdAt || new Date().toISOString(),
         });
-        setLightboxZoom(1);
+        handleResetLightboxZoom();
         playPopSound();
       }
       return;
@@ -3220,9 +3459,8 @@ export const QuickNoteWindow: React.FC = () => {
 
   // ──────── Parse Checklist Rows & match taskReminders ────────
   const checklistRows: ChecklistRow[] = useMemo(() => {
-    // Dùng localChecklist riêng biệt, không dùng localContent
-    const plain = extractPlainText(localChecklist);
-    const lines = plain.split('\n');
+    // Checklist UI consumes only normalized checkbox lines, never note HTML/body text.
+    const lines = cleanChecklistText(localChecklist).split('\n');
     const rows: ChecklistRow[] = [];
     const taskReminders = activeNote?.taskReminders || [];
 
@@ -3721,6 +3959,14 @@ export const QuickNoteWindow: React.FC = () => {
           setIsDraggingFile(false);
           if (!activeNote) return;
 
+          if (editorMode === 'checklist') {
+            toast('Chế độ To-do chỉ quản lý danh sách việc cần làm. Vui lòng chuyển sang Ghi chú để đính kèm tệp tin.', {
+              icon: 'ℹ️',
+              id: 'note-drop-checklist-hint',
+            });
+            return;
+          }
+
           const files = Array.from(e.dataTransfer.files);
           if (files.length === 0) return;
 
@@ -3883,9 +4129,7 @@ export const QuickNoteWindow: React.FC = () => {
               {filteredNotes.map((note) => {
                 const isSelected = note.id === activeNote?.id;
                 const dotColor = COLOR_MAP[note.color || 'amber'].dot;
-                const isChecklistNote =
-                  note.noteType === 'checklist' ||
-                  (/^-\s*\[([ xX])\]/m.test(note.content) && note.noteType !== 'note');
+                const isChecklistNote = note.noteType === 'checklist';
                 const isLockedAndHidden = note.isLocked && !unlockedNoteIds.includes(note.id);
                 const hasNoteReminder = Boolean(note.reminderAt && !note.reminderCompleted);
                 const hasTaskReminder = Boolean((note.taskReminders || []).some((tr) => !tr.reminderCompleted));
@@ -4078,58 +4322,57 @@ export const QuickNoteWindow: React.FC = () => {
                 const isChecklistActive = editorMode === 'checklist';
                 return (
                   <div
-                    className={`relative inline-flex items-center p-0.5 rounded-full bg-black/[0.05] dark:bg-white/[0.08] backdrop-blur-2xl border border-black/[0.06] dark:border-white/12 shadow-2xs ml-1 shrink-0 select-none ${
-                      isCompactWindow ? 'w-[60px]' : 'w-[172px]'
-                    }`}
+                    className={cn(
+                      "relative p-0.5 rounded-full bg-black/[0.05] dark:bg-white/[0.08] backdrop-blur-2xl border border-black/[0.06] dark:border-white/12 shadow-2xs ml-1 shrink-0 select-none",
+                      isCompactWindow ? "w-[62px]" : "w-[176px]"
+                    )}
                   >
-                    {/* Fluid Sliding Pill Indicator: Căn chuẩn tâm 100%, đệm đều 2px 4 phía */}
-                    <div
-                      className="absolute top-0.5 bottom-0.5 left-0.5 rounded-full bg-[#0071e3] shadow-xs transition-transform duration-280 ease-[cubic-bezier(0.34,1.56,0.64,1)] pointer-events-none will-change-transform"
-                      style={{
-                        width: isCompactWindow ? '28px' : '84px',
-                        transform: `translate3d(${isChecklistActive ? (isCompactWindow ? '28px' : '84px') : '0px'}, 0, 0)`,
-                      }}
-                    />
-
-                    {/* Nút 1: Ghi chú */}
-                    <button
-                      type="button"
-                      onClick={() => handleSwitchNoteMode('note')}
-                      className={`relative z-10 flex items-center justify-center gap-1.5 rounded-full text-[12px] font-semibold transition-colors duration-200 cursor-pointer active:scale-95 shrink-0 whitespace-nowrap h-7 ${
-                        isCompactWindow ? 'w-7 p-0' : 'w-[84px] px-2'
-                      } ${
-                        !isChecklistActive
-                          ? 'text-white'
-                          : 'text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white'
-                      }`}
-                      title="Chế độ Ghi chú văn bản"
-                    >
-                      <SFSquareAndPencil
-                        size={13}
-                        className={`shrink-0 ${!isChecklistActive ? 'text-white' : 'text-[#76767b] dark:text-[#a1a1a6]'}`}
+                    {/* Inner 2-column flex grid for 100% symmetric tabs */}
+                    <div className="relative grid grid-cols-2 w-full h-7 items-center overflow-hidden rounded-full">
+                      {/* Fluid Sliding Pill Indicator: Chiều rộng chính xác 50% của capsule, dịch chuyển 100% đối xứng hoàn hảo */}
+                      <div
+                        className="absolute inset-y-0 left-0 w-1/2 rounded-full bg-[#0071e3] shadow-[0_2px_8px_rgba(0,113,227,0.35)] transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] pointer-events-none will-change-transform"
+                        style={{
+                          transform: `translate3d(${isChecklistActive ? '100%' : '0%'}, 0, 0)`,
+                        }}
                       />
-                      {!isCompactWindow && <span className="leading-none text-center">Ghi chú</span>}
-                    </button>
 
-                    {/* Nút 2: To-do */}
-                    <button
-                      type="button"
-                      onClick={() => handleSwitchNoteMode('checklist')}
-                      className={`relative z-10 flex items-center justify-center gap-1.5 rounded-full text-[12px] font-semibold transition-colors duration-200 cursor-pointer active:scale-95 shrink-0 whitespace-nowrap h-7 ${
-                        isCompactWindow ? 'w-7 p-0' : 'w-[84px] px-2'
-                      } ${
-                        isChecklistActive
-                          ? 'text-white'
-                          : 'text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white'
-                      }`}
-                      title="Chế độ To-do việc cần làm"
-                    >
-                      <SFCheckmarkSquare
-                        size={13}
-                        className={`shrink-0 ${isChecklistActive ? 'text-white' : 'text-[#76767b] dark:text-[#a1a1a6]'}`}
-                      />
-                      {!isCompactWindow && <span className="leading-none text-center">To-do</span>}
-                    </button>
+                      {/* Nút 1: Ghi chú */}
+                      <button
+                        type="button"
+                        onClick={() => handleSwitchNoteMode('note')}
+                        className={`relative z-10 w-full h-full flex items-center justify-center gap-1.5 rounded-full text-[12px] font-semibold transition-all duration-200 cursor-pointer active:scale-95 shrink-0 whitespace-nowrap px-1.5 ${
+                          !isChecklistActive
+                            ? 'text-white font-bold'
+                            : 'text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white'
+                        }`}
+                        title="Chế độ Ghi chú văn bản"
+                      >
+                        <SFSquareAndPencil
+                          size={13}
+                          className={`shrink-0 transition-transform duration-200 ${!isChecklistActive ? 'text-white scale-105' : 'text-[#76767b] dark:text-[#a1a1a6]'}`}
+                        />
+                        {!isCompactWindow && <span className="leading-none text-center">Ghi chú</span>}
+                      </button>
+
+                      {/* Nút 2: To-do */}
+                      <button
+                        type="button"
+                        onClick={() => handleSwitchNoteMode('checklist')}
+                        className={`relative z-10 w-full h-full flex items-center justify-center gap-1.5 rounded-full text-[12px] font-semibold transition-all duration-200 cursor-pointer active:scale-95 shrink-0 whitespace-nowrap px-1.5 ${
+                          isChecklistActive
+                            ? 'text-white font-bold'
+                            : 'text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white'
+                        }`}
+                        title="Chế độ To-do việc cần làm"
+                      >
+                        <SFCheckmarkSquare
+                          size={13}
+                          className={`shrink-0 transition-transform duration-200 ${isChecklistActive ? 'text-white scale-105' : 'text-[#76767b] dark:text-[#a1a1a6]'}`}
+                        />
+                        {!isCompactWindow && <span className="leading-none text-center">To-do</span>}
+                      </button>
+                    </div>
                   </div>
                 );
               })()}
@@ -4299,7 +4542,7 @@ export const QuickNoteWindow: React.FC = () => {
             ) : (
             <div className={cn(
               "flex-1 flex flex-col overflow-hidden apple-note-canvas font-sans bg-transparent dark:bg-[#16161e]",
-              isCompactWindow ? "pt-3.5 pb-2 pl-4 pr-1" : "p-5 sm:p-6"
+              isCompactWindow ? "pt-3.5 pb-2.5 px-4" : "p-5 sm:p-6"
             )}>
               {/* Title input - Apple macOS 27 Title 1 Typography */}
               <div className="mb-1 shrink-0">
@@ -4307,7 +4550,7 @@ export const QuickNoteWindow: React.FC = () => {
                   type="text"
                   value={localTitle}
                   onChange={handleTitleChange}
-                  placeholder="Tiêu đề ghi chú..."
+                  placeholder={editorMode === 'checklist' ? 'Tiêu đề danh sách to-do...' : 'Tiêu đề ghi chú...'}
                   style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
                   className="w-full macos-title-1 font-bold text-[#1d1d1f] dark:text-[#f5f5f7] bg-transparent !border-0 !border-none !outline-none !shadow-none !ring-0 focus:!ring-0 focus:!outline-none focus:!border-none placeholder:text-[#86868b]/40 tracking-tight p-0 selection:bg-amber-500/20 selection:text-amber-800 dark:selection:text-amber-200"
                 />
@@ -4317,13 +4560,19 @@ export const QuickNoteWindow: React.FC = () => {
               {!isCompactWindow && (
               <div className="flex items-center justify-between gap-3 text-[11px] text-[#86868b] dark:text-[#76767b] pb-2.5 pt-1 border-b border-black/[0.04] dark:border-white/[0.06] mb-3 shrink-0">
                 <div className="flex items-center gap-2 whitespace-nowrap min-w-0">
-                  <span className="font-medium text-[#86868b] dark:text-[#a1a1a6] truncate">
-                    {new Date(activeNote.updatedAt).toLocaleTimeString('vi-VN', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}{' '}
-                    • {localCharCount} ký tự
-                  </span>
+                  {editorMode === 'checklist' ? (
+                    <span className="font-medium text-[#86868b] dark:text-[#a1a1a6] truncate">
+                      {checklistCompleted}/{checklistTotal} việc hoàn thành ({checklistPercent}%)
+                    </span>
+                  ) : (
+                    <span className="font-medium text-[#86868b] dark:text-[#a1a1a6] truncate">
+                      {new Date(activeNote.updatedAt).toLocaleTimeString('vi-VN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}{' '}
+                      • {localCharCount} ký tự
+                    </span>
+                  )}
                   <span className="text-[#34c759] inline-flex items-center gap-1 font-medium shrink-0">
                     <SFCheckmark size={12} className="text-[#34c759]" /> Đã lưu
                   </span>
@@ -4452,17 +4701,12 @@ export const QuickNoteWindow: React.FC = () => {
                 </div>
               )}
 
-              {/* In-place Quick Formatting & Tools Strip — ẨN trong compact mode */}
-              {!isCompactWindow && (
+              {/* In-place Quick Formatting & Tools Strip — ẨN trong compact mode HOẶC khi đang ở chế độ To-do */}
+              {!isCompactWindow && editorMode !== 'checklist' && (
               <div className="flex items-center justify-between gap-1.5 pb-2 mb-2 border-b border-black/[0.06] dark:border-white/10 shrink-0 select-none relative">
                 {/* Collapsible Rich-Text Formatting Controls with Liquid Spring Physics */}
                 <div
-                  className={cn(
-                    "flex items-center gap-0.5 shrink-0 overflow-x-auto scrollbar-none py-0.5 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
-                    editorMode === 'checklist'
-                      ? "max-w-0 opacity-0 pointer-events-none -translate-x-3 overflow-hidden"
-                      : "max-w-[400px] opacity-100 translate-x-0"
-                  )}
+                  className="flex items-center gap-0.5 shrink-0 overflow-x-auto scrollbar-none py-0.5 max-w-[400px] opacity-100 translate-x-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
                 >
                   <button
                     type="button"
@@ -4755,152 +4999,163 @@ export const QuickNoteWindow: React.FC = () => {
 
               {/* ──────────────── CONTENT AREA: TEXT VS INTERACTIVE CHECKLIST ──────────────── */}
               {editorMode === 'checklist' ? (
-                <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pr-1 space-y-2.5">
-                  {/* Progress Bar & Actions */}
-                  {checklistTotal > 0 && (
-                    <div className="p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.04] dark:border-white/[0.06] shrink-0 space-y-2">
-                      <div className="flex items-center justify-between text-[12px]">
-                        <span className="font-medium text-slate-700 dark:text-slate-300">
-                          Tiến độ: <strong className="text-emerald-600 dark:text-emerald-400">{checklistCompleted}/{checklistTotal} việc</strong> ({checklistPercent}%)
-                        </span>
-                        <div className="flex items-center gap-2 text-[11px]">
-                          {checklistCompleted < checklistTotal ? (
-                            <button
-                              type="button"
-                              onClick={() => handleToggleAllChecklist(true)}
-                              className="text-[#0071e3] dark:text-[#2997ff] hover:underline cursor-pointer font-medium"
-                            >
-                              Xong tất cả
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => handleToggleAllChecklist(false)}
-                              className="text-slate-500 hover:underline cursor-pointer"
-                            >
-                              Bỏ chọn
-                            </button>
-                          )}
+                <div className="flex-1 flex flex-col min-h-0 overflow-y-auto px-0 py-0.5">
+                  {/* Apple Inset Grouped Container */}
+                  <div className="rounded-2xl border border-black/[0.08] dark:border-white/[0.1] bg-black/[0.015] dark:bg-white/[0.025] shadow-xs overflow-hidden flex flex-col">
+                    {/* Integrated Sleek Progress Header */}
+                    {checklistTotal > 0 && (
+                      <div className="px-3.5 py-2.5 bg-black/[0.02] dark:bg-white/[0.03] border-b border-black/[0.06] dark:border-white/[0.08] flex flex-col gap-1.5">
+                        <div className="flex items-center justify-between text-[11.5px]">
+                          <div className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
+                            <span>Tiến độ:</span>
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                              {checklistCompleted}/{checklistTotal}
+                            </span>
+                            <span className="text-slate-400 dark:text-slate-500 font-normal">
+                              ({checklistPercent}%)
+                            </span>
+                          </div>
+                          <div>
+                            {checklistCompleted < checklistTotal ? (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleAllChecklist(true)}
+                                className="text-[11.5px] font-medium text-[#0071e3] dark:text-[#2997ff] hover:underline cursor-pointer transition-colors"
+                              >
+                                Xong tất cả
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleAllChecklist(false)}
+                                className="text-[11.5px] font-medium text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:underline cursor-pointer transition-colors"
+                              >
+                                Bỏ chọn
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        {/* Fluid Mini Progress Track */}
+                        <div className="w-full h-1 bg-black/[0.06] dark:bg-white/[0.08] rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500 dark:bg-emerald-400 transition-all duration-300 ease-out rounded-full"
+                            style={{ width: `${checklistPercent}%` }}
+                          />
                         </div>
                       </div>
-                      <div className="w-full h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                    )}
+
+                    {/* Interactive Checklist Rows with Hairline Dividers */}
+                    <div className="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+                      {checklistRows.map((row) => (
                         <div
-                          className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300 rounded-full"
-                          style={{ width: `${checklistPercent}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
+                          key={`row-${row.lineIndex}`}
+                          className={`group flex items-center gap-3 px-3.5 py-2 transition-colors duration-150 relative ${
+                            mathAnimatedRowIndex === row.lineIndex
+                              ? 'animate-math-flash bg-[#0071e3]/10'
+                              : row.completed
+                              ? 'bg-black/[0.01] dark:bg-white/[0.01]'
+                              : 'hover:bg-black/[0.025] dark:hover:bg-white/[0.035]'
+                          }`}
+                        >
+                          {/* Apple Circular Checkbox */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleChecklistRow(row.lineIndex)}
+                            className={`w-[18px] h-[18px] rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0 active:scale-90 ${
+                              row.completed
+                                ? 'bg-emerald-500 text-white shadow-2xs scale-100'
+                                : 'border-[1.5px] border-black/30 dark:border-white/35 hover:border-[#0071e3] dark:hover:border-[#2997ff]'
+                            }`}
+                            title={row.completed ? 'Đánh dấu chưa xong' : 'Đánh dấu đã hoàn thành'}
+                          >
+                            {row.completed && <SFCheckmark size={11} className="stroke-[3]" />}
+                          </button>
 
-                  {/* Interactive Checklist Rows */}
-                  <div className="space-y-1.5 flex-1">
-                    {checklistRows.map((row) => (
-                      <div
-                        key={`row-${row.lineIndex}`}
-                        className={`group flex items-center gap-2.5 p-2.5 rounded-xl border transition-all duration-200 ${
-                          mathAnimatedRowIndex === row.lineIndex
-                            ? 'animate-math-flash ring-2 ring-[#0071e3]/40 border-[#0071e3]/50'
-                            : ''
-                        } ${
-                          row.completed
-                            ? 'bg-emerald-500/[0.04] dark:bg-emerald-400/[0.05] border-emerald-500/20'
-                            : 'bg-white/60 dark:bg-white/[0.03] border-black/[0.04] dark:border-white/[0.06] hover:border-[#0071e3]/45 hover:bg-[#0071e3]/[0.02]'
-                        }`}
+                          {/* Inline Editable Task Text Input */}
+                          <input
+                            type="text"
+                            value={row.text}
+                            onChange={(e) => handleUpdateChecklistRowText(row.lineIndex, e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleInsertChecklistRowAfter(row.lineIndex);
+                              } else if (e.key === 'Backspace' && row.text === '') {
+                                e.preventDefault();
+                                handleDeleteChecklistRow(row.lineIndex);
+                              }
+                            }}
+                            placeholder="Nhập việc cần làm..."
+                            className={`checklist-item-input flex-1 bg-transparent !border-0 !border-none !outline-none !shadow-none !ring-0 text-[13.5px] leading-snug py-0.5 ${
+                              row.completed
+                                ? 'line-through text-[#86868b] dark:text-[#76767b]'
+                                : 'text-[#1d1d1f] dark:text-[#f5f5f7]'
+                            }`}
+                          />
+
+                          {/* Apple Reminders Action Group: Refined Date Badge/Button + Clean Soft Delete Button */}
+                          <div className="flex items-center gap-1 shrink-0 ml-auto select-none opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
+                            {row.reminderAt ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTodoReminderTarget({
+                                    lineIndex: row.lineIndex,
+                                    taskId: row.taskId,
+                                    taskText: row.text,
+                                    reminderAt: toDatetimeLocal(new Date(row.reminderAt!)),
+                                  });
+                                }}
+                                className="!opacity-100 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium tracking-tight text-[#0071e3] dark:text-[#2997ff] bg-[#0071e3]/10 dark:bg-[#2997ff]/15 hover:bg-[#0071e3]/18 dark:hover:bg-[#2997ff]/25 active:scale-95 transition-all cursor-pointer border border-[#0071e3]/20 dark:border-[#2997ff]/25 shadow-2xs"
+                                title="Nhấp để đổi giờ hoặc hủy nhắc cho việc này"
+                              >
+                                <SFClock size={13} className="text-[#0071e3] dark:text-[#2997ff] shrink-0" />
+                                <span className="leading-none">{formatReminderBadge(row.reminderAt)}</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTodoReminderTarget({
+                                    lineIndex: row.lineIndex,
+                                    taskId: row.taskId,
+                                    taskText: row.text,
+                                    reminderAt: toDatetimeLocal(new Date(Date.now() + 30 * 60 * 1000)),
+                                  });
+                                }}
+                                className="w-7 h-7 rounded-full flex items-center justify-center text-[#86868b] dark:text-[#a1a1a6] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/[0.05] dark:hover:bg-white/[0.08] active:scale-90 transition-all cursor-pointer"
+                                title="Hẹn giờ nhắc cho công việc này"
+                                aria-label="Hẹn giờ nhắc"
+                              >
+                                <SFClock size={16} />
+                              </button>
+                            )}
+
+                            {/* Delete row button (Apple Reminders Subtle Round Button) */}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteChecklistRow(row.lineIndex)}
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-[#86868b] dark:text-[#a1a1a6] hover:text-[#ff3b30] dark:hover:text-[#ff453a] hover:bg-rose-500/10 active:scale-90 transition-all cursor-pointer"
+                              title="Xóa công việc này"
+                              aria-label="Xóa công việc"
+                            >
+                              <SFXmark size={12.5} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Add New Item Row inside grouped list */}
+                      <button
+                        type="button"
+                        onClick={() => handleInsertChecklistRowAfter()}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] text-[#86868b] dark:text-[#76767b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors cursor-pointer text-left"
                       >
-                        {/* Interactive Clickable Round Apple Checkbox */}
-                        <button
-                          type="button"
-                          onClick={() => handleToggleChecklistRow(row.lineIndex)}
-                          className={`w-5 h-5 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0 active:scale-90 ${
-                            row.completed
-                              ? 'bg-emerald-500 dark:bg-emerald-400 text-white shadow-xs scale-105'
-                              : 'border-2 border-black/25 dark:border-white/30 hover:border-[#0071e3] hover:scale-105'
-                          }`}
-                          title={row.completed ? 'Đánh dấu chưa xong' : 'Đánh dấu đã hoàn thành'}
-                        >
-                          {row.completed && <SFCheckmark size={14} className="stroke-[3]" />}
-                        </button>
-
-                        {/* Direct Editable Task Text Input */}
-                        <input
-                          type="text"
-                          value={row.text}
-                          onChange={(e) => handleUpdateChecklistRowText(row.lineIndex, e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleInsertChecklistRowAfter(row.lineIndex);
-                            } else if (e.key === 'Backspace' && row.text === '') {
-                              e.preventDefault();
-                              handleDeleteChecklistRow(row.lineIndex);
-                            }
-                          }}
-                          placeholder="Nhập việc cần làm..."
-                          className={`checklist-item-input flex-1 bg-transparent !border-0 !border-none !outline-none !shadow-none !ring-0 text-[14px] ${
-                            row.completed
-                              ? 'line-through text-[#86868b] dark:text-[#76767b]'
-                              : 'text-[#1d1d1f] dark:text-[#f5f5f7]'
-                          }`}
-                        />
-
-                        {/* Individual Task Reminder Chip / Clock Button */}
-                        {row.reminderAt ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setTodoReminderTarget({
-                                lineIndex: row.lineIndex,
-                                taskId: row.taskId,
-                                taskText: row.text,
-                                reminderAt: toDatetimeLocal(new Date(row.reminderAt!)),
-                              });
-                            }}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#0071e3]/12 text-[#0071e3] dark:text-[#2997ff] border border-[#0071e3]/25 hover:bg-[#0071e3]/20 transition-all cursor-pointer shrink-0 shadow-2xs"
-                            title="Nhấp để đổi giờ hoặc hủy nhắc cho việc này"
-                          >
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#0071e3] animate-pulse" />
-                            <SFClock size={12} className="text-[#0071e3] dark:text-[#2997ff]" />
-                            <span>{formatReminderBadge(row.reminderAt)}</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setTodoReminderTarget({
-                                lineIndex: row.lineIndex,
-                                taskId: row.taskId,
-                                taskText: row.text,
-                                reminderAt: toDatetimeLocal(new Date(Date.now() + 30 * 60 * 1000)),
-                              });
-                            }}
-                            className="opacity-0 group-hover:opacity-100 p-1 text-[#86868b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-[#0071e3]/10 rounded-full transition-all cursor-pointer shrink-0"
-                            title="Hẹn giờ nhắc riêng cho mục việc này"
-                          >
-                            <SFClock size={14} />
-                          </button>
-                        )}
-
-                        {/* Delete row button */}
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteChecklistRow(row.lineIndex)}
-                          className="opacity-0 group-hover:opacity-100 hover:text-rose-600 transition-opacity p-1 text-[#86868b] cursor-pointer shrink-0"
-                          title="Xóa dòng này"
-                        >
-                          <SFXmark size={14} />
-                        </button>
-                      </div>
-                    ))}
-
-                    {/* Add New Item Button inside list */}
-                    <button
-                      type="button"
-                      onClick={() => handleInsertChecklistRowAfter()}
-                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl border border-dashed border-black/15 dark:border-white/15 hover:border-[#0071e3]/50 hover:bg-[#0071e3]/[0.04] text-[13px] text-[#76767b] hover:text-[#0071e3] dark:hover:text-[#2997ff] transition-all cursor-pointer mt-2"
-                    >
-                      <SFPlus size={16} className="text-[#0071e3] dark:text-[#2997ff]" />
-                      <span>Thêm mục mới... (Nhấn Enter)</span>
-                    </button>
+                        <SFPlus size={14} className="text-[#0071e3] dark:text-[#2997ff] shrink-0" />
+                        <span>Thêm mục mới...</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -5257,62 +5512,69 @@ export const QuickNoteWindow: React.FC = () => {
               {/* Bottom Quick Tools Bar - Apple Liquid Glass Dock — ẨN trong compact mode */}
               {!isCompactWindow && (
               <div className="pt-3 border-t border-black/[0.04] dark:border-white/[0.06] flex items-center justify-between gap-2 shrink-0">
-                {/* Left: Content Insertion & Quick Tools (Tách biệt thành các button độc lập theo Hình 1 & 4) */}
-                <div className="flex items-center gap-1.5">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handlePickImages}
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                  />
-                  <input
-                    type="file"
-                    ref={attachmentInputRef}
-                    onChange={handlePickFiles}
-                    multiple
-                    className="hidden"
-                  />
+                {/* Left: Content Insertion & Quick Tools (Tách biệt hoàn toàn: Chỉ hiển thị trong chế độ Ghi chú văn bản) */}
+                {editorMode === 'checklist' ? (
+                  <div className="flex items-center gap-2 text-[12px] text-[#86868b] dark:text-[#a1a1a6] font-medium select-none pl-1">
+                    <SFCheckmarkSquare size={14} className="text-[#0071e3] dark:text-[#2997ff]" />
+                    <span>To-do • Danh sách việc cần làm</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handlePickImages}
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                    />
+                    <input
+                      type="file"
+                      ref={attachmentInputRef}
+                      onChange={handlePickFiles}
+                      multiple
+                      className="hidden"
+                    />
 
-                  {/* 1. Nút Thêm hình ảnh riêng biệt (Tăng kích thước icon, sáng button khi hover, không đổi viền) */}
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.12] dark:hover:bg-white/[0.18] hover:brightness-110 text-[#0071e3] dark:text-[#2997ff] border border-black/[0.05] dark:border-white/[0.08] transition-all cursor-pointer active:scale-90 shadow-2xs hover:shadow-xs"
-                    title="Chèn hình ảnh trực tiếp vào văn bản (Hỗ trợ kéo thả & dán)"
-                    aria-label="Thêm hình ảnh"
-                  >
-                    <SFPhotoBadgePlus size={18} />
-                  </button>
+                    {/* 1. Nút Thêm hình ảnh riêng biệt (Tăng kích thước icon, sáng button khi hover, không đổi viền) */}
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.12] dark:hover:bg-white/[0.18] hover:brightness-110 text-[#0071e3] dark:text-[#2997ff] border border-black/[0.05] dark:border-white/[0.08] transition-all cursor-pointer active:scale-90 shadow-2xs hover:shadow-xs"
+                      title="Chèn hình ảnh trực tiếp vào văn bản (Hỗ trợ kéo thả & dán)"
+                      aria-label="Thêm hình ảnh"
+                    >
+                      <SFPhotoBadgePlus size={18} />
+                    </button>
 
-                  {/* 2. Nút Cắt màn hình Snipping Tool riêng biệt (Sáng button khi hover, không đổi viền) */}
-                  <button
-                    type="button"
-                    disabled={isCapturingScreen}
-                    onClick={handleStartSnipping}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center border border-black/[0.05] dark:border-white/[0.08] transition-all cursor-pointer active:scale-90 shadow-2xs ${
-                      isCapturingScreen
-                        ? 'bg-amber-500/25 text-amber-600 animate-pulse'
-                        : 'bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.12] dark:hover:bg-white/[0.18] hover:brightness-110 text-amber-500 dark:text-amber-400 hover:shadow-xs'
-                    }`}
-                    title="Cắt màn hình nhanh và chèn thẳng vào văn bản (Snipping Tool)"
-                    aria-label="Cắt màn hình"
-                  >
-                    <Scissors size={15.5} />
-                  </button>
+                    {/* 2. Nút Cắt màn hình Snipping Tool riêng biệt (Sáng button khi hover, không đổi viền) */}
+                    <button
+                      type="button"
+                      disabled={isCapturingScreen}
+                      onClick={handleStartSnipping}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center border border-black/[0.05] dark:border-white/[0.08] transition-all cursor-pointer active:scale-90 shadow-2xs ${
+                        isCapturingScreen
+                          ? 'bg-amber-500/25 text-amber-600 animate-pulse'
+                          : 'bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.12] dark:hover:bg-white/[0.18] hover:brightness-110 text-amber-500 dark:text-amber-400 hover:shadow-xs'
+                      }`}
+                      title="Cắt màn hình nhanh và chèn thẳng vào văn bản (Snipping Tool)"
+                      aria-label="Cắt màn hình"
+                    >
+                      <Scissors size={15.5} />
+                    </button>
 
-                  {/* 3. Nút Đính kèm tệp tin đa dạng (Sáng button khi hover, không đổi viền) */}
-                  <button
-                    type="button"
-                    onClick={() => attachmentInputRef.current?.click()}
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.12] dark:hover:bg-white/[0.18] hover:brightness-110 text-emerald-600 dark:text-emerald-400 border border-black/[0.05] dark:border-white/[0.08] transition-all cursor-pointer active:scale-90 shadow-2xs hover:shadow-xs"
-                    title="Đính kèm tệp tin đa dạng (PDF, Word, Excel, ZIP, Text... vào văn bản)"
-                    aria-label="Đính kèm tệp tin"
-                  >
-                    <Paperclip size={15.5} />
-                  </button>
-                </div>
+                    {/* 3. Nút Đính kèm tệp tin đa dạng (Sáng button khi hover, không đổi viền) */}
+                    <button
+                      type="button"
+                      onClick={() => attachmentInputRef.current?.click()}
+                      className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.12] dark:hover:bg-white/[0.18] hover:brightness-110 text-emerald-600 dark:text-emerald-400 border border-black/[0.05] dark:border-white/[0.08] transition-all cursor-pointer active:scale-90 shadow-2xs hover:shadow-xs"
+                      title="Đính kèm tệp tin đa dạng (PDF, Word, Excel, ZIP, Text... vào văn bản)"
+                      aria-label="Đính kèm tệp tin"
+                    >
+                      <Paperclip size={15.5} />
+                    </button>
+                  </div>
+                )}
 
                 {/* Right: Note Management Actions: Copy & Delete */}
                 <div className="inline-flex items-center gap-1 p-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/[0.08] backdrop-blur-xl shrink-0 shadow-2xs">
@@ -5794,18 +6056,73 @@ export const QuickNoteWindow: React.FC = () => {
             {/* Body */}
             <div className="p-4 sm:p-5 space-y-3.5">
               {/* Task Title Preview Pill */}
-              <div className="px-3 py-2 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/10 flex items-center gap-2">
+              <div className="px-3.5 py-2.5 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 flex items-center gap-2.5">
                 <span className="w-2 h-2 rounded-full bg-[#0071e3] shrink-0" />
-                <span className="text-[12.5px] font-medium text-[#1d1d1f] dark:text-white truncate">
+                <span className="text-[13px] font-medium text-[#1d1d1f] dark:text-white truncate">
                   {todoReminderTarget.taskText || '(Chưa nhập tên công việc)'}
                 </span>
               </div>
 
-              {/* Date & Time Picker */}
+              {/* Quick Preset Buttons (Apple Reminders 1-tap presets) */}
               <div className="space-y-1.5">
+                <div className="text-[11.5px] font-semibold text-[#86868b] dark:text-[#a1a1a6]">
+                  Gợi ý nhanh
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setHours(18, 0, 0, 0);
+                      if (d.getTime() <= Date.now()) d.setHours(21, 0, 0, 0);
+                      setTodoReminderTarget((prev) => (prev ? { ...prev, reminderAt: toDatetimeLocal(d) } : null));
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] hover:bg-[#0071e3]/10 dark:hover:bg-[#0071e3]/20 hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.05] dark:border-white/10 text-[11.5px] font-medium text-left transition-colors cursor-pointer"
+                  >
+                    🌇 Tối nay (18:00)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + 1);
+                      d.setHours(9, 0, 0, 0);
+                      setTodoReminderTarget((prev) => (prev ? { ...prev, reminderAt: toDatetimeLocal(d) } : null));
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] hover:bg-[#0071e3]/10 dark:hover:bg-[#0071e3]/20 hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.05] dark:border-white/10 text-[11.5px] font-medium text-left transition-colors cursor-pointer"
+                  >
+                    🌅 Sáng mai (09:00)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + 1);
+                      d.setHours(14, 0, 0, 0);
+                      setTodoReminderTarget((prev) => (prev ? { ...prev, reminderAt: toDatetimeLocal(d) } : null));
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] hover:bg-[#0071e3]/10 dark:hover:bg-[#0071e3]/20 hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.05] dark:border-white/10 text-[11.5px] font-medium text-left transition-colors cursor-pointer"
+                  >
+                    ☀️ Chiều mai (14:00)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date(Date.now() + 60 * 60 * 1000);
+                      setTodoReminderTarget((prev) => (prev ? { ...prev, reminderAt: toDatetimeLocal(d) } : null));
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] hover:bg-[#0071e3]/10 dark:hover:bg-[#0071e3]/20 hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.05] dark:border-white/10 text-[11.5px] font-medium text-left transition-colors cursor-pointer"
+                  >
+                    ⏱️ Sau 1 giờ nữa
+                  </button>
+                </div>
+              </div>
+
+              {/* Date & Time Picker */}
+              <div className="space-y-1.5 pt-1">
                 <label className="text-[12px] font-semibold text-[#86868b] dark:text-[#a1a1a6] flex items-center gap-1.5">
                   <SFClock size={12} className="text-[#0071e3]" />
-                  <span>Chọn ngày & giờ nhắc:</span>
+                  <span>Chọn ngày & giờ tùy chỉnh:</span>
                 </label>
                 <AppleDateTimePicker
                   embedded={true}
@@ -5833,7 +6150,7 @@ export const QuickNoteWindow: React.FC = () => {
                   }}
                   className="text-[12px] font-medium text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
                 >
-                  Hủy hẹn việc này
+                  Xóa lịch nhắc
                 </button>
               ) : <div />}
 
@@ -5843,7 +6160,7 @@ export const QuickNoteWindow: React.FC = () => {
                   onClick={() => setTodoReminderTarget(null)}
                   className="px-3.5 py-1.5 rounded-full text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] border border-black/5 dark:border-white/10 transition-colors cursor-pointer active:scale-95"
                 >
-                  Đóng
+                  Hủy
                 </button>
                 <button
                   type="button"
@@ -6059,7 +6376,7 @@ export const QuickNoteWindow: React.FC = () => {
                 if (e.target === e.currentTarget && !lightboxPresence.isExiting) {
                   e.stopPropagation();
                   setLightboxImage(null);
-                  setLightboxZoom(1);
+                  handleResetLightboxZoom();
                 }
               }}
               className={cn(
@@ -6118,7 +6435,7 @@ export const QuickNoteWindow: React.FC = () => {
                     onClick={() => {
                       handleDeleteImage(activeImg.id, activeImg.url);
                       setLightboxImage(null);
-                      setLightboxZoom(1);
+                      handleResetLightboxZoom();
                     }}
                     className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-90 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 cursor-pointer shadow-xs shrink-0"
                     title="Xóa ảnh khỏi ghi chú"
@@ -6129,7 +6446,7 @@ export const QuickNoteWindow: React.FC = () => {
                   <CloseButton
                     onClick={() => {
                       setLightboxImage(null);
-                      setLightboxZoom(1);
+                      handleResetLightboxZoom();
                     }}
                     size="md"
                     className="w-8 h-8 min-w-[32px] min-h-[32px] bg-white/10 hover:bg-white/20 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 active:scale-90 shadow-xs"
@@ -6144,7 +6461,7 @@ export const QuickNoteWindow: React.FC = () => {
                   if (e.target === e.currentTarget && !lightboxPresence.isExiting) {
                     e.stopPropagation();
                     setLightboxImage(null);
-                    setLightboxZoom(1);
+                    handleResetLightboxZoom();
                   }
                 }}
                 className="flex-1 w-full flex items-center justify-center relative my-2 overflow-hidden cursor-zoom-out"
@@ -6167,18 +6484,54 @@ export const QuickNoteWindow: React.FC = () => {
                   </button>
                 )}
 
-                <img
-                  src={activeImg.url}
-                  alt={activeImg.name || 'Ảnh chi tiết'}
-                  onClick={(e) => e.stopPropagation()}
-                  style={{ transform: `scale(${lightboxZoom})` }}
-                  className={cn(
-                    "max-h-[calc(100vh-170px)] max-w-[90vw] object-contain rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.85),0_4px_16px_rgba(0,0,0,0.5)] border border-white/15 select-none transition-transform duration-200 cursor-default will-change-[transform,opacity,filter]",
-                    lightboxPresence.isExiting
-                      ? "apple-lightbox-img-exit"
-                      : "apple-lightbox-img-enter"
-                  )}
-                />
+                <div
+                  className="relative flex items-center justify-center max-w-full max-h-full"
+                  onWheel={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const delta = e.deltaY < 0 ? 0.2 : -0.2;
+                    setLightboxZoom((z) => {
+                      const next = Math.min(4, Math.max(0.5, +(z + delta).toFixed(2)));
+                      if (next <= 1) {
+                        setLightboxPan({ x: 0, y: 0 });
+                      }
+                      return next;
+                    });
+                  }}
+                >
+                  <img
+                    src={activeImg.url}
+                    alt={activeImg.name || 'Ảnh chi tiết'}
+                    onClick={(e) => e.stopPropagation()}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleDoubleZoom();
+                    }}
+                    onMouseDown={(e) => {
+                      if (e.button !== 0) return; // Only left mouse button
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsLightboxPanning(true);
+                      lightboxPanStartRef.current = {
+                        startX: e.clientX,
+                        startY: e.clientY,
+                        originX: lightboxPan.x,
+                        originY: lightboxPan.y,
+                      };
+                    }}
+                    style={{
+                      transform: `translate3d(${lightboxPan.x}px, ${lightboxPan.y}px, 0) scale(${lightboxZoom})`,
+                      cursor: lightboxZoom > 1 ? (isLightboxPanning ? 'grabbing' : 'grab') : 'zoom-in',
+                      transition: isLightboxPanning ? 'none' : 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+                    }}
+                    className={cn(
+                      "max-h-[calc(100vh-170px)] max-w-[90vw] object-contain rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.85),0_4px_16px_rgba(0,0,0,0.5)] border border-white/15 select-none will-change-[transform,opacity,filter]",
+                      lightboxPresence.isExiting
+                        ? "apple-lightbox-img-exit"
+                        : "apple-lightbox-img-enter"
+                    )}
+                  />
+                </div>
 
                 {/* Next Image Chevron */}
                 {noteImages.length > 1 && (
@@ -6211,8 +6564,8 @@ export const QuickNoteWindow: React.FC = () => {
               >
                 <button
                   type="button"
-                  onClick={() => setLightboxZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))}
-                  className="w-7 h-7 rounded-full hover:bg-white/15 text-white/80 hover:text-white flex items-center justify-center transition-colors cursor-pointer text-sm font-bold"
+                  onClick={handleZoomOutLightbox}
+                  className="w-7 h-7 rounded-full hover:bg-white/15 active:scale-90 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer text-sm font-bold"
                   title="Thu nhỏ (-)"
                 >
                   -
@@ -6220,17 +6573,17 @@ export const QuickNoteWindow: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() => setLightboxZoom(1)}
-                  className="px-2 py-0.5 rounded-full hover:bg-white/15 text-white/80 hover:text-white transition-colors cursor-pointer font-mono text-[11px]"
-                  title="Tỉ lệ ban đầu (Phím 0)"
+                  onClick={handleResetLightboxZoom}
+                  className="px-2.5 py-0.5 rounded-full hover:bg-white/15 active:scale-95 text-white/80 hover:text-white transition-all cursor-pointer font-mono text-[11px]"
+                  title="Tỉ lệ ban đầu 100% (Phím 0 hoặc nhấp đúp)"
                 >
                   {Math.round(lightboxZoom * 100)}%
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setLightboxZoom((z) => Math.min(3, +(z + 0.25).toFixed(2)))}
-                  className="w-7 h-7 rounded-full hover:bg-white/15 text-white/80 hover:text-white flex items-center justify-center transition-colors cursor-pointer text-sm font-bold"
+                  onClick={handleZoomInLightbox}
+                  className="w-7 h-7 rounded-full hover:bg-white/15 active:scale-90 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer text-sm font-bold"
                   title="Phóng to (+)"
                 >
                   +
@@ -6290,19 +6643,31 @@ export const QuickNoteWindow: React.FC = () => {
                 {/* Thứ tự nút chuẩn Apple: Tải về -> Xóa -> Phóng to/Thu nhỏ -> Đóng (Thống nhất màu sắc trung tính thanh lịch) */}
                 <div className="flex items-center gap-1.5 shrink-0">
                   {/* 1. Nút Tải về */}
-                  <a
-                    href={filePreviewModal.url}
-                    download={filePreviewModal.name}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (filePreviewModal.fileId) {
+                        attachmentService.downloadAttachment(filePreviewModal.fileId, filePreviewModal.name);
+                      } else {
+                        const dlUrl = previewBlobUrl || filePreviewModal.url;
+                        const a = document.createElement('a');
+                        a.href = dlUrl;
+                        a.download = filePreviewModal.name;
+                        document.body.appendChild(a);
+                        a.click();
+                        setTimeout(() => a.remove(), 120);
+                      }
+                    }}
                     className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs shrink-0"
                     title="Tải xuống tệp tin"
                   >
                     <SFArrowDownToLine size={14} />
-                  </a>
+                  </button>
 
                   {/* 2. Nút Xóa */}
                   <button
                     type="button"
-                    onClick={() => handleDeleteFileFromPreview(filePreviewModal.url, filePreviewModal.name)}
+                    onClick={() => handleDeleteFileFromPreview(filePreviewModal.url, filePreviewModal.name, filePreviewModal.fileId)}
                     className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs shrink-0"
                     title="Xóa tệp này khỏi ghi chú"
                   >
@@ -6348,6 +6713,7 @@ export const QuickNoteWindow: React.FC = () => {
                   </div>
                 ) : filePreviewModal.ext.toLowerCase() === 'pdf' ? (
                   <iframe
+                    key={previewBlobUrl || filePreviewModal.url}
                     src={previewBlobUrl || filePreviewModal.url}
                     className="w-full h-full rounded-xl border border-black/10 dark:border-white/10 shadow-sm bg-white"
                     title={filePreviewModal.name}
@@ -6565,13 +6931,26 @@ export const QuickNoteWindow: React.FC = () => {
                     <p className="text-[12.5px] text-[#86868b] leading-relaxed mb-5">
                       Tệp định dạng <strong>.{filePreviewModal.ext.toUpperCase()}</strong> ({filePreviewModal.size || 'tệp đính kèm'}). Bạn có thể tải về để mở bằng ứng dụng tương ứng trên máy tính.
                     </p>
-                    <a
-                      href={filePreviewModal.url}
-                      download={filePreviewModal.name}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (filePreviewModal.fileId) {
+                          attachmentService.downloadAttachment(filePreviewModal.fileId, filePreviewModal.name);
+                        } else {
+                          const dlUrl = previewBlobUrl || filePreviewModal.url;
+                          const a = document.createElement('a');
+                          a.href = dlUrl;
+                          a.download = filePreviewModal.name;
+                          document.body.appendChild(a);
+                          a.click();
+                          setTimeout(() => a.remove(), 120);
+                        }
+                      }}
                       className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[13px] font-semibold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
                     >
-                      <span>Tải xuống tệp tin ({filePreviewModal.size})</span>
-                    </a>
+                      <SFArrowDownToLine size={14} />
+                      <span>Tải xuống tệp tin ({filePreviewModal.size || 'tệp đính kèm'})</span>
+                    </button>
                   </div>
                 )}
               </div>

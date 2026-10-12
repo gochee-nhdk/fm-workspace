@@ -29,6 +29,7 @@ import { persistentStorage, StorageStatus } from '@/services/storage/persistentS
 import { autoBackupManager } from '@/services/autoBackupManager';
 import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import { AppleLiquidDialog } from '@/components/ui/AppleLiquidDialog';
+import { SegmentedNavigation } from '@/components/ui/SegmentedNavigation';
 import { useUiStore, resolveTheme } from '@/stores/ui-store';
 import { useSecurityStore } from '@/stores/security-store';
 import { Clock, Monitor, Lock, Unlock, Server, ShieldCheck, Database, KeyRound, Bookmark, Info } from 'lucide-react';
@@ -166,16 +167,7 @@ export const SettingsPage: React.FC = () => {
   const [showSmtpPassword, setShowSmtpPassword] = useState(false);
   const [isDisconnectingSmtp, setIsDisconnectingSmtp] = useState(false);
 
-  const tabTrackRef = useRef<HTMLDivElement>(null);
-  const tabPillRef = useRef<HTMLDivElement>(null);
   const { animationClass } = useDirectionalTab(activeTab, SETTINGS_TABS);
-
-  useAppleTabSpring(tabTrackRef, tabPillRef, activeTab, {
-    stiffness: 360,
-    damping: 23,
-    mass: 0.82,
-    allowDeformation: true,
-  });
 
   const handleDisconnectSmtp = async () => {
     if (!confirm('Bạn có chắc chắn muốn gỡ tài khoản Gmail gửi thư này? Bạn sẽ cần nhập tài khoản mới để tiếp tục gửi email nhắc nhở.')) {
@@ -540,118 +532,19 @@ export const SettingsPage: React.FC = () => {
         </p>
       </div>
 
-      {/* ── Apple Liquid Glass Master Segmented Navigation Bar (Synchronized with UnifiedWorkspacePage) ── */}
+      {/* Shared segmented navigation keeps visual and spring behavior aligned with Workspace. */}
       <div className="flex items-center justify-start overflow-x-auto pb-1 scrollbar-none">
-        <div
-          ref={tabTrackRef}
-          role="tablist"
-          aria-label="Cài đặt hệ thống"
-          className="liquid-glass-segmented-track p-1 inline-flex items-center self-start sm:self-auto shrink-0 relative select-none"
-        >
-          {/* Shared Active Navigation Pill (ONE continuous physical surface that morphs & travels) */}
-          <div
-            ref={tabPillRef}
-            data-layout-id="settings-active-tab-pill"
-            aria-hidden="true"
-            className="absolute inset-y-1 left-0 rounded-full pointer-events-none z-0 liquid-lens-pill-active will-change-[transform,width] origin-center opacity-0 transition-opacity duration-100"
-          />
-
-          {/* Tab 1: Backup */}
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'backup'}
-            data-tab-id="backup"
-            onClick={() => setActiveTab('backup')}
-            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] sm:min-w-[120px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-[color,transform] duration-140 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer whitespace-nowrap active:scale-[0.95] select-none will-change-transform ${
-              activeTab === 'backup'
-                ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold'
-                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
-            }`}
-          >
-            <SFArchivebox
-              size={15}
-              className={`transition-all duration-140 ease-out shrink-0 ${
-                activeTab === 'backup'
-                  ? 'text-[#0071e3] dark:text-[#3898ff]'
-                  : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
-              }`}
-            />
-            <span className="transition-colors duration-140 leading-none">Sao lưu &amp; Dữ liệu</span>
-          </button>
-
-          {/* Tab 2: Shield */}
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'shield'}
-            data-tab-id="shield"
-            onClick={() => setActiveTab('shield')}
-            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] sm:min-w-[116px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-[color,transform] duration-140 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer whitespace-nowrap active:scale-[0.95] select-none will-change-transform ${
-              activeTab === 'shield'
-                ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold'
-                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
-            }`}
-          >
-            <SFShieldFill
-              size={15}
-              className={`transition-all duration-140 ease-out shrink-0 ${
-                activeTab === 'shield'
-                  ? 'text-[#0071e3] dark:text-[#3898ff]'
-                  : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
-              }`}
-            />
-            <span className="transition-colors duration-140 leading-none">Bảo mật</span>
-          </button>
-
-          {/* Tab 3: SMTP */}
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'smtp'}
-            data-tab-id="smtp"
-            onClick={() => setActiveTab('smtp')}
-            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] sm:min-w-[116px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-[color,transform] duration-140 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer whitespace-nowrap active:scale-[0.95] select-none will-change-transform ${
-              activeTab === 'smtp'
-                ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold'
-                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
-            }`}
-          >
-            <SFEnvelope
-              size={15}
-              className={`transition-all duration-140 ease-out shrink-0 ${
-                activeTab === 'smtp'
-                  ? 'text-[#0071e3] dark:text-[#3898ff]'
-                  : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
-              }`}
-            />
-            <span className="transition-colors duration-140 leading-none">Gửi mail</span>
-          </button>
-
-          {/* Tab 4: Appearance */}
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'appearance'}
-            data-tab-id="appearance"
-            onClick={() => setActiveTab('appearance')}
-            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] sm:min-w-[116px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-[color,transform] duration-140 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer whitespace-nowrap active:scale-[0.95] select-none will-change-transform ${
-              activeTab === 'appearance'
-                ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold'
-                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
-            }`}
-          >
-            <SFPaintpalette
-              size={15}
-              className={`transition-all duration-140 ease-out shrink-0 ${
-                activeTab === 'appearance'
-                  ? 'text-[#0071e3] dark:text-[#3898ff]'
-                  : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
-              }`}
-            />
-            <span className="transition-colors duration-140 leading-none">Giao Diện</span>
-          </button>
-        </div>
+        <SegmentedNavigation
+          label="Cài đặt hệ thống"
+          activeId={activeTab}
+          onChange={(tab) => setActiveTab(tab as SettingsTab)}
+          items={[
+            { id: 'backup', label: 'Sao lưu & Dữ liệu', icon: <SFArchivebox size={16} /> },
+            { id: 'shield', label: 'Bảo mật', icon: <SFShieldFill size={16} /> },
+            { id: 'smtp', label: 'Gửi mail', icon: <SFEnvelope size={16} /> },
+            { id: 'appearance', label: 'Giao Diện', icon: <SFPaintpalette size={16} /> },
+          ]}
+        />
       </div>
 
       {/* ── Spatial Animated Settings Tab Content Container ── */}
@@ -669,7 +562,7 @@ export const SettingsPage: React.FC = () => {
                 </h3>
               </div>
               <div className="flex items-center gap-2">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold bg-[#34c759]/12 text-[#1a8238] dark:text-[#30d158] border border-[#34c759]/25 shadow-[0_2px_8px_rgba(52,199,89,0.12),inset_0_1px_0_rgba(255,255,255,0.7)] dark:shadow-[0_2px_10px_rgba(48,209,88,0.18),inset_0_1px_0_rgba(255,255,255,0.15)] backdrop-blur-xl transition-all">
+                <div className="apple-badge-base apple-badge-success">
                   <SFCheckmarkCircleFill size={13} className="shrink-0" />
                   <span>Đã kết nối & Bền vững</span>
                 </div>
@@ -677,7 +570,7 @@ export const SettingsPage: React.FC = () => {
                   type="button"
                   onClick={handleRepairIDB}
                   disabled={isRepairing}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold bg-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff] border border-[#0071e3]/22 shadow-[0_2px_8px_rgba(0,113,227,0.1),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_2px_10px_rgba(10,132,255,0.2),inset_0_1px_0_rgba(255,255,255,0.15)] backdrop-blur-xl hover:bg-[#0071e3]/16 transition-all disabled:opacity-50 active:scale-95 cursor-pointer"
+                  className="apple-badge-base apple-badge-info apple-status-action disabled:opacity-50"
                   title="Tự động kiểm tra và kết nối lại IndexedDB"
                 >
                   <SFArrowClockwise size={12} className={isRepairing ? 'animate-spin' : ''} />
@@ -1037,7 +930,7 @@ export const SettingsPage: React.FC = () => {
                   Đồng Bộ Kép Máy Chủ &amp; Phục Hồi Thảm Họa (Dual-Persistence Shield)
                 </h3>
               </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-semibold bg-[#34c759]/12 text-[#1a8238] dark:text-[#30d158] border border-[#34c759]/25 shadow-[0_2px_8px_rgba(52,199,89,0.12),inset_0_1px_0_rgba(255,255,255,0.7)] dark:shadow-[0_2px_10px_rgba(48,209,88,0.18),inset_0_1px_0_rgba(255,255,255,0.15)] backdrop-blur-xl">
+              <div className="apple-badge-base apple-badge-success">
                 <ShieldCheck size={14} className="shrink-0" />
                 <span>Bảo vệ chống crash Win/Mac</span>
               </div>
@@ -1412,7 +1305,7 @@ export const SettingsPage: React.FC = () => {
                 </p>
               </div>
               <div className="apple-badge-base apple-badge-info">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#0071e3] dark:bg-[#2997ff] animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#0071e3] dark:bg-[#2997ff]" />
                 <span>
                   {theme === 'auto_time'
                     ? `Tự động: ${resolveTheme(theme) === 'dark' ? 'Đang Tối' : 'Đang Sáng'}`
@@ -1567,6 +1460,15 @@ export const SettingsPage: React.FC = () => {
           </div>
 
           <div className="flex items-start gap-2.5">
+            <span className="w-5 h-5 rounded-full bg-[#0071e3] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">3</span>
+            <div className="text-[12.5px] text-[#1d1d1f] dark:text-white leading-normal space-y-1">
+              <p>
+                <strong>Cấp quyền Thông báo:</strong> Khi bạn cho phép nhận thông báo, trình duyệt Chrome &amp; Edge sẽ tự động nâng cấp quyền lưu trữ thành <strong>Vĩnh viễn</strong> ngay lập tức.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2.5">
             <span className="w-5 h-5 rounded-full bg-[#34c759] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">✓</span>
             <p className="text-[12.5px] text-emerald-600 dark:text-emerald-400 leading-normal">
               <strong>Lá chắn kép tự động:</strong> Dù chưa bật quyền này, app vẫn tự động sao lưu dữ liệu lên máy chủ SQLite cục bộ nên bạn hoàn toàn an tâm dữ liệu không bị thất lạc!
@@ -1581,18 +1483,24 @@ export const SettingsPage: React.FC = () => {
             onClick={() => setShowPersistenceGuideModal(false)}
             className="rounded-full px-4 text-xs"
           >
-            Tôi Đã Hiểu
+            Đóng
           </Button>
           <Button
             variant="glassProminent"
             size="sm"
             onClick={async () => {
               setShowPersistenceGuideModal(false);
+              // Request notification permission directly which triggers chrome persistent storage
+              if (typeof Notification !== 'undefined') {
+                try {
+                  await Notification.requestPermission();
+                } catch (_) {}
+              }
               await handleRequestPersistentStorage();
             }}
             className="rounded-full px-5 text-xs font-medium"
           >
-            Kiểm Tra &amp; Thử Lại
+            Cấp Quyền &amp; Kích Hoạt Ngay
           </Button>
         </div>
       </AppleLiquidDialog>
@@ -1885,4 +1793,3 @@ export const SettingsPage: React.FC = () => {
     </div>
   );
 };
-

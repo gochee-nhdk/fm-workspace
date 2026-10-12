@@ -148,6 +148,20 @@
 
 @layer base {
   :root {
+    /* Always-on liquid motion contract, independent of Windows animation preferences. */
+    --motion-duration-press: 80ms;
+    --motion-duration-micro: 110ms;
+    --motion-duration-hover: 150ms;
+    --motion-duration-tab: 180ms;
+    --motion-duration-popover: 210ms;
+    --motion-duration-exit: 180ms;
+    --motion-duration-sidebar: 240ms;
+    --motion-duration-modal: 260ms;
+    --motion-duration-spatial: 320ms;
+    --motion-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+    --motion-ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
+    --motion-ease-snappy: cubic-bezier(0.18, 0.9, 0.22, 1);
+    --motion-ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
     --background: #f5f5f7;
     --foreground: #1d1d1f;
     --surface: #ffffff;
@@ -345,10 +359,10 @@
   html.theme-transition tr,
   html.theme-transition td,
   html.theme-transition th {
-    transition: background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-                border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-                color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
-                box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: background-color var(--motion-duration-modal) var(--motion-ease-spring),
+                border-color var(--motion-duration-modal) var(--motion-ease-spring),
+                color var(--motion-duration-popover) var(--motion-ease-spring),
+                box-shadow var(--motion-duration-modal) var(--motion-ease-spring);
   }
 
   button, input, select, textarea {
@@ -762,80 +776,71 @@
 
 /* 8. Glass Buttons */
 .glass-btn {
-  background: rgba(255, 255, 255, 0.50);
-  backdrop-filter: blur(28px) saturate(200%);
-  -webkit-backdrop-filter: blur(28px) saturate(200%);
-  border: 1px solid rgba(255, 255, 255, 0.80);
-  box-shadow: 
-    inset 0 1px 1px rgba(255, 255, 255, 0.95),
-    inset 0 0 10px rgba(255, 255, 255, 0.2),
-    0 2px 8px rgba(0, 0, 0, 0.04);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(20, 30, 45, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.045);
   color: #1d1d1f;
-  /* GPU composite only */
-  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1),
-              opacity 0.14s cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform;
+  transition: transform var(--motion-duration-hover) var(--motion-ease-spring),
+              box-shadow var(--motion-duration-hover) var(--motion-ease-spring),
+              background-color var(--motion-duration-hover) var(--motion-ease-spring),
+              border-color var(--motion-duration-hover) var(--motion-ease-spring);
 }
 
 .glass-btn:hover {
-  background: rgba(255, 255, 255, 0.72);
-  transform: translateY(-1.5px);
-  box-shadow: 
-    inset 0 1px 1.5px rgba(255, 255, 255, 1),
-    0 8px 20px rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.08);
 }
 
 .glass-btn:active {
-  transform: scale(0.965) translateY(0px);
-  transition-duration: 60ms;
+  transform: scale(0.97);
+  transition-duration: var(--motion-duration-press);
 }
 
 .dark .glass-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  box-shadow: 
-    inset 0 1px 1px rgba(255, 255, 255, 0.24),
-    0 2px 6px rgba(0, 0, 0, 0.3);
+  background: #29292e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
   color: #ffffff;
 }
 
 .dark .glass-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
-  box-shadow: 
-    inset 0 1px 1px rgba(255, 255, 255, 0.35),
-    0 4px 12px rgba(0, 0, 0, 0.45);
+  background: #333339;
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.3);
 }
 
 .glass-btn-prominent {
   background: linear-gradient(180deg, #0077ed 0%, #0066cc 100%);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  box-shadow: 
-    inset 0 1px 1px rgba(255, 255, 255, 0.6),
-    0 4px 16px -2px rgba(0, 102, 204, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow: 0 3px 10px rgba(0, 113, 227, 0.28);
   color: #ffffff;
-  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.16s cubic-bezier(0.16, 1, 0.3, 1),
-              opacity 0.14s cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform;
+  transition: transform var(--motion-duration-hover) var(--motion-ease-spring),
+              box-shadow var(--motion-duration-hover) var(--motion-ease-spring),
+              background-color var(--motion-duration-hover) var(--motion-ease-spring);
 }
 .glass-btn-prominent:hover {
-  background: linear-gradient(180deg, #0082fb 0%, #0071e3 100%);
-  transform: translateY(-1.5px);
-  box-shadow: 
-    inset 0 1px 1.5px rgba(255, 255, 255, 0.8),
-    0 6px 22px -2px rgba(0, 102, 204, 0.48);
+  background: linear-gradient(180deg, #168fff 0%, #0071e3 100%);
+  box-shadow: 0 5px 14px rgba(0, 113, 227, 0.34);
 }
 .glass-btn-prominent:active {
-  transform: scale(0.965) translateY(0);
-  transition-duration: 60ms;
+  transform: scale(0.97);
+  transition-duration: var(--motion-duration-press);
 }
 
 /* ==========================================================================
    3D Liquid Glass Segmented Controls & Toggles
    ========================================================================== */
+.fm-primary-pill-surface {
+  background: linear-gradient(180deg, #0088ff 0%, #0071e3 100%);
+  border: 1px solid rgba(82, 181, 255, 0.6);
+  box-shadow:
+    0 6px 20px rgba(0, 113, 227, 0.45),
+    0 1px 4px rgba(0, 113, 227, 0.25),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.7),
+    inset 0 -1.5px 1.5px rgba(0, 0, 0, 0.22);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
 .liquid-glass-segmented-track {
   background: rgba(0, 0, 0, 0.03);
   backdrop-filter: blur(28px) saturate(190%);
@@ -1681,17 +1686,14 @@
   0% {
     opacity: 0;
     transform: scale(0.92) translate3d(0, 18px, 0);
-    filter: blur(4px);
   }
   60% {
     opacity: 1;
     transform: scale(1.008) translate3d(0, -1.5px, 0);
-    filter: blur(0px);
   }
   100% {
     opacity: 1;
     transform: scale(1) translate3d(0, 0, 0);
-    filter: blur(0px);
   }
 }
 
@@ -1699,69 +1701,63 @@
   0% {
     opacity: 1;
     transform: scale(1) translate3d(0, 0, 0);
-    filter: blur(0px);
   }
   100% {
     opacity: 0;
     transform: scale(0.94) translate3d(0, 14px, 0);
-    filter: blur(3px);
   }
 }
 
 .apple-modal-enter,
 .liquid-droplet-enter {
-  animation: appleModalOpen 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: transform, opacity, filter;
+  animation: appleModalOpen var(--motion-duration-modal) var(--motion-ease-spring) forwards;
+  will-change: transform, opacity;
 }
 
 .apple-modal-exit,
 .liquid-droplet-exit {
-  animation: appleModalClose 0.20s cubic-bezier(0.32, 0, 0.67, 0) forwards;
-  will-change: transform, opacity, filter;
+  animation: appleModalClose var(--motion-duration-exit) var(--motion-ease-exit) forwards;
+  will-change: transform, opacity;
 }
 
 .liquid-backdrop-enter {
-  animation: liquidBackdropFadeIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: liquidBackdropFadeIn var(--motion-duration-popover) var(--motion-ease-spring) forwards;
 }
 
 .liquid-backdrop-exit {
-  animation: liquidBackdropFadeOut 0.20s cubic-bezier(0.32, 0, 0.67, 0) forwards;
+  animation: liquidBackdropFadeOut var(--motion-duration-exit) var(--motion-ease-exit) forwards;
 }
 
 /* Apple Liquid Glass Image Lightbox Spring Physics */
-@keyframes appleImageLightboxZoomIn {
+@keyframes appleImageLightboxFadeIn {
   0% {
     opacity: 0;
-    transform: scale(0.88);
     filter: blur(8px);
   }
   100% {
     opacity: 1;
-    transform: scale(1);
     filter: blur(0px);
   }
 }
 
-@keyframes appleImageLightboxZoomOut {
+@keyframes appleImageLightboxFadeOut {
   0% {
     opacity: 1;
-    transform: scale(1);
     filter: blur(0px);
   }
   100% {
     opacity: 0;
-    transform: scale(0.90);
     filter: blur(6px);
   }
 }
 
 .apple-lightbox-img-enter {
-  animation: appleImageLightboxZoomIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: appleImageLightboxFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity, filter;
 }
 
 .apple-lightbox-img-exit {
-  animation: appleImageLightboxZoomOut 0.18s cubic-bezier(0.32, 0, 0.67, 0) forwards;
+  animation: appleImageLightboxFadeOut 0.18s cubic-bezier(0.32, 0, 0.67, 0) forwards;
   will-change: transform, opacity, filter;
   pointer-events: none;
 }
@@ -1817,8 +1813,8 @@
 
 /* Apple Sidebar Spatial Label Transitions — faster with GPU composite only */
 .sidebar-label-transition {
-  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1),
-              opacity   0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform var(--motion-duration-sidebar) var(--motion-ease-spring),
+              opacity   var(--motion-duration-tab) var(--motion-ease-spring);
   will-change: transform, opacity;
 }
 .sidebar-label-collapsed {
@@ -2668,19 +2664,19 @@ tbody td {
 
 .macos-morph-window {
   transform-origin: bottom right;
-  animation: macosMorphOpen 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: macosMorphOpen var(--motion-duration-spatial) var(--motion-ease-spring) forwards;
   will-change: transform, opacity;
 }
 
 .macos-morph-close {
   transform-origin: bottom right;
-  animation: macosMorphClose 0.18s cubic-bezier(0.4, 0, 1, 1) forwards;
+  animation: macosMorphClose var(--motion-duration-exit) var(--motion-ease-exit) forwards;
   will-change: transform, opacity;
 }
 
 .macos-expand-modal {
   transform-origin: bottom right;
-  animation: macosExpandModal 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: macosExpandModal var(--motion-duration-spatial) var(--motion-ease-spring) forwards;
   will-change: transform, opacity;
 }
 
@@ -2922,20 +2918,30 @@ tbody td {
 .apple-badge-base {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.2rem 0.625rem;
+  gap: 0.4rem;
+  min-height: 28px;
+  padding: 0 0.625rem;
   border-radius: 9999px;
-  font-size: 11.5px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 600;
   letter-spacing: -0.01em;
-  line-height: 1.2;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 0.5px solid transparent;
-  transition: all 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+  line-height: 1;
+  border: 1px solid transparent;
   white-space: nowrap;
   user-select: none;
 }
+
+.apple-badge-base > svg { width: 13px; height: 13px; flex: 0 0 auto; }
+
+.apple-status-action {
+  cursor: pointer;
+  transition: background-color var(--motion-duration-hover) var(--motion-ease-spring),
+              transform var(--motion-duration-press) var(--motion-ease-snappy);
+}
+.apple-status-action:hover:not(:disabled) { background-color: rgba(0, 113, 227, 0.15); }
+.apple-status-action:active:not(:disabled) { transform: scale(0.98); }
+.apple-status-action:focus-visible { outline: 2px solid rgba(0, 113, 227, 0.5); outline-offset: 2px; }
+.apple-status-action:disabled { cursor: wait; }
 
 .apple-badge-success {
   background: rgba(52, 199, 89, 0.10);
@@ -3030,3 +3036,4 @@ tbody td {
   animation: appleQuickLookShrink 0.30s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
+

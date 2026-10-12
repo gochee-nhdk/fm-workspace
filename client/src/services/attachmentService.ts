@@ -48,11 +48,9 @@ export const attachmentService = {
   },
 
   /**
-   * Retrieves an attachment by ID from IndexedDB with in-memory Blob URL caching.
+   * Retrieves an attachment's raw Blob directly from IndexedDB.
    */
-  async getAttachment(id: string): Promise<{ blob: Blob; url: string; name: string; size: number; sizeStr?: string } | null> {
-    const cachedUrl = objectUrlCache.get(id);
-
+  async getAttachmentBlob(id: string): Promise<{ blob: Blob; name: string; size: number; type: string; sizeStr: string } | null> {
     try {
       const record = await idbGetById<StoredAttachment>(STORES.ATTACHMENTS, id);
       if (!record) return null;
@@ -61,7 +59,7 @@ export const attachmentService = {
       if (!blob && record.dataUrl) {
         try {
           const parts = record.dataUrl.split(',');
-          const mime = parts[0].match(/:(.*?);/)?.[1] || 'application/octet-stream';
+          const mime = parts[0].match(/:(.*?);/)?.[1] || record.type || 'application/octet-stream';
           const bstr = atob(parts[1]);
           const u8arr = new Uint8Array(bstr.length);
           for (let i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i);
@@ -71,18 +69,35 @@ export const attachmentService = {
 
       if (!blob) return null;
 
-      let url = cachedUrl;
-      if (!url) {
-        url = URL.createObjectURL(blob);
-        objectUrlCache.set(id, url);
-      }
-
       return {
         blob,
-        url,
         name: record.name,
         size: record.size,
+        type: record.type || blob.type || 'application/octet-stream',
         sizeStr: formatFileSize(record.size),
+      };
+    } catch (err) {
+      console.error('Lỗi khi truy xuất Blob từ IndexedDB:', err);
+      return null;
+    }
+  },
+
+  /**
+   * Retrieves an attachment by ID from IndexedDB with fresh reliable Blob URL generation.
+   */
+  async getAttachment(id: string): Promise<{ blob: Blob; url: string; name: string; size: number; sizeStr?: string } | null> {
+    try {
+      const res = await this.getAttachmentBlob(id);
+      if (!res) return null;
+
+      // Always create a fresh Blob URL for guaranteed freshness and zero revocation collisions
+      const freshUrl = URL.createObjectURL(res.blob);
+      return {
+        blob: res.blob,
+        url: freshUrl,
+        name: res.name,
+        size: res.size,
+        sizeStr: res.sizeStr,
       };
     } catch (err) {
       console.error('Lỗi khi truy xuất tệp từ IndexedDB:', err);

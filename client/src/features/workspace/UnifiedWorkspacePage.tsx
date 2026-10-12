@@ -32,7 +32,8 @@ import { AccountDrawerForm } from '@/components/forms/AccountDrawerForm';
 import { StoreDrawerForm } from '@/components/forms/StoreDrawerForm';
 import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import { MapPreviewModal } from '@/components/ui/MapPreviewModal';
-import { useAppleTabSpring, useDirectionalTab } from '@/lib/motion';
+import { SegmentedNavigation } from '@/components/ui/SegmentedNavigation';
+import { useDirectionalTab } from '@/lib/motion';
 import { sanitizeUrl } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
@@ -48,17 +49,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
     tabFromUrl === 'links' || tabFromUrl === 'stores' ? tabFromUrl : 'accounts'
   );
 
-  const tabTrackRef = useRef<HTMLDivElement>(null);
-  const pillRef = useRef<HTMLDivElement>(null);
   const { animationClass } = useDirectionalTab(activeTab, TAB_ORDER);
-
-  useAppleTabSpring(tabTrackRef, pillRef, activeTab, {
-    stiffness: 440,
-    damping: 26,
-    mass: 0.65,
-    allowDeformation: true,
-    orientation: 'horizontal',
-  });
 
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
@@ -351,113 +342,22 @@ export const UnifiedWorkspacePage: React.FC = () => {
     <div className="space-y-5 max-w-7xl mx-auto pb-12 w-full">
       {/* ─────────────────── Top Bar: Sheet Tabs & Action Bar ─────────────────── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        {/* Liquid Glass Segmented Sheet Tabs with Shared Active Navigation Pill */}
-        <div
-          ref={tabTrackRef}
-          role="tablist"
-          aria-label="Danh mục bảng tính"
-          onKeyDown={(e) => {
-            const idx = TAB_ORDER.indexOf(activeTab);
-            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-              e.preventDefault();
-              const next = TAB_ORDER[(idx + 1) % TAB_ORDER.length];
-              handleTabChange(next);
-            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-              e.preventDefault();
-              const prev = TAB_ORDER[(idx - 1 + TAB_ORDER.length) % TAB_ORDER.length];
-              handleTabChange(prev);
-            }
-          }}
-          className="liquid-glass-segmented-track p-1 inline-flex items-center self-start sm:self-auto shrink-0 relative select-none"
-        >
-          {/* Shared Active Navigation Pill (ONE continuous physical surface that morphs & travels) */}
-          <div
-            ref={pillRef}
-            data-layout-id="active-navigation-pill"
-            aria-hidden="true"
-            className="absolute inset-y-1 left-0 rounded-full pointer-events-none z-0 liquid-lens-pill-active will-change-[transform,width] origin-center opacity-0 transition-opacity duration-100"
-          />
-
-          {/* Tab 1: Accounts */}
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'accounts'}
-            tabIndex={activeTab === 'accounts' ? 0 : -1}
-            data-tab-id="accounts"
-            onClick={() => handleTabChange('accounts')}
-            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-[color,transform] duration-140 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer whitespace-nowrap active:scale-[0.95] select-none will-change-transform ${
-              activeTab === 'accounts'
-                ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold'
-                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
-            }`}
-          >
-            <SFShieldFill
-              size={15}
-              className={`transition-all duration-140 ease-out shrink-0 ${
-                activeTab === 'accounts'
-                  ? 'text-[#0071e3] dark:text-[#3898ff]'
-                  : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
-              }`}
-            />
-            <span className="transition-colors duration-140 leading-none">Tài khoản</span>
-          </button>
-
-          {/* Tab 2: Links */}
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'links'}
-            tabIndex={activeTab === 'links' ? 0 : -1}
-            data-tab-id="links"
-            onClick={() => handleTabChange('links')}
-            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-[color,transform] duration-140 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer whitespace-nowrap active:scale-[0.95] select-none will-change-transform ${
-              activeTab === 'links'
-                ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold'
-                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
-            }`}
-          >
-            <SFLink
-              size={15}
-              className={`transition-all duration-140 ease-out shrink-0 ${
-                activeTab === 'links'
-                  ? 'text-[#0071e3] dark:text-[#3898ff]'
-                  : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
-              }`}
-            />
-            <span className="transition-colors duration-140 leading-none">Links</span>
-          </button>
-
-          {/* Tab 3: Stores */}
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'stores'}
-            tabIndex={activeTab === 'stores' ? 0 : -1}
-            data-tab-id="stores"
-            onClick={() => handleTabChange('stores')}
-            className={`group relative z-10 inline-flex items-center justify-center gap-2 min-w-[106px] h-[30px] px-3.5 py-0 rounded-full text-[13px] leading-none transition-[color,transform] duration-140 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer whitespace-nowrap active:scale-[0.95] select-none will-change-transform ${
-              activeTab === 'stores'
-                ? 'text-[#0071e3] dark:text-[#3898ff] font-semibold'
-                : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.03] dark:hover:bg-white/[0.04] font-medium'
-            }`}
-          >
-            <SFStorefront
-              size={15}
-              className={`transition-all duration-140 ease-out shrink-0 ${
-                activeTab === 'stores'
-                  ? 'text-[#0071e3] dark:text-[#3898ff]'
-                  : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
-              }`}
-            />
-            <span className="transition-colors duration-140 leading-none">DS Cửa hàng</span>
-          </button>
-        </div>
+        <SegmentedNavigation
+          label="Danh mục bảng tính"
+          activeId={activeTab}
+          onChange={(tab) => handleTabChange(tab as TabType)}
+          items={[
+            { id: 'accounts', label: 'Tài khoản', icon: <SFShieldFill size={16} /> },
+            { id: 'links', label: 'Links', icon: <SFLink size={16} /> },
+            { id: 'stores', label: 'DS Cửa hàng', icon: <SFStorefront size={16} /> },
+          ]}
+        />
 
         {/* Action Controls */}
         <div className="flex items-center gap-2 flex-wrap">
           <Button
-            variant="glass"
+            variant="liquiGlass"
+            size="sm"
             className="h-[38px] px-4 rounded-full text-[13px] leading-none font-medium"
             onClick={handleExport}
             icon={<SFArrowUpDocument size={14} className="text-[#0066cc] dark:text-[#2997ff]" />}
@@ -467,7 +367,8 @@ export const UnifiedWorkspacePage: React.FC = () => {
           </Button>
 
           <Button
-            variant="glass"
+            variant="liquiGlass"
+            size="sm"
             className="h-[38px] px-4 rounded-full text-[13px] leading-none font-medium"
             onClick={() => window.dispatchEvent(new CustomEvent('fm:open-import'))}
             icon={<SFArrowDownDocument size={14} className="text-emerald-600 dark:text-emerald-400" />}
@@ -477,8 +378,8 @@ export const UnifiedWorkspacePage: React.FC = () => {
           </Button>
 
           <Button
-            variant="glassProminent"
-            className="h-[38px] px-4 rounded-full text-[13px] leading-none font-semibold shadow-xs"
+            variant="primary"
+            className="h-10 px-4 rounded-full text-[13px] leading-none font-semibold"
             onClick={handleOpenAdd}
             icon={<SFPlus size={16} />}
           >
@@ -679,7 +580,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px]">Đường Dẫn</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[110px]">Danh Mục</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px] max-w-[240px]">Ghi Chú</th>
-                  <th className="sticky right-0 z-20 px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-l border-black/[0.04] dark:border-white/[0.06]">
+                  <th className="px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px]">
                     Thao Tác
                   </th>
                 </tr>
@@ -903,7 +804,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[150px] max-w-[220px]">Mật Khẩu</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px]">Trang Đăng Nhập</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[120px] max-w-[240px]">Ghi Chú</th>
-                  <th className="sticky right-0 z-20 px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-l border-black/[0.04] dark:border-white/[0.06]">
+                  <th className="px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px]">
                     Thao Tác
                   </th>
                 </tr>
@@ -1165,7 +1066,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[240px] max-w-[550px]">Địa Chỉ Cửa Hàng</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[110px]">Khu Vực / Loại</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px]">Google Maps</th>
-                  <th className="sticky right-0 z-20 px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-l border-black/[0.04] dark:border-white/[0.06]">
+                  <th className="px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px]">
                     Thao Tác
                   </th>
                 </tr>

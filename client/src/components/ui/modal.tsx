@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { CloseButton } from '@/components/ui/close-button';
+import { motionTokens } from '@/lib/motion';
 
 export interface ModalProps {
   isOpen: boolean;
@@ -38,7 +39,7 @@ export const Modal: React.FC<ModalProps> = ({
         setIsMounted(false);
         setIsClosing(false);
         document.body.style.overflow = '';
-      }, 160);
+      }, motionTokens.duration.exit);
     }
 
     return () => {
@@ -55,7 +56,7 @@ export const Modal: React.FC<ModalProps> = ({
       setIsClosing(false);
       setIsMounted(false);
       document.body.style.overflow = '';
-    }, 160);
+    }, motionTokens.duration.exit);
   };
 
   useEffect(() => {

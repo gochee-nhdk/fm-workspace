@@ -22,6 +22,7 @@ export const motionTokens = {
     hover:      140,  // 110–170ms — hover state morphing
     tabContent: 160,  // crisp directional content glide
     popover:    200,  // popover expand from trigger origin
+    exit:       180,  // keep dialog unmount timing aligned with the exit keyframe
     sidebar:    260,  // sidebar width morph
     modal:      280,  // modal sheet entrance
     spatial:    360,  // large spatial transitions (window open)
@@ -64,8 +65,9 @@ export const motionTokens = {
 } as const;
 
 /**
- * FM Workspace always enables liquid Apple spring physics & 120 FPS fluid tab transitions.
- * Returns false so that tab slide, pill morphing, and fluid animations are always active.
+ * FM Workspace luôn luôn duy trì 100% hiệu ứng chuyển động, lò xo vật lý Apple
+ * và animation 120 FPS mượt mà — ngay cả khi cài đặt của Windows tắt animation.
+ * Luôn trả về `false` để đảm bảo app không bao giờ bị cắt giảm animation.
  */
 export function useReducedMotion(): boolean {
   return false;
@@ -230,15 +232,6 @@ export function useAppleTabSpring(
       return;
     }
 
-    // Snap immediately if reduced motion
-    if (reducedMotion) {
-      state.pos = targetPos; state.size = targetSize;
-      state.vPos = 0; state.vSize = 0;
-      state.animating = false;
-      snap(targetPos, targetSize);
-      return;
-    }
-
     // Cancel any running frame before starting new one
     if (state.rafId) cancelAnimationFrame(state.rafId);
 
@@ -289,8 +282,8 @@ export function useAppleTabSpring(
       if (allowDeformation) {
         const vAbs = Math.abs(state.vPos);
         // Stretch dynamically along travel axis, compress perpendicular axis to conserve apparent volume
-        const stretch  = Math.min(vAbs * 0.00014, 0.14);
-        const compress = Math.min(vAbs * 0.00007, 0.07);
+        const stretch  = Math.min(vAbs * 0.00007, 0.065);
+        const compress = Math.min(vAbs * 0.000035, 0.032);
 
         if (isVertical) {
           // Vertical motion: stretch vertically, squash horizontally
@@ -465,6 +458,7 @@ export function useLiquidPress(options: LiquidPressOptions = {}) {
     target: 1,
     animating: false,
     rafId: 0,
+    lastTime: 0,
   });
 
   const startSpring = useCallback(() => {
@@ -474,10 +468,13 @@ export function useLiquidPress(options: LiquidPressOptions = {}) {
 
     if (spring.rafId) cancelAnimationFrame(spring.rafId);
     spring.animating = true;
+    spring.lastTime = performance.now();
 
-    const step = () => {
+    const step = (now: number) => {
       if (!spring.animating) return;
-      const dt = 1 / 120; // 120fps time step
+      const frameDelta = Math.min(Math.max((now - spring.lastTime) / 1000, 0.0005), 0.05);
+      spring.lastTime = now;
+      const dt = frameDelta / 4;
 
       // 4 sub-steps for stability
       for (let i = 0; i < 4; i++) {
@@ -528,7 +525,9 @@ export function useLiquidPress(options: LiquidPressOptions = {}) {
     el.addEventListener('pointerleave', onPointerUp);
 
     return () => {
+      springRef.current.animating = false;
       if (springRef.current.rafId) cancelAnimationFrame(springRef.current.rafId);
+      el.style.willChange = 'auto';
       el.removeEventListener('pointerdown', onPointerDown);
       el.removeEventListener('pointerup', onPointerUp);
       el.removeEventListener('pointercancel', onPointerUp);

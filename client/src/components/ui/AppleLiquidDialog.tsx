@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
+import { motionTokens } from '@/lib/motion';
 
 export interface AppleLiquidDialogProps {
   isOpen: boolean;
@@ -42,7 +43,7 @@ export const AppleLiquidDialog: React.FC<AppleLiquidDialogProps> = ({
   const lastChildrenRef = useRef<React.ReactNode | null>(null);
 
   // Synchronize mount and closing states strictly when isOpen changes
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -53,13 +54,13 @@ export const AppleLiquidDialog: React.FC<AppleLiquidDialogProps> = ({
       setIsClosing(false);
     } else if (isMounted) {
       setIsClosing(true);
-      timerRef.current = setTimeout(() => {
-        setIsMounted(false);
-        setIsClosing(false);
-        timerRef.current = null;
-      }, 200);
+        timerRef.current = setTimeout(() => {
+          setIsMounted(false);
+          setIsClosing(false);
+          timerRef.current = null;
+        }, motionTokens.duration.exit + 50);
     }
-  }, [isOpen]);
+  }, [isOpen, isMounted]);
 
   const handleClose = useCallback(() => {
     if (isClosing) return;
@@ -103,6 +104,13 @@ export const AppleLiquidDialog: React.FC<AppleLiquidDialogProps> = ({
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel || title || 'Cửa sổ'}
+      onAnimationEnd={(event) => {
+        if (event.target !== event.currentTarget || event.animationName !== 'liquidBackdropFadeOut') return;
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = null;
+        setIsMounted(false);
+        setIsClosing(false);
+      }}
       onClick={closeOnBackdropClick && !isClosing ? handleClose : undefined}
       style={{ zIndex }}
       className={cn(
