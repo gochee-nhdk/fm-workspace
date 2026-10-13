@@ -223,8 +223,8 @@ const cleanChecklistText = (raw?: string | null): string => {
 
   const lines = text
     .split('\n')
-    .map((l) => l.trim())
-    .filter((l) => Boolean(l));
+    .map((l) => l.replace(/^\s+/, ''))
+    .filter((l) => Boolean(l && l.trim()));
 
   const validLines = lines.filter((l) => /^(?:-\s*)?\[([ xX])\]/.test(l));
   if (validLines.length > 0) return validLines.join('\n');
@@ -3459,13 +3459,13 @@ export const QuickNoteWindow: React.FC = () => {
 
   // ──────── Parse Checklist Rows & match taskReminders ────────
   const checklistRows: ChecklistRow[] = useMemo(() => {
-    // Checklist UI consumes only normalized checkbox lines, never note HTML/body text.
-    const lines = cleanChecklistText(localChecklist).split('\n');
+    const raw = localChecklist || '';
+    const lines = raw.split('\n');
     const rows: ChecklistRow[] = [];
     const taskReminders = activeNote?.taskReminders || [];
 
     lines.forEach((line, idx) => {
-      const match = line.match(/^(?:-\s*)?\[([ xX])\]\s*(.*)$/);
+      const match = line.match(/^(?:-\s*)?\[([ xX])\][ \t]?(.*)$/);
       if (match) {
         const taskText = match[2];
         const trimmed = taskText.trim();
@@ -3473,7 +3473,7 @@ export const QuickNoteWindow: React.FC = () => {
         const reminder = taskReminders.find(
           (tr) => (tr.taskText.trim() === trimmed || tr.id === `task-${idx}`) && !tr.reminderCompleted
         );
-        const taskId = reminder ? reminder.id : `task-${idx}-${Date.now()}`;
+        const taskId = reminder ? reminder.id : `task-${idx}`;
 
         rows.push({
           lineIndex: idx,
@@ -3499,7 +3499,7 @@ export const QuickNoteWindow: React.FC = () => {
     const targetLine = lines[lineIndex];
     if (!targetLine) return;
 
-    const match = targetLine.match(/^(?:-\s*)?\[([ xX])\]\s*(.*)$/);
+    const match = targetLine.match(/^(?:-\s*)?\[([ xX])\][ \t]?(.*)$/);
     if (match) {
       const isCurrentlyChecked = match[1].toLowerCase() === 'x';
       const newCheck = isCurrentlyChecked ? ' ' : 'x';
@@ -3519,7 +3519,7 @@ export const QuickNoteWindow: React.FC = () => {
     const targetLine = lines[lineIndex];
     if (!targetLine) return;
 
-    const match = targetLine.match(/^(?:-\s*)?\[([ xX])\]\s*(.*)$/);
+    const match = targetLine.match(/^(?:-\s*)?\[([ xX])\][ \t]?(.*)$/);
     if (match) {
       // Calculate inline math if user just typed '='
       const isTypingEqual = newText.endsWith('=') && newText.length > (match[2] || '').length;
@@ -3568,7 +3568,7 @@ export const QuickNoteWindow: React.FC = () => {
     const targetLine = lines[lineIndex];
     let deletedText = '';
     if (targetLine) {
-      const match = targetLine.match(/^(?:-\s*)?\[([ xX])\]\s*(.*)$/);
+      const match = targetLine.match(/^(?:-\s*)?\[([ xX])\][ \t]?(.*)$/);
       if (match) deletedText = match[2].trim();
     }
     lines.splice(lineIndex, 1);
