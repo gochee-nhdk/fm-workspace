@@ -151,4 +151,33 @@ export default async function authRoutes(fastify: FastifyInstance) {
       data: request.user
     };
   });
+
+  // Local/Offline-first bootstrap session endpoint:
+  // Allows the offline desktop client to obtain a valid JWT token on startup
+  fastify.post('/local-token', async (request, reply) => {
+    const db = getDb();
+    const user = db.prepare(`
+      SELECT id, email, role, full_name, is_active FROM users 
+      WHERE role = 'admin' AND is_active = 1 
+      ORDER BY created_at ASC LIMIT 1
+    `).get() as any;
+
+    if (!user) {
+      return reply.code(404).send({ error: 'No admin user configured' });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role, full_name: user.full_name },
+      getJwtSecret(),
+      { expiresIn: '30d' }
+    );
+
+    const userPayload = { id: user.id, email: user.email, role: user.role, full_name: user.full_name };
+    return {
+      success: true,
+      token,
+      user: userPayload,
+      data: { token, user: userPayload }
+    };
+  });
 }

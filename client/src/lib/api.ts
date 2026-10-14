@@ -16,9 +16,43 @@ export const api = axios.create({
   }
 });
 
+let tokenBootstrapPromise: Promise<string | null> | null = null;
+
+async function ensureLocalToken(): Promise<string | null> {
+  const existingToken = localStorage.getItem('token');
+  if (existingToken) return existingToken;
+
+  if (!tokenBootstrapPromise) {
+    tokenBootstrapPromise = (async () => {
+      try {
+        const res = await axios.post(`${getApiBaseUrl()}/auth/local-token`, {}, {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 4000,
+        });
+        if (res.data?.token) {
+          localStorage.setItem('token', res.data.token);
+          if (res.data?.user) {
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+          }
+          return res.data.token;
+        }
+      } catch (_) {
+        // Fallback or offline
+      } finally {
+        tokenBootstrapPromise = null;
+      }
+      return null;
+    })();
+  }
+  return tokenBootstrapPromise;
+}
+
 // Request interceptor to attach JWT token
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+api.interceptors.request.use(async (config) => {
+  let token = localStorage.getItem('token');
+  if (!token && !config.url?.includes('/auth/')) {
+    token = await ensureLocalToken();
+  }
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
