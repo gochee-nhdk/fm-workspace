@@ -1,0 +1,10 @@
+{
+  "excludes": [
+    "open-design/**",
+    ".agents/**",
+    "San Francisco/**",
+    "apple-liquid-glass-macos27/**",
+    "dist/**",
+    "build/**"
+  ]
+}

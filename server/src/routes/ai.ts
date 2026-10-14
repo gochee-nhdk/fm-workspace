@@ -2,13 +2,26 @@ import { FastifyInstance } from 'fastify';
 import { GoogleGenAI } from '@google/genai';
 import { geminiService } from '../ai/gemini.js';
 import { parseUserIntent, buildDataContext } from '../ai/data-query.js';
-import { verifyToken, optionalAuth } from '../middleware/auth.js';
+import { verifyToken } from '../middleware/auth.js';
 import { getDb } from '../db/connection.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export default async function aiRoutes(fastify: FastifyInstance) {
-  // Writing Tool endpoint (supports both server key and client-provided key)
-  fastify.post('/writing-tool', { preHandler: optionalAuth }, async (request: any, reply) => {
+  // Writing Tool endpoint (requires authenticated user + rate limited to prevent quota exhaustion)
+  fastify.post('/writing-tool', {
+    preHandler: verifyToken,
+    config: {
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+        errorResponseBuilder: () => ({
+          statusCode: 429,
+          error: 'Too Many Requests',
+          message: 'Bạn đã thực hiện quá nhiều yêu cầu xử lý AI trong thời gian ngắn. Vui lòng thử lại sau 1 phút.'
+        })
+      }
+    }
+  }, async (request: any, reply) => {
     const { text, action, apiKey: clientApiKey } = request.body || {};
     if (!text || typeof text !== 'string') {
       return reply.code(400).send({ error: 'Nội dung văn bản không được để trống' });
@@ -96,8 +109,21 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // Verify Gemini API key endpoint
-  fastify.post('/verify-key', { preHandler: optionalAuth }, async (request: any, reply) => {
+  // Verify Gemini API key endpoint (requires authenticated user + rate limited)
+  fastify.post('/verify-key', {
+    preHandler: verifyToken,
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: '1 minute',
+        errorResponseBuilder: () => ({
+          statusCode: 429,
+          error: 'Too Many Requests',
+          message: 'Bạn đã thử kiểm tra API key quá nhiều lần. Vui lòng thử lại sau 1 phút.'
+        })
+      }
+    }
+  }, async (request: any, reply) => {
     const { apiKey } = request.body || {};
     const key = apiKey || process.env.GEMINI_API_KEY;
     if (!key) {

@@ -1,0 +1,89 @@
+{
+  "nodes": [
+    {
+      "id": "Doc:SystemArchitecture",
+      "label": "System Architecture Overview",
+      "type": "document",
+      "description": "Toàn bộ kiến trúc hệ thống ứng dụng Trợ Lý Thu Mua: Frontend React SPA kết nối qua REST API tới Backend Express Node.js, tính toán quy trình thu mua và lưu trữ dữ liệu tại SQLite/File Storage.",
+      "source_file": "README.md",
+      "source_location": "L1-L80",
+      "_origin": "semantic"
+    },
+    {
+      "id": "Doc:FrontendArchitecture",
+      "label": "Frontend React 18 & Tailwind Architecture",
+      "type": "concept",
+      "description": "Giao diện người dùng theo phong cách Apple Liquid Glass macOS 27, gồm UnifiedWorkspacePage, QuickNoteWindow (Notes & To-Do), StoreDrawerForm, MapPreviewModal, ExcelImportModal, và SettingsPage.",
+      "source_file": "client/DESIGN.md",
+      "source_location": "L1-L120",
+      "_origin": "semantic"
+    },
+    {
+      "id": "Doc:ProcurementCalculationEngine",
+      "label": "Procurement Calculation Engine",
+      "type": "concept",
+      "description": "Thuật toán tính toán chuỗi cung ứng: Days of Cover (DoC), Safety Stock, Reorder Point (ROP), Lô hàng cận date (Expiry Lot), và đề xuất số lượng đặt hàng Net Demand tuân thủ MOQ và Pack Size.",
+      "source_file": "README.md",
+      "source_location": "L85-L160",
+      "_origin": "semantic"
+    },
+    {
+      "id": "Doc:DataIsolationAndStorage",
+      "label": "Data Isolation and Database Layer",
+      "type": "concept",
+      "description": "Cơ chế quản lý và cô lập dữ liệu: Tách biệt hoàn toàn giữa Ngăn Ghi Chú và Ngăn Việc Cần Làm (To-Do), bảo vệ két mật khẩu với mã PIN SHA-256, và cơ chế fallback SQLite / File Storage an toàn.",
+      "source_file": "SECURITY.md",
+      "source_location": "L1-L60",
+      "_origin": "semantic"
+    },
+    {
+      "id": "Doc:ExcelDataQualityPipeline",
+      "label": "Excel Data Quality Pipeline",
+      "type": "concept",
+      "description": "Quy trình import Excel kiểm soát chất lượng dữ liệu: Chuẩn hóa ngày tháng tiếng Việt, đối chiếu cột mã sản phẩm, tồn kho, doanh thu, phát hiện lỗi âm hoặc thiếu dữ liệu, tính điểm tin cậy isReliable 100/100.",
+      "source_file": "FINAL_QA_REPORT.md",
+      "source_location": "L1-L50",
+      "_origin": "semantic"
+    }
+  ],
+  "edges": [
+    {
+      "source": "Doc:SystemArchitecture",
+      "target": "Doc:FrontendArchitecture",
+      "relation": "defines_frontend",
+      "type": "EXTRACTED",
+      "_origin": "semantic"
+    },
+    {
+      "source": "Doc:SystemArchitecture",
+      "target": "Doc:ProcurementCalculationEngine",
+      "relation": "implements_engine",
+      "type": "EXTRACTED",
+      "_origin": "semantic"
+    },
+    {
+      "source": "Doc:SystemArchitecture",
+      "target": "Doc:DataIsolationAndStorage",
+      "relation": "governs_storage",
+      "type": "EXTRACTED",
+      "_origin": "semantic"
+    },
+    {
+      "source": "Doc:FrontendArchitecture",
+      "target": "Doc:ExcelDataQualityPipeline",
+      "relation": "interfaces_with",
+      "type": "EXTRACTED",
+      "_origin": "semantic"
+    },
+    {
+      "source": "Doc:ProcurementCalculationEngine",
+      "target": "Doc:ExcelDataQualityPipeline",
+      "relation": "consumes_data_from",
+      "type": "EXTRACTED",
+      "_origin": "semantic"
+    }
+  ],
+  "hyperedges": [],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

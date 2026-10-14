@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { getDb } from '../db/connection.js';
-import { verifyToken, optionalAuth, requireRole } from '../middleware/auth.js';
+import { verifyToken, requireRole } from '../middleware/auth.js';
 import { v4 as uuidv4 } from 'uuid';
 import nodemailer from 'nodemailer';
 import path from 'path';
@@ -77,8 +77,8 @@ function escapeHtml(str: string): string {
 }
 
 export default async function notificationsRoutes(fastify: FastifyInstance) {
-  // 1. Check SMTP Configuration Status
-  fastify.get('/smtp-status', { preHandler: optionalAuth }, async (request: any, reply) => {
+  // 1. Check SMTP Configuration Status (requires authenticated user)
+  fastify.get('/smtp-status', { preHandler: verifyToken }, async (request: any, reply) => {
     const config = getSmtpConfig();
     const maskedUser = config.user
       ? config.user.replace(/^(.)(.*)(@.*)$/, (_, first, mid, last) => `${first}${'*'.repeat(Math.max(mid.length, 3))}${last}`)
@@ -95,11 +95,8 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
     });
   });
 
-  // 2. Configure & Verify SMTP Settings
-  fastify.post('/smtp-config', { preHandler: optionalAuth }, async (request: any, reply) => {
-    if (request.user && request.user.role && request.user.role !== 'admin') {
-      return reply.code(403).send({ error: 'Forbidden', message: 'Chỉ quản trị viên mới có quyền cấu hình SMTP.' });
-    }
+  // 2. Configure & Verify SMTP Settings (strictly Admin role)
+  fastify.post('/smtp-config', { preHandler: requireRole('admin') }, async (request: any, reply) => {
     const { user, pass, host, port, senderName } = request.body || {};
 
     if (!user || !pass) {
@@ -179,11 +176,8 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
     });
   });
 
-  // 2b. Disconnect / Remove SMTP Configuration
-  fastify.post('/smtp-disconnect', { preHandler: optionalAuth }, async (request: any, reply) => {
-    if (request.user && request.user.role && request.user.role !== 'admin') {
-      return reply.code(403).send({ error: 'Forbidden', message: 'Chỉ quản trị viên mới có quyền ngắt kết nối SMTP.' });
-    }
+  // 2b. Disconnect / Remove SMTP Configuration (strictly Admin role)
+  fastify.post('/smtp-disconnect', { preHandler: requireRole('admin') }, async (request: any, reply) => {
     const db = getDb();
     db.prepare("DELETE FROM system_settings WHERE category = 'smtp'").run();
     delete process.env.SMTP_USER;
@@ -199,8 +193,21 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
     });
   });
 
-  // 3. Automated Email Dispatch Endpoint
-  fastify.post('/send-reminder-email', { preHandler: optionalAuth }, async (request: any, reply) => {
+  // 3. Automated Email Dispatch Endpoint (requires authenticated user + rate limiting)
+  fastify.post('/send-reminder-email', {
+    preHandler: verifyToken,
+    config: {
+      rateLimit: {
+        max: 20,
+        timeWindow: '1 minute',
+        errorResponseBuilder: () => ({
+          statusCode: 429,
+          error: 'Too Many Requests',
+          message: 'Bạn đã gửi email nhắc việc quá nhanh. Vui lòng thử lại sau 1 phút.'
+        })
+      }
+    }
+  }, async (request: any, reply) => {
     const { to, subject, content, noteTitle, taskText } = request.body || {};
 
     if (!to || typeof to !== 'string' || !to.includes('@')) {
@@ -559,8 +566,21 @@ ${safeContent}
     }
   });
 
-  // 4. Send Test Email Endpoint
-  fastify.post('/test-email', { preHandler: optionalAuth }, async (request: any, reply) => {
+  // 4. Send Test Email Endpoint (strictly Admin role + rate limited)
+  fastify.post('/test-email', {
+    preHandler: requireRole('admin'),
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '1 minute',
+        errorResponseBuilder: () => ({
+          statusCode: 429,
+          error: 'Too Many Requests',
+          message: 'Bạn đã thực hiện kiểm tra gửi mail quá nhiều lần. Vui lòng đợi 1 phút rồi thử lại.'
+        })
+      }
+    }
+  }, async (request: any, reply) => {
     const { to } = request.body || {};
     if (!to || typeof to !== 'string' || !to.includes('@')) {
       return reply.code(400).send({

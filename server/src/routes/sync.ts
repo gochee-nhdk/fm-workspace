@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { verifyToken, optionalAuth } from '../middleware/auth.js';
+import { verifyToken } from '../middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,8 +25,8 @@ function getVaultDir(userId: string): string {
 }
 
 export default async function syncRoutes(fastify: FastifyInstance) {
-  // Support both authenticated multi-user isolation and local offline-first single user
-  fastify.addHook('preHandler', optionalAuth);
+  // Enforce verified authentication across all workspace backup and sync endpoints
+  fastify.addHook('preHandler', verifyToken);
 
   /**
    * 1. POST /api/sync/backup
@@ -50,7 +50,14 @@ export default async function syncRoutes(fastify: FastifyInstance) {
         });
       }
 
-      const userId = request.user?.id || 'default_user';
+      const userId = request.user?.id;
+      if (!userId) {
+        return reply.code(401).send({
+          success: false,
+          error: 'Unauthorized',
+          message: 'Yêu cầu xác thực người dùng hợp lệ.',
+        });
+      }
 
       const db = getDb();
       const id = uuidv4();
@@ -127,7 +134,14 @@ export default async function syncRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/latest', async (request: any, reply) => {
     try {
-      const userId = request.user?.id || 'default_user';
+      const userId = request.user?.id;
+      if (!userId) {
+        return reply.code(401).send({
+          success: false,
+          error: 'Unauthorized',
+          message: 'Yêu cầu xác thực người dùng hợp lệ.',
+        });
+      }
 
       const db = getDb();
       const latest = db.prepare(`
@@ -184,11 +198,18 @@ export default async function syncRoutes(fastify: FastifyInstance) {
 
   /**
    * 3. GET /api/sync/history
-   * Lists the most recent 10 backups metadata for the requesting user or default_user
+   * Lists the most recent 10 backups metadata for the requesting authenticated user
    */
   fastify.get('/history', async (request: any, reply) => {
     try {
-      const userId = request.user?.id || 'default_user';
+      const userId = request.user?.id;
+      if (!userId) {
+        return reply.code(401).send({
+          success: false,
+          error: 'Unauthorized',
+          message: 'Yêu cầu xác thực người dùng hợp lệ.',
+        });
+      }
 
       const db = getDb();
       const list = db.prepare(`
@@ -220,13 +241,21 @@ export default async function syncRoutes(fastify: FastifyInstance) {
 
   /**
    * 4. GET /api/sync/download/:id
-   * Fetch full payload for a specific backup — verified by user ownership
+   * Fetch full payload for a specific backup — verified strictly by user ownership
    */
   fastify.get('/download/:id', async (request: any, reply) => {
     try {
       const { id } = request.params;
-      const userId = request.user?.id || 'default_user';
+      const userId = request.user?.id;
       const userRole = request.user?.role || 'user';
+
+      if (!userId) {
+        return reply.code(401).send({
+          success: false,
+          error: 'Unauthorized',
+          message: 'Yêu cầu xác thực người dùng hợp lệ.',
+        });
+      }
 
       const db = getDb();
       // Ensure backup belongs to requesting user (or user is admin)
@@ -253,5 +282,6 @@ export default async function syncRoutes(fastify: FastifyInstance) {
       });
     }
   });
+
 }
 

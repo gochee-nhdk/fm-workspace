@@ -400,7 +400,11 @@ async function importFullBackup(
       if (dup) {
         if (conflictStrategy === 'skip') { result.skipped++; continue; }
         if (conflictStrategy === 'overwrite') {
-          await idbPut<AccountItem>(STORES.ACCOUNTS, { ...acc, id: dup.id, updatedAt: now });
+          // If incoming backup has no password (e.g. from server sanitized backup), preserve existing local password!
+          const restoredPassword = acc.password !== undefined && acc.password !== null && acc.password !== '' 
+            ? acc.password 
+            : dup.password;
+          await idbPut<AccountItem>(STORES.ACCOUNTS, { ...acc, password: restoredPassword, id: dup.id, updatedAt: now });
           result.accounts++;
           continue;
         }
@@ -571,9 +575,16 @@ async function generateBackupPayload(): Promise<{ payloadStr: string; checksum: 
     }
   } catch (_) {}
 
+  // Security: For automated background server sync, do NOT send plaintext account passwords across the network
+  // Passwords remain safely on the user's local machine in client IndexedDB.
+  const sanitizedAccounts = accounts.map((acc) => {
+    const { password, ...safeAcc } = acc;
+    return safeAcc as AccountItem;
+  });
+
   const payload: FMBackupPayload = {
     links,
-    accounts,
+    accounts: sanitizedAccounts,
     stores,
     notes,
     attachments,
