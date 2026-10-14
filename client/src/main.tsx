@@ -2,7 +2,6 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './app/App'
 import './index.css'
-import '@liqui-design/glass/tokens.css'
 import { autoBackupManager } from './services/autoBackupManager'
 import { motionGuardian } from './services/motionGuardian'
 

@@ -5,7 +5,6 @@ import { Suspense, useEffect, useRef } from 'react';
 import { SFCheckmarkCircleFill, SFExclamationmarkCircle, SFInfoCircle, SFArrowClockwise } from 'sf-symbols-lib';
 import RoutesConfig from './routes';
 import { useUiStore, resolveTheme } from '@/stores/ui-store';
-import { LiquiThemeProvider } from '@liqui-design/glass';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -79,23 +78,7 @@ function ThemeSync() {
 
 export default function App() {
   return (
-    <LiquiThemeProvider
-      theme={{
-        glass: {
-          material: 'auto',
-          profile: 'convex',
-          frost: 0.3,
-          specular: 0.72,
-          dispersion: 0,
-          saturation: 1.35,
-          radiusScale: 1,
-          refractionScale: 1,
-          bezelScale: 1,
-          blurScale: 1,
-        },
-      }}
-    >
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <ThemeSync />
         <Suspense fallback={null}>
@@ -165,7 +148,6 @@ export default function App() {
           }}
         </Toaster>
       </BrowserRouter>
-      </QueryClientProvider>
-    </LiquiThemeProvider>
+    </QueryClientProvider>
   );
 }
