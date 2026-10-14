@@ -66,30 +66,12 @@ targetFolders.forEach(folder => {
     }
   });
 
-  // Create crisp new shortcut with official logo
-  const shortcutFile = path.join(folder, 'Trợ Lý Thu Mua - Farmers Market.lnk');
-  const tempScript = path.join(appDir, 'temp_shortcut.js');
-
-  const jscript = [
-    'var WshShell = new ActiveXObject("WScript.Shell");',
-    'var sh = WshShell.CreateShortcut(' + JSON.stringify(shortcutFile) + ');',
-    'sh.TargetPath = "wscript.exe";',
-    'sh.Arguments = ' + JSON.stringify('"' + vbsPath + '"') + ';',
-    'sh.WorkingDirectory = ' + JSON.stringify(appDir) + ';',
-    'sh.IconLocation = ' + JSON.stringify(icoPath + ', 0') + ';',
-    'sh.Description = "He Thong Tro Ly Thu Mua & Quan Tri - Farmers Market";',
-    'sh.WindowStyle = 7;',
-    'sh.Save();'
-  ].join('\r\n');
-
-  fs.writeFileSync(tempScript, jscript, 'utf16le');
   try {
-    execSync('cscript //nologo "' + tempScript + '"');
-    console.log('SUCCESS: Created shortcut at ->', shortcutFile);
+    const psScript = path.join(appDir, 'setup_desktop_shortcut.ps1');
+    execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psScript}"`, { stdio: 'inherit' });
+    console.log('SUCCESS: Refreshed desktop shortcuts successfully.');
   } catch (err) {
-    console.error('Error creating shortcut at', shortcutFile, err.message);
-  } finally {
-    try { fs.unlinkSync(tempScript); } catch (e) {}
+    console.error('Error refreshing shortcuts:', err.message);
   }
 });
 

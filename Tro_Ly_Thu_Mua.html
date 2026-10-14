@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trợ Lý Thu Mua — Farmers Market</title>
+  <link rel="icon" href="./client/public/favicon.ico" type="image/x-icon">
+  <style>
+    :root {
+      --bg: #0b0d11;
+      --card-bg: rgba(26, 31, 44, 0.72);
+      --card-border: rgba(255, 255, 255, 0.12);
+      --accent-gold: #ffb800;
+      --accent-green: #30d158;
+      --accent-blue: #0a84ff;
+      --text-main: #f5f5f7;
+      --text-sub: #86868b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background: radial-gradient(circle at 50% 20%, #1e2638 0%, #0a0c10 100%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+
+    .glass-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(28px) saturate(190%);
+      -webkit-backdrop-filter: blur(28px) saturate(190%);
+      border: 1px solid var(--card-border);
+      border-radius: 28px;
+      width: 100%;
+      max-width: 540px;
+      padding: 40px;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      animation: floatIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      text-align: center;
+    }
+
+    @keyframes floatIn {
+      0% { opacity: 0; transform: translateY(18px) scale(0.97); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .app-icon {
+      width: 88px;
+      height: 88px;
+      margin: 0 auto 20px auto;
+      border-radius: 22px;
+      background: linear-gradient(145deg, #2c3444, #141822);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+    }
+
+    .badge-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      margin-bottom: 24px;
+    }
+
+    .indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #8e8e93;
+    }
+
+    .indicator.active {
+      background: var(--accent-green);
+      box-shadow: 0 0 12px var(--accent-green);
+    }
+
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    p.subtitle {
+      font-size: 14px;
+      color: var(--text-sub);
+      line-height: 1.5;
+      margin-bottom: 28px;
+    }
+
+    .action-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 14px 20px;
+      border-radius: 16px;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      border: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(180deg, #2b7fff 0%, #0066ee 100%);
+      color: #ffffff;
+      box-shadow: 0 6px 20px rgba(0, 102, 238, 0.35);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 102, 238, 0.45);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.07);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.12);
+      transform: translateY(-2px);
+    }
+
+    .cloud-input-box {
+      background: rgba(0, 0, 0, 0.28);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 16px;
+      text-align: left;
+      margin-bottom: 24px;
+    }
+
+    .cloud-input-box label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .cloud-input-box input {
+      width: 100%;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      color: #ffffff;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .cloud-input-box input:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
+    }
+
+    .info-footer {
+      font-size: 12px;
+      color: var(--text-sub);
+      line-height: 1.6;
+    }
+
+    .tip-box {
+      margin-top: 16px;
+      padding: 12px;
+      background: rgba(255, 184, 0, 0.08);
+      border: 1px solid rgba(255, 184, 0, 0.2);
+      border-radius: 12px;
+      color: #ffd60a;
+      font-size: 12px;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <div class="glass-card">
+    <div class="app-icon">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ffb800" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/>
+        <path d="M3 6h18"/>
+        <path d="M16 10a4 4 0 0 1-8 0"/>
+      </svg>
+    </div>
+
+    <h1>Trợ Lý Thu Mua</h1>
+    <p class="subtitle">Farmers Market — Trợ lý Thông minh & Quản trị Chuỗi Cung Ứng</p>
+
+    <div class="badge-status">
+      <span class="indicator" id="statusDot"></span>
+      <span id="statusText">Đang kiểm tra kết nối Web App...</span>
+    </div>
+
+    <div class="action-group">
+      <!-- Nút vào Web App trực tiếp (Cloud hoặc Local) -->
+      <a href="http://localhost:5173" id="launchBtn" class="btn btn-primary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        Mở Web App Ngay Lập Tức
+      </a>
+
+      <!-- Nút mở bản Cloud (Vercel / Online) -->
+      <button onclick="openCloudApp()" class="btn btn-secondary" id="cloudBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+        </svg>
+        Mở Bản Cloud (Không Cần Localhost)
+      </button>
+    </div>
+
+    <div class="cloud-input-box">
+      <label>Đường Dẫn Web App Cloud (Vercel):</label>
+      <input type="url" id="cloudUrlInput" placeholder="Ví dụ: https://fm-workspace.vercel.app" onchange="saveCloudUrl()">
+    </div>
+
+    <div class="tip-box">
+      <strong>💡 Không thích dùng Localhost?</strong><br>
+      Dự án đã sẵn sàng 100% trên Vercel. Bạn chỉ cần nhập link Vercel của bạn vào ô trên, từ lần sau mở file HTML này sẽ đưa bạn thẳng vào Web App trên mây mà không cần tốn 1MB RAM nào trên máy tính!
+    </div>
+
+    <div class="info-footer" style="margin-top: 20px;">
+      Farmers Market Procurement Assistant &copy; 2026. Thiết kế theo tiêu chuẩn Apple HIG.
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_LOCAL = 'http://localhost:5173';
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const launchBtn = document.getElementById('launchBtn');
+    const cloudUrlInput = document.getElementById('cloudUrlInput');
+
+    // Load saved cloud URL from localStorage
+    const savedUrl = localStorage.getItem('fm_cloud_url');
+    if (savedUrl) {
+      cloudUrlInput.value = savedUrl;
+    }
+
+    function saveCloudUrl() {
+      const val = cloudUrlInput.value.trim();
+      if (val) {
+        localStorage.setItem('fm_cloud_url', val);
+      }
+    }
+
+    function openCloudApp() {
+      const url = cloudUrlInput.value.trim() || localStorage.getItem('fm_cloud_url');
+      if (url) {
+        window.location.href = url;
+      } else {
+        alert('Vui lòng nhập đường dẫn Vercel của bạn vào ô bên dưới để mở!');
+        cloudUrlInput.focus();
+      }
+    }
+
+    // Auto-check if local app is active
+    async function checkHealth() {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 1200);
+        await fetch(DEFAULT_LOCAL, { method: 'HEAD', mode: 'no-cors', signal: controller.signal });
+        clearTimeout(timeout);
+
+        statusDot.className = 'indicator active';
+        statusText.innerText = 'Máy tính đã sẵn sàng (Localhost Active)';
+        launchBtn.href = DEFAULT_LOCAL;
+      } catch (e) {
+        const cloudUrl = localStorage.getItem('fm_cloud_url');
+        if (cloudUrl) {
+          statusDot.className = 'indicator active';
+          statusText.innerText = 'Đang chuyển hướng tới Cloud (Vercel)...';
+          setTimeout(() => {
+            window.location.href = cloudUrl;
+          }, 800);
+        } else {
+          statusDot.className = 'indicator';
+          statusText.innerText = 'Localhost chưa chạy. Bạn có thể mở bản Cloud bên dưới.';
+        }
+      }
+    }
+
+    checkHealth();
+  </script>
+</body>
+</html>
