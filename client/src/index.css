@@ -1728,36 +1728,58 @@
   animation: liquidBackdropFadeOut var(--motion-duration-exit) var(--motion-ease-exit) forwards;
 }
 
-/* Apple Liquid Glass Image Lightbox Spring Physics */
-@keyframes appleImageLightboxFadeIn {
+/* Apple Liquid Glass Image Lightbox Spring Physics (120 FPS, GPU-accelerated) */
+@keyframes appleLightboxStageEnter {
   0% {
     opacity: 0;
-    filter: blur(8px);
+    transform: scale(0.92) translate3d(0, 14px, 0);
+    filter: blur(10px);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.018) translate3d(0, -1.5px, 0);
+    filter: blur(0px);
   }
   100% {
     opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
     filter: blur(0px);
   }
 }
 
-@keyframes appleImageLightboxFadeOut {
+@keyframes appleLightboxStageExit {
   0% {
     opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
     filter: blur(0px);
   }
   100% {
     opacity: 0;
-    filter: blur(6px);
+    transform: scale(0.94) translate3d(0, 12px, 0);
+    filter: blur(8px);
   }
+}
+
+.apple-lightbox-stage-enter {
+  animation: appleLightboxStageEnter 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity, filter;
+  transform-origin: center center;
+}
+
+.apple-lightbox-stage-exit {
+  animation: appleLightboxStageExit 0.19s cubic-bezier(0.32, 0, 0.67, 0) forwards;
+  will-change: transform, opacity, filter;
+  transform-origin: center center;
+  pointer-events: none;
 }
 
 .apple-lightbox-img-enter {
-  animation: appleImageLightboxFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: appleLightboxStageEnter 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity, filter;
 }
 
 .apple-lightbox-img-exit {
-  animation: appleImageLightboxFadeOut 0.18s cubic-bezier(0.32, 0, 0.67, 0) forwards;
+  animation: appleLightboxStageExit 0.19s cubic-bezier(0.32, 0, 0.67, 0) forwards;
   will-change: transform, opacity, filter;
   pointer-events: none;
 }
@@ -1849,6 +1871,8 @@
 .apple-modal-exit,
 .liquid-droplet-enter,
 .liquid-droplet-exit,
+.apple-lightbox-stage-enter,
+.apple-lightbox-stage-exit,
 .page-glide-enter,
 .sidebar-label-transition {
   transform: translateZ(0);

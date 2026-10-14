@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   SFMappinAndEllipse,
   SFArrowUpRightSquare,
@@ -181,6 +181,12 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
+  const lastStoreRef = useRef<StoreItem | null>(null);
+  if (store) {
+    lastStoreRef.current = store;
+  }
+  const currentStore = store || lastStoreRef.current;
+
   // Reset loading state and custom query when store changes
   useEffect(() => {
     if (isOpen) {
@@ -191,7 +197,7 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
   }, [isOpen, store]);
 
   const mapData = useMemo(() => {
-    if (!store) return null;
+    if (!currentStore) return null;
     if (customQuery.trim()) {
       return {
         url: `https://maps.google.com/maps?q=${encodeURIComponent(customQuery.trim())}&hl=vi&t=m&z=17&output=embed`,
@@ -199,14 +205,14 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
         isCoordinates: false,
       };
     }
-    return getMapEmbedUrl(store.address, store.googleMaps, store.storeCode);
-  }, [store, customQuery]);
+    return getMapEmbedUrl(currentStore.address, currentStore.googleMaps, currentStore.storeCode);
+  }, [currentStore, customQuery]);
 
-  const externalUrl = store ? getExternalMapUrl(store.address, store.googleMaps, store.storeCode) : '';
-  const hasNoAddress = !store?.address?.trim() && !store?.googleMaps?.trim();
+  const externalUrl = currentStore ? getExternalMapUrl(currentStore.address, currentStore.googleMaps, currentStore.storeCode) : '';
+  const hasNoAddress = !currentStore?.address?.trim() && !currentStore?.googleMaps?.trim();
 
   const handleCopyAddress = () => {
-    const textToCopy = store?.address?.trim() || store?.googleMaps || '';
+    const textToCopy = currentStore?.address?.trim() || currentStore?.googleMaps || '';
     if (!textToCopy) return;
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
@@ -214,18 +220,18 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (!store && !isOpen) return null;
+  if (!currentStore) return null;
 
   return (
     <AppleLiquidDialog
-      isOpen={Boolean(isOpen && store)}
+      isOpen={isOpen}
       onClose={onClose}
       zIndex={10010}
-      title={store ? `Bản đồ cửa hàng ${store.storeCode}` : 'Bản đồ cửa hàng'}
+      title={currentStore ? `Bản đồ cửa hàng ${currentStore.storeCode}` : 'Bản đồ cửa hàng'}
       overlayClassName="p-3 sm:p-5 md:p-6"
       contentClassName="relative w-full max-w-4xl bg-white dark:bg-[#1c1c22] rounded-[28px] border border-black/10 dark:border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] overflow-hidden flex flex-col z-10"
     >
-      {store && (
+      {currentStore && (
         <>
           {/* Apple Window Header */}
         <div className="px-5 sm:px-6 py-3.5 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between gap-4 bg-white/50 dark:bg-white/[0.03] shrink-0">
@@ -238,11 +244,11 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-[17px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight">
-                  {store.storeCode}
+                  {currentStore.storeCode}
                 </h3>
-                {store.type && (
+                {currentStore.type && (
                   <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-black/[0.04] dark:bg-white/[0.08] text-[#555558] dark:text-[#a1a1a6] border border-black/[0.05] dark:border-white/10">
-                    {store.type}
+                    {currentStore.type}
                   </span>
                 )}
                 <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-[#0071e3]/10 text-[#0066cc] dark:bg-[#2997ff]/15 dark:text-[#2997ff]">
@@ -251,7 +257,7 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
                 </span>
               </div>
               <p className="text-[12.5px] text-[#76767b] dark:text-[#a1a1a6] truncate max-w-sm sm:max-w-lg">
-                {store.address || 'Chưa cập nhật địa chỉ chi tiết'}
+                {currentStore.address || 'Chưa cập nhật địa chỉ chi tiết'}
               </p>
             </div>
           </div>
@@ -259,7 +265,7 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
           {/* Action Segmented Controls */}
           <div className="flex items-center gap-2 shrink-0">
             {/* Copy Address Button */}
-            {store.address && (
+            {currentStore.address && (
               <button
                 type="button"
                 onClick={handleCopyAddress}
@@ -311,7 +317,7 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
                 <SFExclamationmarkCircle size={24} />
               </div>
               <h4 className="text-base font-bold text-[#1d1d1f] dark:text-white">
-                Chưa có địa chỉ hoặc tọa độ cho {store.storeCode}
+                Chưa có địa chỉ hoặc tọa độ cho {currentStore.storeCode}
               </h4>
               <p className="text-xs text-[#76767b] dark:text-[#a1a1a6] max-w-md">
                 Cửa hàng này hiện chưa được nhập địa chỉ chi tiết hoặc link Google Maps. Bạn có thể mở ngoài để tìm kiếm hoặc chỉnh sửa lại thông tin cửa hàng.
@@ -322,7 +328,7 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
                 rel="noopener noreferrer"
                 className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#007aff] text-white text-xs font-semibold shadow-md active:scale-95 transition-all"
               >
-                <span>Tìm kiếm "{store.storeCode}" trên Google Maps</span>
+                <span>Tìm kiếm "{currentStore.storeCode}" trên Google Maps</span>
                 <SFArrowUpRightSquare size={14} />
               </a>
             </div>
@@ -341,7 +347,7 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
               {/* Google Maps Interactive Iframe */}
               {mapData && (
                 <iframe
-                  title={`Google Maps ${store.storeCode}`}
+                  title={`Google Maps ${currentStore.storeCode}`}
                   src={mapData.url}
                   width="100%"
                   height="100%"
@@ -362,7 +368,7 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
           <div className="flex items-center gap-2 min-w-0">
             <span className="w-2 h-2 rounded-full bg-[#34c759] shadow-[0_0_6px_rgba(52,199,89,0.7)] shrink-0" />
             <span className="truncate font-medium text-[#1d1d1f] dark:text-[#f5f5f7]">
-              {store.address || mapData?.queryUsed || 'Vị trí đã định vị'}
+              {currentStore.address || mapData?.queryUsed || 'Vị trí đã định vị'}
             </span>
           </div>
 

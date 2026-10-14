@@ -1199,6 +1199,11 @@ export const QuickNoteWindow: React.FC = () => {
     ext: string;
     size: string;
   } | null>(null);
+  const lastFilePreviewModalRef = useRef<typeof filePreviewModal>(null);
+  if (filePreviewModal) {
+    lastFilePreviewModalRef.current = filePreviewModal;
+  }
+  const currentFilePreview = filePreviewModal || lastFilePreviewModalRef.current;
   const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
   const [previewTextContent, setPreviewTextContent] = useState<string | null>(null);
   const [excelPreview, setExcelPreview] = useState<{ sheets: ExcelSheetPreview[]; activeSheetIndex: number } | null>(null);
@@ -6485,7 +6490,12 @@ export const QuickNoteWindow: React.FC = () => {
                 )}
 
                 <div
-                  className="relative flex items-center justify-center max-w-full max-h-full"
+                  className={cn(
+                    "relative flex items-center justify-center max-w-full max-h-full will-change-[transform,opacity,filter]",
+                    lightboxPresence.isExiting
+                      ? "apple-lightbox-stage-exit pointer-events-none"
+                      : "apple-lightbox-stage-enter pointer-events-auto"
+                  )}
                   onWheel={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -6524,12 +6534,7 @@ export const QuickNoteWindow: React.FC = () => {
                       cursor: lightboxZoom > 1 ? (isLightboxPanning ? 'grabbing' : 'grab') : 'zoom-in',
                       transition: isLightboxPanning ? 'none' : 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
-                    className={cn(
-                      "max-h-[calc(100vh-170px)] max-w-[90vw] object-contain rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.85),0_4px_16px_rgba(0,0,0,0.5)] border border-white/15 select-none will-change-[transform,opacity,filter]",
-                      lightboxPresence.isExiting
-                        ? "apple-lightbox-img-exit"
-                        : "apple-lightbox-img-enter"
-                    )}
+                    className="max-h-[calc(100vh-170px)] max-w-[90vw] object-contain rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.85),0_4px_16px_rgba(0,0,0,0.5)] border border-white/15 select-none will-change-transform"
                   />
                 </div>
 
@@ -6604,6 +6609,7 @@ export const QuickNoteWindow: React.FC = () => {
         })()}
 
       {/* ─────────────────── Apple QuickLook File Preview Modal ─────────────────── */}
+      {/* ─────────────────── Apple QuickLook File Preview Modal ─────────────────── */}
       <AppleLiquidDialog
         isOpen={Boolean(filePreviewModal)}
         onClose={() => {
@@ -6611,7 +6617,7 @@ export const QuickNoteWindow: React.FC = () => {
           setIsPreviewFullscreen(false);
         }}
         zIndex={10010}
-        title={filePreviewModal ? `Xem trước tệp ${filePreviewModal.name}` : 'Xem trước tệp'}
+        title={currentFilePreview ? `Xem trước tệp ${currentFilePreview.name}` : 'Xem trước tệp'}
         overlayClassName={isPreviewFullscreen ? "p-0" : "p-3 sm:p-6"}
         contentClassName={cn(
           "relative bg-white dark:bg-[#1c1c24] flex flex-col overflow-hidden transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width,height,transform]",
@@ -6620,22 +6626,22 @@ export const QuickNoteWindow: React.FC = () => {
             : "w-full max-w-4xl h-[85vh] max-h-[850px] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.55)] border border-black/10 dark:border-white/12"
         )}
       >
-        {filePreviewModal && (
+        {currentFilePreview && (
           <>
             {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-black/[0.08] dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.03] shrink-0">
                 <div className="flex items-center gap-3 min-w-0 pr-3">
                   <div
                     className="shrink-0"
-                    dangerouslySetInnerHTML={{ __html: getAppleDocSvg(filePreviewModal.ext) }}
+                    dangerouslySetInnerHTML={{ __html: getAppleDocSvg(currentFilePreview.ext) }}
                   />
                   <div className="min-w-0">
-                    <h3 className="text-[13.5px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] truncate" title={filePreviewModal.name}>
-                      {filePreviewModal.name}
+                    <h3 className="text-[13.5px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] truncate" title={currentFilePreview.name}>
+                      {currentFilePreview.name}
                     </h3>
                     <p className="text-[11px] text-[#86868b] font-mono">
-                      {filePreviewModal.ext.toUpperCase()} {filePreviewModal.size && `• ${filePreviewModal.size}`}
-                      {filePreviewModal.ext.toLowerCase() === 'docx' && docxPreview && ` • ${docxPreview.length} đoạn văn`}
+                      {currentFilePreview.ext.toUpperCase()} {currentFilePreview.size && `• ${currentFilePreview.size}`}
+                      {currentFilePreview.ext.toLowerCase() === 'docx' && docxPreview && ` • ${docxPreview.length} đoạn văn`}
                     </p>
                   </div>
                 </div>
@@ -6646,13 +6652,13 @@ export const QuickNoteWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      if (filePreviewModal.fileId) {
-                        attachmentService.downloadAttachment(filePreviewModal.fileId, filePreviewModal.name);
+                      if (currentFilePreview.fileId) {
+                        attachmentService.downloadAttachment(currentFilePreview.fileId, currentFilePreview.name);
                       } else {
-                        const dlUrl = previewBlobUrl || filePreviewModal.url;
+                        const dlUrl = previewBlobUrl || currentFilePreview.url;
                         const a = document.createElement('a');
                         a.href = dlUrl;
-                        a.download = filePreviewModal.name;
+                        a.download = currentFilePreview.name;
                         document.body.appendChild(a);
                         a.click();
                         setTimeout(() => a.remove(), 120);
@@ -6667,7 +6673,7 @@ export const QuickNoteWindow: React.FC = () => {
                   {/* 2. Nút Xóa */}
                   <button
                     type="button"
-                    onClick={() => handleDeleteFileFromPreview(filePreviewModal.url, filePreviewModal.name, filePreviewModal.fileId)}
+                    onClick={() => handleDeleteFileFromPreview(currentFilePreview.url, currentFilePreview.name, currentFilePreview.fileId)}
                     className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs shrink-0"
                     title="Xóa tệp này khỏi ghi chú"
                   >
@@ -6701,7 +6707,7 @@ export const QuickNoteWindow: React.FC = () => {
               <div
                 className={cn(
                   "flex-1 overflow-auto bg-[#f0f2f5] dark:bg-[#121217]",
-                  ['docx', 'xlsx', 'xls', 'pdf', 'pptx'].includes(filePreviewModal.ext.toLowerCase())
+                  ['docx', 'xlsx', 'xls', 'pdf', 'pptx'].includes(currentFilePreview.ext.toLowerCase())
                     ? "p-0 flex flex-col items-center"
                     : "p-3 sm:p-4 flex items-center justify-center"
                 )}
@@ -6711,14 +6717,14 @@ export const QuickNoteWindow: React.FC = () => {
                     <Loader2 className="w-8 h-8 animate-spin text-[#0071e3]" />
                     <span className="text-[13px] font-medium">Đang giải nạp và chuẩn bị xem trước tệp...</span>
                   </div>
-                ) : filePreviewModal.ext.toLowerCase() === 'pdf' ? (
+                ) : currentFilePreview.ext.toLowerCase() === 'pdf' ? (
                   <iframe
-                    key={previewBlobUrl || filePreviewModal.url}
-                    src={previewBlobUrl || filePreviewModal.url}
+                    key={previewBlobUrl || currentFilePreview.url}
+                    src={previewBlobUrl || currentFilePreview.url}
                     className="w-full h-full rounded-xl border border-black/10 dark:border-white/10 shadow-sm bg-white"
-                    title={filePreviewModal.name}
+                    title={currentFilePreview.name}
                   />
-                ) : ['xlsx', 'xls'].includes(filePreviewModal.ext.toLowerCase()) ? (
+                ) : ['xlsx', 'xls'].includes(currentFilePreview.ext.toLowerCase()) ? (
                   excelPreview && excelPreview.sheets.length > 0 ? (
                     <div className="w-full h-full flex flex-col bg-white dark:bg-[#1a1a22] rounded-xl border border-black/10 dark:border-white/10 overflow-hidden shadow-sm">
                       {/* Sheets Tab Bar */}
@@ -6790,7 +6796,7 @@ export const QuickNoteWindow: React.FC = () => {
                   ) : (
                     <div className="p-8 text-center text-[#86868b] text-[13px]">Không thể nạp nội dung trang tính</div>
                   )
-                ) : filePreviewModal.ext.toLowerCase() === 'docx' && docxPreview && docxPreview.length > 0 ? (
+                ) : currentFilePreview.ext.toLowerCase() === 'docx' && docxPreview && docxPreview.length > 0 ? (
                   <div className="w-full h-full overflow-y-auto py-8 sm:py-12 px-3 sm:px-8 flex justify-center items-start">
                     <div className="w-full max-w-4xl bg-white dark:bg-[#1c1c24] rounded-2xl border border-black/[0.08] dark:border-white/[0.08] p-8 sm:p-14 md:p-16 shadow-[0_10px_35px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.04)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.5)] text-left font-sans select-text space-y-4 shrink-0 h-fit">
                       {docxPreview.map((b, idx) => {
@@ -6882,7 +6888,7 @@ export const QuickNoteWindow: React.FC = () => {
                       })}
                     </div>
                   </div>
-                ) : filePreviewModal.ext.toLowerCase() === 'pptx' && pptxPreview && pptxPreview.length > 0 ? (
+                ) : currentFilePreview.ext.toLowerCase() === 'pptx' && pptxPreview && pptxPreview.length > 0 ? (
                   <div className="w-full h-full overflow-y-auto p-4 sm:p-6 space-y-4">
                     {pptxPreview.map((s) => (
                       <div key={s.slideNum} className="max-w-2xl mx-auto rounded-2xl bg-white dark:bg-[#1a1a20] border border-black/10 dark:border-white/10 p-6 shadow-md text-left space-y-2.5">
@@ -6899,21 +6905,21 @@ export const QuickNoteWindow: React.FC = () => {
                       </div>
                     ))}
                   </div>
-                ) : ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(filePreviewModal.ext.toLowerCase()) ? (
+                ) : ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'].includes(currentFilePreview.ext.toLowerCase()) ? (
                   <img
-                    src={previewBlobUrl || filePreviewModal.url}
-                    alt={filePreviewModal.name}
+                    src={previewBlobUrl || currentFilePreview.url}
+                    alt={currentFilePreview.name}
                     className="max-w-full max-h-full object-contain rounded-xl shadow-md border border-black/10 dark:border-white/10"
                   />
-                ) : ['mp3', 'wav', 'm4a', 'ogg'].includes(filePreviewModal.ext.toLowerCase()) ? (
+                ) : ['mp3', 'wav', 'm4a', 'ogg'].includes(currentFilePreview.ext.toLowerCase()) ? (
                   <div className="p-8 flex flex-col items-center gap-4 bg-white dark:bg-[#1a1a20] rounded-2xl border border-black/10 dark:border-white/10 shadow-md">
                     <div className="w-16 h-16 rounded-full bg-[#0071e3]/10 text-[#0071e3] flex items-center justify-center text-[24px]">🎵</div>
-                    <h4 className="text-[14px] font-semibold text-[#1d1d1f] dark:text-white">{filePreviewModal.name}</h4>
-                    <audio controls src={previewBlobUrl || filePreviewModal.url} className="w-72 sm:w-96" />
+                    <h4 className="text-[14px] font-semibold text-[#1d1d1f] dark:text-white">{currentFilePreview.name}</h4>
+                    <audio controls src={previewBlobUrl || currentFilePreview.url} className="w-72 sm:w-96" />
                   </div>
-                ) : ['mp4', 'webm', 'mov'].includes(filePreviewModal.ext.toLowerCase()) ? (
-                  <video controls src={previewBlobUrl || filePreviewModal.url} className="max-w-full max-h-full rounded-2xl shadow-lg border border-black/10 dark:border-white/10" />
-                ) : ['txt', 'md', 'json', 'csv', 'js', 'ts', 'jsx', 'tsx', 'html', 'css', 'py', 'log', 'xml', 'yaml', 'yml'].includes(filePreviewModal.ext.toLowerCase()) ? (
+                ) : ['mp4', 'webm', 'mov'].includes(currentFilePreview.ext.toLowerCase()) ? (
+                  <video controls src={previewBlobUrl || currentFilePreview.url} className="max-w-full max-h-full rounded-2xl shadow-lg border border-black/10 dark:border-white/10" />
+                ) : ['txt', 'md', 'json', 'csv', 'js', 'ts', 'jsx', 'tsx', 'html', 'css', 'py', 'log', 'xml', 'yaml', 'yml'].includes(currentFilePreview.ext.toLowerCase()) ? (
                   <div className="w-full h-full overflow-auto p-4 rounded-xl bg-white dark:bg-[#1a1a20] border border-black/10 dark:border-white/10 font-mono text-[12.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] whitespace-pre-wrap select-text">
                     {previewTextContent !== null ? previewTextContent : 'Đang nạp nội dung văn bản...'}
                   </div>
@@ -6922,25 +6928,25 @@ export const QuickNoteWindow: React.FC = () => {
                     <div
                       className="inline-block mb-4 p-4 rounded-3xl bg-black/[0.04] dark:bg-white/[0.06] shadow-inner"
                       dangerouslySetInnerHTML={{
-                        __html: getAppleDocSvg(filePreviewModal.ext).replace('width="26" height="32"', 'width="64" height="78"')
+                        __html: getAppleDocSvg(currentFilePreview.ext).replace('width="26" height="32"', 'width="64" height="78"')
                       }}
                     />
                     <h4 className="text-[16px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] mb-1.5 break-words">
-                      {filePreviewModal.name}
+                      {currentFilePreview.name}
                     </h4>
                     <p className="text-[12.5px] text-[#86868b] leading-relaxed mb-5">
-                      Tệp định dạng <strong>.{filePreviewModal.ext.toUpperCase()}</strong> ({filePreviewModal.size || 'tệp đính kèm'}). Bạn có thể tải về để mở bằng ứng dụng tương ứng trên máy tính.
+                      Tệp định dạng <strong>.{currentFilePreview.ext.toUpperCase()}</strong> ({currentFilePreview.size || 'tệp đính kèm'}). Bạn có thể tải về để mở bằng ứng dụng tương ứng trên máy tính.
                     </p>
                     <button
                       type="button"
                       onClick={() => {
-                        if (filePreviewModal.fileId) {
-                          attachmentService.downloadAttachment(filePreviewModal.fileId, filePreviewModal.name);
+                        if (currentFilePreview.fileId) {
+                          attachmentService.downloadAttachment(currentFilePreview.fileId, currentFilePreview.name);
                         } else {
-                          const dlUrl = previewBlobUrl || filePreviewModal.url;
+                          const dlUrl = previewBlobUrl || currentFilePreview.url;
                           const a = document.createElement('a');
                           a.href = dlUrl;
-                          a.download = filePreviewModal.name;
+                          a.download = currentFilePreview.name;
                           document.body.appendChild(a);
                           a.click();
                           setTimeout(() => a.remove(), 120);
@@ -6949,7 +6955,7 @@ export const QuickNoteWindow: React.FC = () => {
                       className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[13px] font-semibold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
                     >
                       <SFArrowDownToLine size={14} />
-                      <span>Tải xuống tệp tin ({filePreviewModal.size || 'tệp đính kèm'})</span>
+                      <span>Tải xuống tệp tin ({currentFilePreview.size || 'tệp đính kèm'})</span>
                     </button>
                   </div>
                 )}
