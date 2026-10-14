@@ -60,7 +60,8 @@ export const AppShell: React.FC = () => {
   const loadNotes = useNoteStore((state) => state.loadNotes);
   const openNote = useNoteStore((state) => state.openNote);
   const toggleNote = useNoteStore((state) => state.toggleNote);
-  const notesCount = useNoteStore((state) => state.notes.length);
+  // Count only text notes (excluding To-do checklists) to stay 100% consistent with QuickNoteFloatingButton badge
+  const notesCount = useNoteStore((state) => state.notes.filter((n) => n.noteType !== 'checklist').length);
 
   const isLockEnabled = useSecurityStore((state) => state.isLockEnabled);
   const lockNow = useSecurityStore((state) => state.lockNow);
