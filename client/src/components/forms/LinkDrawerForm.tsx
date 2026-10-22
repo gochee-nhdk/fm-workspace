@@ -167,7 +167,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
                 }
               }}
               error={errors.link}
-              leftIcon={<SFLink size={16} className="text-slate-400" />}
+              leftIcon={<SFLink size={16} className="text-[#86868b] dark:text-[#a1a1a6]" />}
             />
           </div>
           {!link.trim() && (
