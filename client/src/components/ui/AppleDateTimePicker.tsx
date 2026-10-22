@@ -4,6 +4,7 @@ import {
   SFClock,
   SFChevronLeft,
   SFChevronRight,
+  SFCheckmark,
 } from '@/components/ui/AppleIcon';
 import { Calendar as CalendarIcon, ChevronDown } from 'lucide-react';
 import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
@@ -32,6 +33,13 @@ const MONTH_NAMES = [
   'Tháng 11',
   'Tháng 12',
 ];
+
+// Pre-generated 30-minute time slots for the Time Listbox
+const TIME_SLOTS: Array<{ h: number; m: number; label: string }> = [];
+for (let h = 6; h <= 23; h++) {
+  TIME_SLOTS.push({ h, m: 0, label: `${h.toString().padStart(2, '0')}:00` });
+  TIME_SLOTS.push({ h, m: 30, label: `${h.toString().padStart(2, '0')}:30` });
+}
 
 const pad = (n: number) => n.toString().padStart(2, '0');
 
@@ -82,11 +90,15 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
   defaultOpen = false,
 }) => {
   const [isOpen, setIsOpen] = useState(embedded || defaultOpen);
-  const { shouldRender: shouldRenderDropdown, isExiting: isDropdownExiting } = useAnimatedPresence(isOpen, 180);
+  const { shouldRender: shouldRenderDropdown, isExiting: isDropdownExiting } = useAnimatedPresence(isOpen, 200);
 
-  // View mode: 'calendar' or 'monthYearPicker'
+  // View mode: 'calendar' | 'monthYearPicker'
   const [viewMode, setViewMode] = useState<'calendar' | 'monthYearPicker'>('calendar');
 
+  // Toggle for Time Listbox dropdown inside picker
+  const [isTimeListOpen, setIsTimeListOpen] = useState(false);
+
+  const containerRef = useRef<HTMLDivElement>(null);
   const currentDate = useMemo(() => parseDatetimeLocal(value), [value]);
 
   // Calendar navigation state (month & year)
@@ -97,12 +109,24 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
   const [hours, setHours] = useState(currentDate.getHours());
   const [minutes, setMinutes] = useState(currentDate.getMinutes());
 
-  // Direct numeric input strings
-  const [hourStr, setHourStr] = useState(pad(currentDate.getHours()));
-  const [minStr, setMinStr] = useState(pad(currentDate.getMinutes()));
+  // Click outside listener to dismiss floating listbox
+  useEffect(() => {
+    if (!isOpen || embedded) return;
 
-  const hourInputRef = useRef<HTMLInputElement>(null);
-  const minuteInputRef = useRef<HTMLInputElement>(null);
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+        setIsTimeListOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isOpen, embedded]);
 
   // Sync internal state when external value changes
   useEffect(() => {
@@ -111,8 +135,6 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     setNavMonth(d.getMonth());
     setHours(d.getHours());
     setMinutes(d.getMinutes());
-    setHourStr(pad(d.getHours()));
-    setMinStr(pad(d.getMinutes()));
   }, [value]);
 
   // Calendar day calculation
@@ -164,90 +186,19 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     onChange(toDatetimeLocalString(newDate));
   };
 
-  const handleHourChange = (newHour: number) => {
-    const clamped = Math.max(0, Math.min(23, newHour));
-    setHours(clamped);
-    setHourStr(pad(clamped));
-    const newDate = new Date(currentDate);
-    newDate.setHours(clamped, minutes, 0, 0);
-    onChange(toDatetimeLocalString(newDate));
+  const handleApplyPresetTime = (targetHours: number, targetMinutes: number) => {
+    const target = new Date(currentDate);
+    target.setHours(targetHours, targetMinutes, 0, 0);
+    setHours(targetHours);
+    setMinutes(targetMinutes);
+    onChange(toDatetimeLocalString(target));
   };
 
-  const handleMinuteChange = (newMin: number) => {
-    const clamped = Math.max(0, Math.min(59, newMin));
-    setMinutes(clamped);
-    setMinStr(pad(clamped));
-    const newDate = new Date(currentDate);
-    newDate.setHours(hours, clamped, 0, 0);
-    onChange(toDatetimeLocalString(newDate));
-  };
-
-  const handleStepHour = (step: number) => {
-    const nextHour = (hours + step + 24) % 24;
-    handleHourChange(nextHour);
-  };
-
-  const handleStepMinute = (step: number) => {
-    const nextMin = (minutes + step + 60) % 60;
-    handleMinuteChange(nextMin);
-  };
-
-  // Direct typing handlers
-  const onHourInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      handleStepHour(1);
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      handleStepHour(-1);
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      minuteInputRef.current?.focus();
-      minuteInputRef.current?.select();
-    }
-  };
-
-  const onMinuteInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      handleStepMinute(5);
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      handleStepMinute(-5);
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      if (!embedded) setIsOpen(false);
-    }
-  };
-
-  const onHourInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, '').slice(0, 2);
-    setHourStr(val);
-    if (val.length === 2 || (val.length === 1 && parseInt(val, 10) >= 3)) {
-      const num = parseInt(val, 10);
-      handleHourChange(num);
-      minuteInputRef.current?.focus();
-      minuteInputRef.current?.select();
-    }
-  };
-
-  const onMinuteInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value.replace(/\D/g, '').slice(0, 2);
-    setMinStr(val);
-    if (val.length === 2) {
-      const num = parseInt(val, 10);
-      handleMinuteChange(num);
-    }
-  };
-
-  const onHourBlur = () => {
-    const num = parseInt(hourStr, 10);
-    handleHourChange(isNaN(num) ? hours : num);
-  };
-
-  const onMinuteBlur = () => {
-    const num = parseInt(minStr, 10);
-    handleMinuteChange(isNaN(num) ? minutes : num);
+  const handleStepMinute = (delta: number) => {
+    const totalMinutes = (hours * 60 + minutes + delta + 1440) % 1440;
+    const newH = Math.floor(totalMinutes / 60);
+    const newM = totalMinutes % 60;
+    handleApplyPresetTime(newH, newM);
   };
 
   // Quick Date Presets
@@ -266,8 +217,6 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     d.setHours(9, 0, 0, 0);
     setHours(9);
     setMinutes(0);
-    setHourStr('09');
-    setMinStr('00');
     setNavMonth(d.getMonth());
     setNavYear(d.getFullYear());
     onChange(toDatetimeLocalString(d));
@@ -278,8 +227,6 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     const d = new Date(Date.now() + 60 * 60 * 1000);
     setHours(d.getHours());
     setMinutes(d.getMinutes());
-    setHourStr(pad(d.getHours()));
-    setMinStr(pad(d.getMinutes()));
     setNavMonth(d.getMonth());
     setNavYear(d.getFullYear());
     onChange(toDatetimeLocalString(d));
@@ -294,22 +241,10 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     target.setHours(9, 0, 0, 0);
     setHours(9);
     setMinutes(0);
-    setHourStr('09');
-    setMinStr('00');
     setNavMonth(target.getMonth());
     setNavYear(target.getFullYear());
     onChange(toDatetimeLocalString(target));
     setViewMode('calendar');
-  };
-
-  const handleApplyPresetTime = (targetHours: number, targetMinutes: number) => {
-    const target = new Date(currentDate);
-    target.setHours(targetHours, targetMinutes, 0, 0);
-    setHours(targetHours);
-    setMinutes(targetMinutes);
-    setHourStr(pad(targetHours));
-    setMinStr(pad(targetMinutes));
-    onChange(toDatetimeLocalString(target));
   };
 
   const prevMonth = () => {
@@ -347,9 +282,9 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     );
   };
 
-  // Render the petite, ultra-compact Apple picker panel (265px)
+  // Render the petite, ultra-compact Apple picker panel (270px)
   const renderPickerBody = () => (
-    <div className="w-[268px] mx-auto p-2.5 rounded-2xl bg-white dark:bg-[#1e1e24] border border-black/10 dark:border-white/12 shadow-[0_12px_36px_rgba(0,0,0,0.14)] dark:shadow-[0_16px_45px_rgba(0,0,0,0.6)] space-y-2 select-none font-sans text-left">
+    <div className="w-[272px] mx-auto p-2.5 rounded-2xl bg-white/95 dark:bg-[#1e1e24]/95 backdrop-blur-3xl border border-black/10 dark:border-white/12 shadow-[0_16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] space-y-2 select-none font-sans text-left">
       {/* 1. Petite Quick Date Pills */}
       <div className="grid grid-cols-4 gap-1 p-0.5 rounded-lg bg-black/[0.04] dark:bg-white/[0.06]">
         <button
@@ -501,65 +436,112 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
         </div>
       )}
 
-      {/* 4. Single Unified Clean Time Row (Zero Clutter, 1 Line) */}
-      <div className="pt-2 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-between gap-1.5">
-        <div className="flex items-center gap-1.5">
-          <SFClock size={12} className="text-[#0071e3] shrink-0" />
-          {/* Compact Keyboard Input Pill */}
-          <div className="flex items-center bg-black/[0.035] dark:bg-white/[0.08] px-2 py-0.5 rounded-lg border border-black/10 dark:border-white/10 focus-within:border-[#0071e3] focus-within:ring-1 focus-within:ring-[#0071e3]/30 transition-all">
-            <input
-              ref={hourInputRef}
-              type="text"
-              inputMode="numeric"
-              maxLength={2}
-              value={hourStr}
-              onChange={onHourInputChange}
-              onKeyDown={onHourInputKeyDown}
-              onBlur={onHourBlur}
-              className="w-5 text-center text-[12.5px] font-mono font-semibold text-[#1d1d1f] dark:text-white bg-transparent outline-none cursor-text select-all"
-              title="Gõ giờ (00-23)"
+      {/* 4. Apple Time Listbox Section (Smooth Listbox / Dropdown Selection) */}
+      <div className="pt-2 border-t border-black/[0.06] dark:border-white/10 space-y-1.5">
+        <div className="flex items-center justify-between gap-1">
+          {/* Time Capsule Trigger Button: Click to pop open the Time Listbox */}
+          <button
+            type="button"
+            onClick={() => setIsTimeListOpen(!isTimeListOpen)}
+            className={cn(
+              'flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[12px] font-mono font-semibold transition-all cursor-pointer shadow-2xs border',
+              isTimeListOpen
+                ? 'bg-[#0071e3] text-white border-[#0071e3] shadow-xs'
+                : 'bg-black/[0.035] dark:bg-white/[0.08] text-[#1d1d1f] dark:text-white border-black/10 dark:border-white/15 hover:border-[#0071e3] hover:text-[#0071e3]'
+            )}
+            title="Nhấp để mở danh sách chọn giờ nhanh"
+          >
+            <SFClock size={11} className={isTimeListOpen ? 'text-white' : 'text-[#0071e3]'} />
+            <span>{`${pad(hours)}:${pad(minutes)}`}</span>
+            <ChevronDown
+              size={11}
+              className={cn(
+                'transition-transform duration-200',
+                isTimeListOpen ? 'rotate-180 text-white' : 'text-[#86868b]'
+              )}
             />
-            <span className="text-[#86868b] font-bold text-[11px] mx-0.5 select-none">:</span>
-            <input
-              ref={minuteInputRef}
-              type="text"
-              inputMode="numeric"
-              maxLength={2}
-              value={minStr}
-              onChange={onMinuteInputChange}
-              onKeyDown={onMinuteInputKeyDown}
-              onBlur={onMinuteBlur}
-              className="w-5 text-center text-[12.5px] font-mono font-semibold text-[#1d1d1f] dark:text-white bg-transparent outline-none cursor-text select-all"
-              title="Gõ phút (00-59)"
-            />
+          </button>
+
+          {/* Quick Preset Buttons (09:00, 14:00, 20:00) */}
+          <div className="flex items-center gap-1">
+            {[
+              { h: 9, m: 0, label: '09:00' },
+              { h: 14, m: 0, label: '14:00' },
+              { h: 20, m: 0, label: '20:00' },
+            ].map((p) => {
+              const active = hours === p.h && minutes === p.m;
+              return (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => {
+                    handleApplyPresetTime(p.h, p.m);
+                    setIsTimeListOpen(false);
+                  }}
+                  className={cn(
+                    'px-1.5 py-0.5 rounded-md text-[10px] font-mono font-medium transition-all cursor-pointer',
+                    active
+                      ? 'bg-[#0071e3] text-white font-semibold shadow-2xs'
+                      : 'bg-black/[0.03] dark:bg-white/[0.05] hover:bg-[#0071e3]/10 text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#0071e3]'
+                  )}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* 3 Quick Common Time Chips */}
-        <div className="flex items-center gap-1">
-          {[
-            { h: 9, m: 0, label: '09:00' },
-            { h: 14, m: 0, label: '14:00' },
-            { h: 20, m: 0, label: '20:00' },
-          ].map((p) => {
-            const active = hours === p.h && minutes === p.m;
-            return (
-              <button
-                key={p.label}
-                type="button"
-                onClick={() => handleApplyPresetTime(p.h, p.m)}
-                className={cn(
-                  'px-1.5 py-0.5 rounded-md text-[10px] font-mono font-medium transition-all cursor-pointer',
-                  active
-                    ? 'bg-[#0071e3] text-white font-semibold shadow-2xs'
-                    : 'bg-black/[0.03] dark:bg-white/[0.05] hover:bg-[#0071e3]/10 text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#0071e3]'
-                )}
-              >
-                {p.label}
-              </button>
-            );
-          })}
-        </div>
+        {/* Smooth Expandable Time Listbox (Animated Dropdown with Full Motion) */}
+        {isTimeListOpen && (
+          <div className="p-1.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/10 space-y-1 animate-in fade-in-0 zoom-in-95 duration-150">
+            <div className="flex items-center justify-between px-1 text-[9.5px] font-semibold text-[#86868b] uppercase tracking-wider">
+              <span>Chọn giờ trong ngày</span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => handleStepMinute(-15)}
+                  className="px-1 py-0.5 rounded bg-black/5 dark:bg-white/10 hover:text-[#0071e3]"
+                  title="Giảm 15 phút"
+                >
+                  -15m
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleStepMinute(15)}
+                  className="px-1 py-0.5 rounded bg-black/5 dark:bg-white/10 hover:text-[#0071e3]"
+                  title="Tăng 15 phút"
+                >
+                  +15m
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-4 gap-1 max-h-32 overflow-y-auto pr-0.5 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-black/15 [&::-webkit-scrollbar-thumb]:rounded-full">
+              {TIME_SLOTS.map((slot) => {
+                const isSlotActive = hours === slot.h && minutes === slot.m;
+                return (
+                  <button
+                    key={slot.label}
+                    type="button"
+                    onClick={() => {
+                      handleApplyPresetTime(slot.h, slot.m);
+                      setIsTimeListOpen(false);
+                    }}
+                    className={cn(
+                      'py-1 rounded-md text-[10px] font-mono font-medium transition-all cursor-pointer text-center',
+                      isSlotActive
+                        ? 'bg-[#0071e3] text-white font-semibold shadow-2xs'
+                        : 'bg-white dark:bg-[#252530] text-[#1d1d1f] dark:text-white hover:bg-[#0071e3]/10 hover:text-[#0071e3] border border-black/5 dark:border-white/5'
+                    )}
+                  >
+                    {slot.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 5. Minimal Footer: Summary & Clean Small Done Button */}
@@ -571,8 +553,11 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
 
           <button
             type="button"
-            onClick={() => setIsOpen(false)}
-            className="px-3 py-1 rounded-full text-[11px] font-semibold bg-[#0071e3] text-white hover:bg-[#0077ed] transition-all cursor-pointer shadow-2xs active:scale-95"
+            onClick={() => {
+              setIsOpen(false);
+              setIsTimeListOpen(false);
+            }}
+            className="px-3.5 py-1 rounded-full text-[11px] font-semibold bg-[#0071e3] text-white hover:bg-[#0077ed] transition-all cursor-pointer shadow-2xs active:scale-95"
           >
             Xong
           </button>
@@ -590,51 +575,52 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     );
   }
 
-  // Dropdown / Expandable Trigger Mode (with Apple Liquid Spring Animation)
+  // Dropdown / Popover Listbox Mode (Floats over content with Apple Fluid Spring Animation)
   return (
-    <div className={cn('w-full select-none font-sans', className)}>
-      {/* ─────────────────── Compact Apple Liquid Glass Trigger Capsule ─────────────────── */}
+    <div ref={containerRef} className={cn('relative w-full select-none font-sans', className)}>
+      {/* ─────────────────── Apple Liquid Glass Trigger Capsule ─────────────────── */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'w-full flex items-center justify-between px-3 py-2 rounded-xl text-[12px] font-medium transition-all cursor-pointer shadow-2xs',
+          'w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-[12.5px] font-medium transition-all cursor-pointer shadow-2xs',
           'bg-black/[0.02] dark:bg-white/[0.04] border border-black/15 dark:border-white/20',
           'hover:bg-black/[0.04] dark:hover:bg-white/[0.08] hover:border-[#0071e3]/40 dark:hover:border-[#2997ff]/40',
-          isOpen && 'ring-2 ring-[#0071e3]/20 border-[#0071e3] dark:border-[#2997ff] bg-white dark:bg-[#1f1f28]'
+          isOpen && 'ring-2 ring-[#0071e3]/25 border-[#0071e3] dark:border-[#2997ff] bg-white dark:bg-[#1f1f28]'
         )}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-5 h-5 rounded-md bg-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center shrink-0">
-            <CalendarIcon size={11} />
+          <div className="w-5.5 h-5.5 rounded-lg bg-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center shrink-0">
+            <CalendarIcon size={12} />
           </div>
           <span className="font-semibold text-[#1d1d1f] dark:text-white truncate">
             {formatVietnameseDateDisplay(currentDate)}
           </span>
-          <span className="text-[#86868b] dark:text-[#a1a1a6] font-mono text-[9px]">•</span>
-          <div className="flex items-center gap-1 text-[#0071e3] dark:text-[#2997ff] font-semibold font-mono text-[11.5px]">
-            <SFClock size={10} />
+          <span className="text-[#86868b] dark:text-[#a1a1a6] font-mono text-[10px]">•</span>
+          <div className="flex items-center gap-1 text-[#0071e3] dark:text-[#2997ff] font-semibold font-mono text-[12px]">
+            <SFClock size={11} />
             <span>{`${pad(hours)}:${pad(minutes)}`}</span>
           </div>
         </div>
 
         <ChevronDown
-          size={12}
+          size={13}
           className={cn(
-            'text-[#86868b] transition-transform duration-200 shrink-0 ml-1',
+            'text-[#86868b] transition-transform duration-200 shrink-0 ml-1.5',
             isOpen && 'rotate-180 text-[#0071e3]'
           )}
         />
       </button>
 
-      {/* ─────────────────── Smooth Apple Expand/Collapse Container ─────────────────── */}
+      {/* ─────────────────── Floating Apple Spring Listbox Popover (120 FPS Physics) ─────────────────── */}
       {shouldRenderDropdown && (
         <div
           className={cn(
-            'overflow-hidden transition-all duration-180 ease-[cubic-bezier(0.16,1,0.3,1)] mt-1.5',
+            'absolute top-full left-0 right-0 z-50 mt-2 flex justify-center pointer-events-auto',
+            'transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] origin-top',
             isDropdownExiting
-              ? 'opacity-0 scale-95 pointer-events-none -translate-y-1'
-              : 'opacity-100 scale-100 transform-none'
+              ? 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
+              : 'opacity-100 scale-100 translate-y-0'
           )}
         >
           {renderPickerBody()}
