@@ -109,20 +109,11 @@ function checkHttp(url, timeoutMs = 2000) {
 }
 
 function openDefaultBrowser(targetUrl = 'http://localhost:5173/') {
-  log(`Dang mo ung dung tren trinh duyet: ${targetUrl}`);
+  log(`Dang mo ung dung tren trinh duyet mac dinh cua he thong: ${targetUrl}`);
   try {
     if (process.platform === 'win32') {
-      const edgePaths = [
-        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-        'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe'
-      ];
-      const edge = edgePaths.find(p => fs.existsSync(p));
-      if (edge) {
-        log(`Phat hien Microsoft Edge. Khoi chay che do App Window khong thanh dia chi: ${edge}`);
-        spawn(edge, [`--app=${targetUrl}`], { detached: true, stdio: 'ignore' }).unref();
-      } else {
-        spawn('cmd.exe', ['/c', 'start', '', targetUrl], { detached: true, stdio: 'ignore' }).unref();
-      }
+      // Use Windows cmd.exe /c start "" "url" to launch the user's default registered browser
+      spawn('cmd.exe', ['/c', 'start', '', targetUrl], { detached: true, stdio: 'ignore' }).unref();
     } else if (process.platform === 'darwin') {
       spawn('open', [targetUrl], { detached: true, stdio: 'ignore' }).unref();
     } else {
