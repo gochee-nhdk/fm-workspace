@@ -88,20 +88,7 @@ if %errorlevel% equ 0 (
 echo.
 echo [5/5] Tạo biểu tượng Desktop và gán phím tắt [Ctrl + Alt + F]...
 
-set "VBS_PATH=%ROOT%KHOI_CHAY_APP.vbs"
-set "ICO_PATH=%ROOT%client\public\favicon.ico"
-
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "$ws = New-Object -ComObject WScript.Shell; " ^
-    "$desk = [Environment]::GetFolderPath('Desktop'); " ^
-    "$sc = $ws.CreateShortcut(\"$desk\FM Workspace.lnk\"); " ^
-    "$sc.TargetPath = '%VBS_PATH%'; " ^
-    "$sc.WorkingDirectory = '%ROOT%'; " ^
-    "$sc.IconLocation = '%ICO_PATH%'; " ^
-    "$sc.Description = 'FM Workspace - Trợ lý Thu Mua Farmers Market'; " ^
-    "$sc.Hotkey = 'Ctrl+Alt+F'; " ^
-    "$sc.WindowStyle = 7; " ^
-    "$sc.Save(); Write-Host '[OK] Đã tạo shortcut Desktop'"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT%scripts\create_shortcut.ps1"
 
 echo.
 echo ==============================================================================

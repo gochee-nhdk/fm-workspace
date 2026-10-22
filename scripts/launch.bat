@@ -5,25 +5,25 @@ title FM Workspace — Đang khởi động...
 cd /d "%~dp0\.."
 set "ROOT=%~dp0\.."
 
-:: ── Phase 1: Nếu production server (port 3000) đang chạy → mở ngay ──────────
-netstat -ano | findstr ":3000 " | findstr "LISTENING" >nul 2>&1
-if %errorlevel% equ 0 (
-    echo [OK] Server production đang chạy → Mở trình duyệt...
-    start "" "http://localhost:3000"
-    exit /b 0
-)
-
-:: ── Phase 2: Nếu dev server (port 5173) đang chạy → mở ngay ─────────────────
+:: ── Phase 1: Nếu dev server (port 5173) đang chạy → mở ngay ─────────────────
 netstat -ano | findstr ":5173 " | findstr "LISTENING" >nul 2>&1
 if %errorlevel% equ 0 (
-    echo [OK] Dev server đang chạy → Mở trình duyệt...
+    echo [OK] Dev server đang chạy → Mở trình duyệt mặc định...
     start "" "http://localhost:5173"
     exit /b 0
 )
 
-:: ── Phase 3: Kiểm tra dist/ đã build chưa ────────────────────────────────────
+:: ── Phase 2: Nếu production server (port 3000) đang chạy → mở ngay ──────────
+netstat -ano | findstr ":3000 " | findstr "LISTENING" >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [OK] Server production đang chạy → Mở trình duyệt mặc định...
+    start "" "http://localhost:3000"
+    exit /b 0
+)
+
+:: ── Phase 3: Khởi động hệ thống ─────────────────────────────────────────────
 if exist "%ROOT%\client\dist\index.html" (
-    echo [INFO] Tìm thấy bản build production. Khởi động server...
+    echo [INFO] Khởi động production server (phục vụ cả UI và API)...
     start /b cmd /c "node server\dist\index.js > nul 2>&1"
     goto WAIT_PROD
 ) else (
@@ -41,7 +41,6 @@ timeout /t 1 /nobreak >nul
 netstat -ano | findstr ":3000 " | findstr "LISTENING" >nul 2>&1
 if %errorlevel% equ 0 goto OPEN_PROD
 if %attempts% lss 30 goto POLL_PROD
-echo [CẢNH BÁO] Timeout 30s — Thử mở browser dù server chưa ready...
 :OPEN_PROD
 start "" "http://localhost:3000"
 exit /b 0
@@ -55,7 +54,6 @@ timeout /t 1 /nobreak >nul
 netstat -ano | findstr ":5173 " | findstr "LISTENING" >nul 2>&1
 if %errorlevel% equ 0 goto OPEN_DEV
 if %attempts% lss 30 goto POLL_DEV
-echo [CẢNH BÁO] Timeout 30s — Thử mở browser dù server chưa ready...
 :OPEN_DEV
 start "" "http://localhost:5173"
 exit /b 0

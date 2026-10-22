@@ -4,9 +4,16 @@ import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import multipart from '@fastify/multipart';
+import fastifyStatic from '@fastify/static';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { initDb } from './db/init.js';
 import { closeDb } from './db/connection.js';
 import { getJwtSecret } from './config/auth.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Route imports
 import authRoutes from './routes/auth.js';
@@ -147,6 +154,27 @@ async function build() {
       ...(isProd ? {} : { uptime: process.uptime(), environment: 'development' }),
     };
   });
+
+  // Serve Single-Page App static bundle if client/dist exists (Production & Render support)
+  const clientDist = path.resolve(__dirname, '../../client/dist');
+  if (fs.existsSync(clientDist)) {
+    await fastify.register(fastifyStatic, {
+      root: clientDist,
+      prefix: '/',
+    });
+
+    fastify.setNotFoundHandler(async (request, reply) => {
+      if (request.raw.url && request.raw.url.startsWith('/api')) {
+        reply.status(404).send({
+          success: false,
+          error: 'NotFound',
+          message: 'Endpoint API không tồn tại',
+        });
+        return;
+      }
+      return reply.sendFile('index.html');
+    });
+  }
 
   fastify.setErrorHandler((error: any, request, reply) => {
     request.log.error(error);
