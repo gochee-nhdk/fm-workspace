@@ -458,7 +458,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
           </div>
 
           {/* Apple Unified Time Capsule [ HH : MM  ▲/▼ ] */}
-          <div className="flex items-center bg-white dark:bg-[#2c2c36] border border-black/10 dark:border-white/15 rounded-xl px-2.5 py-1 shadow-2xs">
+          <div className="flex items-center bg-white dark:bg-[#2c2c36] border border-black/10 dark:border-white/15 rounded-xl px-2 py-1 shadow-2xs shrink-0">
             {/* Hour Input: Direct typing, up/down arrows */}
             <input
               type="text"
@@ -483,7 +483,8 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
                   handleApplyPresetTime((hours + 23) % 24, minutes);
                 }
               }}
-              className="w-6.5 text-center font-semibold text-[13.5px] tabular-nums bg-transparent text-[#1d1d1f] dark:text-white border-0 p-0 focus:ring-0 focus:outline-none"
+              className="w-7 text-center font-semibold text-[13.5px] tabular-nums bg-transparent text-[#1d1d1f] dark:text-white border-0 p-0 focus:ring-0 focus:outline-none"
+              style={{ width: '28px' }}
               title="Giờ (Dùng phím mũi tên Lên/Xuống hoặc gõ số)"
             />
 
@@ -513,27 +514,28 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
                   handleStepMinute(-5);
                 }
               }}
-              className="w-6.5 text-center font-semibold text-[13.5px] tabular-nums bg-transparent text-[#1d1d1f] dark:text-white border-0 p-0 focus:ring-0 focus:outline-none"
+              className="w-7 text-center font-semibold text-[13.5px] tabular-nums bg-transparent text-[#1d1d1f] dark:text-white border-0 p-0 focus:ring-0 focus:outline-none"
+              style={{ width: '28px' }}
               title="Phút (Dùng phím mũi tên Lên/Xuống hoặc gõ số)"
             />
 
             {/* Up / Down Stepper Buttons */}
-            <div className="flex flex-col ml-1.5 pl-1.5 border-l border-black/10 dark:border-white/10 gap-0.5">
+            <div className="flex flex-col ml-1 pl-1 border-l border-black/10 dark:border-white/10 gap-0.5">
               <button
                 type="button"
                 onClick={() => handleStepMinute(15)}
-                className="w-3.5 h-2.5 flex items-center justify-center text-[#86868b] hover:text-[#0071e3] transition-colors cursor-pointer"
+                className="w-4 h-3 flex items-center justify-center text-[#86868b] hover:text-[#0071e3] transition-colors cursor-pointer"
                 title="Tăng 15 phút"
               >
-                <ChevronUp size={10} />
+                <ChevronUp size={11} />
               </button>
               <button
                 type="button"
                 onClick={() => handleStepMinute(-15)}
-                className="w-3.5 h-2.5 flex items-center justify-center text-[#86868b] hover:text-[#0071e3] transition-colors cursor-pointer"
+                className="w-4 h-3 flex items-center justify-center text-[#86868b] hover:text-[#0071e3] transition-colors cursor-pointer"
                 title="Giảm 15 phút"
               >
-                <ChevronDown size={10} />
+                <ChevronDown size={11} />
               </button>
             </div>
           </div>
