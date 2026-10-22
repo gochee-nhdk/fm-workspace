@@ -3,80 +3,122 @@ chcp 65001 >nul
 title Cài Đặt FM Workspace (1-Click Setup)
 
 cd /d "%~dp0"
+set "ROOT=%~dp0"
 
 echo ==============================================================================
-echo        CHÀO MỪNG BẠN ĐẾN VỚI FM WORKSPACE (LOCAL-FIRST PERSONAL EDITION)
+echo         CHÀO MỪNG BẠN ĐẾN VỚI FM WORKSPACE — SETUP 1-CLICK
 echo ==============================================================================
 echo.
-echo [1/4] Đang kiểm tra môi trường Node.js...
 
+:: ── [1/5] Kiểm tra Node.js ───────────────────────────────────────────────────
+echo [1/5] Kiểm tra môi trường Node.js...
 where node >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [LỖI] Chưa phát hiện Node.js trên máy tính của bạn!
-    echo Vui lòng tải và cài đặt Node.js LTS miễn phí tại: https://nodejs.org
-    echo Hoặc chạy lệnh sau trong PowerShell: winget install OpenJS.NodeJS.LTS
+    echo.
+    echo  ❌ Chưa phát hiện Node.js trên máy tính của bạn!
+    echo.
+    echo  Vui lòng cài Node.js LTS miễn phí tại: https://nodejs.org
+    echo  Hoặc chạy lệnh sau trong PowerShell với quyền Admin:
+    echo      winget install OpenJS.NodeJS.LTS
     echo.
     pause
     exit /b 1
 )
 
 for /f "tokens=*" %%v in ('node -v') do set "NODE_VER=%%v"
-echo [OK] Đã phát hiện Node.js phiên bản %NODE_VER%
+echo  ✅ Đã phát hiện Node.js %NODE_VER%
 
+:: Kiểm tra phiên bản Node.js tối thiểu v18
+for /f "tokens=1 delims=v." %%a in ('node -v') do set "NODE_MAJOR=%%a"
+for /f "tokens=2 delims=v." %%a in ('node -v') do set "NODE_MAJOR=%%a"
+if %NODE_MAJOR% lss 18 (
+    echo.
+    echo  ⚠️  Node.js %NODE_VER% quá cũ! FM Workspace cần Node.js v18 trở lên.
+    echo  Tải phiên bản mới nhất tại: https://nodejs.org
+    echo.
+    pause
+    exit /b 1
+)
+
+:: ── [2/5] Cấu hình .env ──────────────────────────────────────────────────────
 echo.
-echo [2/4] Thiết lập cấu hình môi trường (.env)...
+echo [2/5] Thiết lập cấu hình môi trường (.env)...
+
 if not exist "client\.env" (
     if exist "client\.env.example" (
         copy /y "client\.env.example" "client\.env" >nul
-        echo [OK] Đã tạo client\.env từ client\.env.example
+        echo  ✅ Đã tạo client\.env từ mẫu
     )
 )
 
 if not exist "server\.env" (
     if exist "server\.env.example" (
         copy /y "server\.env.example" "server\.env" >nul
-        echo [OK] Đã tạo server\.env từ server\.env.example
+        echo  ✅ Đã tạo server\.env từ mẫu
     )
 )
 
+:: ── [3/5] Cài đặt dependencies ───────────────────────────────────────────────
 echo.
-echo [3/4] Cài đặt các gói phụ thuộc và khởi tạo cơ sở dữ liệu SQLite cục bộ...
+echo [3/5] Cài đặt packages và khởi tạo cơ sở dữ liệu SQLite cục bộ...
+echo  (Bước này mất 1-3 phút tùy tốc độ mạng — vui lòng chờ...)
+echo.
+
 call npm run setup
 if %errorlevel% neq 0 (
-    echo [CẢNH BÁO] Quá trình cài đặt gói gặp sự cố. Đang thử chạy npm install cơ bản...
+    echo  ⚠️  Gặp lỗi — Thử cài đặt fallback...
     call npm install
     call npm --prefix server install
     call npm --prefix client install --legacy-peer-deps
     call npm --prefix server run db:init
 )
+echo  ✅ Cài đặt dependencies thành công
 
+:: ── [4/5] Build client production ────────────────────────────────────────────
 echo.
-echo [4/4] Đang tạo biểu tượng Desktop và gán phím tắt [Ctrl + Alt + F]...
+echo [4/5] Build production client (tối ưu hiệu năng)...
+call npm --prefix client run build
+if %errorlevel% equ 0 (
+    echo  ✅ Build thành công — client/dist/ đã sẵn sàng
+) else (
+    echo  ⚠️  Build production thất bại — App vẫn chạy được ở chế độ development
+)
+
+:: ── [5/5] Tạo shortcut Desktop + phím tắt Ctrl+Alt+F ─────────────────────────
+echo.
+echo [5/5] Tạo biểu tượng Desktop và gán phím tắt [Ctrl + Alt + F]...
+
+set "VBS_PATH=%ROOT%KHOI_CHAY_APP.vbs"
+set "ICO_PATH=%ROOT%client\public\favicon.ico"
+
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
     "$ws = New-Object -ComObject WScript.Shell; " ^
     "$desk = [Environment]::GetFolderPath('Desktop'); " ^
     "$sc = $ws.CreateShortcut(\"$desk\FM Workspace.lnk\"); " ^
-    "$sc.TargetPath = \"$($ws.CurrentDirectory)\KHOI_CHAY_APP.vbs\"; " ^
-    "$sc.WorkingDirectory = \"$($ws.CurrentDirectory)\"; " ^
-    "$sc.IconLocation = \"$($ws.CurrentDirectory)\client\public\favicon.ico\"; " ^
-    "$sc.Description = 'FM Workspace - Trợ lý Thu Mua & Quản Lý Dữ Liệu Cá Nhân'; " ^
+    "$sc.TargetPath = '%VBS_PATH%'; " ^
+    "$sc.WorkingDirectory = '%ROOT%'; " ^
+    "$sc.IconLocation = '%ICO_PATH%'; " ^
+    "$sc.Description = 'FM Workspace - Trợ lý Thu Mua Farmers Market'; " ^
     "$sc.Hotkey = 'Ctrl+Alt+F'; " ^
-    "$sc.Save();"
+    "$sc.WindowStyle = 7; " ^
+    "$sc.Save(); Write-Host '[OK] Đã tạo shortcut Desktop'"
 
+echo.
 echo ==============================================================================
-echo [HOÀN TẤT] CÀI ĐẶT THÀNH CÔNG 100%%!
-echo ==============================================================================
-echo.
-echo Biểu tượng [FM Workspace] đã được tạo ngay ngoài màn hình Desktop.
-echo.
-echo BẠN CÓ THỂ MỞ APP BẤT CỨ LÚC NÀO BẰNG CÁCH:
-echo   1. Bấm tổ hợp phím tắt:  Ctrl + Alt + F
-echo   2. Hoặc nhấn đúp chuột vào biểu tượng [FM Workspace] trên Desktop
-echo.
-echo Dữ liệu của bạn được bảo mật tuyệt đối, lưu 100%% trên máy tính cá nhân.
+echo   ✅ CÀI ĐẶT HOÀN TẤT 100%%!
 echo ==============================================================================
 echo.
-set /p launch_now="Bạn có muốn khởi chạy ứng dụng ngay bây giờ không? (y/n): "
+echo  Biểu tượng [FM Workspace] đã xuất hiện ngoài màn hình Desktop.
+echo.
+echo  MỞ APP BẤT CỨ LÚC NÀO BẰNG CÁCH:
+echo    ▶  Phím tắt:    Ctrl + Alt + F
+echo    ▶  Nhấp đúp:    Biểu tượng [FM Workspace] trên Desktop
+echo.
+echo  Dữ liệu của bạn được bảo mật tuyệt đối, lưu 100%% trên máy tính cá nhân.
+echo ==============================================================================
+echo.
+
+set /p "launch_now=Bạn có muốn khởi chạy ứng dụng ngay bây giờ không? (y/n): "
 if /i "%launch_now%"=="y" (
     cscript //nologo KHOI_CHAY_APP.vbs
 )

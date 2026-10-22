@@ -3,7 +3,7 @@ node_modules/
 .pnp
 .pnp.js
 
-# Environment files (NEVER commit secrets or API keys)
+# Environment files — KHÔNG BAO GIỜ commit secrets hoặc API keys
 .env
 .env.local
 .env.*.local
@@ -17,6 +17,7 @@ server/.env.local
 dist/
 build/
 .tsup/
+client/dist/
 
 # IDE, Editor & AI Agent local caches
 .antigravity/
@@ -26,8 +27,10 @@ build/
 .claude/
 .vscode/
 .idea/
+.agents/
+.skills/
 
-# Database & local data storage & persistent backups
+# Database & local data storage
 *.db
 *.db-journal
 *.db-wal
@@ -38,7 +41,14 @@ build/
 /server/data/
 open-design/**/data/
 !client/src/data/
+
+# Backup files
 *.fmbackup
+
+# Process & lock files
+.fm_server.pid
+*.pid
+guardian.lock
 
 # Certificates, Keys & PEM files
 *.pem
@@ -53,15 +63,33 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+guardian.log
+daemon.log
 
 # Temporary test runs & scratch
 2026-*/
 scratch/
 tmp/
 
-# Apple SF Pro Fonts — Apple-copyrighted, cannot be distributed publicly
-# Users must install fonts separately: https://developer.apple.com/fonts/
+# Apple SF Pro Fonts — Apple-copyrighted, không được phân phối công khai
+# Người dùng cài riêng: https://developer.apple.com/fonts/
 client/public/fonts/*.otf
 client/public/fonts/*.ttf
 client/public/fonts/*.woff
 client/public/fonts/*.woff2
+
+# Codegraph analysis files
+graphify-out/
+.graphify_*
+graph.html
+graph.json
+
+# Open Design (optional large assets)
+open-design/
+
+# Skills & internal configs không cần thiết cho người dùng cuối
+.skills/
+skills-lock.json
+AGENCY_AGENTS_CATALOG.md
+FINAL_QA_REPORT.md
+SECURITY_VERIFICATION_REPORT.md

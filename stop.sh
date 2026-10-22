@@ -1,19 +1,18 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# FM WORKSPACE - STOP SCRIPT FOR MACOS & LINUX
+# FM WORKSPACE — STOP SCRIPT (macOS & Linux)
 # ==============================================================================
-echo "[INFO] Đang dừng FM Workspace..."
+echo "[INFO] Dừng FM Workspace..."
 
-# Kill process on port 5173
-PID_CLIENT=$(lsof -t -i :5173 2>/dev/null || true)
-if [ -n "$PID_CLIENT" ]; then
-    kill -9 $PID_CLIENT 2>/dev/null || true
+# Dừng server bằng PID file
+if [ -f ".fm_server.pid" ]; then
+    PID=$(cat .fm_server.pid)
+    kill "$PID" 2>/dev/null && echo "[OK] Đã dừng server (PID $PID)" || true
+    rm -f .fm_server.pid
 fi
 
-# Kill process on port 3000
-PID_SERVER=$(lsof -t -i :3000 2>/dev/null || true)
-if [ -n "$PID_SERVER" ]; then
-    kill -9 $PID_SERVER 2>/dev/null || true
-fi
+# Kill theo port phòng ngừa
+fuser -k 3000/tcp 2>/dev/null || true
+fuser -k 5173/tcp 2>/dev/null || true
 
-echo "[OK] Đã dừng FM Workspace thành công!"
+echo "[OK] FM Workspace đã dừng hoàn toàn."
