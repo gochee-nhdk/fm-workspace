@@ -448,121 +448,115 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
         </div>
       )}
 
-      {/* 4. Apple Liquid Glass Time Section: Clean Capsule with Direct Typing, Arrow Stepping & Quick Presets */}
-      <div className="pt-2 border-t border-black/[0.06] dark:border-white/10 space-y-2">
-        <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/5 dark:border-white/10">
-          {/* Label: Never wraps */}
-          <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] shrink-0 whitespace-nowrap">
-            <SFClock size={13} className="text-[#0071e3] dark:text-[#2997ff]" />
+      {/* 4. Apple Liquid Glass Time Section: Clean Breathable Capsule + Quick Adjustment Row */}
+      <div className="pt-2.5 border-t border-black/[0.06] dark:border-white/10 space-y-2">
+        {/* Row 1: Time Label on the left, Apple Time Capsule on the far right (generous breathing room) */}
+        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/5 dark:border-white/10">
+          <div className="flex items-center gap-2 text-[12.5px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] shrink-0 whitespace-nowrap">
+            <SFClock size={14} className="text-[#0071e3] dark:text-[#2997ff]" />
             <span>Thời gian</span>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Apple Unified Time Capsule [ HH : MM  ▲/▼ ] */}
-            <div className="flex items-center bg-white dark:bg-[#2c2c36] border border-black/10 dark:border-white/15 rounded-xl px-2 py-1 shadow-2xs">
-              {/* Hour Input: Direct typing, up/down arrows */}
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={2}
-                value={hourInputStr}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, '');
-                  setHourInputStr(val);
-                  if (val.length === 2) {
-                    const h = Math.min(23, parseInt(val, 10));
-                    handleApplyPresetTime(h, minutes);
-                  }
-                }}
-                onBlur={handleHourBlur}
-                onKeyDown={(e) => {
-                  if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    handleApplyPresetTime((hours + 1) % 24, minutes);
-                  } else if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    handleApplyPresetTime((hours + 23) % 24, minutes);
-                  }
-                }}
-                className="w-6 text-center font-semibold text-[13px] tabular-nums bg-transparent text-[#1d1d1f] dark:text-white border-0 p-0 focus:ring-0 focus:outline-none"
-                title="Giờ (Dùng phím mũi tên Lên/Xuống hoặc gõ số)"
-              />
+          {/* Apple Unified Time Capsule [ HH : MM  ▲/▼ ] */}
+          <div className="flex items-center bg-white dark:bg-[#2c2c36] border border-black/10 dark:border-white/15 rounded-xl px-2.5 py-1 shadow-2xs">
+            {/* Hour Input: Direct typing, up/down arrows */}
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={2}
+              value={hourInputStr}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, '');
+                setHourInputStr(val);
+                if (val.length === 2) {
+                  const h = Math.min(23, parseInt(val, 10));
+                  handleApplyPresetTime(h, minutes);
+                }
+              }}
+              onBlur={handleHourBlur}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  handleApplyPresetTime((hours + 1) % 24, minutes);
+                } else if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  handleApplyPresetTime((hours + 23) % 24, minutes);
+                }
+              }}
+              className="w-6.5 text-center font-semibold text-[13.5px] tabular-nums bg-transparent text-[#1d1d1f] dark:text-white border-0 p-0 focus:ring-0 focus:outline-none"
+              title="Giờ (Dùng phím mũi tên Lên/Xuống hoặc gõ số)"
+            />
 
-              <span className="font-bold text-[#86868b] dark:text-[#a1a1a6] text-[13px] px-0.5">:</span>
+            <span className="font-bold text-[#86868b] dark:text-[#a1a1a6] text-[13px] px-0.5">:</span>
 
-              {/* Minute Input: Direct typing, up/down arrows */}
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={2}
-                value={minInputStr}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, '');
-                  setMinInputStr(val);
-                  if (val.length === 2) {
-                    const m = Math.min(59, parseInt(val, 10));
-                    handleApplyPresetTime(hours, m);
-                  }
-                }}
-                onBlur={handleMinuteBlur}
-                onKeyDown={(e) => {
-                  if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    handleStepMinute(5);
-                  } else if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    handleStepMinute(-5);
-                  }
-                }}
-                className="w-6 text-center font-semibold text-[13px] tabular-nums bg-transparent text-[#1d1d1f] dark:text-white border-0 p-0 focus:ring-0 focus:outline-none"
-                title="Phút (Dùng phím mũi tên Lên/Xuống hoặc gõ số)"
-              />
+            {/* Minute Input: Direct typing, up/down arrows */}
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={2}
+              value={minInputStr}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, '');
+                setMinInputStr(val);
+                if (val.length === 2) {
+                  const m = Math.min(59, parseInt(val, 10));
+                  handleApplyPresetTime(hours, m);
+                }
+              }}
+              onBlur={handleMinuteBlur}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  handleStepMinute(5);
+                } else if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  handleStepMinute(-5);
+                }
+              }}
+              className="w-6.5 text-center font-semibold text-[13.5px] tabular-nums bg-transparent text-[#1d1d1f] dark:text-white border-0 p-0 focus:ring-0 focus:outline-none"
+              title="Phút (Dùng phím mũi tên Lên/Xuống hoặc gõ số)"
+            />
 
-              {/* Up / Down Stepper Buttons */}
-              <div className="flex flex-col ml-1 pl-1 border-l border-black/10 dark:border-white/10 gap-0.5">
-                <button
-                  type="button"
-                  onClick={() => handleStepMinute(15)}
-                  className="w-3.5 h-2.5 flex items-center justify-center text-[#86868b] hover:text-[#0071e3] transition-colors cursor-pointer"
-                  title="Tăng 15 phút"
-                >
-                  <ChevronUp size={9} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleStepMinute(-15)}
-                  className="w-3.5 h-2.5 flex items-center justify-center text-[#86868b] hover:text-[#0071e3] transition-colors cursor-pointer"
-                  title="Giảm 15 phút"
-                >
-                  <ChevronDown size={9} />
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Stepper Pills */}
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => handleStepMinute(-15)}
-                className="px-2 py-1 rounded-lg text-[10.5px] font-semibold bg-black/5 dark:bg-white/10 hover:bg-[#0071e3]/15 hover:text-[#0071e3] transition-colors tabular-nums active:scale-95 cursor-pointer"
-                title="Lùi 15 phút"
-              >
-                -15p
-              </button>
+            {/* Up / Down Stepper Buttons */}
+            <div className="flex flex-col ml-1.5 pl-1.5 border-l border-black/10 dark:border-white/10 gap-0.5">
               <button
                 type="button"
                 onClick={() => handleStepMinute(15)}
-                className="px-2 py-1 rounded-lg text-[10.5px] font-semibold bg-black/5 dark:bg-white/10 hover:bg-[#0071e3]/15 hover:text-[#0071e3] transition-colors tabular-nums active:scale-95 cursor-pointer"
-                title="Tiến 15 phút"
+                className="w-3.5 h-2.5 flex items-center justify-center text-[#86868b] hover:text-[#0071e3] transition-colors cursor-pointer"
+                title="Tăng 15 phút"
               >
-                +15p
+                <ChevronUp size={10} />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleStepMinute(-15)}
+                className="w-3.5 h-2.5 flex items-center justify-center text-[#86868b] hover:text-[#0071e3] transition-colors cursor-pointer"
+                title="Giảm 15 phút"
+              >
+                <ChevronDown size={10} />
               </button>
             </div>
           </div>
         </div>
 
-        {/* 3 Quick Time Presets (Morning, Afternoon, Evening) */}
-        <div className="grid grid-cols-3 gap-1.5">
+        {/* Row 2: Quick Steppers [-15p] [+15p] + 3 Presets (Sáng, Chiều, Tối) in a balanced 5-column grid */}
+        <div className="grid grid-cols-5 gap-1 pt-0.5">
+          <button
+            type="button"
+            onClick={() => handleStepMinute(-15)}
+            className="flex items-center justify-center py-1.5 rounded-xl text-[11px] font-semibold bg-black/[0.03] dark:bg-white/[0.05] hover:bg-[#0071e3]/10 hover:text-[#0071e3] text-[#6e6e73] dark:text-[#a1a1a6] border border-black/5 dark:border-white/5 transition-all text-center tabular-nums active:scale-95 cursor-pointer"
+            title="Lùi 15 phút"
+          >
+            -15p
+          </button>
+          <button
+            type="button"
+            onClick={() => handleStepMinute(15)}
+            className="flex items-center justify-center py-1.5 rounded-xl text-[11px] font-semibold bg-black/[0.03] dark:bg-white/[0.05] hover:bg-[#0071e3]/10 hover:text-[#0071e3] text-[#6e6e73] dark:text-[#a1a1a6] border border-black/5 dark:border-white/5 transition-all text-center tabular-nums active:scale-95 cursor-pointer"
+            title="Tiến 15 phút"
+          >
+            +15p
+          </button>
           {[
             { h: 9, m: 0, label: '09:00', desc: 'Sáng' },
             { h: 14, m: 0, label: '14:00', desc: 'Chiều' },
@@ -575,14 +569,14 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
                 type="button"
                 onClick={() => handleApplyPresetTime(p.h, p.m)}
                 className={cn(
-                  'flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-center transition-all cursor-pointer border',
+                  'flex flex-col items-center justify-center py-1 rounded-xl text-center transition-all cursor-pointer border',
                   active
                     ? 'bg-[#0071e3] text-white border-[#0071e3] shadow-xs font-semibold'
                     : 'bg-black/[0.02] dark:bg-white/[0.04] text-[#1d1d1f] dark:text-[#f5f5f7] border-black/5 dark:border-white/5 hover:border-[#0071e3]/40 hover:bg-[#0071e3]/5 font-medium'
                 )}
               >
-                <span className="text-[11.5px] tabular-nums">{p.label}</span>
-                <span className={cn('text-[9.5px]', active ? 'text-white/80' : 'text-[#86868b] dark:text-[#a1a1a6]')}>
+                <span className="text-[11px] tabular-nums font-semibold leading-tight">{p.label}</span>
+                <span className={cn('text-[9px] leading-tight', active ? 'text-white/80' : 'text-[#86868b] dark:text-[#a1a1a6]')}>
                   {p.desc}
                 </span>
               </button>
