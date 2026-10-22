@@ -1681,6 +1681,48 @@
   pointer-events: none;
 }
 
+/* Apple DateTimePicker Listbox Spring Physics (120fps) */
+@keyframes applePickerEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translate3d(0, -8px, 0);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.01) translate3d(0, 1px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes applePickerExit {
+  0% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.93) translate3d(0, -6px, 0);
+    filter: blur(2px);
+  }
+}
+
+.apple-picker-open {
+  transform-origin: top center;
+  animation: applePickerEnter 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+.apple-picker-close {
+  transform-origin: top center;
+  animation: applePickerExit 0.18s cubic-bezier(0.32, 0, 0.67, 0) both;
+  will-change: transform, opacity, filter;
+  pointer-events: none;
+}
+
 /* Apple Modal & Sheet Spatial Spring Entrances — liquid glass spatial depth 120fps */
 @keyframes appleModalOpen {
   0% {
