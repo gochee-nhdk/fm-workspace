@@ -575,16 +575,9 @@ async function generateBackupPayload(): Promise<{ payloadStr: string; checksum: 
     }
   } catch (_) {}
 
-  // Security: For automated background server sync, do NOT send plaintext account passwords across the network
-  // Passwords remain safely on the user's local machine in client IndexedDB.
-  const sanitizedAccounts = accounts.map((acc) => {
-    const { password, ...safeAcc } = acc;
-    return safeAcc as AccountItem;
-  });
-
   const payload: FMBackupPayload = {
     links,
-    accounts: sanitizedAccounts,
+    accounts,
     stores,
     notes,
     attachments,

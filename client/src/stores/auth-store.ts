@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { api } from '@/lib/api';
+import { backupService } from '@/services/backupService';
+import { useNoteStore } from './note-store';
 
 export interface User {
   id: string;
@@ -39,6 +41,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
     set({ token, user, isAuthenticated: true });
+    // Cloud sync restore for newly logged in account
+    backupService.restoreFromServer().catch(() => {}).then(() => {
+      useNoteStore.getState().loadNotes().catch(() => {});
+    });
   },
 
   loginWithGoogle: async (credential: string) => {
@@ -50,6 +56,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
         set({ token, user, isAuthenticated: true, isLoading: false });
+        backupService.restoreFromServer().catch(() => {}).then(() => {
+          useNoteStore.getState().loadNotes().catch(() => {});
+        });
         return true;
       }
       set({ isLoading: false });
@@ -69,6 +78,10 @@ export const useAuthStore = create<AuthState>((set) => ({
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
         set({ token, user, isAuthenticated: true, isLoading: false });
+        // Restore user's private cloud workspace data
+        backupService.restoreFromServer().catch(() => {}).then(() => {
+          useNoteStore.getState().loadNotes().catch(() => {});
+        });
         return true;
       }
       set({ isLoading: false });
@@ -82,7 +95,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('fm_quick_notes_cache');
+    useNoteStore.setState({ notes: [], activeNoteId: null, activeTextNoteId: null, activeChecklistId: null });
     set({ token: null, user: null, isAuthenticated: false });
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+    }
   },
 
   checkAuth: async () => {

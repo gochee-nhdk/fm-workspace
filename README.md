@@ -17,11 +17,11 @@
 Bạn có thể sử dụng FM Workspace như một ứng dụng máy tính độc lập (Native Desktop App) hoàn toàn không cần trình duyệt web hay cài đặt Node.js:
 
 <p align="left">
-  <a href="https://github.com/gochee-nhdk/fm-workspace/releases/latest">
-    <img src="https://img.shields.io/badge/Tải_Bản_Cài_Đặt-FM_Workspace_Setup.exe-0071e3?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows Installer" />
+  <a href="https://github.com/gochee-nhdk/fm-workspace/releases/download/v1.0.0/FM.Workspace.Setup.1.0.0.exe">
+    <img src="https://img.shields.io/badge/⬇️_Tải_Bản_Cài_Đặt_(1--Click)-FM_Workspace_Setup.exe-0071e3?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows Installer 1-Click" />
   </a>
-  <a href="https://github.com/gochee-nhdk/fm-workspace/releases/latest">
-    <img src="https://img.shields.io/badge/Tải_Bản_Portable-FM_Workspace.zip-34c759?style=for-the-badge&logo=files&logoColor=white" alt="Download Portable Zip" />
+  <a href="https://github.com/gochee-nhdk/fm-workspace/releases/download/v1.0.0/FM-Workspace-Portable.zip">
+    <img src="https://img.shields.io/badge/⬇️_Tải_Bản_Portable_(1--Click)-FM_Workspace.zip-34c759?style=for-the-badge&logo=files&logoColor=white" alt="Download Portable Zip 1-Click" />
   </a>
 </p>
 

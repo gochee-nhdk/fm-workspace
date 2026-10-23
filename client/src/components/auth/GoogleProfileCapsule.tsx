@@ -269,7 +269,7 @@ export const GoogleProfileCapsule: React.FC = () => {
                 <div className="flex items-start gap-2.5">
                   <span className="text-emerald-500 font-bold text-sm shrink-0">🛡️</span>
                   <span className="text-[11px] text-[#86868b] leading-relaxed">
-                    <strong>Bảo mật Local-First:</strong> Dữ liệu SQLite 100% lưu tại máy tính cá nhân. Ứng dụng chỉ dùng email và tên để cá nhân hoá không gian làm việc của bạn, không gửi dữ liệu nội bộ lên máy chủ đám mây.
+                    <strong>Bảo mật Đám Mây & Phân Vùng Riêng Tư:</strong> Dữ liệu được mã hóa và lưu trữ đồng bộ theo từng tài khoản. Mỗi người dùng chỉ truy cập được không gian làm việc riêng của mình, đảm bảo tính riêng tư và bí mật kinh doanh tuyệt đối.
                   </span>
                 </div>
               </div>
