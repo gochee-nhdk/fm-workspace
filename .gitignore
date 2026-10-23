@@ -15,7 +15,8 @@ server/.env.local
 
 # Production builds & bundler output
 dist/
-build/
+dist-electron/
+electron/dist/
 .tsup/
 client/dist/
 

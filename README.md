@@ -12,7 +12,17 @@
 
 ---
 
-## ⚡ Cài Đặt 1-Click
+## 💻 Ứng Dụng Desktop Độc Lập (Khuyến Nghị Cho Người Dùng)
+
+Bạn có thể sử dụng FM Workspace như một ứng dụng máy tính độc lập (Native Desktop App) hoàn toàn không cần trình duyệt:
+
+- **Tải file cài đặt:** `FM Workspace Setup 1.0.0.exe` (trong thư mục `dist-electron`)
+- **Cài đặt 1 chạm:** Nhấp đúp chuột vào file `.exe`, ứng dụng tự động cài đặt và tạo biểu tượng **FM Workspace** trên Desktop và Start Menu.
+- **Tự đóng gói lại từ mã nguồn:** Nhấp đúp vào `DONG_GOI_APP_EXE.bat` để tự tạo bản cài đặt mới nhất.
+
+---
+
+## ⚡ Cài Đặt Bản Web / Source Code (Dành Cho Lập Trình Viên)
 
 ### Yêu cầu duy nhất: [Node.js v18+](https://nodejs.org)
 

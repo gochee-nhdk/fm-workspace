@@ -155,8 +155,8 @@ async function build() {
     };
   });
 
-  // Serve Single-Page App static bundle if client/dist exists (Production & Render support)
-  const clientDist = path.resolve(__dirname, '../../client/dist');
+  // Serve Single-Page App static bundle if client/dist exists (Production, Desktop & Render support)
+  const clientDist = process.env.CLIENT_DIST_PATH || path.resolve(__dirname, '../../client/dist');
   if (fs.existsSync(clientDist)) {
     await fastify.register(fastifyStatic, {
       root: clientDist,
