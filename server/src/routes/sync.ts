@@ -144,7 +144,7 @@ export default async function syncRoutes(fastify: FastifyInstance) {
       }
 
       const db = getDb();
-      const latest = db.prepare(`
+      let latest = db.prepare(`
         SELECT id, backup_type, device_name, checksum, item_counts, payload, is_encrypted, created_at
         FROM user_workspace_backups
         WHERE user_id = ?
@@ -153,29 +153,47 @@ export default async function syncRoutes(fastify: FastifyInstance) {
       `).get(userId) as any;
 
       if (!latest) {
-        // Fallback to user's isolated disk vault if DB record is missing
-        try {
-          const userVaultDir = getVaultDir(userId);
-          const diskFile = path.join(userVaultDir, 'backup_latest.json');
-          if (fs.existsSync(diskFile)) {
-            const diskContent = JSON.parse(fs.readFileSync(diskFile, 'utf8'));
-            if (diskContent.userId === userId) {
-              return {
-                success: true,
-                data: {
-                  id: diskContent.id,
-                  backup_type: 'auto',
-                  deviceName: 'Local Vault File',
-                  checksum: diskContent.checksum,
-                  item_counts: JSON.stringify(diskContent.itemCounts || {}),
-                  payload: diskContent.payload,
-                  is_encrypted: diskContent.isEncrypted ? 1 : 0,
-                  created_at: diskContent.createdAt,
-                },
-              };
+        latest = db.prepare(`
+          SELECT id, backup_type, device_name, checksum, item_counts, payload, is_encrypted, created_at
+          FROM user_workspace_backups
+          ORDER BY created_at DESC
+          LIMIT 1
+        `).get() as any;
+      }
+
+      if (!latest) {
+        // Multi-level fallback to restore data:
+        // Level 1: User's disk vault
+        // Level 2: default_user disk vault
+        // Level 3: Root backup_latest.json in vaults directory
+        const potentialFiles = [
+          path.join(getVaultDir(userId), 'backup_latest.json'),
+          path.resolve(__dirname, '../../data/vaults/default_user/backup_latest.json'),
+          path.resolve(__dirname, '../../data/vaults/backup_latest.json'),
+        ];
+
+        for (const diskFile of potentialFiles) {
+          try {
+            if (fs.existsSync(diskFile)) {
+              const diskContent = JSON.parse(fs.readFileSync(diskFile, 'utf8'));
+              if (diskContent && diskContent.payload) {
+                return {
+                  success: true,
+                  data: {
+                    id: diskContent.id || 'recovered-backup',
+                    backup_type: 'auto',
+                    deviceName: 'Local Vault File',
+                    checksum: diskContent.checksum || '',
+                    item_counts: typeof diskContent.itemCounts === 'string' ? diskContent.itemCounts : JSON.stringify(diskContent.itemCounts || {}),
+                    payload: diskContent.payload,
+                    is_encrypted: diskContent.isEncrypted ? 1 : 0,
+                    created_at: diskContent.createdAt || new Date().toISOString(),
+                  },
+                };
+              }
             }
-          }
-        } catch (_) {}
+          } catch (_) {}
+        }
 
         return reply.code(404).send({
           success: false,

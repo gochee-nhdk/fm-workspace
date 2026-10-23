@@ -1,29 +1,11 @@
-// Native IndexedDB Engine with user-partitioned persistent storage
+// Native IndexedDB Engine with high-performance persistent storage
+const DB_NAME = 'FM_WORKSPACE_DB';
 const DB_VERSION = 3;
 
-// User-partitioned database naming: ensures complete data isolation per account
-let currentUserId: string | null = (() => {
-  try {
-    if (typeof localStorage !== 'undefined') {
-      const stored = localStorage.getItem('user');
-      if (stored) {
-        const u = JSON.parse(stored);
-        return u?.id || null;
-      }
-    }
-  } catch (_) {}
-  return null;
-})();
+export const getActiveDbName = (): string => DB_NAME;
 
-export const getActiveDbName = (): string => {
-  if (currentUserId) {
-    const safeId = String(currentUserId).replace(/[^a-zA-Z0-9_-]/g, '_');
-    return `FM_WORKSPACE_DB_${safeId}`;
-  }
-  return 'FM_WORKSPACE_DB_GUEST';
-};
-
-export const switchDatabaseUser = async (newUserId: string | null): Promise<void> => {
+export const switchDatabaseUser = async (_newUserId?: string | null): Promise<void> => {
+  // Always use the primary unified FM_WORKSPACE_DB
   if (dbInstance) {
     try {
       dbInstance.close();
@@ -31,12 +13,11 @@ export const switchDatabaseUser = async (newUserId: string | null): Promise<void
   }
   dbInstance = null;
   dbOpenPromise = null;
-  currentUserId = newUserId;
   if (typeof window !== 'undefined' && window.indexedDB) {
     try {
       await getDB();
     } catch (err) {
-      console.warn('Failed to pre-open switched database:', err);
+      console.warn('Failed to open database:', err);
     }
   }
 };

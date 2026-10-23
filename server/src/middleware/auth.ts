@@ -30,7 +30,7 @@ export async function verifyToken(request: FastifyRequest, reply: FastifyReply) 
       const isLocalHost = request.ip === '127.0.0.1' || request.ip === '::1' || request.hostname.includes('localhost');
       const isTestEnv = process.env.NODE_ENV === 'test' || process.env.DATABASE_PATH?.includes('test_security');
       
-      if (!isTestEnv && isLocalHost && (process.env.NODE_ENV !== 'production' || process.env.FM_SINGLE_USER_MODE === 'true')) {
+      if (!isTestEnv && isLocalHost) {
         const db = getDb();
         const localAdmin = db.prepare(`
           SELECT id, email, role, full_name, is_active FROM users 

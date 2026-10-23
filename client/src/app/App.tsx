@@ -5,6 +5,8 @@ import { Suspense, useEffect, useRef } from 'react';
 import { SFCheckmarkCircleFill, SFExclamationmarkCircle, SFInfoCircle, SFArrowClockwise } from 'sf-symbols-lib';
 import RoutesConfig from './routes';
 import { useUiStore, resolveTheme } from '@/stores/ui-store';
+import { useAuthStore } from '@/stores/auth-store';
+import { useNoteStore } from '@/stores/note-store';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -76,11 +78,28 @@ function ThemeSync() {
   return null;
 }
 
+function WorkspaceDataBootstrap() {
+  const checkAuth = useAuthStore((s) => s.checkAuth);
+  const autoRestore = useAuthStore((s) => s.autoRestoreWorkspaceIfEmpty);
+  const loadNotes = useNoteStore((s) => s.loadNotes);
+
+  useEffect(() => {
+    checkAuth().finally(() => {
+      autoRestore().finally(() => {
+        loadNotes().catch(() => {});
+      });
+    });
+  }, [checkAuth, autoRestore, loadNotes]);
+
+  return null;
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <ThemeSync />
+        <WorkspaceDataBootstrap />
         <Suspense fallback={null}>
           <RoutesConfig />
         </Suspense>

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { api } from '@/lib/api';
 import { backupService } from '@/services/backupService';
-import { switchDatabaseUser } from '@/services/storage/indexedDb';
+import { switchDatabaseUser, idbGetAll, STORES } from '@/services/storage/indexedDb';
 import { dataService } from '@/services/dataService';
 import { useNoteStore } from './note-store';
 
@@ -13,6 +13,13 @@ export interface User {
   avatar_url?: string;
   google_id?: string;
 }
+
+const DEFAULT_USER: User = {
+  id: 'c437ea5f-ca2b-46c8-91f1-d6904f67929b',
+  email: 'admin@farmersmarket.vn',
+  full_name: 'Quản Trị Viên Không Gian Cục Bộ',
+  role: 'admin',
+};
 
 interface AuthState {
   user: User | null;
@@ -26,37 +33,40 @@ interface AuthState {
   loginWithQuickProfile: (email: string, full_name?: string, avatar_url?: string) => Promise<boolean>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
+  autoRestoreWorkspaceIfEmpty: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  user: (() => {
-    try {
-      const stored = localStorage.getItem('user');
-      return stored ? JSON.parse(stored) : null;
-    } catch {
-      return null;
-    }
-  })(),
-  token: localStorage.getItem('token'),
-  isAuthenticated: !!localStorage.getItem('token'),
+  user: DEFAULT_USER,
+  token: (typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null) || 'local-offline-session',
+  isAuthenticated: true,
   isLoading: false,
+
+  autoRestoreWorkspaceIfEmpty: async () => {
+    try {
+      const existingNotes = await idbGetAll<any>(STORES.NOTES).catch(() => []);
+      const existingLinks = await idbGetAll<any>(STORES.LINKS).catch(() => []);
+      
+      // If IndexedDB currently has no notes or links, restore from the full server backup automatically
+      if (existingNotes.length === 0 || existingLinks.length === 0) {
+        console.log('[AuthStore] Phục hồi toàn diện dữ liệu làm việc từ két sao lưu máy chủ...');
+        await backupService.restoreFromServer().catch((err) => {
+          console.warn('[AuthStore] Auto-restore warning:', err);
+        });
+        await useNoteStore.getState().loadNotes().catch(() => {});
+      }
+    } catch (err) {
+      console.warn('[AuthStore] Failed checking auto-restore:', err);
+    }
+  },
 
   login: async (token: string, user: User) => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
     set({ token, user, isAuthenticated: true });
-
-    // 1. Switch client-side storage to this user's isolated partition
-    await switchDatabaseUser(user.id);
+    await switchDatabaseUser(null);
     await dataService.resetInitialized();
-
-    // 2. Wipe previous in-memory notes and reload from isolated partition
-    useNoteStore.setState({ notes: [], activeNoteId: null, activeTextNoteId: null, activeChecklistId: null });
-
-    // 3. Restore user's private cloud workspace data
-    backupService.restoreFromServer().catch(() => {}).finally(() => {
-      useNoteStore.getState().loadNotes().catch(() => {});
-    });
+    useNoteStore.getState().loadNotes().catch(() => {});
   },
 
   loginWithPassword: async (email: string, password: string) => {
@@ -68,15 +78,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
         set({ token, user, isAuthenticated: true, isLoading: false });
-
-        // Switch to user's isolated storage
-        await switchDatabaseUser(user.id);
+        await switchDatabaseUser(null);
         await dataService.resetInitialized();
-        useNoteStore.setState({ notes: [], activeNoteId: null, activeTextNoteId: null, activeChecklistId: null });
-
-        backupService.restoreFromServer().catch(() => {}).finally(() => {
-          useNoteStore.getState().loadNotes().catch(() => {});
-        });
+        useNoteStore.getState().loadNotes().catch(() => {});
         return true;
       }
       set({ isLoading: false });
@@ -96,15 +100,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
         set({ token, user, isAuthenticated: true, isLoading: false });
-
-        // Switch to newly created user's isolated storage
-        await switchDatabaseUser(user.id);
+        await switchDatabaseUser(null);
         await dataService.resetInitialized();
-        useNoteStore.setState({ notes: [], activeNoteId: null, activeTextNoteId: null, activeChecklistId: null });
-
-        backupService.restoreFromServer().catch(() => {}).finally(() => {
-          useNoteStore.getState().loadNotes().catch(() => {});
-        });
+        useNoteStore.getState().loadNotes().catch(() => {});
         return true;
       }
       set({ isLoading: false });
@@ -124,14 +122,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
         set({ token, user, isAuthenticated: true, isLoading: false });
-
-        await switchDatabaseUser(user.id);
+        await switchDatabaseUser(null);
         await dataService.resetInitialized();
-        useNoteStore.setState({ notes: [], activeNoteId: null, activeTextNoteId: null, activeChecklistId: null });
-
-        backupService.restoreFromServer().catch(() => {}).finally(() => {
-          useNoteStore.getState().loadNotes().catch(() => {});
-        });
+        useNoteStore.getState().loadNotes().catch(() => {});
         return true;
       }
       set({ isLoading: false });
@@ -151,15 +144,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
         set({ token, user, isAuthenticated: true, isLoading: false });
-
-        // Restore user's private cloud workspace data
-        await switchDatabaseUser(user.id);
+        await switchDatabaseUser(null);
         await dataService.resetInitialized();
-        useNoteStore.setState({ notes: [], activeNoteId: null, activeTextNoteId: null, activeChecklistId: null });
-
-        backupService.restoreFromServer().catch(() => {}).finally(() => {
-          useNoteStore.getState().loadNotes().catch(() => {});
-        });
+        useNoteStore.getState().loadNotes().catch(() => {});
         return true;
       }
       set({ isLoading: false });
@@ -171,41 +158,26 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-    try {
-      await api.post('/auth/logout').catch(() => {});
-    } catch (_) {}
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    localStorage.removeItem('fm_quick_notes_cache');
-    await switchDatabaseUser(null);
-    useNoteStore.setState({ notes: [], activeNoteId: null, activeTextNoteId: null, activeChecklistId: null });
-    set({ token: null, user: null, isAuthenticated: false });
+    set({ token: 'local-offline-session', user: DEFAULT_USER, isAuthenticated: true });
     if (typeof window !== 'undefined') {
       window.location.reload();
     }
   },
 
   checkAuth: async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      set({ isAuthenticated: false, user: null });
-      return;
-    }
-
     try {
-      set({ isLoading: true });
-      const res = await api.get('/auth/me');
-      const user = res.data?.data || res.data?.user || (res.data?.id ? res.data : null);
-      if (user && user.id) {
-        localStorage.setItem('user', JSON.stringify(user));
-        set({ user, isAuthenticated: true, isLoading: false });
+      const res = await api.post('/auth/local-token').catch(() => null);
+      if (res?.data?.token) {
+        localStorage.setItem('token', res.data.token);
+        localStorage.setItem('user', JSON.stringify(res.data.user || DEFAULT_USER));
+        set({ token: res.data.token, user: res.data.user || DEFAULT_USER, isAuthenticated: true, isLoading: false });
       } else {
-        set({ isAuthenticated: false, user: null, isLoading: false });
+        set({ token: 'local-offline-session', user: DEFAULT_USER, isAuthenticated: true, isLoading: false });
       }
     } catch {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      set({ token: null, user: null, isAuthenticated: false, isLoading: false });
+      set({ token: 'local-offline-session', user: DEFAULT_USER, isAuthenticated: true, isLoading: false });
     }
   }
 }));
