@@ -18,6 +18,8 @@ async function initDb() {
       full_name TEXT,
       password_hash TEXT,
       role TEXT DEFAULT 'staff',
+      google_id TEXT,
+      avatar_url TEXT,
       is_active INTEGER DEFAULT 1,
       created_at TEXT,
       updated_at TEXT
@@ -402,6 +404,19 @@ async function initDb() {
   `);
 
   console.log('Tables created. Creating indices...');
+
+  try {
+    const userCols = db.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
+    const colNames = userCols.map((c) => c.name);
+    if (!colNames.includes('google_id')) {
+      db.prepare("ALTER TABLE users ADD COLUMN google_id TEXT").run();
+    }
+    if (!colNames.includes('avatar_url')) {
+      db.prepare("ALTER TABLE users ADD COLUMN avatar_url TEXT").run();
+    }
+  } catch (err) {
+    console.warn('[DB Migration] Notice on users table update:', err);
+  }
 
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(sale_date);

@@ -6,6 +6,8 @@ export interface User {
   email: string;
   full_name: string;
   role: 'admin' | 'manager' | 'staff' | 'merchandiser' | 'viewer';
+  avatar_url?: string;
+  google_id?: string;
 }
 
 interface AuthState {
@@ -14,6 +16,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (token: string, user: User) => void;
+  loginWithGoogle: (credential: string) => Promise<boolean>;
   logout: () => void;
   checkAuth: () => Promise<void>;
 }
@@ -35,6 +38,25 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
     set({ token, user, isAuthenticated: true });
+  },
+
+  loginWithGoogle: async (credential: string) => {
+    try {
+      set({ isLoading: true });
+      const res = await api.post('/auth/google', { credential });
+      const { token, user } = res.data;
+      if (token && user) {
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        set({ token, user, isAuthenticated: true, isLoading: false });
+        return true;
+      }
+      set({ isLoading: false });
+      return false;
+    } catch (err) {
+      set({ isLoading: false });
+      throw err;
+    }
   },
 
   logout: () => {

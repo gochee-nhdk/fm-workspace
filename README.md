@@ -14,11 +14,25 @@
 
 ## 💻 Ứng Dụng Desktop Độc Lập (Khuyến Nghị Cho Người Dùng)
 
-Bạn có thể sử dụng FM Workspace như một ứng dụng máy tính độc lập (Native Desktop App) hoàn toàn không cần trình duyệt:
+Bạn có thể sử dụng FM Workspace như một ứng dụng máy tính độc lập (Native Desktop App) hoàn toàn không cần trình duyệt web hay cài đặt Node.js:
 
-- **Tải file cài đặt:** `FM Workspace Setup 1.0.0.exe` (trong thư mục `dist-electron`)
-- **Cài đặt 1 chạm:** Nhấp đúp chuột vào file `.exe`, ứng dụng tự động cài đặt và tạo biểu tượng **FM Workspace** trên Desktop và Start Menu.
-- **Tự đóng gói lại từ mã nguồn:** Nhấp đúp vào `DONG_GOI_APP_EXE.bat` để tự tạo bản cài đặt mới nhất.
+<p align="left">
+  <a href="https://github.com/gochee-nhdk/fm-workspace/releases/latest">
+    <img src="https://img.shields.io/badge/Tải_Bản_Cài_Đặt-FM_Workspace_Setup.exe-0071e3?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows Installer" />
+  </a>
+  <a href="https://github.com/gochee-nhdk/fm-workspace/releases/latest">
+    <img src="https://img.shields.io/badge/Tải_Bản_Portable-FM_Workspace.zip-34c759?style=for-the-badge&logo=files&logoColor=white" alt="Download Portable Zip" />
+  </a>
+</p>
+
+### 📥 2 Cách Cài Đặt & Sử Dụng:
+- **Cách 1: Bản Cài Đặt Tự Động (.exe):** Tải `FM Workspace Setup 1.0.0.exe` về máy, nhấp đúp là tự cài đặt trong 5 giây và tạo biểu tượng **FM Workspace** trên Desktop và Start Menu.
+- **Cách 2: Bản Portable (.zip):** Tải về, giải nén và mở file `FM Workspace.exe` chạy ngay — không cần cài đặt, không cần quyền Quản trị viên (Admin).
+- **Tự đóng gói từ mã nguồn:** Nhấp đúp vào `DONG_GOI_APP_EXE.bat` để tự tạo bản cài đặt mới nhất.
+
+> [!NOTE]
+> **🛡️ Về bảo mật Windows SmartScreen:**  
+> Do ứng dụng là phần mềm nội bộ mã nguồn mở mới phát hành, Windows Defender SmartScreen có thể hiện thông báo bảo vệ lần đầu mở. Bạn chỉ cần bấm **More info (Thông tin khác)** ➜ chọn **Run anyway (Vẫn chạy)** là app sẽ khởi động bình thường. Ứng dụng tuân thủ tiêu chuẩn `asInvoker` của Microsoft, 100% không đòi hỏi quyền can thiệp hệ thống và chạy offline cục bộ.
 
 ---
 
@@ -85,17 +99,18 @@ chmod +x install.sh && ./install.sh
 
 ## 🛡️ Kiến Trúc: Local-First & Zero-Cloud Leak
 
-```
-┌─────────────────────────────────────────────────────────┐
-│               MÁY TÍNH CÁ NHÂN (LOCAL)                 │
-│                                                         │
-│   ┌──────────────────┐         ┌──────────────────┐    │
-│   │  Trình duyệt Web │◄──────►│  Node.js Server  │    │
-│   │  (React 120 FPS) │  IPC   │  (SQLite cục bộ) │    │
-│   └──────────────────┘         └──────────────────┘    │
-│                                                         │
-│         KHÔNG CÓ DỮ LIỆU NÀO BỊ GỬI LÊN CLOUD         │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph LocalMachine [" 💻 MÁY TÍNH CÁ NHÂN (LOCAL-FIRST) "]
+        direction LR
+        UI["🖥️ Giao diện Desktop<br/>(React 120 FPS)"] <-->|IPC / Fastify| Server["⚙️ Node.js Engine<br/>(SQLite Cục Bộ)"]
+    end
+    Cloud["☁️ ĐÁM MÂY BÊN NGOÀI"] -.->|BỊ CHẶN HOÀN TOÀN| LocalMachine
+
+    style LocalMachine fill:#0f172a,stroke:#3b82f6,stroke-width:2px,color:#fff
+    style UI fill:#1e293b,stroke:#06b6d4,stroke-width:1.5px,color:#fff
+    style Server fill:#1e293b,stroke:#10b981,stroke-width:1.5px,color:#fff
+    style Cloud fill:#334155,stroke:#ef4444,stroke-width:1px,stroke-dasharray: 5 5,color:#94a3b8
 ```
 
 - **100% Cục bộ**: Ghi chú, tài khoản, mật khẩu lưu trong SQLite (`server/data/`)

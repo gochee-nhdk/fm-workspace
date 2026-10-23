@@ -152,6 +152,94 @@ export default async function authRoutes(fastify: FastifyInstance) {
     };
   });
 
+  // Google OAuth2 Sign-In: Verifies Google ID Token & creates/links local user
+  fastify.post('/google', async (request, reply) => {
+    const { credential } = (request.body || {}) as { credential?: string };
+    if (!credential || typeof credential !== 'string') {
+      return reply.code(400).send({ error: 'Mã xác thực Google không hợp lệ' });
+    }
+
+    let googleProfile: { sub: string; email: string; name: string; picture?: string } | null = null;
+
+    try {
+      // 1. Verify with Google's public tokeninfo endpoint
+      const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`, {
+        signal: AbortSignal.timeout(6000),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as any;
+        if (data.email && data.sub) {
+          googleProfile = {
+            sub: data.sub,
+            email: String(data.email).toLowerCase().trim(),
+            name: data.name || String(data.email).split('@')[0],
+            picture: data.picture,
+          };
+        }
+      }
+    } catch (netErr) {
+      // Offline fallback: Decode JWT payload directly
+      try {
+        const decoded = jwt.decode(credential) as any;
+        if (decoded && decoded.email && decoded.sub) {
+          googleProfile = {
+            sub: decoded.sub,
+            email: String(decoded.email).toLowerCase().trim(),
+            name: decoded.name || String(decoded.email).split('@')[0],
+            picture: decoded.picture,
+          };
+        }
+      } catch (_) {}
+    }
+
+    if (!googleProfile || !googleProfile.email) {
+      return reply.code(401).send({ error: 'Không thể xác thực danh tính với Google. Vui lòng kiểm tra lại tài khoản hoặc kết nối mạng.' });
+    }
+
+    const db = getDb();
+    const now = new Date().toISOString();
+
+    let user = db.prepare('SELECT * FROM users WHERE email = ? OR google_id = ?').get(googleProfile.email, googleProfile.sub) as any;
+
+    if (user) {
+      db.prepare(`
+        UPDATE users 
+        SET google_id = ?, avatar_url = COALESCE(?, avatar_url), full_name = COALESCE(?, full_name), updated_at = ?
+        WHERE id = ?
+      `).run(googleProfile.sub, googleProfile.picture || null, googleProfile.name, now, user.id);
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id) as any;
+    } else {
+      const newId = uuidv4();
+      db.prepare(`
+        INSERT INTO users (id, email, full_name, role, google_id, avatar_url, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, 'staff', ?, ?, 1, ?, ?)
+      `).run(newId, googleProfile.email, googleProfile.name, googleProfile.sub, googleProfile.picture || null, now, now);
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(newId) as any;
+    }
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role, full_name: user.full_name, avatar_url: user.avatar_url },
+      getJwtSecret(),
+      { expiresIn: '30d' }
+    );
+
+    const userPayload = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      full_name: user.full_name,
+      avatar_url: user.avatar_url,
+      google_id: user.google_id,
+    };
+
+    return {
+      success: true,
+      token,
+      user: userPayload,
+      data: { token, user: userPayload },
+    };
+  });
+
   // Local/Offline-first bootstrap session endpoint:
   // Allows the offline desktop client to obtain a valid JWT token on startup
   fastify.post('/local-token', async (request, reply) => {

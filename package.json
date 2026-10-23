@@ -1,6 +1,7 @@
 {
   "name": "procurement-assistant",
   "version": "1.0.0",
+  "author": "Farmers Market Vietnam",
   "private": true,
   "description": "AI Procurement & Merchandising Assistant - Farmers Market",
   "main": "electron/dist/main.js",

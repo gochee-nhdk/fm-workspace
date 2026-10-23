@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, utilityProcess } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import http from 'http';
@@ -6,7 +6,7 @@ import net from 'net';
 import { fork, ChildProcess } from 'child_process';
 
 let mainWindow: BrowserWindow | null = null;
-let serverProcess: any = null;
+let serverProcess: ChildProcess | null = null;
 let serverPort = 3000;
 
 // Enforce single instance lock
@@ -50,7 +50,7 @@ async function findAvailablePort(startPort: number): Promise<number> {
 }
 
 // Helper: Poll server health
-function waitForServer(url: string, timeoutMs: number = 30000): Promise<boolean> {
+function waitForServer(url: string, timeoutMs: number = 25000): Promise<boolean> {
   const startTime = Date.now();
   return new Promise((resolve) => {
     const check = () => {
@@ -62,7 +62,7 @@ function waitForServer(url: string, timeoutMs: number = 30000): Promise<boolean>
         }
       });
       req.on('error', () => retry());
-      req.setTimeout(1500, () => {
+      req.setTimeout(1200, () => {
         req.destroy();
         retry();
       });
@@ -137,7 +137,7 @@ function setupDatabasePath(): string {
   return targetDbPath;
 }
 
-// Start backend server
+// Start backend server as pure Node process (ELECTRON_RUN_AS_NODE: '1')
 async function startBackendServer(port: number): Promise<void> {
   const { serverEntry, clientDist } = getAppPaths();
   const dbPath = setupDatabasePath();
@@ -147,7 +147,7 @@ async function startBackendServer(port: number): Promise<void> {
   console.log(`[Electron] Database path: ${dbPath}`);
 
   const env: Record<string, string> = {
-    ...process.env as Record<string, string>,
+    ...(process.env as Record<string, string>),
     PORT: port.toString(),
     HOST: '127.0.0.1',
     NODE_ENV: app.isPackaged ? 'production' : 'development',
@@ -155,45 +155,26 @@ async function startBackendServer(port: number): Promise<void> {
     DB_PATH: dbPath,
     CLIENT_DIST_PATH: clientDist,
     ELECTRON_RUN: 'true',
+    ELECTRON_RUN_AS_NODE: '1', // Crucial: forces child process to run as Node.js, not Electron GUI
   };
 
   try {
-    if (utilityProcess && typeof utilityProcess.fork === 'function') {
-      serverProcess = utilityProcess.fork(serverEntry, [], {
-        env,
-        stdio: 'pipe',
-        serviceName: 'fm-backend-service',
-      });
+    serverProcess = fork(serverEntry, [], {
+      env,
+      stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+    });
 
-      serverProcess.stdout?.on('data', (data: Buffer) => {
-        console.log(`[Server] ${data.toString().trim()}`);
-      });
+    serverProcess.stdout?.on('data', (data: Buffer) => {
+      console.log(`[Server] ${data.toString().trim()}`);
+    });
 
-      serverProcess.stderr?.on('data', (data: Buffer) => {
-        console.error(`[Server ERR] ${data.toString().trim()}`);
-      });
+    serverProcess.stderr?.on('data', (data: Buffer) => {
+      console.error(`[Server ERR] ${data.toString().trim()}`);
+    });
 
-      serverProcess.on('exit', (code: number) => {
-        console.log(`[Electron] Server utilityProcess exited with code ${code}`);
-      });
-    } else {
-      serverProcess = fork(serverEntry, [], {
-        env,
-        stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
-      });
-
-      serverProcess.stdout?.on('data', (data: Buffer) => {
-        console.log(`[Server] ${data.toString().trim()}`);
-      });
-
-      serverProcess.stderr?.on('data', (data: Buffer) => {
-        console.error(`[Server ERR] ${data.toString().trim()}`);
-      });
-
-      serverProcess.on('exit', (code: number, signal: string) => {
-        console.log(`[Electron] Server process exited with code ${code}, signal ${signal}`);
-      });
-    }
+    serverProcess.on('exit', (code: number, signal: string) => {
+      console.log(`[Electron] Server child process exited with code ${code}, signal ${signal}`);
+    });
   } catch (err) {
     console.error('[Electron] Failed to spawn backend server:', err);
   }
@@ -211,6 +192,93 @@ function getIconPath(): string {
     if (fs.existsSync(c)) return c;
   }
   return '';
+}
+
+function getSplashScreenHtml(): string {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0b0f19;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+      color: #ffffff;
+      user-select: none;
+      overflow: hidden;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(40px);
+      -webkit-backdrop-filter: blur(40px);
+      border-radius: 32px;
+      padding: 44px 36px;
+      display: flex; flex-direction: column; align-items: center;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.15);
+      width: 360px;
+      text-align: center;
+    }
+    .icon-box {
+      width: 80px; height: 80px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 40px;
+      box-shadow: 0 12px 30px rgba(16, 185, 129, 0.35);
+      margin-bottom: 22px;
+    }
+    h1 {
+      margin: 0 0 6px 0;
+      font-size: 22px; font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    p {
+      margin: 0 0 24px 0;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.65);
+      line-height: 1.4;
+    }
+    .spinner-ring {
+      width: 24px; height: 24px;
+      border: 2.5px solid rgba(16, 185, 129, 0.2);
+      border-top-color: #10b981;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .badge {
+      margin-top: 24px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.4);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .badge-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon-box">🌾</div>
+    <h1>FM Workspace</h1>
+    <p id="msg">Đang khởi động hệ thống cục bộ...</p>
+    <div class="spinner-ring" id="spinner"></div>
+    <div class="badge">
+      <span class="badge-dot"></span>
+      <span>Local-First • SQLite Engine</span>
+    </div>
+  </div>
+</body>
+</html>`;
 }
 
 // Create the main application window
@@ -235,7 +303,6 @@ async function createMainWindow() {
     },
   });
 
-  // Clean native look (hide standard browser menu bar)
   mainWindow.setMenuBarVisibility(false);
 
   // Intercept navigation to external domains and open them in system browser
@@ -263,9 +330,20 @@ async function createMainWindow() {
     }
   });
 
-  const targetUrl = `http://localhost:${serverPort}`;
-  console.log(`[Electron] Loading main window from ${targetUrl}`);
-  await mainWindow.loadURL(targetUrl);
+  // 1. Immediately display the Apple Liquid Glass Splash screen
+  const splashUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(getSplashScreenHtml());
+  await mainWindow.loadURL(splashUrl);
+
+  // 2. Wait for server to become healthy, then navigate to the workspace
+  const healthy = await waitForServer(`http://127.0.0.1:${serverPort}/health`, 25000);
+  if (healthy && mainWindow) {
+    const targetUrl = `http://localhost:${serverPort}`;
+    console.log(`[Electron] Server is ready! Loading main window from ${targetUrl}`);
+    await mainWindow.loadURL(targetUrl);
+  } else if (mainWindow) {
+    console.warn('[Electron] Backend health check timed out, attempting direct load...');
+    await mainWindow.loadURL(`http://localhost:${serverPort}`);
+  }
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -279,14 +357,6 @@ ipcMain.handle('app:version', () => app.getVersion());
 app.whenReady().then(async () => {
   serverPort = await findAvailablePort(3000);
   await startBackendServer(serverPort);
-
-  const healthy = await waitForServer(`http://127.0.0.1:${serverPort}/health`, 25000);
-  if (!healthy) {
-    console.warn('[Electron] Backend health check timed out, attempting to load window anyway...');
-  } else {
-    console.log('[Electron] Backend server is healthy and responding!');
-  }
-
   await createMainWindow();
 
   app.on('activate', async () => {

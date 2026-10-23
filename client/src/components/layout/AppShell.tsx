@@ -26,6 +26,7 @@ import { reminderService } from '@/services/reminderService';
 import { useScrollInterpolation, useTabIndicator, useAppleTabSpring } from '@/lib/motion';
 import { useSecurityStore } from '@/stores/security-store';
 import { LocalLockScreen } from '@/components/security/LocalLockScreen';
+import { GoogleProfileCapsule } from '@/components/auth/GoogleProfileCapsule';
 import { Lock } from 'lucide-react';
 
 const navItems = [
@@ -407,6 +408,9 @@ export const AppShell: React.FC = () => {
             >
               Nhập
             </Button>
+
+            {/* Google Profile & Privacy Capsule */}
+            <GoogleProfileCapsule />
 
             {/* Local Privacy Lock Button (When PIN lock enabled) */}
             {isLockEnabled && (
