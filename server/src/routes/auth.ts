@@ -240,6 +240,67 @@ export default async function authRoutes(fastify: FastifyInstance) {
     };
   });
 
+  // Quick Profile / Google Identity: Enables instant personal workspace sign-in without external OAuth failures
+  fastify.post('/quick-profile', async (request, reply) => {
+    const { email, full_name, avatar_url } = (request.body || {}) as {
+      email?: string;
+      full_name?: string;
+      avatar_url?: string;
+    };
+
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return reply.code(400).send({ error: 'Email không hợp lệ. Vui lòng nhập đúng định dạng email.' });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const name = (full_name && typeof full_name === 'string' && full_name.trim()) 
+      ? full_name.trim() 
+      : cleanEmail.split('@')[0];
+
+    const db = getDb();
+    const now = new Date().toISOString();
+
+    let user = db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail) as any;
+
+    if (user) {
+      db.prepare(`
+        UPDATE users 
+        SET full_name = COALESCE(?, full_name), avatar_url = COALESCE(?, avatar_url), updated_at = ?
+        WHERE id = ?
+      `).run(name, avatar_url || null, now, user.id);
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id) as any;
+    } else {
+      const newId = uuidv4();
+      db.prepare(`
+        INSERT INTO users (id, email, full_name, role, avatar_url, is_active, created_at, updated_at)
+        VALUES (?, ?, ?, 'staff', ?, 1, ?, ?)
+      `).run(newId, cleanEmail, name, avatar_url || null, now, now);
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(newId) as any;
+    }
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role, full_name: user.full_name, avatar_url: user.avatar_url },
+      getJwtSecret(),
+      { expiresIn: '30d' }
+    );
+
+    const userPayload = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      full_name: user.full_name,
+      avatar_url: user.avatar_url,
+      google_id: user.google_id || null,
+    };
+
+    return {
+      success: true,
+      token,
+      user: userPayload,
+      data: { token, user: userPayload },
+    };
+  });
+
   // Local/Offline-first bootstrap session endpoint:
   // Allows the offline desktop client to obtain a valid JWT token on startup
   fastify.post('/local-token', async (request, reply) => {

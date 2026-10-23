@@ -17,6 +17,7 @@ interface AuthState {
   isLoading: boolean;
   login: (token: string, user: User) => void;
   loginWithGoogle: (credential: string) => Promise<boolean>;
+  loginWithQuickProfile: (email: string, full_name?: string, avatar_url?: string) => Promise<boolean>;
   logout: () => void;
   checkAuth: () => Promise<void>;
 }
@@ -44,6 +45,25 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       set({ isLoading: true });
       const res = await api.post('/auth/google', { credential });
+      const { token, user } = res.data;
+      if (token && user) {
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        set({ token, user, isAuthenticated: true, isLoading: false });
+        return true;
+      }
+      set({ isLoading: false });
+      return false;
+    } catch (err) {
+      set({ isLoading: false });
+      throw err;
+    }
+  },
+
+  loginWithQuickProfile: async (email: string, full_name?: string, avatar_url?: string) => {
+    try {
+      set({ isLoading: true });
+      const res = await api.post('/auth/quick-profile', { email, full_name, avatar_url });
       const { token, user } = res.data;
       if (token && user) {
         localStorage.setItem('token', token);
