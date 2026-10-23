@@ -23,6 +23,9 @@ class MotionGuardianAgent {
     // 2. Enforce CSS Root Motion Tokens directly on DOM documentElement
     this.enforceCssTokens();
 
+    // 3. Inject explicit anti-reduced-motion stylesheet to override browser-level flags
+    this.injectForcedMotionStyles();
+
     console.log('[MotionGuardian] ✅ Đã kích hoạt Agent bảo vệ chuyển động: Toàn bộ animation Apple Liquid Glass 120 FPS được bảo lưu 100% độc lập với cài đặt Windows/macOS.');
   }
 
@@ -76,6 +79,59 @@ class MotionGuardianAgent {
     root.style.setProperty('--motion-ease-snappy', 'cubic-bezier(0.18, 0.9, 0.22, 1)');
     root.style.setProperty('--motion-ease-exit', 'cubic-bezier(0.3, 0, 0.8, 0.15)');
   }
+
+  /**
+   * Ghi đè tuyệt đối CSS stylesheet ở cấp trình duyệt:
+   * Nếu hệ điều hành Windows tắt hiệu ứng animation ("Animation effects: Off"),
+   * các class chuyển động Apple Liquid Glass vẫn tiếp tục hoạt động mượt mà 120 FPS.
+   */
+  private injectForcedMotionStyles(): void {
+    if (typeof document === 'undefined') return;
+    if (document.getElementById('motion-guardian-override')) return;
+
+    const styleEl = document.createElement('style');
+    styleEl.id = 'motion-guardian-override';
+    styleEl.textContent = `
+      @media (prefers-reduced-motion: reduce) {
+        .liquid-auth-btn,
+        .liquid-auth-trigger,
+        .liquid-motion-forced,
+        .liquid-motion-forced *,
+        .liquid-lens-pill,
+        .liquid-lens-pill-active,
+        .animate-liquid-sheen,
+        .animate-liquid-pulse {
+          animation-play-state: running !important;
+          transition-duration: 0.22s !important;
+          transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1) !important;
+        }
+      }
+    `;
+    document.head.appendChild(styleEl);
+  }
+}
+
+/**
+ * Kích hoạt xung lực lò xo vật lý tức thì (Web Animations API),
+ * hoàn toàn độc lập với hệ điều hành và hoạt động 100% trong mọi điều kiện.
+ */
+export function triggerLiquidSpringClick(target: HTMLElement | null): void {
+  if (!target) return;
+  try {
+    target.animate(
+      [
+        { transform: 'scale(1)', filter: 'brightness(1)' },
+        { transform: 'scale(0.952)', filter: 'brightness(0.95)' },
+        { transform: 'scale(1.028)', filter: 'brightness(1.08)' },
+        { transform: 'scale(1)', filter: 'brightness(1)' },
+      ],
+      {
+        duration: 260,
+        easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        fill: 'none',
+      }
+    );
+  } catch (_) {}
 }
 
 export const motionGuardian = new MotionGuardianAgent();

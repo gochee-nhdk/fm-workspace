@@ -7,30 +7,81 @@ import { verifyToken, requireRole } from '../middleware/auth.js';
 import { getJwtSecret } from '../config/auth.js';
 
 export default async function authRoutes(fastify: FastifyInstance) {
-  fastify.post('/register', { preHandler: requireRole('admin') }, async (request, reply) => {
-    const { email, password, full_name, role } = request.body as any;
+  fastify.post('/register', async (request, reply) => {
+    const { email, password, full_name, role } = (request.body || {}) as any;
+    if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
+      return reply.code(400).send({ error: 'Email và mật khẩu không được để trống' });
+    }
+    const cleanEmail = email.toLowerCase().trim();
+    if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+      return reply.code(400).send({ error: 'Định dạng email không hợp lệ' });
+    }
+    if (password.length < 6) {
+      return reply.code(400).send({ error: 'Mật khẩu phải chứa ít nhất 6 ký tự để đảm bảo an toàn' });
+    }
+
     const db = getDb();
-    
+    const existing = db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail) as any;
+    if (existing && existing.password_hash) {
+      return reply.code(409).send({ error: 'Email này đã có tài khoản. Vui lòng chuyển sang tab Đăng Nhập.' });
+    }
+
+    const assignedRole = (request as any).user?.role === 'admin' && role ? role : 'staff';
+    const name = (full_name && typeof full_name === 'string' && full_name.trim()) 
+      ? full_name.trim() 
+      : cleanEmail.split('@')[0];
+    const avatarUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=10b981,0ea5e9,6366f1&textColor=ffffff`;
+    const now = new Date().toISOString();
+
     try {
       const hash = await argon2.hash(password);
-      const id = uuidv4();
-      const now = new Date().toISOString();
-      
-      db.prepare(`
-        INSERT INTO users (id, email, full_name, password_hash, role, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(id, email, full_name, hash, role || 'staff', now, now);
-      
-      reply.code(201).send({ id, email, full_name, role });
+      let userId: string;
+
+      if (existing) {
+        userId = existing.id;
+        db.prepare(`
+          UPDATE users 
+          SET password_hash = ?, full_name = COALESCE(?, full_name), avatar_url = COALESCE(?, avatar_url), updated_at = ?
+          WHERE id = ?
+        `).run(hash, name, avatarUrl, now, userId);
+      } else {
+        userId = uuidv4();
+        db.prepare(`
+          INSERT INTO users (id, email, full_name, password_hash, role, avatar_url, is_active, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+        `).run(userId, cleanEmail, name, hash, assignedRole, avatarUrl, now, now);
+      }
+
+      const userPayload = {
+        id: userId,
+        email: cleanEmail,
+        role: assignedRole,
+        full_name: name,
+        avatar_url: avatarUrl,
+      };
+
+      const token = jwt.sign(
+        { id: userId, email: cleanEmail, role: assignedRole, full_name: name, avatar_url: avatarUrl },
+        getJwtSecret(),
+        { expiresIn: '30d' }
+      );
+
+      reply.code(201).send({
+        success: true,
+        message: 'Đăng ký tài khoản thành công',
+        token,
+        user: userPayload,
+        data: { token, user: userPayload },
+      });
     } catch (err: any) {
-      reply.code(400).send({ error: 'Registration failed', details: err.message });
+      reply.code(400).send({ error: 'Đăng ký tài khoản thất bại', details: err.message });
     }
   });
 
   fastify.post('/login', {
     config: {
       rateLimit: {
-        max: 5,
+        max: 8,
         timeWindow: '1 minute',
         errorResponseBuilder: () => ({
           statusCode: 429,
@@ -49,15 +100,38 @@ export default async function authRoutes(fastify: FastifyInstance) {
     
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail) as any;
     if (!user || user.is_active === 0) {
-      return reply.code(401).send({ error: 'Invalid credentials' });
+      return reply.code(401).send({ error: 'Email hoặc mật khẩu không chính xác' });
     }
     
-    const isValid = await argon2.verify(user.password_hash, password);
-    if (!isValid) {
-      return reply.code(401).send({ error: 'Invalid credentials' });
+    // If account was created without password previously (e.g. quick profile migration), set it now
+    if (!user.password_hash) {
+      const newHash = await argon2.hash(password);
+      db.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?').run(
+        newHash,
+        new Date().toISOString(),
+        user.id
+      );
+    } else {
+      const isValid = await argon2.verify(user.password_hash, password);
+      if (!isValid) {
+        return reply.code(401).send({ error: 'Email hoặc mật khẩu không chính xác' });
+      }
     }
     
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, full_name: user.full_name }, getJwtSecret(), { expiresIn: '1h' });
+    const userPayload = {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      full_name: user.full_name,
+      avatar_url: user.avatar_url,
+      google_id: user.google_id || null,
+    };
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role, full_name: user.full_name, avatar_url: user.avatar_url },
+      getJwtSecret(),
+      { expiresIn: '30d' }
+    );
     const refreshToken = uuidv4();
     
     db.prepare(`
@@ -72,9 +146,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
       path: '/api/auth/refresh'
     });
     
-    const userPayload = { id: user.id, email: user.email, role: user.role, full_name: user.full_name };
     return {
       success: true,
+      message: 'Đăng nhập thành công',
       token,
       user: userPayload,
       data: {

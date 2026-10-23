@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { api } from '@/lib/api';
 import { backupService } from '@/services/backupService';
+import { switchDatabaseUser } from '@/services/storage/indexedDb';
+import { dataService } from '@/services/dataService';
 import { useNoteStore } from './note-store';
 
 export interface User {
@@ -17,10 +19,12 @@ interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (token: string, user: User) => void;
+  login: (token: string, user: User) => Promise<void>;
+  loginWithPassword: (email: string, password: string) => Promise<boolean>;
+  register: (email: string, password: string, fullName: string) => Promise<boolean>;
   loginWithGoogle: (credential: string) => Promise<boolean>;
   loginWithQuickProfile: (email: string, full_name?: string, avatar_url?: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
 
@@ -37,14 +41,78 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: !!localStorage.getItem('token'),
   isLoading: false,
 
-  login: (token: string, user: User) => {
+  login: async (token: string, user: User) => {
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
     set({ token, user, isAuthenticated: true });
-    // Cloud sync restore for newly logged in account
-    backupService.restoreFromServer().catch(() => {}).then(() => {
+
+    // 1. Switch client-side storage to this user's isolated partition
+    await switchDatabaseUser(user.id);
+    await dataService.resetInitialized();
+
+    // 2. Wipe previous in-memory notes and reload from isolated partition
+    useNoteStore.setState({ notes: [], activeNoteId: null, activeTextNoteId: null, activeChecklistId: null });
+
+    // 3. Restore user's private cloud workspace data
+    backupService.restoreFromServer().catch(() => {}).finally(() => {
       useNoteStore.getState().loadNotes().catch(() => {});
     });
+  },
+
+  loginWithPassword: async (email: string, password: string) => {
+    try {
+      set({ isLoading: true });
+      const res = await api.post('/auth/login', { email, password });
+      const { token, user } = res.data;
+      if (token && user) {
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        set({ token, user, isAuthenticated: true, isLoading: false });
+
+        // Switch to user's isolated storage
+        await switchDatabaseUser(user.id);
+        await dataService.resetInitialized();
+        useNoteStore.setState({ notes: [], activeNoteId: null, activeTextNoteId: null, activeChecklistId: null });
+
+        backupService.restoreFromServer().catch(() => {}).finally(() => {
+          useNoteStore.getState().loadNotes().catch(() => {});
+        });
+        return true;
+      }
+      set({ isLoading: false });
+      return false;
+    } catch (err) {
+      set({ isLoading: false });
+      throw err;
+    }
+  },
+
+  register: async (email: string, password: string, fullName: string) => {
+    try {
+      set({ isLoading: true });
+      const res = await api.post('/auth/register', { email, password, full_name: fullName });
+      const { token, user } = res.data;
+      if (token && user) {
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        set({ token, user, isAuthenticated: true, isLoading: false });
+
+        // Switch to newly created user's isolated storage
+        await switchDatabaseUser(user.id);
+        await dataService.resetInitialized();
+        useNoteStore.setState({ notes: [], activeNoteId: null, activeTextNoteId: null, activeChecklistId: null });
+
+        backupService.restoreFromServer().catch(() => {}).finally(() => {
+          useNoteStore.getState().loadNotes().catch(() => {});
+        });
+        return true;
+      }
+      set({ isLoading: false });
+      return false;
+    } catch (err) {
+      set({ isLoading: false });
+      throw err;
+    }
   },
 
   loginWithGoogle: async (credential: string) => {
@@ -56,7 +124,12 @@ export const useAuthStore = create<AuthState>((set) => ({
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
         set({ token, user, isAuthenticated: true, isLoading: false });
-        backupService.restoreFromServer().catch(() => {}).then(() => {
+
+        await switchDatabaseUser(user.id);
+        await dataService.resetInitialized();
+        useNoteStore.setState({ notes: [], activeNoteId: null, activeTextNoteId: null, activeChecklistId: null });
+
+        backupService.restoreFromServer().catch(() => {}).finally(() => {
           useNoteStore.getState().loadNotes().catch(() => {});
         });
         return true;
@@ -78,8 +151,13 @@ export const useAuthStore = create<AuthState>((set) => ({
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
         set({ token, user, isAuthenticated: true, isLoading: false });
+
         // Restore user's private cloud workspace data
-        backupService.restoreFromServer().catch(() => {}).then(() => {
+        await switchDatabaseUser(user.id);
+        await dataService.resetInitialized();
+        useNoteStore.setState({ notes: [], activeNoteId: null, activeTextNoteId: null, activeChecklistId: null });
+
+        backupService.restoreFromServer().catch(() => {}).finally(() => {
           useNoteStore.getState().loadNotes().catch(() => {});
         });
         return true;
@@ -92,10 +170,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  logout: () => {
+  logout: async () => {
+    try {
+      await api.post('/auth/logout').catch(() => {});
+    } catch (_) {}
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('fm_quick_notes_cache');
+    await switchDatabaseUser(null);
     useNoteStore.setState({ notes: [], activeNoteId: null, activeTextNoteId: null, activeChecklistId: null });
     set({ token: null, user: null, isAuthenticated: false });
     if (typeof window !== 'undefined') {

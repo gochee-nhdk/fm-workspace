@@ -1,6 +1,45 @@
-// Native IndexedDB Engine with high-performance persistent storage
-const DB_NAME = 'FM_WORKSPACE_DB';
+// Native IndexedDB Engine with user-partitioned persistent storage
 const DB_VERSION = 3;
+
+// User-partitioned database naming: ensures complete data isolation per account
+let currentUserId: string | null = (() => {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const stored = localStorage.getItem('user');
+      if (stored) {
+        const u = JSON.parse(stored);
+        return u?.id || null;
+      }
+    }
+  } catch (_) {}
+  return null;
+})();
+
+export const getActiveDbName = (): string => {
+  if (currentUserId) {
+    const safeId = String(currentUserId).replace(/[^a-zA-Z0-9_-]/g, '_');
+    return `FM_WORKSPACE_DB_${safeId}`;
+  }
+  return 'FM_WORKSPACE_DB_GUEST';
+};
+
+export const switchDatabaseUser = async (newUserId: string | null): Promise<void> => {
+  if (dbInstance) {
+    try {
+      dbInstance.close();
+    } catch (_) {}
+  }
+  dbInstance = null;
+  dbOpenPromise = null;
+  currentUserId = newUserId;
+  if (typeof window !== 'undefined' && window.indexedDB) {
+    try {
+      await getDB();
+    } catch (err) {
+      console.warn('Failed to pre-open switched database:', err);
+    }
+  }
+};
 
 export const STORES = {
   LINKS: 'links',
@@ -30,7 +69,8 @@ export const getDB = (): Promise<IDBDatabase> => {
   }
 
   dbOpenPromise = new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const dbName = getActiveDbName();
+    const request = indexedDB.open(dbName, DB_VERSION);
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
