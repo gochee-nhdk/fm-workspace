@@ -30,6 +30,8 @@ client/dist/
 .idea/
 .agents/
 .skills/
+skill/
+skills/
 
 # Database & local data storage
 *.db
