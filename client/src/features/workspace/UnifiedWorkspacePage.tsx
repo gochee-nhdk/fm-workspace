@@ -339,59 +339,62 @@ export const UnifiedWorkspacePage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5 max-w-7xl mx-auto pb-12 w-full">
-      {/* ─────────────────── Top Bar: Sheet Tabs & Action Bar ─────────────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <SegmentedNavigation
-          label="Danh mục bảng tính"
-          activeId={activeTab}
-          onChange={(tab) => handleTabChange(tab as TabType)}
-          items={[
-            { id: 'accounts', label: 'Tài khoản', icon: <SFShieldFill size={16} /> },
-            { id: 'links', label: 'Links', icon: <SFLink size={16} /> },
-            { id: 'stores', label: 'DS Cửa hàng', icon: <SFStorefront size={16} /> },
-          ]}
-        />
+    <div className="w-full pb-12">
+      {/* ─────────────────── Top Bar: Sheet Tabs & Action Bar (Edge-to-edge Sticky Liquid Glass) ─────────────────── */}
+      <div className="sticky-liquid-header -mx-4 sm:-mx-5 lg:-mx-6 px-4 sm:px-5 lg:px-6 pt-4 sm:pt-5 lg:pt-6 pb-3.5 transition-all">
+        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
+          <SegmentedNavigation
+            label="Danh mục bảng tính"
+            activeId={activeTab}
+            onChange={(tab) => handleTabChange(tab as TabType)}
+            items={[
+              { id: 'accounts', label: 'Tài khoản', icon: <SFShieldFill size={16} /> },
+              { id: 'links', label: 'Links', icon: <SFLink size={16} /> },
+              { id: 'stores', label: 'DS Cửa hàng', icon: <SFStorefront size={16} /> },
+            ]}
+          />
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="liquiGlass"
-            size="sm"
-            className="h-[38px] px-4 rounded-full text-[13px] leading-none font-medium"
-            onClick={handleExport}
-            icon={<SFArrowUpDocument size={14} className="text-[#0066cc] dark:text-[#2997ff]" />}
-            title="Xuất bảng tính hiện tại ra file Excel (.xlsx)"
-          >
-            Xuất
-          </Button>
+          {/* Action Controls */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="liquiGlass"
+              size="sm"
+              className="h-[38px] px-4 rounded-full text-[13px] leading-none font-medium"
+              onClick={handleExport}
+              icon={<SFArrowUpDocument size={14} className="text-[#0066cc] dark:text-[#2997ff]" />}
+              title="Xuất bảng tính hiện tại ra file Excel (.xlsx)"
+            >
+              Xuất
+            </Button>
 
-          <Button
-            variant="liquiGlass"
-            size="sm"
-            className="h-[38px] px-4 rounded-full text-[13px] leading-none font-medium"
-            onClick={() => window.dispatchEvent(new CustomEvent('fm:open-import'))}
-            icon={<SFArrowDownDocument size={14} className="text-emerald-600 dark:text-emerald-400" />}
-            title="Nhập file Excel vào hệ thống"
-          >
-            Nhập
-          </Button>
+            <Button
+              variant="liquiGlass"
+              size="sm"
+              className="h-[38px] px-4 rounded-full text-[13px] leading-none font-medium"
+              onClick={() => window.dispatchEvent(new CustomEvent('fm:open-import'))}
+              icon={<SFArrowDownDocument size={14} className="text-emerald-600 dark:text-emerald-400" />}
+              title="Nhập file Excel vào hệ thống"
+            >
+              Nhập
+            </Button>
 
-          <Button
-            variant="primary"
-            className="h-10 px-4 rounded-full text-[13px] leading-none font-semibold"
-            onClick={handleOpenAdd}
-            icon={<SFPlus size={16} />}
-          >
-            {activeTab === 'accounts' && 'Thêm Tài Khoản'}
-            {activeTab === 'links' && 'Thêm Link'}
-            {activeTab === 'stores' && 'Thêm Cửa Hàng'}
-          </Button>
+            <Button
+              variant="primary"
+              className="h-10 px-4 rounded-full text-[13px] leading-none font-semibold shadow-sm"
+              onClick={handleOpenAdd}
+              icon={<SFPlus size={16} />}
+            >
+              {activeTab === 'accounts' && 'Thêm Tài Khoản'}
+              {activeTab === 'links' && 'Thêm Link'}
+              {activeTab === 'stores' && 'Thêm Cửa Hàng'}
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* ─────────────────── Search & Quick Filter Bar ─────────────────── */}
-      <div className="relative z-30 glass-material rounded-[20px] p-3 sm:p-3.5 flex flex-col md:flex-row items-center justify-between gap-3 shadow-xs">
+      <div className="max-w-7xl mx-auto space-y-5 mt-5">
+        {/* ─────────────────── Search & Quick Filter Bar ─────────────────── */}
+        <div className="relative z-10 glass-material rounded-[20px] p-3 sm:p-3.5 flex flex-col md:flex-row items-center justify-between gap-3 shadow-xs">
         {/* Instant Search Bar */}
         <div className="relative w-full md:w-96 group">
           <SFMagnifyingglass size={16} className="text-[#76767b] dark:text-[#a1a1a6] group-focus-within:text-[#0066cc] dark:group-focus-within:text-[#2997ff] absolute left-3.5 top-2.5 pointer-events-none transition-colors" />
@@ -570,17 +573,17 @@ export const UnifiedWorkspacePage: React.FC = () => {
           {activeTab === 'links' && (
           <div className="overflow-x-auto scrollbar-thin">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
-              <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+              <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-white select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <tr>
                   <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]" aria-label="Kéo thả sắp xếp" title="Kéo thả sắp xếp">
                     <SFLine3Horizontal size={14} className="mx-auto opacity-40" />
                   </th>
                   <th className="px-2 py-3.5 w-10 text-center whitespace-nowrap" aria-label="Đánh dấu yêu thích" title="Đánh dấu yêu thích">⭐</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[140px] max-w-[220px]">Tên Hạng Mục</th>
-                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px]">Đường Dẫn</th>
-                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[110px]">Danh Mục</th>
-                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px] max-w-[240px]">Ghi Chú</th>
-                  <th className="px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px]">
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[140px] max-w-[220px] text-[#1d1d1f] dark:text-white font-bold">Tên Hạng Mục</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px] text-[#1d1d1f] dark:text-white font-bold">Đường Dẫn</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[110px] text-[#1d1d1f] dark:text-white font-bold">Danh Mục</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px] max-w-[240px] text-[#1d1d1f] dark:text-white font-bold">Ghi Chú</th>
+                  <th className="px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px] text-[#1d1d1f] dark:text-white font-bold">
                     Thao Tác
                   </th>
                 </tr>
@@ -793,18 +796,18 @@ export const UnifiedWorkspacePage: React.FC = () => {
         {/* 2. SHEET: ACCOUNT VAULT */}
         {activeTab === 'accounts' && (
           <div className="overflow-x-auto scrollbar-thin">
-            <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
-              <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+            <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-white">
+              <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-white select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <tr>
                   <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]" aria-label="Kéo thả sắp xếp" title="Kéo thả sắp xếp">
                     <SFLine3Horizontal size={14} className="mx-auto opacity-40" />
                   </th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[120px] max-w-[160px]">Phần Mềm</th>
-                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px] max-w-[210px]">Tên Đăng Nhập</th>
-                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[150px] max-w-[220px]">Mật Khẩu</th>
-                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px]">Trang Đăng Nhập</th>
-                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[120px] max-w-[240px]">Ghi Chú</th>
-                  <th className="px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px]">
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[120px] max-w-[160px] text-[#1d1d1f] dark:text-white font-bold">Phần Mềm</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px] max-w-[210px] text-[#1d1d1f] dark:text-white font-bold">Tên Đăng Nhập</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[150px] max-w-[220px] text-[#1d1d1f] dark:text-white font-bold">Mật Khẩu</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px] text-[#1d1d1f] dark:text-white font-bold">Trang Đăng Nhập</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[120px] max-w-[240px] text-[#1d1d1f] dark:text-white font-bold">Ghi Chú</th>
+                  <th className="px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px] text-[#1d1d1f] dark:text-white font-bold">
                     Thao Tác
                   </th>
                 </tr>
@@ -1056,17 +1059,17 @@ export const UnifiedWorkspacePage: React.FC = () => {
         {/* 3. SHEET: STORE DIRECTORY */}
         {activeTab === 'stores' && (
           <div className="overflow-x-auto scrollbar-thin">
-            <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
-              <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+            <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-white">
+              <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-white select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <tr>
                   <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]" aria-label="Kéo thả sắp xếp" title="Kéo thả sắp xếp">
                     <SFLine3Horizontal size={14} className="mx-auto opacity-40" />
                   </th>
-                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[100px]">Mã Cửa Hàng</th>
-                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[240px] max-w-[550px]">Địa Chỉ Cửa Hàng</th>
-                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[110px]">Khu Vực / Loại</th>
-                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px]">Google Maps</th>
-                  <th className="px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px]">
+                  <th className="px-4 py-3.5 whitespace-nowrap min-w-[100px] text-[#1d1d1f] dark:text-white font-bold">Mã Cửa Hàng</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[240px] max-w-[550px] text-[#1d1d1f] dark:text-white font-bold">Địa Chỉ Cửa Hàng</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[110px] text-[#1d1d1f] dark:text-white font-bold">Khu Vực / Loại</th>
+                  <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px] text-[#1d1d1f] dark:text-white font-bold">Google Maps</th>
+                  <th className="px-4 py-3.5 text-right whitespace-nowrap w-[96px] min-w-[96px] text-[#1d1d1f] dark:text-white font-bold">
                     Thao Tác
                   </th>
                 </tr>
@@ -1340,6 +1343,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
         onClose={() => setPreviewMapStore(null)}
         store={previewMapStore}
       />
+      </div>
     </div>
   );
 };

@@ -521,34 +521,38 @@ export const SettingsPage: React.FC = () => {
   }, [importConflictStrategy, restoreSettingsOnImport]);
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto pb-12">
-      <div>
-        <h1 className="text-[28px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white flex items-center gap-2.5">
-          <SFGearshapeFill size={24} className="text-[#0066cc] dark:text-[#2997ff]" />
-          Cài đặt &amp; Dữ liệu
-        </h1>
-        <p className="text-[14px] text-[#86868b] dark:text-[#a1a1a6] mt-1">
-          Quản lý dung lượng lưu trữ cục bộ, lá chắn sao lưu kép, tích hợp gửi thư tự động và tùy biến giao diện Apple.
-        </p>
+    <div className="w-full pb-12">
+      {/* ── Sticky Liquid Glass Header & Segmented Navigation (Edge-to-edge) ── */}
+      <div className="sticky-liquid-header -mx-4 sm:-mx-5 lg:-mx-6 px-4 sm:px-5 lg:px-6 pt-4 sm:pt-5 lg:pt-6 pb-3.5 space-y-3.5 transition-all">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-[26px] sm:text-[28px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white flex items-center gap-2.5">
+            <SFGearshapeFill size={24} className="text-[#0066cc] dark:text-[#2997ff]" />
+            Cài đặt &amp; Dữ liệu
+          </h1>
+          <p className="text-[13px] sm:text-[14px] text-[#86868b] dark:text-[#a1a1a6] mt-1">
+            Quản lý dung lượng lưu trữ cục bộ, lá chắn sao lưu kép, tích hợp gửi thư tự động và tùy biến giao diện Apple.
+          </p>
+        </div>
+
+        {/* Shared segmented navigation keeps visual and spring behavior aligned with Workspace. */}
+        <div className="max-w-4xl mx-auto flex items-center justify-start overflow-x-auto pb-0.5 scrollbar-none">
+          <SegmentedNavigation
+            label="Cài đặt hệ thống"
+            activeId={activeTab}
+            onChange={(tab) => setActiveTab(tab as SettingsTab)}
+            items={[
+              { id: 'backup', label: 'Sao lưu & Dữ liệu', icon: <SFArchivebox size={16} /> },
+              { id: 'shield', label: 'Bảo mật', icon: <SFShieldFill size={16} /> },
+              { id: 'smtp', label: 'Gửi mail', icon: <SFEnvelope size={16} /> },
+              { id: 'appearance', label: 'Giao Diện', icon: <SFPaintpalette size={16} /> },
+            ]}
+          />
+        </div>
       </div>
 
-      {/* Shared segmented navigation keeps visual and spring behavior aligned with Workspace. */}
-      <div className="flex items-center justify-start overflow-x-auto pb-1 scrollbar-none">
-        <SegmentedNavigation
-          label="Cài đặt hệ thống"
-          activeId={activeTab}
-          onChange={(tab) => setActiveTab(tab as SettingsTab)}
-          items={[
-            { id: 'backup', label: 'Sao lưu & Dữ liệu', icon: <SFArchivebox size={16} /> },
-            { id: 'shield', label: 'Bảo mật', icon: <SFShieldFill size={16} /> },
-            { id: 'smtp', label: 'Gửi mail', icon: <SFEnvelope size={16} /> },
-            { id: 'appearance', label: 'Giao Diện', icon: <SFPaintpalette size={16} /> },
-          ]}
-        />
-      </div>
-
-      {/* ── Spatial Animated Settings Tab Content Container ── */}
-      <div key={activeTab} className={animationClass}>
+      <div className="max-w-4xl mx-auto mt-6">
+        {/* ── Spatial Animated Settings Tab Content Container ── */}
+        <div key={activeTab} className={animationClass}>
         {/* ── TAB 1: DỮ LIỆU & SAO LƯU ── */}
         {activeTab === 'backup' && (
           <div className="space-y-6">
@@ -1790,6 +1794,7 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
       </AppleLiquidDialog>
+      </div>
     </div>
   );
 };
