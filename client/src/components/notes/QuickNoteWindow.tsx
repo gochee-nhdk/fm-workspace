@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
@@ -907,9 +907,15 @@ export const QuickNoteWindow: React.FC = () => {
   const [unlockError, setUnlockError] = useState('');
   // 6-digit Passcode config modal state
   const [showLockConfigModal, setShowLockConfigModal] = useState(false);
+  const [lockCurrentPassword, setLockCurrentPassword] = useState('');
   const [lockNewPassword, setLockNewPassword] = useState('');
   const [lockConfirmPassword, setLockConfirmPassword] = useState('');
   const [showLockNewPassword, setShowLockNewPassword] = useState(false);
+
+  // 6-digit Passcode removal modal state (Strictly requires current PIN)
+  const [showLockRemoveModal, setShowLockRemoveModal] = useState(false);
+  const [lockRemoveInput, setLockRemoveInput] = useState('');
+  const [lockRemoveMismatch, setLockRemoveMismatch] = useState(false);
 
   const editorRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -1812,6 +1818,12 @@ export const QuickNoteWindow: React.FC = () => {
 
     if (clean.length === 6 && activeNote) {
       if (clean === activeNote.password) {
+        // Pre-hydrate content synchronously before unlocking to prevent any blank renders
+        const noteContent = activeNote.content || '';
+        const html = ensureHtml(noteContent);
+        setLocalContent(html);
+        localContentRef.current = html;
+
         setUnlockedNoteIds((prev) => [...prev, activeNote.id]);
         setUnlockPasscode('');
         setUnlockError('');
@@ -1835,6 +1847,11 @@ export const QuickNoteWindow: React.FC = () => {
     e?.preventDefault();
     if (!activeNote || !activeNote.password) return;
     if (unlockPasscode === activeNote.password) {
+      const noteContent = activeNote.content || '';
+      const html = ensureHtml(noteContent);
+      setLocalContent(html);
+      localContentRef.current = html;
+
       setUnlockedNoteIds((prev) => [...prev, activeNote.id]);
       setUnlockPasscode('');
       setUnlockError('');
@@ -1861,6 +1878,7 @@ export const QuickNoteWindow: React.FC = () => {
   };
 
   const handleOpenLockConfig = () => {
+    setLockCurrentPassword('');
     setLockNewPassword('');
     setLockConfirmPassword('');
     setLockConfigMismatch(false);
@@ -2931,16 +2949,16 @@ export const QuickNoteWindow: React.FC = () => {
     }
   }, [activeNote, editorMode, savePendingDraft]);
 
-  // Ensure editorRef.current has the content when mounted, switching to text mode, or active note changes
-  useEffect(() => {
-    if (isOpen && editorMode === 'text' && editorRef.current) {
+  // Ensure editorRef.current has the content when mounted, switching to text mode, active note changes, OR when unlocked!
+  useLayoutEffect(() => {
+    if (isOpen && editorMode === 'text' && !isNoteLocked && editorRef.current) {
       const source = localContentRef.current || activeNote?.content || '';
       const html = ensureHtml(source);
       if (editorRef.current.innerHTML !== html) {
         editorRef.current.innerHTML = html;
       }
     }
-  }, [isOpen, editorMode, activeNote?.id]);
+  }, [isOpen, editorMode, activeNote?.id, isNoteLocked, activeNote?.content]);
 
   // Clean up and flush draft on unmount
   useEffect(() => {
@@ -3001,6 +3019,18 @@ export const QuickNoteWindow: React.FC = () => {
   const handleEditorInput = (e: React.FormEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
     const html = target.innerHTML;
+
+    // Safety guard: If target.innerHTML is suddenly empty, but localContentRef had existing content (>20 chars),
+    // and this is not an intentional user deletion, do NOT wipe!
+    if ((!html || html === '<p><br></p>' || html === '<br>') && localContentRef.current && localContentRef.current.length > 20) {
+      const nativeEvent = e.nativeEvent as InputEvent;
+      const isDeleting = nativeEvent?.inputType?.startsWith('delete');
+      if (!isDeleting) {
+        target.innerHTML = localContentRef.current;
+        return;
+      }
+    }
+
     setLocalContent(html);
     localContentRef.current = html;
 
@@ -5496,7 +5526,16 @@ export const QuickNoteWindow: React.FC = () => {
                   )}
 
                   <div
-                    ref={editorRef}
+                    ref={(el) => {
+                      (editorRef as any).current = el;
+                      if (el) {
+                        const source = localContentRef.current || activeNote?.content || '';
+                        const html = ensureHtml(source);
+                        if (el.innerHTML !== html) {
+                          el.innerHTML = html;
+                        }
+                      }
+                    }}
                     contentEditable
                     suppressContentEditableWarning
                     onKeyDown={handleEditorKeyDown}
@@ -6195,6 +6234,7 @@ export const QuickNoteWindow: React.FC = () => {
         isOpen={Boolean(showLockConfigModal && activeNote && (!activeNote.isLocked || unlockedNoteIds.includes(activeNote.id)))}
         onClose={() => {
           setShowLockConfigModal(false);
+          setLockCurrentPassword('');
           setLockNewPassword('');
           setLockConfirmPassword('');
           setLockConfigMismatch(false);
@@ -6203,7 +6243,7 @@ export const QuickNoteWindow: React.FC = () => {
         title="Cài đặt mã PIN"
         overlayClassName="p-4"
         contentClassName={cn(
-          "w-full max-w-[340px] bg-white/90 dark:bg-[#1c1c24]/90 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/12 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] p-6 text-center space-y-5 relative cursor-default",
+          "w-full max-w-[340px] bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/12 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] p-6 text-center space-y-5 relative cursor-default",
           lockConfigMismatch && "apple-shake"
         )}
       >
@@ -6213,30 +6253,39 @@ export const QuickNoteWindow: React.FC = () => {
             const input = document.getElementById('apple-pin-config-input') as HTMLInputElement | null;
             input?.focus();
           }}
-          className="space-y-5"
+          className="space-y-4"
         >
           {/* Header */}
           <div className="space-y-1.5 pointer-events-none">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-b from-[#0071e3]/15 to-[#0071e3]/5 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center border border-[#0071e3]/20 shadow-xs mx-auto mb-3">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-b from-[#0071e3]/15 to-[#0071e3]/5 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center border border-[#0071e3]/20 shadow-xs mx-auto mb-2">
               <Lock size={22} />
             </div>
             <h3 className="font-semibold text-[16px] text-[#1d1d1f] dark:text-white leading-tight">
               {activeNote?.isLocked ? 'Đổi mã PIN bảo vệ' : 'Cài mã PIN bảo vệ'}
             </h3>
-            <p className="text-[12.5px] text-[#86868b] dark:text-[#a1a1a6] min-h-[18px]">
-              {lockNewPassword.length < 6
+            <p className="text-[12px] text-[#86868b] dark:text-[#a1a1a6] min-h-[18px]">
+              {activeNote?.isLocked && lockCurrentPassword.length < 6
+                ? lockConfigMismatch
+                  ? 'Mã PIN hiện tại không đúng! Vui lòng thử lại'
+                  : 'Nhập mã PIN 6 số hiện tại để xác thực'
+                : lockNewPassword.length < 6
                 ? 'Nhập mã PIN 6 số mới'
                 : lockConfigMismatch
                 ? 'Mã xác nhận không khớp! Vui lòng nhập lại'
-                : 'Nhập lại mã PIN để xác nhận'}
+                : 'Nhập lại mã PIN mới để xác nhận'}
             </p>
           </div>
 
           {/* 6 Visual PIN Dots */}
-          <div className="flex items-center justify-center gap-3.5 my-4 cursor-pointer relative">
+          <div className="flex items-center justify-center gap-3.5 my-3 cursor-pointer relative py-2">
             {Array.from({ length: 6 }).map((_, i) => {
-              const isConfirming = lockNewPassword.length === 6;
-              const currentPin = isConfirming ? lockConfirmPassword : lockNewPassword;
+              const isVerifyingOld = Boolean(activeNote?.isLocked && lockCurrentPassword.length < 6);
+              const isConfirming = !isVerifyingOld && lockNewPassword.length === 6;
+              const currentPin = isVerifyingOld
+                ? lockCurrentPassword
+                : isConfirming
+                ? lockConfirmPassword
+                : lockNewPassword;
               const isFilled = i < currentPin.length;
               return (
                 <div
@@ -6246,7 +6295,7 @@ export const QuickNoteWindow: React.FC = () => {
                     lockConfigMismatch
                       ? "bg-rose-500 shadow-xs scale-110"
                       : isFilled
-                      ? "bg-[#0071e3] shadow-xs scale-110"
+                      ? "bg-[#0071e3] dark:bg-[#2997ff] shadow-xs scale-110"
                       : "border-2 border-black/20 dark:border-white/25 bg-transparent"
                   )}
                 />
@@ -6261,11 +6310,18 @@ export const QuickNoteWindow: React.FC = () => {
               pattern="[0-9]*"
               maxLength={6}
               autoFocus
-              value={lockNewPassword.length < 6 ? lockNewPassword : lockConfirmPassword}
+              value={
+                activeNote?.isLocked && lockCurrentPassword.length < 6
+                  ? lockCurrentPassword
+                  : lockNewPassword.length < 6
+                  ? lockNewPassword
+                  : lockConfirmPassword
+              }
               onKeyDown={(e) => {
                 if (['Backspace', 'Tab', 'Escape'].includes(e.key)) {
                   if (e.key === 'Escape') {
                     setShowLockConfigModal(false);
+                    setLockCurrentPassword('');
                     setLockNewPassword('');
                     setLockConfirmPassword('');
                     setLockConfigMismatch(false);
@@ -6278,6 +6334,9 @@ export const QuickNoteWindow: React.FC = () => {
                     } else if (lockNewPassword.length > 0) {
                       setLockNewPassword((prev) => prev.slice(0, -1));
                       setLockConfigMismatch(false);
+                    } else if (activeNote?.isLocked && lockCurrentPassword.length > 0) {
+                      setLockCurrentPassword((prev) => prev.slice(0, -1));
+                      setLockConfigMismatch(false);
                     }
                   }
                   return;
@@ -6289,9 +6348,39 @@ export const QuickNoteWindow: React.FC = () => {
                 // Allow numeric digit
                 e.preventDefault();
                 const digit = e.key;
+
+                // Step 1: Verify Current PIN if note is currently locked
+                if (activeNote?.isLocked && lockCurrentPassword.length < 6) {
+                  const nextCurrent = lockCurrentPassword + digit;
+                  setLockCurrentPassword(nextCurrent);
+                  if (nextCurrent.length === 6) {
+                    if (nextCurrent === activeNote.password) {
+                      // Verified! Move to entering new PIN
+                      playAppleChime();
+                      setLockConfigMismatch(false);
+                    } else {
+                      // Current PIN is incorrect!
+                      setLockConfigMismatch(true);
+                      toast.error('Mã PIN hiện tại không chính xác!', { id: 'note-old-pin-err' });
+                      setTimeout(() => {
+                        setLockCurrentPassword('');
+                        setLockConfigMismatch(false);
+                        const input = document.getElementById('apple-pin-config-input') as HTMLInputElement | null;
+                        input?.focus();
+                      }, 600);
+                    }
+                  }
+                  return;
+                }
+
+                // Step 2: Enter new PIN
                 if (lockNewPassword.length < 6) {
                   setLockNewPassword((prev) => prev + digit);
-                } else if (lockConfirmPassword.length < 6) {
+                  return;
+                }
+
+                // Step 3: Confirm new PIN
+                if (lockConfirmPassword.length < 6) {
                   const nextConfirm = lockConfirmPassword + digit;
                   setLockConfirmPassword(nextConfirm);
                   if (nextConfirm.length === 6) {
@@ -6320,7 +6409,15 @@ export const QuickNoteWindow: React.FC = () => {
           {/* Sub-step indicator pill */}
           <div className="flex items-center justify-center">
             <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-[#86868b] dark:text-[#a1a1a6]">
-              {lockNewPassword.length < 6 ? 'Bước 1/2: Đặt PIN mới' : 'Bước 2/2: Xác nhận lại PIN'}
+              {activeNote?.isLocked
+                ? lockCurrentPassword.length < 6
+                  ? 'Bước 1/3: Xác thực PIN cũ'
+                  : lockNewPassword.length < 6
+                  ? 'Bước 2/3: Đặt PIN mới'
+                  : 'Bước 3/3: Xác nhận lại PIN mới'
+                : lockNewPassword.length < 6
+                ? 'Bước 1/2: Đặt PIN mới'
+                : 'Bước 2/2: Xác nhận lại PIN'}
             </span>
           </div>
 
@@ -6329,10 +6426,19 @@ export const QuickNoteWindow: React.FC = () => {
             {activeNote?.isLocked ? (
               <button
                 type="button"
-                onClick={handleRemoveLockPassword}
+                onClick={() => {
+                  setShowLockConfigModal(false);
+                  setLockCurrentPassword('');
+                  setLockNewPassword('');
+                  setLockConfirmPassword('');
+                  setLockConfigMismatch(false);
+                  setLockRemoveInput('');
+                  setLockRemoveMismatch(false);
+                  setShowLockRemoveModal(true);
+                }}
                 className="text-[12px] font-medium text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
               >
-                Gỡ khóa
+                Gỡ khóa bảo vệ
               </button>
             ) : (
               <div />
@@ -6342,6 +6448,7 @@ export const QuickNoteWindow: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setShowLockConfigModal(false);
+                  setLockCurrentPassword('');
                   setLockNewPassword('');
                   setLockConfirmPassword('');
                   setLockConfigMismatch(false);
@@ -6351,6 +6458,140 @@ export const QuickNoteWindow: React.FC = () => {
                 Hủy
               </button>
             </div>
+          </div>
+        </div>
+      </AppleLiquidDialog>
+
+      {/* ─────────────────── Apple Liquid Glass Remove Note PIN Modal (Strictly Requires Current 6-digit PIN) ─────────────────── */}
+      <AppleLiquidDialog
+        isOpen={Boolean(showLockRemoveModal && activeNote && activeNote.isLocked)}
+        onClose={() => {
+          setShowLockRemoveModal(false);
+          setLockRemoveInput('');
+          setLockRemoveMismatch(false);
+        }}
+        zIndex={10025}
+        title="Gỡ bỏ mật khẩu ghi chú"
+        overlayClassName="p-4"
+        contentClassName={cn(
+          "w-full max-w-[340px] bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/12 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] p-6 text-center space-y-4 relative cursor-default",
+          lockRemoveMismatch && "apple-shake"
+        )}
+      >
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            const input = document.getElementById('apple-note-pin-remove-input') as HTMLInputElement | null;
+            input?.focus();
+          }}
+          className="space-y-4"
+        >
+          {/* Header Icon */}
+          <div className="space-y-1.5 pointer-events-none">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-b from-rose-500/15 to-rose-500/5 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/20 shadow-xs mx-auto mb-2">
+              <Unlock size={22} />
+            </div>
+            <h3 className="font-semibold text-[16px] text-[#1d1d1f] dark:text-white leading-tight">
+              Xác nhận gỡ mã PIN
+            </h3>
+            <p className="text-[12px] text-[#86868b] dark:text-[#a1a1a6] min-h-[18px]">
+              {lockRemoveMismatch
+                ? 'Mã PIN hiện tại không đúng! Vui lòng thử lại'
+                : 'Nhập mã PIN 6 số hiện tại để gỡ bỏ bảo vệ'}
+            </p>
+          </div>
+
+          {/* 6 Visual Apple Passcode Dots */}
+          <div className="flex items-center justify-center gap-3.5 my-3 cursor-pointer relative py-2">
+            {Array.from({ length: 6 }).map((_, i) => {
+              const isFilled = i < lockRemoveInput.length;
+              return (
+                <div
+                  key={i}
+                  className={cn(
+                    "w-4 h-4 rounded-full transition-all duration-150",
+                    lockRemoveMismatch
+                      ? "bg-rose-500 shadow-xs scale-110"
+                      : isFilled
+                      ? "bg-[#0071e3] dark:bg-[#2997ff] shadow-xs scale-110"
+                      : "border-2 border-black/20 dark:border-white/25 bg-transparent"
+                  )}
+                />
+              );
+            })}
+
+            {/* Hidden Active Input for True Numeric Keypad / Keyboard capture */}
+            <input
+              id="apple-note-pin-remove-input"
+              type="password"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              autoFocus
+              value={lockRemoveInput}
+              onKeyDown={(e) => {
+                if (['Backspace', 'Tab', 'Escape'].includes(e.key)) {
+                  if (e.key === 'Escape') {
+                    setShowLockRemoveModal(false);
+                    setLockRemoveInput('');
+                    setLockRemoveMismatch(false);
+                  }
+                  if (e.key === 'Backspace') {
+                    e.preventDefault();
+                    setLockRemoveInput((prev) => prev.slice(0, -1));
+                    setLockRemoveMismatch(false);
+                  }
+                  return;
+                }
+                if (!/^[0-9]$/.test(e.key)) {
+                  e.preventDefault();
+                  return;
+                }
+                e.preventDefault();
+                const digit = e.key;
+                if (lockRemoveInput.length < 6) {
+                  const nextVal = lockRemoveInput + digit;
+                  setLockRemoveInput(nextVal);
+                  if (nextVal.length === 6) {
+                    if (nextVal === activeNote?.password) {
+                      updateActiveNote({ isLocked: false, password: '' });
+                      setUnlockedNoteIds((prev) => prev.filter((id) => id !== activeNote.id));
+                      setShowLockRemoveModal(false);
+                      setLockRemoveInput('');
+                      setLockRemoveMismatch(false);
+                      playAppleChime();
+                      toast.success('🛡️ Đã gỡ bỏ mật khẩu ghi chú thành công!', { id: 'note-lock-removed' });
+                    } else {
+                      setLockRemoveMismatch(true);
+                      toast.error('Mã PIN không chính xác! Đang làm mới...', { id: 'note-pin-remove-err' });
+                      setTimeout(() => {
+                        setLockRemoveInput('');
+                        setLockRemoveMismatch(false);
+                        const input = document.getElementById('apple-note-pin-remove-input') as HTMLInputElement | null;
+                        input?.focus();
+                      }, 600);
+                    }
+                  }
+                }
+              }}
+              onChange={() => {}}
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+            />
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-end pt-2 border-t border-black/[0.06] dark:border-white/10">
+            <button
+              type="button"
+              onClick={() => {
+                setShowLockRemoveModal(false);
+                setLockRemoveInput('');
+                setLockRemoveMismatch(false);
+              }}
+              className="px-3.5 py-1.5 rounded-full text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] border border-black/5 dark:border-white/10 transition-colors cursor-pointer active:scale-95"
+            >
+              Hủy
+            </button>
           </div>
         </div>
       </AppleLiquidDialog>
