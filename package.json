@@ -2,11 +2,12 @@
   "name": "procurement-assistant",
   "version": "1.0.0",
   "author": "Farmers Market Vietnam",
+  "license": "UNLICENSED",
   "private": true,
-  "description": "AI Procurement & Merchandising Assistant - Farmers Market",
-  "main": "electron/dist/main.js",
+  "description": "FM Workspace - Personal Procurement & Merchandising Assistant (Local Web App)",
+  "main": "server/dist/index.js",
   "scripts": {
-    "setup": "npm install && npm --prefix server install && npm --prefix client install --legacy-peer-deps && npm --prefix server run db:init",
+    "setup": "npm install && npm --prefix server install && npm --prefix client install --legacy-peer-deps && npm --prefix server run db:init && npm run build:all && node scripts/create_shortcut.cjs",
     "install:all": "npm --prefix server install && npm --prefix client install --legacy-peer-deps",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "cd server && npm run dev",
@@ -15,23 +16,15 @@
     "build:all": "npm --prefix server run build && npm --prefix client run build",
     "build:server": "npm --prefix server run build",
     "build:client": "npm --prefix client run build",
-    "build:electron": "tsup electron/main.ts electron/preload.ts --out-dir electron/dist --format cjs --external electron",
-    "app:dev": "cross-env NODE_ENV=development concurrently \"npm run dev:server\" \"wait-on http://localhost:3000 && npm run build:electron && electron .\"",
-    "app:start": "npm run build:electron && electron .",
-    "dist": "npm run build:all && npm run build:electron && electron-builder",
-    "dist:win": "npm run build:all && npm run build:electron && electron-builder --win",
-    "dist:dir": "npm run build:all && npm run build:electron && electron-builder --dir",
     "start": "node server/dist/index.js",
+    "test": "npm --prefix server test",
+    "shortcut": "node scripts/create_shortcut.cjs",
     "db:init": "cd server && npm run db:init",
     "db:seed": "cd server && npm run db:seed"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
     "cross-env": "^10.1.0",
-    "electron": "^45.0.0",
-    "electron-builder": "^26.15.3",
-    "tsup": "^9.0.0",
-    "typescript": "^7.0.2",
-    "wait-on": "^9.5.1"
+    "typescript": "^5.3.3"
   }
 }

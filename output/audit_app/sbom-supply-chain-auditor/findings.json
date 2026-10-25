@@ -1,0 +1,22 @@
+{
+  "target": "D:\\trợ lý thu mua\\output\\audit_app\\electron-unpacked",
+  "skill": "sbom-supply-chain-auditor",
+  "summary": {
+    "files_scanned": 1,
+    "findings_count": 1,
+    "highest_severity": "low"
+  },
+  "findings": [
+    {
+      "id": "SC-008",
+      "severity": "low",
+      "category": "license",
+      "title": "No license declared",
+      "file": "app_asar\\package.json",
+      "line": 1,
+      "evidence": "license: (missing)",
+      "recommendation": "Declare a license; missing licenses block safe redistribution."
+    }
+  ],
+  "artifacts": []
+}

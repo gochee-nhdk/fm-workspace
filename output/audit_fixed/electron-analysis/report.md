@@ -1,0 +1,165 @@
+# Electron App Analysis Report
+
+Root: `D:\trợ lý thu mua\output\audit_fixed\electron-unpacked`
+Files analyzed: 17
+Artifacts: none
+
+## Findings
+- unsafe eval usage
+- document cookie access
+- shell.openExternal usage
+- ipcMain handlers present
+- ipcRenderer used in renderer/preload
+
+## Affected Files
+- `app_asar/client/dist/assets/index-DW5xi8P5.js`: unsafe eval usage
+- `app_asar/client/dist/assets/vendor-excel-DLNWaC59.js`: unsafe eval usage
+- `app_asar/client/dist/assets/vendor-excel-style-c2bl9r4f.js`: unsafe eval usage
+- `app_asar/client/dist/assets/vendor-query-BpcW3wda.js`: unsafe eval usage
+- `app_asar/client/dist/assets/vendor-react-DN4eRG7x.js`: unsafe eval usage
+- `app_asar/client/dist/assets/vendor-utils-rcEgvU25.js`: unsafe eval usage, document cookie access
+- `app_asar/electron/dist/main.js`: shell.openExternal usage, ipcMain handlers present
+- `app_asar/electron/dist/preload.js`: ipcRenderer used in renderer/preload
+
+## Endpoints
+- `https://${t}`
+- `https://bravo.farmersmarket.vn`
+- `https://docs.google.com/spreadsheets/...`
+- `https://maps.google.com/?q=...`
+- `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=%24%7Bt%7D&dt=t&q=%24%7BencodeURIComponent%28r`
+- `https://generativelanguage.googleapis.com/v1beta/models?key=<redacted>`
+- `https://generativelanguage.googleapis.com/v1beta/models/${g}:generateContent?key=<redacted>`
+- `https://generativelanguage.googleapis.com/v1beta/models/${x}:generateContent?key=<redacted>`
+- `/api`
+- `/auth/local-token`
+- `/auth/`
+- `/auth/login`
+- `/auth/register`
+- `/auth/google`
+- `/auth/quick-profile`
+- `https://myaccount.google.com/apppasswords`
+- `https://${S}`
+- `https://domain.com`
+- `https://...`
+- `https://${A}`
+- `https://maps.google.com/maps?q=%24%7BencodeURIComponent%28s.coords`
+- `https://maps.google.com/maps?q=%24%7BencodeURIComponent%28h`
+- `https://maps.google.com/maps?q=%24%7BencodeURIComponent%28`
+- `https://www.google.com/maps/search/?api=1&query=%24%7BencodeURIComponent%28s`
+- `https://maps.google.com/maps?q=%24%7BencodeURIComponent%28p.trim%28`
+- `https://maps.app.goo.gl/...`
+- `https://google.com/maps/...`
+- `http://sheetjs.com`
+- `http://schemas.openxmlformats.org/package/2006/content-types`
+- `http://schemas.openxmlformats.org/spreadsheetml/2006/main`
+- `http://purl.oclc.org/ooxml/spreadsheetml/main`
+- `http://schemas.microsoft.com/office/excel/2006/main`
+- `http://schemas.microsoft.com/office/excel/2006/2`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument`
+- `http://sheetjs.openxmlformats.org/officeDocument/2006/relationships/officeDocument`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/vmlDrawing`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLinkPath`
+- `http://schemas.microsoft.com/office/2006/relationships/xlExternalLinkPath/xlPathMissing`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLink`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXmlProps`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments`
+- `http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart`
+- `http://schemas.microsoft.com/office/2014/relationships/chartEx`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/chartsheet`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet`
+- `http://purl.oclc.org/ooxml/officeDocument/relationships/worksheet`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/dialogsheet`
+- `http://schemas.microsoft.com/office/2006/relationships/xlMacrosheet`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/image`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships/sheetMetadata`
+- `http://schemas.microsoft.com/office/2017/10/relationships/threadedComment`
+- `http://schemas.microsoft.com/office/2017/10/relationships/person`
+- `http://schemas.microsoft.com/office/2006/relationships/vbaProject`
+- `http://schemas.openxmlformats.org/drawingml/2006/main`
+- `http://schemas.openxmlformats.org/package/2006/metadata/core-properties`
+- `http://schemas.openxmlformats.org/officeDocument/2006/custom-properties`
+- `http://schemas.openxmlformats.org/officeDocument/2006/extended-properties`
+- `http://schemas.openxmlformats.org/package/2006/relationships`
+- `http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments`
+- `http://purl.org/dc/elements/1.1/`
+- `http://purl.org/dc/terms/`
+- `http://purl.org/dc/dcmitype/`
+- `http://schemas.openxmlformats.org/officeDocument/2006/relationships`
+- `http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes`
+- `http://www.w3.org/2001/XMLSchema-instance`
+- `http://www.w3.org/2001/XMLSchema`
+- `http://macVmlSchemaUri`
+- `http://www.w3.org/TR/REC-html40`
+- `http://docs.oasis-open.org/ns/office/1.2/meta/`
+- `http://www.w3.org/1999/xlink`
+- `http://schemas.microsoft.com/office/spreadsheetml/2017/richdata`
+- `http://schemas.microsoft.com/office/spreadsheetml/2017/dynamicarray`
+- `http://www.w3.org/1998/Math/MathML`
+- `http://openoffice.org/2004/office`
+- `http://openoffice.org/2004/writer`
+- `http://openoffice.org/2004/calc`
+- `http://www.w3.org/2001/xml-events`
+- `http://www.w3.org/2002/xforms`
+- `http://openoffice.org/2005/report`
+- `http://www.w3.org/1999/xhtml`
+- `http://www.w3.org/2003/g/data-view#`
+- `http://openoffice.org/2009/table`
+- `http://openoffice.org/2010/draw`
+- `http://www.w3.org/TR/css3-text/`
+- `http://www.w3.org/1999/02/22-rdf-syntax-ns#`
+- `http://docs.oasis-open.org/ns/office/1.2/meta/pkg#`
+- `http://schemas.openxmlformats.org/markup-compatibility/2006`
+- `http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac`
+- `/auth`
+- `http://www.w3.org/2000/svg`
+- `https://reactjs.org/docs/error-decoder.html?invariant=`
+- `http://www.w3.org/XML/1998/namespace`
+- `http://localhost`
+- `https://reactrouter.com/en/main/routers/picking-a-router.`
+- `https://github.com/ungap/url-search-params.`
+- `https://github.com/pmndrs/zustand/discussions/1937`
+- `http://127.0.0.1:${serverPort}/health`
+- `http://localhost:${serverPort}`
+- `https://api.dicebear.com/7.x/initials/svg?seed=%24%7BencodeURIComponent%28name`
+- `https://oauth2.googleapis.com/tokeninfo?id_token=%24%7BencodeURIComponent%28credential`
+- `http://localhost:5173`
+- `http://127.0.0.1:5173`
+- `http://localhost:3000`
+- `http://127.0.0.1:3000`
+- `https://fonts.googleapis.com;`
+- `https://fonts.gstatic.com;`
+- `http://${host}:${port}`
+- `/login`
+- `/api/auth/refresh`
+- `/logout`
+- `/download/`
+- `/api/auth`
+- `/api/dashboard`
+- `/api/products`
+- `/api/ai`
+- `/api/procurement`
+- `/api/stores`
+- `/api/suppliers`
+- `/api/inventory`
+- `/api/transfers`
+- `/api/analytics`
+- `/api/reports`
+- `/api/imports`
+- `/api/notifications`
+- `/api/audit-logs`
+- `/api/settings`
+- `/api/search`
+- `/api/knowledge`
+- `/api/sync`
+
+## Notes
+- Values are redacted by default. Do not run recovered endpoints or secrets against live services.

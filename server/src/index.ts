@@ -79,9 +79,10 @@ async function build() {
     const rawHost = request.headers.host || '';
     const hostname = rawHost.split(':')[0].toLowerCase();
     const isProd = process.env.NODE_ENV === 'production';
+    const isLocalOrDesktop = !isProd || process.env.ELECTRON_RUN === 'true' || process.env.LOCAL_DEV === 'true';
 
-    // In local development or local servers, only accept localhost and 127.0.0.1
-    if (!isProd) {
+    // In local development or local desktop app, strictly only accept localhost and 127.0.0.1
+    if (isLocalOrDesktop) {
       const allowedLocalHosts = ['localhost', '127.0.0.1'];
       if (!allowedLocalHosts.includes(hostname)) {
         reply.status(403).send({
@@ -105,7 +106,9 @@ async function build() {
       'Content-Security-Policy',
       "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: http: ws: wss:; frame-ancestors 'none';"
     );
-    if (process.env.NODE_ENV === 'production') {
+    // Security: Only send HSTS over true HTTPS in production web deployment, never on local desktop HTTP
+    const isDesktop = process.env.ELECTRON_RUN === 'true' || process.env.LOCAL_DEV === 'true';
+    if (process.env.NODE_ENV === 'production' && !isDesktop && (_request.protocol === 'https' || _request.headers['x-forwarded-proto'] === 'https')) {
       reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
     }
   });
@@ -201,8 +204,9 @@ const start = async () => {
   try {
     const server = await build();
     const port = Number(process.env.PORT) || 3000;
-    // Security: Bind strictly to 127.0.0.1 in local dev, avoiding 0.0.0.0 public interface exposure
-    const host = process.env.HOST || (process.env.NODE_ENV === 'production' && !process.env.LOCAL_DEV ? '0.0.0.0' : '127.0.0.1');
+    // Security: Bind strictly to 127.0.0.1 in local dev and desktop app, avoiding 0.0.0.0 public interface exposure
+    const isDesktop = process.env.ELECTRON_RUN === 'true' || process.env.LOCAL_DEV === 'true';
+    const host = process.env.HOST || (isDesktop ? '127.0.0.1' : (process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1'));
     await server.listen({ port, host });
     console.log(`[FM Security Shield] Server securely listening on http://${host}:${port}`);
   } catch (err) {

@@ -1,0 +1,30 @@
+{
+  "app_asar/client/dist/assets/index-DW5xi8P5.js": [
+    "unsafe eval usage"
+  ],
+  "app_asar/client/dist/assets/vendor-excel-DLNWaC59.js": [
+    "unsafe eval usage"
+  ],
+  "app_asar/client/dist/assets/vendor-excel-style-c2bl9r4f.js": [
+    "unsafe eval usage"
+  ],
+  "app_asar/client/dist/assets/vendor-query-BpcW3wda.js": [
+    "unsafe eval usage"
+  ],
+  "app_asar/client/dist/assets/vendor-react-DN4eRG7x.js": [
+    "unsafe eval usage"
+  ],
+  "app_asar/client/dist/assets/vendor-utils-rcEgvU25.js": [
+    "unsafe eval usage",
+    "document cookie access"
+  ],
+  "app_asar/electron/dist/main.js": [
+    "sandbox disabled",
+    "shell.openExternal usage",
+    "ipcMain handlers present"
+  ],
+  "app_asar/electron/dist/preload.js": [
+    "shell.openExternal usage",
+    "ipcRenderer used in renderer/preload"
+  ]
+}

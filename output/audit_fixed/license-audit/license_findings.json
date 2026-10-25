@@ -1,0 +1,367 @@
+{
+  "source": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked",
+  "files_scanned": 15,
+  "license_files": [
+    "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\client\\dist\\assets\\vendor-excel-DLNWaC59.js",
+    "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\client\\dist\\assets\\vendor-excel-style-c2bl9r4f.js",
+    "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\client\\dist\\assets\\vendor-icons-BPcbZ_bO.js",
+    "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\client\\dist\\assets\\vendor-query-BpcW3wda.js",
+    "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\client\\dist\\assets\\vendor-react-DN4eRG7x.js",
+    "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\client\\dist\\assets\\vendor-utils-rcEgvU25.js",
+    "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\electron\\dist\\main.js",
+    "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js"
+  ],
+  "server_validation": true,
+  "findings": [
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\client\\dist\\assets\\vendor-query-BpcW3wda.js",
+      "line": 17,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "*/var Ne=Mt,Ge=Symbol.for(\"react.element\"),Be=Symbol.for(\"react.fragment\"),Ve=Object.prototype.hasOwnProperty,ze=Ne.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\client\\dist\\assets\\vendor-react-DN4eRG7x.js",
+      "line": 35,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "Please change the parent <Route path=\"${f}\"> to <Route path=\"${f===\"/\"?\"*\":`${f}/*`}\">.`)}let d=Ue(),p;if(t){let f=typeof t==\"string\"?vn(t):t;A(a===\"/\"||((C=f.p"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 81,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "is_active INTEGER DEFAULT 1,"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 108,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "is_active INTEGER DEFAULT 1,"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 135,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "is_active INTEGER DEFAULT 1,"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 150,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "is_active INTEGER DEFAULT 1,"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 591,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "SELECT id, email, role, full_name, is_active FROM users"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 592,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "WHERE role = 'admin' AND is_active = 1"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 609,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "const user = db.prepare(\"SELECT id, is_active FROM users WHERE id = ?\").get(decoded.id);"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 610,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "if (!user || user.is_active === 0) {"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 663,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "INSERT INTO users (id, email, full_name, password_hash, role, avatar_url, is_active, created_at, updated_at)"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 710,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "if (!user || user.is_active === 0) {"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 782,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "const user = db.prepare(\"SELECT id, email, role, full_name, is_active FROM users WHERE id = ?\").get(matchedSession.user_id);"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 783,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "if (!user || user.is_active === 0) {"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 872,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "INSERT INTO users (id, email, full_name, role, google_id, avatar_url, is_active, created_at, updated_at)"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 917,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "INSERT INTO users (id, email, full_name, role, avatar_url, is_active, created_at, updated_at)"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 945,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "SELECT id, email, role, full_name, is_active FROM users"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 946,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "WHERE role = 'admin' AND is_active = 1"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 975,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "const totalSkus = db.prepare(\"SELECT COUNT(*) as count FROM products WHERE is_active = 1\").get()?.count || 0;"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 976,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "const totalStores = db.prepare(\"SELECT COUNT(*) as count FROM stores WHERE is_active = 1\").get()?.count || 0;"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 1078,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "WHERE p.is_active = 1"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 1604,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "const products = db.prepare(\"SELECT id FROM products WHERE is_active = 1\").all();"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 1919,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "let query = \"SELECT * FROM stores WHERE is_active = 1\";"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 1948,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "const { name, address, is_active } = request.body;"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 1949,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "db.prepare(\"UPDATE stores SET name = ?, address = ?, is_active = ?, updated_at = ? WHERE id = ?\").run(name, address, is_active, (/* @__PURE__ */ new Date()).toI"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 1981,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "let query = \"SELECT * FROM suppliers WHERE is_active = 1\";"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 2008,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "const { name, contact_name, phone, lead_time_days, is_active } = request.body;"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 2010,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "UPDATE suppliers SET name=?, contact_name=?, phone=?, lead_time_days=?, is_active=?, updated_at=? WHERE id=?"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 2011,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "`).run(name, contact_name, phone, lead_time_days, is_active, (/* @__PURE__ */ new Date()).toISOString(), request.params.id);"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 4516,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "const users = getDb().prepare(\"SELECT id, email, full_name, role, is_active, created_at, updated_at FROM users ORDER BY created_at ASC\").all();"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 4533,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "INSERT INTO users (id, email, full_name, password_hash, role, is_active, created_at, updated_at)"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 4540,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "const { full_name, role, is_active, password } = request.body || {};"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 4556,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "is_active = COALESCE(?, is_active),"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 4563,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "is_active !== void 0 ? Number(is_active) : null,"
+    },
+    {
+      "file": "D:\\tr\u1ee3 l\u00fd thu mua\\output\\audit_fixed\\electron-unpacked\\app_asar\\server\\dist\\index.js",
+      "line": 4568,
+      "severity": "high",
+      "category": "client-side-gate",
+      "title": "Client-side validation gate",
+      "why": "A boolean check that lives in the client can be observed and tampered; an attacker forces it true without the real secret.",
+      "fix": "Move the authoritative check server-side; the client should only render the server's signed allow/deny decision.",
+      "snippet": "auditLog(request, \"UPDATE_USER\", \"users\", id, existing, { role, is_active });"
+    }
+  ]
+}

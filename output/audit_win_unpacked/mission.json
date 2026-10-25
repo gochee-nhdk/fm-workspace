@@ -1,0 +1,73 @@
+{
+  "target": "dist-electron\\win-unpacked",
+  "started_at": "2026-10-25T08:26:57.432080+00:00",
+  "finished_at": "2026-10-25T08:27:00.302080+00:00",
+  "out_dir": "D:\\trợ lý thu mua\\output\\audit_win_unpacked",
+  "fingerprint": {
+    "note": "skipped (URL or directory target)"
+  },
+  "phases": [
+    {
+      "name": "breach",
+      "skill": "electron-builder-unpacker",
+      "command": [
+        "C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "D:\\trợ lý thu mua\\skill\\electron-builder-unpacker\\scripts\\unpack_electron_builder.py",
+        "dist-electron\\win-unpacked",
+        "--out",
+        "D:\\trợ lý thu mua\\output\\audit_win_unpacked\\electron-unpacked"
+      ],
+      "returncode": 1,
+      "stdout_tail": "",
+      "stderr_tail": "Traceback (most recent call last):\n  File \"D:\\trợ lý thu mua\\skill\\electron-builder-unpacker\\scripts\\unpack_electron_builder.py\", line 240, in <module>\n    raise SystemExit(main())\n                     ^^^^^^\n  File \"D:\\trợ lý thu mua\\skill\\electron-builder-unpacker\\scripts\\unpack_electron_builder.py\", line 228, in main\n    result = unpack_path(Path(args.path), Path(args.out))\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"D:\\trợ lý thu mua\\skill\\electron-builder-unpacker\\scripts\\unpack_electron_builder.py\", line 156, in unpack_path\n    raise FileNotFoundError(root)\nFileNotFoundError: dist-electron\\win-unpacked",
+      "started_at": "2026-10-25T08:26:57.433080+00:00",
+      "duration_s": 0.058282,
+      "artifacts": [],
+      "notes": []
+    },
+    {
+      "name": "audit:supply-chain",
+      "skill": "sbom-supply-chain-auditor",
+      "command": [
+        "C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "D:\\trợ lý thu mua\\skill\\sbom-supply-chain-auditor\\scripts\\analyze_supply_chain.py",
+        "dist-electron\\win-unpacked",
+        "--out",
+        "D:\\trợ lý thu mua\\output\\audit_win_unpacked\\sbom-supply-chain-auditor"
+      ],
+      "returncode": 0,
+      "stdout_tail": "[+] Findings: 0\n[+] Report: D:\\trợ lý thu mua\\output\\audit_win_unpacked\\sbom-supply-chain-auditor\\REPORT.md",
+      "stderr_tail": "",
+      "started_at": "2026-10-25T08:26:58.846273+00:00",
+      "duration_s": 0.046607,
+      "artifacts": [
+        "D:\\trợ lý thu mua\\output\\audit_win_unpacked\\sbom-supply-chain-auditor"
+      ],
+      "notes": []
+    },
+    {
+      "name": "guided",
+      "skill": "(guidance)",
+      "command": [],
+      "returncode": 0,
+      "stdout_tail": "Auto-ran: capture=False, memory-scan=False. Manual steps written to GUIDANCE.md (frida/symbolic/anti-debug/mitigation; circumvention excluded per policy).",
+      "stderr_tail": "",
+      "started_at": "2026-10-25T08:27:00.302080+00:00",
+      "duration_s": 0.0,
+      "artifacts": [
+        "D:\\trợ lý thu mua\\output\\audit_win_unpacked\\GUIDANCE.md"
+      ],
+      "notes": []
+    }
+  ],
+  "deliverables": {
+    "source": [],
+    "findings": [
+      "sbom-supply-chain-auditor/findings.json"
+    ],
+    "remediation": [],
+    "reports": [
+      "sbom-supply-chain-auditor/REPORT.md"
+    ]
+  }
+}

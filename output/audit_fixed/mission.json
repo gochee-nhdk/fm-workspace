@@ -1,0 +1,170 @@
+{
+  "target": "D:\\trợ lý thu mua\\dist-electron\\win-unpacked",
+  "started_at": "2026-10-25T11:09:21.761395+00:00",
+  "finished_at": "2026-10-25T11:09:30.597964+00:00",
+  "out_dir": "D:\\trợ lý thu mua\\output\\audit_fixed",
+  "fingerprint": {
+    "note": "skipped (URL or directory target)"
+  },
+  "phases": [
+    {
+      "name": "breach",
+      "skill": "electron-builder-unpacker",
+      "command": [
+        "C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "D:\\trợ lý thu mua\\skill\\electron-builder-unpacker\\scripts\\unpack_electron_builder.py",
+        "D:\\trợ lý thu mua\\dist-electron\\win-unpacked",
+        "--out",
+        "D:\\trợ lý thu mua\\output\\audit_fixed\\electron-unpacked"
+      ],
+      "returncode": 0,
+      "stdout_tail": "[+] ASAR archives: 1\n[+] Unpacked dirs: 0\n[+] Update configs: 0\n[+] Manifest: D:\\trợ lý thu mua\\output\\audit_fixed\\electron-unpacked\\unpack_manifest.json",
+      "stderr_tail": "",
+      "started_at": "2026-10-25T11:09:21.762393+00:00",
+      "duration_s": 2.969715,
+      "artifacts": [],
+      "notes": []
+    },
+    {
+      "name": "audit",
+      "skill": "electron-app-analyzer",
+      "command": [
+        "C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "D:\\trợ lý thu mua\\skill\\electron-app-analyzer\\scripts\\analyze_electron.py",
+        "D:\\trợ lý thu mua\\output\\audit_fixed\\electron-unpacked",
+        "--out",
+        "D:\\trợ lý thu mua\\output\\audit_fixed\\electron-analysis"
+      ],
+      "returncode": 0,
+      "stdout_tail": "[+] Files analyzed: 17\n[+] Findings: 6\n[+] Endpoints: 138\n[+] Report: D:\\trợ lý thu mua\\output\\audit_fixed\\electron-analysis\\report.md",
+      "stderr_tail": "",
+      "started_at": "2026-10-25T11:09:24.733106+00:00",
+      "duration_s": 0.276796,
+      "artifacts": [],
+      "notes": []
+    },
+    {
+      "name": "audit:secrets",
+      "skill": "dotnet-decompiler",
+      "command": [
+        "C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "D:\\trợ lý thu mua\\skill\\dotnet-decompiler\\scripts\\analyze_dotnet.py",
+        "D:\\trợ lý thu mua\\output\\audit_fixed\\electron-unpacked",
+        "--out",
+        "D:\\trợ lý thu mua\\output\\audit_fixed\\audit-results"
+      ],
+      "returncode": 0,
+      "stdout_tail": "[*] Scanning 2 files (0 .cs)\n\n[+] Analysis complete:\n    License patterns : 0\n    Secrets/tokens   : 0\n    Protection       : 0\n    Report: D:\\trợ lý thu mua\\output\\audit_fixed\\audit-results\\analysis.json",
+      "stderr_tail": "",
+      "started_at": "2026-10-25T11:09:25.009902+00:00",
+      "duration_s": 0.07068,
+      "artifacts": [],
+      "notes": []
+    },
+    {
+      "name": "audit:license",
+      "skill": "license-robustness-audit",
+      "command": [
+        "C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "D:\\trợ lý thu mua\\skill\\license-robustness-audit\\scripts\\audit_license.py",
+        "D:\\trợ lý thu mua\\output\\audit_fixed\\electron-unpacked",
+        "--out",
+        "D:\\trợ lý thu mua\\output\\audit_fixed\\license-audit"
+      ],
+      "returncode": 0,
+      "stdout_tail": "[+] Scanned 15 source file(s); 8 touch licensing.\n[+] 35 weakness signal(s).\n[+] D:\\trợ lý thu mua\\output\\audit_fixed\\license-audit\\LICENSE_AUDIT.md\n[+] D:\\trợ lý thu mua\\output\\audit_fixed\\license-audit\\ATTACK_PATH.md (design-level attack paths + mermaid)\n[+] D:\\trợ lý thu mua\\output\\audit_fixed\\license-audit\\test_license_behavior.py (fill in evaluate_license)",
+      "stderr_tail": "",
+      "started_at": "2026-10-25T11:09:25.080582+00:00",
+      "duration_s": 0.321854,
+      "artifacts": [
+        "D:\\trợ lý thu mua\\output\\audit_fixed\\license-audit"
+      ],
+      "notes": []
+    },
+    {
+      "name": "audit:supply-chain",
+      "skill": "sbom-supply-chain-auditor",
+      "command": [
+        "C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "D:\\trợ lý thu mua\\skill\\sbom-supply-chain-auditor\\scripts\\analyze_supply_chain.py",
+        "D:\\trợ lý thu mua\\dist-electron\\win-unpacked",
+        "--out",
+        "D:\\trợ lý thu mua\\output\\audit_fixed\\sbom-supply-chain-auditor"
+      ],
+      "returncode": 0,
+      "stdout_tail": "[+] Findings: 3387\n[+] Report: D:\\trợ lý thu mua\\output\\audit_fixed\\sbom-supply-chain-auditor\\REPORT.md",
+      "stderr_tail": "",
+      "started_at": "2026-10-25T11:09:26.676255+00:00",
+      "duration_s": 1.031879,
+      "artifacts": [
+        "D:\\trợ lý thu mua\\output\\audit_fixed\\sbom-supply-chain-auditor"
+      ],
+      "notes": []
+    },
+    {
+      "name": "audit:supply-chain",
+      "skill": "sbom-supply-chain-auditor",
+      "command": [
+        "C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "D:\\trợ lý thu mua\\skill\\sbom-supply-chain-auditor\\scripts\\analyze_supply_chain.py",
+        "D:\\trợ lý thu mua\\output\\audit_fixed\\electron-unpacked",
+        "--out",
+        "D:\\trợ lý thu mua\\output\\audit_fixed\\sbom-supply-chain-auditor"
+      ],
+      "returncode": 0,
+      "stdout_tail": "[+] Findings: 1\n[+] Report: D:\\trợ lý thu mua\\output\\audit_fixed\\sbom-supply-chain-auditor\\REPORT.md",
+      "stderr_tail": "",
+      "started_at": "2026-10-25T11:09:27.715708+00:00",
+      "duration_s": 0.060137,
+      "artifacts": [
+        "D:\\trợ lý thu mua\\output\\audit_fixed\\sbom-supply-chain-auditor"
+      ],
+      "notes": []
+    },
+    {
+      "name": "guided",
+      "skill": "(guidance)",
+      "command": [],
+      "returncode": 0,
+      "stdout_tail": "Auto-ran: capture=False, memory-scan=False. Manual steps written to GUIDANCE.md (frida/symbolic/anti-debug/mitigation; circumvention excluded per policy).",
+      "stderr_tail": "",
+      "started_at": "2026-10-25T11:09:30.586965+00:00",
+      "duration_s": 0.0,
+      "artifacts": [
+        "D:\\trợ lý thu mua\\output\\audit_fixed\\GUIDANCE.md"
+      ],
+      "notes": []
+    }
+  ],
+  "deliverables": {
+    "source": [
+      "electron-unpacked/app_asar/client/dist/assets/index-DW5xi8P5.js",
+      "electron-unpacked/app_asar/client/dist/assets/SegmentedNavigation-O5g2aOtH.js",
+      "electron-unpacked/app_asar/client/dist/assets/SettingsPage-1rIf48jv.js",
+      "electron-unpacked/app_asar/client/dist/assets/UnifiedWorkspacePage-BtVHEF2k.js",
+      "electron-unpacked/app_asar/client/dist/assets/vendor-charts-BV4GmCGq.js",
+      "electron-unpacked/app_asar/client/dist/assets/vendor-excel-DLNWaC59.js",
+      "electron-unpacked/app_asar/client/dist/assets/vendor-excel-style-c2bl9r4f.js",
+      "electron-unpacked/app_asar/client/dist/assets/vendor-forms-CuMtjt0q.js",
+      "electron-unpacked/app_asar/client/dist/assets/vendor-icons-BPcbZ_bO.js",
+      "electron-unpacked/app_asar/client/dist/assets/vendor-query-BpcW3wda.js",
+      "electron-unpacked/app_asar/client/dist/assets/vendor-react-DN4eRG7x.js",
+      "electron-unpacked/app_asar/client/dist/assets/vendor-utils-rcEgvU25.js",
+      "electron-unpacked/app_asar/electron/dist/main.js",
+      "electron-unpacked/app_asar/electron/dist/preload.js",
+      "electron-unpacked/app_asar/server/dist/index.js"
+    ],
+    "findings": [
+      "electron-analysis/endpoints.json",
+      "electron-analysis/findings.json",
+      "license-audit/license_findings.json",
+      "sbom-supply-chain-auditor/findings.json"
+    ],
+    "remediation": [],
+    "reports": [
+      "electron-analysis/report.md",
+      "electron-unpacked/report.md",
+      "sbom-supply-chain-auditor/REPORT.md"
+    ]
+  }
+}

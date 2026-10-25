@@ -1,0 +1,22 @@
+{
+  "target": "D:\\trợ lý thu mua\\output\\audit_fixed\\electron-unpacked",
+  "skill": "sbom-supply-chain-auditor",
+  "summary": {
+    "files_scanned": 1,
+    "findings_count": 1,
+    "highest_severity": "medium"
+  },
+  "findings": [
+    {
+      "id": "SC-009",
+      "severity": "medium",
+      "category": "license",
+      "title": "Copyleft / restrictive license",
+      "file": "app_asar\\package.json",
+      "line": 1,
+      "evidence": "license: UNLICENSED",
+      "recommendation": "Review license obligations before redistribution."
+    }
+  ],
+  "artifacts": []
+}

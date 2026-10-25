@@ -1,0 +1,11 @@
+{
+  "target": "dist-electron\\win-unpacked",
+  "skill": "sbom-supply-chain-auditor",
+  "summary": {
+    "files_scanned": 0,
+    "findings_count": 0,
+    "highest_severity": "info"
+  },
+  "findings": [],
+  "artifacts": []
+}

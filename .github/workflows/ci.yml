@@ -1,0 +1,41 @@
+name: Node.js CI & Quality Gates
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm install
+          npm --prefix server install
+          npm --prefix client install --legacy-peer-deps
+
+      - name: TypeScript Lint / Typecheck
+        run: |
+          npm --prefix client run lint
+          npx tsc -p server/tsconfig.json --noEmit
+
+      - name: Run Test Suites (56 Tests)
+        run: npm --prefix server test
+
+      - name: Verify Production Build
+        run: npm run build:all

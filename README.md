@@ -12,60 +12,56 @@
 
 ---
 
-## 💻 Ứng Dụng Desktop Độc Lập (Khuyến Nghị Cho Người Dùng)
+## 🚀 Cài Đặt Nhanh 1 Lệnh Duy Nhất (1-Command Terminal Setup)
 
-Bạn có thể sử dụng FM Workspace như một ứng dụng máy tính độc lập (Native Desktop App) hoàn toàn không cần trình duyệt web hay cài đặt Node.js:
+Chỉ cần mở Terminal / PowerShell, dán đúng **1 dòng lệnh duy nhất** dưới đây rồi nhấn Enter — hệ thống sẽ tự động tải mã nguồn về máy, cho phép chọn ổ đĩa cài đặt trực quan, thiết lập CSDL SQLite, tự động tạo phím tắt Desktop và khởi chạy ngay trên trình duyệt mặc định:
 
-<p align="left">
-  <a href="https://github.com/gochee-nhdk/fm-workspace/releases/download/v1.0.0/FM.Workspace.Setup.1.0.0.exe">
-    <img src="https://img.shields.io/badge/⬇️_Tải_Bản_Cài_Đặt_(1--Click)-FM_Workspace_Setup.exe-0071e3?style=for-the-badge&logo=windows&logoColor=white" alt="Download Windows Installer 1-Click" />
-  </a>
-  <a href="https://github.com/gochee-nhdk/fm-workspace/releases/download/v1.0.0/FM-Workspace-Portable.zip">
-    <img src="https://img.shields.io/badge/⬇️_Tải_Bản_Portable_(1--Click)-FM_Workspace.zip-34c759?style=for-the-badge&logo=files&logoColor=white" alt="Download Portable Zip 1-Click" />
-  </a>
-</p>
+### 🪟 Windows (Mở PowerShell):
+```powershell
+irm https://raw.githubusercontent.com/gochee-nhdk/fm-workspace/main/scripts/install.ps1 | iex
+```
 
-### 📥 2 Cách Cài Đặt & Sử Dụng:
-- **Cách 1: Bản Cài Đặt Tự Động (.exe):** Tải `FM Workspace Setup 1.0.0.exe` về máy, nhấp đúp là tự cài đặt trong 5 giây và tạo biểu tượng **FM Workspace** trên Desktop và Start Menu.
-- **Cách 2: Bản Portable (.zip):** Tải về, giải nén và mở file `FM Workspace.exe` chạy ngay — không cần cài đặt, không cần quyền Quản trị viên (Admin).
-- **Tự đóng gói từ mã nguồn:** Nhấp đúp vào `DONG_GOI_APP_EXE.bat` để tự tạo bản cài đặt mới nhất.
-
-> [!NOTE]
-> **🛡️ Về bảo mật Windows SmartScreen:**  
-> Do ứng dụng là phần mềm nội bộ mã nguồn mở mới phát hành, Windows Defender SmartScreen có thể hiện thông báo bảo vệ lần đầu mở. Bạn chỉ cần bấm **More info (Thông tin khác)** ➜ chọn **Run anyway (Vẫn chạy)** là app sẽ khởi động bình thường. Ứng dụng tuân thủ tiêu chuẩn `asInvoker` của Microsoft, 100% không đòi hỏi quyền can thiệp hệ thống và chạy offline cục bộ.
+### 🍎 macOS / Linux (Mở Terminal):
+```bash
+curl -fsSL https://raw.githubusercontent.com/gochee-nhdk/fm-workspace/main/scripts/install.sh | bash
+```
 
 ---
 
-## ⚡ Cài Đặt Bản Web / Source Code (Dành Cho Lập Trình Viên)
+## ⚡ Hoặc Cài Đặt 1-Click Khi Đã Tải Mã Nguồn Về Máy (Offline / Manual)
 
-### Yêu cầu duy nhất: [Node.js v18+](https://nodejs.org)
+Chỉ cần tải mã nguồn (code) từ GitHub về máy tính, chạy script cài đặt 1 lần duy nhất — hệ thống sẽ **tự động kích hoạt, tạo biểu tượng Desktop và sẵn sàng mở ngay trên trình duyệt mặc định**:
 
-#### 🪟 Windows
-
+### 🪟 Dành cho Windows:
+```cmd
+1. Tải về và giải nén mã nguồn từ GitHub
+2. Nhấp đúp vào: CAI_DAT_APP.bat (hoặc CAI_DAT.bat)
+3. Chờ 1-2 phút hoàn tất cài đặt
+4. Biểu tượng [FM Workspace] sẽ tự động xuất hiện trên màn hình Desktop
 ```
-1. Tải về và giải nén mã nguồn
-2. Nhấp đúp vào:  CAI_DAT_APP.bat
-3. Chờ khoảng 2-3 phút
-4. Xong! Biểu tượng [FM Workspace] xuất hiện trên Desktop
-```
+* **Mở app bất kỳ lúc nào:** Nhấp đúp vào biểu tượng trên Desktop hoặc nhấn phím tắt toàn cục **`Ctrl + Alt + F`**.
 
-#### 🍎 macOS / Linux
+---
 
+### 🍎 Dành cho macOS (và Linux):
 ```bash
-git clone https://github.com/gochee-nhdk/fm-workspace.git
-cd fm-workspace
+# Mở Terminal trong thư mục mã nguồn và chạy:
 chmod +x install.sh && ./install.sh
 ```
+* Script sẽ tự động cài đặt môi trường, biên dịch web app và **tự động tạo biểu tượng ứng dụng `FM Workspace` ngay trên màn hình Desktop của Mac**.
+* **Mở app bất kỳ lúc nào:** Nhấp đúp vào biểu tượng **FM Workspace** trên Desktop của Mac hoặc chạy `./start.sh`.
 
 ---
 
-## 🚀 Khởi Động Nhanh (Sau khi đã cài)
+## 🚀 Khởi Động & Quản Lý
 
-| Cách mở | Mô tả |
-|---|---|
-| **`Ctrl + Alt + F`** | Phím tắt toàn cục — Mở ngay từ mọi nơi (Windows) |
-| Nhấp đúp Desktop | Biểu tượng **FM Workspace** trên màn hình |
-| `./start.sh` | Dòng lệnh (macOS / Linux) |
+| Thao tác | Windows | macOS / Linux |
+|---|---|---|
+| **Cài đặt lần đầu** | `CAI_DAT_APP.bat` | `./install.sh` |
+| **Mở ứng dụng** | Nhấp đúp Desktop hoặc `Ctrl + Alt + F` | Nhấp đúp Desktop hoặc `./start.sh` |
+| **Dừng ứng dụng** | `DUNG_APP.bat` | `./stop.sh` |
+| **Sao lưu dữ liệu** | `SAO_LUU_DU_LIEU.bat` | Thư mục `server/data/app.db` |
+
 
 > App tự động kiểm tra xem server đang chạy chưa. Nếu chưa → tự khởi động, chờ ready, rồi mở trình duyệt mặc định.
 

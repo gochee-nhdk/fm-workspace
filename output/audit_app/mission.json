@@ -1,0 +1,172 @@
+{
+  "target": "D:\\trợ lý thu mua\\dist-electron\\win-unpacked",
+  "started_at": "2026-10-25T09:11:09.022264+00:00",
+  "finished_at": "2026-10-25T09:11:16.138595+00:00",
+  "out_dir": "D:\\trợ lý thu mua\\output\\audit_app",
+  "fingerprint": {
+    "note": "skipped (URL or directory target)"
+  },
+  "phases": [
+    {
+      "name": "breach",
+      "skill": "electron-builder-unpacker",
+      "command": [
+        "C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "D:\\trợ lý thu mua\\skill\\electron-builder-unpacker\\scripts\\unpack_electron_builder.py",
+        "D:\\trợ lý thu mua\\dist-electron\\win-unpacked",
+        "--out",
+        "D:\\trợ lý thu mua\\output\\audit_app\\electron-unpacked"
+      ],
+      "returncode": 1,
+      "stdout_tail": "[+] ASAR archives: 1\n[+] Unpacked dirs: 0\n[+] Update configs: 1",
+      "stderr_tail": "Traceback (most recent call last):\n  File \"D:\\tr\\u1ee3 l� thu mua\\skill\\electron-builder-unpacker\\scripts\\unpack_electron_builder.py\", line 240, in <module>\n    raise SystemExit(main())\n                     ^^^^^^\n  File \"D:\\tr\\u1ee3 l� thu mua\\skill\\electron-builder-unpacker\\scripts\\unpack_electron_builder.py\", line 235, in main\n    print(f\"[+] Manifest: {Path(args.out) / 'unpack_manifest.json'}\")\n  File \"C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\encodings\\cp1252.py\", line 19, in encode\n    return codecs.charmap_encode(input,self.errors,encoding_table)[0]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nUnicodeEncodeError: 'charmap' codec can't encode character '\\u1ee3' in position 19: character maps to <undefined>",
+      "started_at": "2026-10-25T09:11:09.022264+00:00",
+      "duration_s": 3.085277,
+      "artifacts": [],
+      "notes": []
+    },
+    {
+      "name": "audit",
+      "skill": "electron-app-analyzer",
+      "command": [
+        "C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "D:\\trợ lý thu mua\\skill\\electron-app-analyzer\\scripts\\analyze_electron.py",
+        "D:\\trợ lý thu mua\\output\\audit_app\\electron-unpacked",
+        "--out",
+        "D:\\trợ lý thu mua\\output\\audit_app\\electron-analysis"
+      ],
+      "returncode": 1,
+      "stdout_tail": "[+] Files analyzed: 17\n[+] Findings: 7\n[+] Endpoints: 138",
+      "stderr_tail": "Traceback (most recent call last):\n  File \"D:\\tr\\u1ee3 l� thu mua\\skill\\electron-app-analyzer\\scripts\\analyze_electron.py\", line 269, in <module>\n    raise SystemExit(main())\n                     ^^^^^^\n  File \"D:\\tr\\u1ee3 l� thu mua\\skill\\electron-app-analyzer\\scripts\\analyze_electron.py\", line 264, in main\n    print(f\"[+] Report: {Path(args.out) / 'report.md'}\")\n  File \"C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\encodings\\cp1252.py\", line 19, in encode\n    return codecs.charmap_encode(input,self.errors,encoding_table)[0]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nUnicodeEncodeError: 'charmap' codec can't encode character '\\u1ee3' in position 17: character maps to <undefined>",
+      "started_at": "2026-10-25T09:11:12.108540+00:00",
+      "duration_s": 0.270068,
+      "artifacts": [],
+      "notes": []
+    },
+    {
+      "name": "audit:secrets",
+      "skill": "dotnet-decompiler",
+      "command": [
+        "C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "D:\\trợ lý thu mua\\skill\\dotnet-decompiler\\scripts\\analyze_dotnet.py",
+        "D:\\trợ lý thu mua\\output\\audit_app\\electron-unpacked",
+        "--out",
+        "D:\\trợ lý thu mua\\output\\audit_app\\audit-results"
+      ],
+      "returncode": 1,
+      "stdout_tail": "[*] Scanning 2 files (0 .cs)\n\n[+] Analysis complete:\n    License patterns : 0\n    Secrets/tokens   : 0\n    Protection       : 0",
+      "stderr_tail": "Traceback (most recent call last):\n  File \"D:\\tr\\u1ee3 l� thu mua\\skill\\dotnet-decompiler\\scripts\\analyze_dotnet.py\", line 134, in <module>\n    raise SystemExit(main())\n                     ^^^^^^\n  File \"D:\\tr\\u1ee3 l� thu mua\\skill\\dotnet-decompiler\\scripts\\analyze_dotnet.py\", line 118, in main\n    print(f\"    Report: {out_dir / 'analysis.json'}\")\n  File \"C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\encodings\\cp1252.py\", line 19, in encode\n    return codecs.charmap_encode(input,self.errors,encoding_table)[0]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nUnicodeEncodeError: 'charmap' codec can't encode character '\\u1ee3' in position 17: character maps to <undefined>",
+      "started_at": "2026-10-25T09:11:12.378608+00:00",
+      "duration_s": 0.064038,
+      "artifacts": [],
+      "notes": []
+    },
+    {
+      "name": "audit:license",
+      "skill": "license-robustness-audit",
+      "command": [
+        "C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "D:\\trợ lý thu mua\\skill\\license-robustness-audit\\scripts\\audit_license.py",
+        "D:\\trợ lý thu mua\\output\\audit_app\\electron-unpacked",
+        "--out",
+        "D:\\trợ lý thu mua\\output\\audit_app\\license-audit"
+      ],
+      "returncode": 1,
+      "stdout_tail": "[+] Scanned 15 source file(s); 8 touch licensing.\n[+] 35 weakness signal(s).",
+      "stderr_tail": "Traceback (most recent call last):\n  File \"D:\\tr\\u1ee3 l� thu mua\\skill\\license-robustness-audit\\scripts\\audit_license.py\", line 354, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"D:\\tr\\u1ee3 l� thu mua\\skill\\license-robustness-audit\\scripts\\audit_license.py\", line 347, in main\n    print(f\"[+] {out / 'LICENSE_AUDIT.md'}\")\n  File \"C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\encodings\\cp1252.py\", line 19, in encode\n    return codecs.charmap_encode(input,self.errors,encoding_table)[0]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nUnicodeEncodeError: 'charmap' codec can't encode character '\\u1ee3' in position 9: character maps to <undefined>",
+      "started_at": "2026-10-25T09:11:12.442646+00:00",
+      "duration_s": 0.347369,
+      "artifacts": [
+        "D:\\trợ lý thu mua\\output\\audit_app\\license-audit"
+      ],
+      "notes": []
+    },
+    {
+      "name": "audit:supply-chain",
+      "skill": "sbom-supply-chain-auditor",
+      "command": [
+        "C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "D:\\trợ lý thu mua\\skill\\sbom-supply-chain-auditor\\scripts\\analyze_supply_chain.py",
+        "D:\\trợ lý thu mua\\dist-electron\\win-unpacked",
+        "--out",
+        "D:\\trợ lý thu mua\\output\\audit_app\\sbom-supply-chain-auditor"
+      ],
+      "returncode": 1,
+      "stdout_tail": "[+] Findings: 3333",
+      "stderr_tail": "Traceback (most recent call last):\n  File \"D:\\tr\\u1ee3 l� thu mua\\skill\\sbom-supply-chain-auditor\\scripts\\analyze_supply_chain.py\", line 285, in <module>\n    raise SystemExit(main())\n                     ^^^^^^\n  File \"D:\\tr\\u1ee3 l� thu mua\\skill\\sbom-supply-chain-auditor\\scripts\\analyze_supply_chain.py\", line 280, in main\n    print(f\"[+] Report: {Path(args.out) / 'REPORT.md'}\")\n  File \"C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\encodings\\cp1252.py\", line 19, in encode\n    return codecs.charmap_encode(input,self.errors,encoding_table)[0]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nUnicodeEncodeError: 'charmap' codec can't encode character '\\u1ee3' in position 17: character maps to <undefined>",
+      "started_at": "2026-10-25T09:11:13.584245+00:00",
+      "duration_s": 0.909011,
+      "artifacts": [
+        "D:\\trợ lý thu mua\\output\\audit_app\\sbom-supply-chain-auditor"
+      ],
+      "notes": []
+    },
+    {
+      "name": "audit:supply-chain",
+      "skill": "sbom-supply-chain-auditor",
+      "command": [
+        "C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "D:\\trợ lý thu mua\\skill\\sbom-supply-chain-auditor\\scripts\\analyze_supply_chain.py",
+        "D:\\trợ lý thu mua\\output\\audit_app\\electron-unpacked",
+        "--out",
+        "D:\\trợ lý thu mua\\output\\audit_app\\sbom-supply-chain-auditor"
+      ],
+      "returncode": 1,
+      "stdout_tail": "[+] Findings: 1",
+      "stderr_tail": "Traceback (most recent call last):\n  File \"D:\\tr\\u1ee3 l� thu mua\\skill\\sbom-supply-chain-auditor\\scripts\\analyze_supply_chain.py\", line 285, in <module>\n    raise SystemExit(main())\n                     ^^^^^^\n  File \"D:\\tr\\u1ee3 l� thu mua\\skill\\sbom-supply-chain-auditor\\scripts\\analyze_supply_chain.py\", line 280, in main\n    print(f\"[+] Report: {Path(args.out) / 'REPORT.md'}\")\n  File \"C:\\Users\\LENOVO\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\encodings\\cp1252.py\", line 19, in encode\n    return codecs.charmap_encode(input,self.errors,encoding_table)[0]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nUnicodeEncodeError: 'charmap' codec can't encode character '\\u1ee3' in position 17: character maps to <undefined>",
+      "started_at": "2026-10-25T09:11:14.499936+00:00",
+      "duration_s": 0.056511,
+      "artifacts": [
+        "D:\\trợ lý thu mua\\output\\audit_app\\sbom-supply-chain-auditor"
+      ],
+      "notes": []
+    },
+    {
+      "name": "guided",
+      "skill": "(guidance)",
+      "command": [],
+      "returncode": 0,
+      "stdout_tail": "Auto-ran: capture=False, memory-scan=False. Manual steps written to GUIDANCE.md (frida/symbolic/anti-debug/mitigation; circumvention excluded per policy).",
+      "stderr_tail": "",
+      "started_at": "2026-10-25T09:11:16.131585+00:00",
+      "duration_s": 0.0,
+      "artifacts": [
+        "D:\\trợ lý thu mua\\output\\audit_app\\GUIDANCE.md"
+      ],
+      "notes": []
+    }
+  ],
+  "deliverables": {
+    "source": [
+      "electron-unpacked/app_asar/client/dist/assets/index-DW5xi8P5.js",
+      "electron-unpacked/app_asar/client/dist/assets/SegmentedNavigation-O5g2aOtH.js",
+      "electron-unpacked/app_asar/client/dist/assets/SettingsPage-1rIf48jv.js",
+      "electron-unpacked/app_asar/client/dist/assets/UnifiedWorkspacePage-BtVHEF2k.js",
+      "electron-unpacked/app_asar/client/dist/assets/vendor-charts-BV4GmCGq.js",
+      "electron-unpacked/app_asar/client/dist/assets/vendor-excel-DLNWaC59.js",
+      "electron-unpacked/app_asar/client/dist/assets/vendor-excel-style-c2bl9r4f.js",
+      "electron-unpacked/app_asar/client/dist/assets/vendor-forms-CuMtjt0q.js",
+      "electron-unpacked/app_asar/client/dist/assets/vendor-icons-BPcbZ_bO.js",
+      "electron-unpacked/app_asar/client/dist/assets/vendor-query-BpcW3wda.js",
+      "electron-unpacked/app_asar/client/dist/assets/vendor-react-DN4eRG7x.js",
+      "electron-unpacked/app_asar/client/dist/assets/vendor-utils-rcEgvU25.js",
+      "electron-unpacked/app_asar/electron/dist/main.js",
+      "electron-unpacked/app_asar/electron/dist/preload.js",
+      "electron-unpacked/app_asar/server/dist/index.js"
+    ],
+    "findings": [
+      "electron-analysis/endpoints.json",
+      "electron-analysis/findings.json",
+      "license-audit/license_findings.json",
+      "sbom-supply-chain-auditor/findings.json"
+    ],
+    "remediation": [],
+    "reports": [
+      "mission.json",
+      "REPORT.md",
+      "electron-analysis/report.md",
+      "electron-unpacked/report.md",
+      "sbom-supply-chain-auditor/REPORT.md"
+    ]
+  }
+}

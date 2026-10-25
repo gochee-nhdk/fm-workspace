@@ -1,4 +1,4 @@
-name: Build & Release Desktop App
+name: Build & Release Portable Web App
 
 on:
   push:
@@ -10,8 +10,8 @@ permissions:
   contents: write
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  release:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -27,32 +27,26 @@ jobs:
           npm install
           npm --prefix server install
           npm --prefix client install --legacy-peer-deps
+          npm --prefix server run db:init
 
       - name: Build frontend and backend
         run: npm run build:all
 
-      - name: Build Electron shell
-        run: npm run build:electron
-
-      - name: Package Windows Desktop App
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win -p always
-
-      - name: Generate SHA-256 Checksums
-        shell: pwsh
+      - name: Package Portable Web App Release
         run: |
-          Get-FileHash -Path "dist-electron/*.exe" -Algorithm SHA256 | Out-File -FilePath "dist-electron/checksums.sha256"
+          mkdir -p release-pkg
+          cp -r server client package.json *.bat *.sh *.vbs logo.ico scripts release-pkg/
+          rm -rf release-pkg/client/src release-pkg/server/src
+          cd release-pkg && zip -r ../FM-Workspace-Local.zip . && cd ..
+          sha256sum FM-Workspace-Local.zip > checksums.sha256
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            dist-electron/*.exe
-            dist-electron/*.blockmap
-            dist-electron/*.yml
-            dist-electron/checksums.sha256
+            FM-Workspace-Local.zip
+            checksums.sha256
           draft: false
           prerelease: false
           generate_release_notes: true
