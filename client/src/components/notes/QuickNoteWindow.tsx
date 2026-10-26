@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import * as XLSX from 'xlsx';
 import { cn } from '@/lib/utils';
 import {
   SFDocument,
@@ -550,6 +549,7 @@ interface ExcelSheetPreview {
 const parseExcelFromDataUrl = async (dataUrl: string): Promise<{ sheets: ExcelSheetPreview[]; activeSheetIndex: number } | null> => {
   try {
     const bytes = await getBytesFromUrl(dataUrl);
+    const XLSX = await import('xlsx');
     const workbook = XLSX.read(bytes, { type: 'array' });
     const sheets: ExcelSheetPreview[] = workbook.SheetNames.map((name) => {
       const sheet = workbook.Sheets[name];
@@ -2509,6 +2509,7 @@ export const QuickNoteWindow: React.FC = () => {
           }
         } else if (['xlsx', 'xls'].includes(ext)) {
           const buf = await blob.arrayBuffer();
+          const XLSX = await import('xlsx');
           const workbook = XLSX.read(new Uint8Array(buf), { type: 'array' });
           const sheets: ExcelSheetPreview[] = workbook.SheetNames.map((name) => {
             const sheet = workbook.Sheets[name];

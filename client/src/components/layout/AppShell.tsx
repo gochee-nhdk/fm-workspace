@@ -16,8 +16,11 @@ import {
 } from '@/components/ui/AppleIcon';
 import { CommandPalette } from '@/components/ui/command-palette';
 import { ExcelImportModal } from '@/components/excel/ExcelImportModal';
-import { QuickNoteWindow } from '@/components/notes/QuickNoteWindow';
 import { QuickNoteFloatingButton } from '@/components/notes/QuickNoteFloatingButton';
+
+const QuickNoteWindow = React.lazy(() =>
+  import('@/components/notes/QuickNoteWindow').then((m) => ({ default: m.QuickNoteWindow }))
+);
 import { useUiStore, resolveTheme } from '@/stores/ui-store';
 import { useNoteStore } from '@/stores/note-store';
 import { Button } from '@/components/ui/button';
@@ -558,8 +561,10 @@ export const AppShell: React.FC = () => {
         }}
       />
 
-      {/* Quick Note Floating Capsule & Interactive Window */}
-      <QuickNoteWindow />
+      {/* Quick Note Floating Capsule & Interactive Window (120fps Lazy-loaded) */}
+      <React.Suspense fallback={null}>
+        <QuickNoteWindow />
+      </React.Suspense>
       <QuickNoteFloatingButton />
 
       {/* Local Privacy Screen Shield */}

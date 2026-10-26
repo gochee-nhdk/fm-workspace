@@ -35,6 +35,9 @@ import { MapPreviewModal } from '@/components/ui/MapPreviewModal';
 import { SegmentedNavigation } from '@/components/ui/SegmentedNavigation';
 import { useDirectionalTab } from '@/lib/motion';
 import { sanitizeUrl } from '@/lib/utils';
+import { LinkTableRow } from './components/LinkTableRow';
+import { AccountTableRow } from './components/AccountTableRow';
+import { StoreTableRow } from './components/StoreTableRow';
 import toast from 'react-hot-toast';
 
 type TabType = 'links' | 'accounts' | 'stores';
@@ -111,8 +114,32 @@ export const UnifiedWorkspacePage: React.FC = () => {
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [dropPosition, setDropPosition] = useState<'top' | 'bottom' | null>(null);
 
+  // Load all data from IndexedDB
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [l, a, s] = await Promise.all([
+        dataService.getLinks(),
+        dataService.getAccounts(),
+        dataService.getStores(),
+      ]);
+      setLinks(l);
+      setAccounts(a);
+      setStores(s);
+    } catch (err) {
+      console.error('Lỗi khi tải dữ liệu workspace:', err);
+      toast.error('Không thể nạp dữ liệu từ bộ nhớ');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
   // Reorder handler without needing STT input
-  const handleReorder = async (
+  const handleReorder = useCallback(async (
     type: TabType,
     sourceId: string,
     targetId: string,
@@ -178,7 +205,57 @@ export const UnifiedWorkspacePage: React.FC = () => {
         loadData();
       }
     }
-  };
+  }, [accounts, links, stores, loadData]);
+
+  // Stable drag & drop event handlers for 120fps fluid reordering
+  const handleDragStart = useCallback((id: string, e: React.DragEvent) => {
+    e.dataTransfer.setData('text/plain', id);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedId(id);
+  }, []);
+
+  const handleDragOver = useCallback((id: string, e: React.DragEvent) => {
+    e.preventDefault();
+    if (!draggedId || draggedId === id) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const isBottom = e.clientY > rect.top + rect.height / 2;
+    const pos = isBottom ? 'bottom' : 'top';
+    if (dragOverId !== id || dropPosition !== pos) {
+      setDragOverId(id);
+      setDropPosition(pos);
+    }
+  }, [draggedId, dragOverId, dropPosition]);
+
+  const handleDragLeave = useCallback((id: string, e: React.DragEvent) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    if (dragOverId === id) {
+      setDragOverId(null);
+      setDropPosition(null);
+    }
+  }, [dragOverId]);
+
+  const handleDrop = useCallback((id: string, e: React.DragEvent) => {
+    e.preventDefault();
+    if (draggedId && draggedId !== id && dropPosition) {
+      handleReorder(activeTab, draggedId, id, dropPosition);
+    }
+    setDraggedId(null);
+    setDragOverId(null);
+    setDropPosition(null);
+  }, [activeTab, draggedId, dropPosition, handleReorder]);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggedId(null);
+    setDragOverId(null);
+    setDropPosition(null);
+  }, []);
+
+  const handleTogglePassword = useCallback((id: string) => {
+    setShowPasswordMap((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  }, []);
 
   // Sync activeTab with URL params
   const handleTabChange = (tab: TabType) => {
@@ -188,32 +265,8 @@ export const UnifiedWorkspacePage: React.FC = () => {
     setSearchParams({ tab });
   };
 
-  // Load all data from IndexedDB
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [l, a, s] = await Promise.all([
-        dataService.getLinks(),
-        dataService.getAccounts(),
-        dataService.getStores(),
-      ]);
-      setLinks(l);
-      setAccounts(a);
-      setStores(s);
-    } catch (err) {
-      console.error('Lỗi khi tải dữ liệu workspace:', err);
-      toast.error('Không thể nạp dữ liệu từ bộ nhớ');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
   // 1-Click Copy Helper
-  const handleCopy = (text: string, label: string, key: string) => {
+  const handleCopy = useCallback((text: string, label: string, key: string) => {
     if (!text) {
       toast.error('Không có nội dung để sao chép');
       return;
@@ -224,10 +277,10 @@ export const UnifiedWorkspacePage: React.FC = () => {
     setTimeout(() => {
       setCopiedKey((prev) => (prev === key ? null : prev));
     }, 1800);
-  };
+  }, []);
 
   // Toggle Favorite
-  const handleToggleFavorite = async (id: string, e: React.MouseEvent) => {
+  const handleToggleFavorite = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       const updated = await dataService.toggleFavoriteLink(id);
@@ -240,7 +293,39 @@ export const UnifiedWorkspacePage: React.FC = () => {
     } catch (err) {
       toast.error('Lỗi khi cập nhật trạng thái', { id: 'favorite-status' });
     }
-  };
+  }, []);
+
+  // Stable Action handlers
+  const handleEditLink = useCallback((item: LinkItem) => {
+    setEditingLink(item);
+    setLinkDrawerOpen(true);
+  }, []);
+
+  const handleDeleteLink = useCallback((item: LinkItem) => {
+    setDeleteTarget({ type: 'links', id: item.id, label: item.hangMuc });
+  }, []);
+
+  const handleEditAccount = useCallback((item: AccountItem) => {
+    setEditingAccount(item);
+    setAccountDrawerOpen(true);
+  }, []);
+
+  const handleDeleteAccount = useCallback((item: AccountItem) => {
+    setDeleteTarget({ type: 'accounts', id: item.id, label: item.software });
+  }, []);
+
+  const handleEditStore = useCallback((item: StoreItem) => {
+    setEditingStore(item);
+    setStoreDrawerOpen(true);
+  }, []);
+
+  const handleDeleteStore = useCallback((item: StoreItem) => {
+    setDeleteTarget({ type: 'stores', id: item.id, label: item.storeCode });
+  }, []);
+
+  const handlePreviewMapStore = useCallback((item: StoreItem) => {
+    setPreviewMapStore(item);
+  }, []);
 
   // Delete Action
   const handleConfirmDelete = async () => {
@@ -571,7 +656,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
         <div key={activeTab} className={animationClass}>
           {/* 1. SHEET: QUICK LINKS */}
           {activeTab === 'links' && (
-          <div className="overflow-x-auto scrollbar-thin">
+          <div className="overflow-x-auto scrollbar-thin smooth-scroll-120">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
               <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-white select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <tr>
@@ -591,173 +676,23 @@ export const UnifiedWorkspacePage: React.FC = () => {
               <tbody className="divide-y divide-black/[0.04] dark:divide-white/5">
                 {filteredLinks.length > 0 ? (
                   filteredLinks.map((item) => (
-                    <tr
+                    <LinkTableRow
                       key={item.id}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('text/plain', item.id);
-                        e.dataTransfer.effectAllowed = 'move';
-                        setDraggedId(item.id);
-                      }}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        if (!draggedId || draggedId === item.id) return;
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const isBottom = e.clientY > rect.top + rect.height / 2;
-                        const pos = isBottom ? 'bottom' : 'top';
-                        if (dragOverId !== item.id || dropPosition !== pos) {
-                          setDragOverId(item.id);
-                          setDropPosition(pos);
-                        }
-                      }}
-                      onDragLeave={(e) => {
-                        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-                        if (dragOverId === item.id) {
-                          setDragOverId(null);
-                          setDropPosition(null);
-                        }
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        if (draggedId && draggedId !== item.id && dropPosition) {
-                          handleReorder('links', draggedId, item.id, dropPosition);
-                        }
-                        setDraggedId(null);
-                        setDragOverId(null);
-                        setDropPosition(null);
-                      }}
-                      onDragEnd={() => {
-                        setDraggedId(null);
-                        setDragOverId(null);
-                        setDropPosition(null);
-                      }}
-                      className={`transition-colors group relative ${
-                        draggedId === item.id
-                          ? 'opacity-30 bg-[#0066cc]/5 dark:bg-[#2997ff]/5'
-                          : 'hover:bg-black/[0.025] dark:hover:bg-white/[0.04]'
-                      } ${
-                        dragOverId === item.id && draggedId !== item.id
-                          ? dropPosition === 'top'
-                            ? 'shadow-[inset_0_2px_0_#0066cc] dark:shadow-[inset_0_2px_0_#2997ff] bg-[#0066cc]/[0.04] dark:bg-[#2997ff]/[0.06]'
-                            : 'shadow-[inset_0_-2px_0_#0066cc] dark:shadow-[inset_0_-2px_0_#2997ff] bg-[#0066cc]/[0.04] dark:bg-[#2997ff]/[0.06]'
-                          : ''
-                      }`}
-                    >
-                      {/* Drag Handle */}
-                      <td className="w-9 pl-3 pr-1 py-3 text-center cursor-grab active:cursor-grabbing text-[#8e8e93] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-colors select-none">
-                        <div
-                          className="inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all"
-                          title="Kéo thả để sắp xếp thứ tự tùy ý"
-                        >
-                          <SFLine3Horizontal size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                      </td>
-
-                      {/* Star */}
-                      <td className="px-2 py-3 text-center">
-                        <button
-                          type="button"
-                          onClick={(e) => handleToggleFavorite(item.id, e)}
-                          className="text-[#cccccc] hover:text-amber-500 transition-colors cursor-pointer p-1"
-                          title={item.favorite ? 'Bỏ yêu thích' : 'Đánh dấu yêu thích'}
-                        >
-                          {item.favorite ? (
-                            <SFStarFill size={16} className="text-amber-500" />
-                          ) : (
-                            <SFStar size={16} className="text-[#cccccc] hover:text-amber-500" />
-                          )}
-                        </button>
-                      </td>
-
-                      {/* Hang Muc */}
-                      <td className="px-4 py-3 font-semibold text-[#1d1d1f] dark:text-white min-w-[140px] max-w-[220px]">
-                        <div className="flex items-center gap-2 truncate">
-                          <span className="w-2 h-2 rounded-full bg-[#0066cc] dark:bg-[#2997ff] shrink-0" />
-                          <span className="truncate" title={item.hangMuc}>{item.hangMuc}</span>
-                        </div>
-                      </td>
-
-                      {/* Link 1-Click Action */}
-                      <td className="px-3.5 py-3 min-w-[130px]">
-                        {sanitizeUrl(item.link) ? (
-                          <div className="flex items-center gap-1.5">
-                            <a
-                              href={sanitizeUrl(item.link)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="group/link inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold transition-all duration-200 active:scale-[0.97] cursor-pointer bg-white/70 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.16] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.08] dark:border-white/12 shadow-[0_1px_3px_rgba(0,0,0,0.04),inset_0_1px_0.5px_rgba(255,255,255,0.9)] hover:shadow-[0_4px_14px_rgba(0,113,227,0.18)] backdrop-blur-md"
-                              title="Mở liên kết trong tab mới"
-                            >
-                              <span>Mở link</span>
-                              <span className="w-3.5 h-3.5 rounded-full bg-[#0071e3]/12 dark:bg-[#2997ff]/20 flex items-center justify-center text-[#0066cc] dark:text-[#2997ff] group-hover/link:bg-[#0071e3] group-hover/link:text-white transition-all shrink-0">
-                                <SFArrowUpRightSquare size={10} />
-                              </span>
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => handleCopy(item.link, 'đường dẫn', `link-${item.id}`)}
-                              className="w-6 h-6 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/5 dark:hover:bg-white/10 transition-all active:scale-95 cursor-pointer shrink-0"
-                              title="Sao chép link"
-                            >
-                              {copiedKey === `link-${item.id}` ? (
-                                <SFCheckmark size={14} className="text-[#34c759]" />
-                              ) : (
-                                <SFSquareOnSquare size={14} className="opacity-70 hover:opacity-100" />
-                              )}
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                            Chưa có URL
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Category */}
-                      <td className="px-3.5 py-3 min-w-[110px]">
-                        {item.category ? (
-                          <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] text-[#76767b] dark:text-[#a1a1a6] font-medium border border-black/5 dark:border-white/10 truncate inline-block max-w-[140px]" title={item.category}>
-                            {item.category}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-[#a1a1a6] opacity-50">—</span>
-                        )}
-                      </td>
-
-                      {/* Note */}
-                      <td className="px-3.5 py-3 text-slate-500 dark:text-slate-400 min-w-[130px] max-w-[240px]">
-                        <span className="truncate block" title={item.note || ''}>
-                          {item.note || <span className="opacity-40 text-xs">—</span>}
-                        </span>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="sticky right-0 z-10 px-4 py-3 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#141418] group-hover:bg-[#f6f7fa] dark:group-hover:bg-[#1a1a20] backdrop-blur-xl border-l border-black/[0.04] dark:border-white/[0.06] transition-colors">
-                        <div className="inline-flex items-center justify-end gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingLink(item);
-                              setLinkDrawerOpen(true);
-                            }}
-                            className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white transition-all active:scale-90"
-                            title="Chỉnh sửa"
-                          >
-                            <SFPencil size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setDeleteTarget({ type: 'links', id: item.id, label: item.hangMuc })
-                            }
-                            className="p-1.5 rounded-full hover:bg-rose-500/10 text-[#76767b] hover:text-rose-600 transition-all active:scale-90"
-                            title="Xóa link"
-                          >
-                            <SFTrash size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                      item={item}
+                      isDragged={draggedId === item.id}
+                      isDragOver={dragOverId === item.id}
+                      dropPosition={dropPosition}
+                      copiedKey={copiedKey}
+                      onDragStart={handleDragStart}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      onDragEnd={handleDragEnd}
+                      onToggleFavorite={handleToggleFavorite}
+                      onCopy={handleCopy}
+                      onEdit={handleEditLink}
+                      onDelete={handleDeleteLink}
+                    />
                   ))
                 ) : (
                   <tr>
@@ -795,7 +730,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
 
         {/* 2. SHEET: ACCOUNT VAULT */}
         {activeTab === 'accounts' && (
-          <div className="overflow-x-auto scrollbar-thin">
+          <div className="overflow-x-auto scrollbar-thin smooth-scroll-120">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-white">
               <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-white select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <tr>
@@ -815,212 +750,24 @@ export const UnifiedWorkspacePage: React.FC = () => {
               <tbody className="divide-y divide-black/[0.04] dark:divide-white/5">
                 {filteredAccounts.length > 0 ? (
                   filteredAccounts.map((item) => (
-                    <tr
+                    <AccountTableRow
                       key={item.id}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('text/plain', item.id);
-                        e.dataTransfer.effectAllowed = 'move';
-                        setDraggedId(item.id);
-                      }}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        if (!draggedId || draggedId === item.id) return;
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const isBottom = e.clientY > rect.top + rect.height / 2;
-                        const pos = isBottom ? 'bottom' : 'top';
-                        if (dragOverId !== item.id || dropPosition !== pos) {
-                          setDragOverId(item.id);
-                          setDropPosition(pos);
-                        }
-                      }}
-                      onDragLeave={(e) => {
-                        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-                        if (dragOverId === item.id) {
-                          setDragOverId(null);
-                          setDropPosition(null);
-                        }
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        if (draggedId && draggedId !== item.id && dropPosition) {
-                          handleReorder('accounts', draggedId, item.id, dropPosition);
-                        }
-                        setDraggedId(null);
-                        setDragOverId(null);
-                        setDropPosition(null);
-                      }}
-                      onDragEnd={() => {
-                        setDraggedId(null);
-                        setDragOverId(null);
-                        setDropPosition(null);
-                      }}
-                      className={`transition-colors group relative ${
-                        draggedId === item.id
-                          ? 'opacity-30 bg-[#0066cc]/5 dark:bg-[#2997ff]/5'
-                          : 'hover:bg-black/[0.025] dark:hover:bg-white/[0.04]'
-                      } ${
-                        dragOverId === item.id && draggedId !== item.id
-                          ? dropPosition === 'top'
-                            ? 'shadow-[inset_0_2px_0_#0066cc] dark:shadow-[inset_0_2px_0_#2997ff] bg-[#0066cc]/[0.04] dark:bg-[#2997ff]/[0.06]'
-                            : 'shadow-[inset_0_-2px_0_#0066cc] dark:shadow-[inset_0_-2px_0_#2997ff] bg-[#0066cc]/[0.04] dark:bg-[#2997ff]/[0.06]'
-                          : ''
-                      }`}
-                    >
-                      {/* Drag Handle */}
-                      <td className="w-9 pl-3 pr-1 py-3 text-center cursor-grab active:cursor-grabbing text-[#8e8e93] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-colors select-none">
-                        <div
-                          className="inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all"
-                          title="Kéo thả để sắp xếp thứ tự tùy ý"
-                        >
-                          <SFLine3Horizontal size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                      </td>
-
-                      {/* Software */}
-                      <td className="px-4 py-3 font-semibold text-[#1d1d1f] dark:text-white min-w-[120px] max-w-[160px]">
-                        <div className="flex items-center gap-2 truncate">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                          <span className="truncate" title={item.software}>{item.software}</span>
-                        </div>
-                      </td>
-
-                      {/* Username (Apple 1-Click Copy Text: clean default, highlights on hover) */}
-                      <td className="px-3.5 py-3 min-w-[130px] max-w-[210px]">
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(item.username, 'tài khoản', `user-${item.id}`)}
-                          className="inline-flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-lg bg-transparent hover:bg-[#0066cc]/[0.08] dark:hover:bg-[#2997ff]/15 font-mono text-[13px] font-[450] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-colors duration-180 active:scale-[0.98] cursor-pointer group/user max-w-full"
-                          title={`Bấm để sao chép Tên Đăng Nhập: ${item.username}`}
-                        >
-                          <span className="truncate max-w-[150px]">
-                            {item.username}
-                          </span>
-                          {copiedKey === `user-${item.id}` ? (
-                            <SFCheckmark size={13} className="text-[#34c759] shrink-0" />
-                          ) : (
-                            <SFSquareOnSquare size={13} className="text-[#86868b] opacity-0 group-hover/user:opacity-100 group-hover/user:text-[#0066cc] dark:group-hover/user:text-[#2997ff] transition-opacity shrink-0" />
-                          )}
-                        </button>
-                      </td>
-
-                      {/* Password (Apple 1-Click Copy: matches Username & Address styling, clean text default) */}
-                      <td className="px-3.5 py-3 min-w-[150px] max-w-[220px]">
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(item.password || '', 'mật khẩu', `pass-${item.id}`)}
-                            className="inline-flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-lg bg-transparent hover:bg-[#0066cc]/[0.08] dark:hover:bg-[#2997ff]/15 font-mono text-[13px] font-[450] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-colors duration-180 active:scale-[0.98] cursor-pointer group/pass select-none"
-                            title="Bấm để sao chép Mật Khẩu"
-                          >
-                            <span className="truncate max-w-[130px] tracking-wide">
-                              {showPasswordMap[item.id] ? item.password : '••••••••'}
-                            </span>
-                            {copiedKey === `pass-${item.id}` ? (
-                              <SFCheckmark size={13} className="text-[#34c759] shrink-0" />
-                            ) : (
-                              <SFSquareOnSquare
-                                size={13}
-                                className="text-[#86868b] opacity-0 group-hover/pass:opacity-100 group-hover/pass:text-[#0066cc] dark:group-hover/pass:text-[#2997ff] transition-opacity shrink-0"
-                              />
-                            )}
-                          </button>
-
-                          {/* Reveal/Hide Eye Button (Independent Apple subtle circle button) */}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowPasswordMap((prev) => ({
-                                ...prev,
-                                [item.id]: !prev[item.id],
-                              }));
-                            }}
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 transition-all cursor-pointer shrink-0"
-                            title={showPasswordMap[item.id] ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                            aria-label={showPasswordMap[item.id] ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
-                          >
-                            {showPasswordMap[item.id] ? (
-                              <SFEyeSlash size={14} className="opacity-70 hover:opacity-100 transition-opacity" />
-                            ) : (
-                              <SFEye size={14} className="opacity-70 hover:opacity-100 transition-opacity" />
-                            )}
-                          </button>
-                        </div>
-                      </td>
-
-                      {/* Link */}
-                      <td className="px-3.5 py-3 min-w-[130px]">
-                        {sanitizeUrl(item.link) ? (
-                          <div className="flex items-center gap-1.5">
-                            <a
-                              href={sanitizeUrl(item.link)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="group/acc inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold transition-all duration-200 active:scale-[0.97] cursor-pointer bg-white/70 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.16] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.08] dark:border-white/12 shadow-[0_1px_3px_rgba(0,0,0,0.04),inset_0_1px_0.5px_rgba(255,255,255,0.9)] hover:shadow-[0_4px_14px_rgba(0,113,227,0.18)] backdrop-blur-md"
-                              title="Mở trang đăng nhập trong tab mới"
-                            >
-                              <span>Đăng nhập</span>
-                              <span className="w-3.5 h-3.5 rounded-full bg-[#0071e3]/12 dark:bg-[#2997ff]/20 flex items-center justify-center text-[#0066cc] dark:text-[#2997ff] group-hover/acc:bg-[#0071e3] group-hover/acc:text-white transition-all shrink-0">
-                                <SFArrowUpRightSquare size={10} />
-                              </span>
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => handleCopy(item.link || '', 'đường dẫn', `acc-link-${item.id}`)}
-                              className="w-6 h-6 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/5 dark:hover:bg-white/10 transition-all active:scale-95 cursor-pointer shrink-0"
-                              title="Sao chép liên kết đăng nhập"
-                            >
-                              {copiedKey === `acc-link-${item.id}` ? (
-                                <SFCheckmark size={14} className="text-[#34c759]" />
-                              ) : (
-                                <SFSquareOnSquare size={12} className="opacity-70 hover:opacity-100" />
-                              )}
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-[#a1a1a6] opacity-50">—</span>
-                        )}
-                      </td>
-
-                      {/* Note */}
-                      <td className="px-3.5 py-3 text-slate-500 dark:text-slate-400 min-w-[120px] max-w-[240px]">
-                        <span className="truncate block" title={item.note || ''}>
-                          {item.note || <span className="opacity-40 text-xs">—</span>}
-                        </span>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="sticky right-0 z-10 px-4 py-3 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#141418] group-hover:bg-[#f6f7fa] dark:group-hover:bg-[#1a1a20] backdrop-blur-xl border-l border-black/[0.04] dark:border-white/[0.06] transition-colors">
-                        <div className="inline-flex items-center justify-end gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingAccount(item);
-                              setAccountDrawerOpen(true);
-                            }}
-                            className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white transition-all active:scale-90"
-                            title="Chỉnh sửa"
-                          >
-                            <SFPencil size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setDeleteTarget({
-                                type: 'accounts',
-                                id: item.id,
-                                label: item.software,
-                              })
-                            }
-                            className="p-1.5 rounded-full hover:bg-rose-500/10 text-[#76767b] hover:text-rose-600 transition-all active:scale-90"
-                            title="Xóa tài khoản"
-                          >
-                            <SFTrash size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                      item={item}
+                      isDragged={draggedId === item.id}
+                      isDragOver={dragOverId === item.id}
+                      dropPosition={dropPosition}
+                      copiedKey={copiedKey}
+                      showPassword={!!showPasswordMap[item.id]}
+                      onTogglePassword={handleTogglePassword}
+                      onDragStart={handleDragStart}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      onDragEnd={handleDragEnd}
+                      onCopy={handleCopy}
+                      onEdit={handleEditAccount}
+                      onDelete={handleDeleteAccount}
+                    />
                   ))
                 ) : (
                   <tr>
@@ -1058,7 +805,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
 
         {/* 3. SHEET: STORE DIRECTORY */}
         {activeTab === 'stores' && (
-          <div className="overflow-x-auto scrollbar-thin">
+          <div className="overflow-x-auto scrollbar-thin smooth-scroll-120">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-white">
               <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-white select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <tr>
@@ -1077,166 +824,23 @@ export const UnifiedWorkspacePage: React.FC = () => {
               <tbody className="divide-y divide-black/[0.04] dark:divide-white/5">
                 {filteredStores.length > 0 ? (
                   filteredStores.map((item) => (
-                    <tr
+                    <StoreTableRow
                       key={item.id}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('text/plain', item.id);
-                        e.dataTransfer.effectAllowed = 'move';
-                        setDraggedId(item.id);
-                      }}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        if (!draggedId || draggedId === item.id) return;
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const isBottom = e.clientY > rect.top + rect.height / 2;
-                        const pos = isBottom ? 'bottom' : 'top';
-                        if (dragOverId !== item.id || dropPosition !== pos) {
-                          setDragOverId(item.id);
-                          setDropPosition(pos);
-                        }
-                      }}
-                      onDragLeave={(e) => {
-                        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-                        if (dragOverId === item.id) {
-                          setDragOverId(null);
-                          setDropPosition(null);
-                        }
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        if (draggedId && draggedId !== item.id && dropPosition) {
-                          handleReorder('stores', draggedId, item.id, dropPosition);
-                        }
-                        setDraggedId(null);
-                        setDragOverId(null);
-                        setDropPosition(null);
-                      }}
-                      onDragEnd={() => {
-                        setDraggedId(null);
-                        setDragOverId(null);
-                        setDropPosition(null);
-                      }}
-                      className={`transition-colors group relative ${
-                        draggedId === item.id
-                          ? 'opacity-30 bg-[#0066cc]/5 dark:bg-[#2997ff]/5'
-                          : 'hover:bg-black/[0.025] dark:hover:bg-white/[0.04]'
-                      } ${
-                        dragOverId === item.id && draggedId !== item.id
-                          ? dropPosition === 'top'
-                            ? 'shadow-[inset_0_2px_0_#0066cc] dark:shadow-[inset_0_2px_0_#2997ff] bg-[#0066cc]/[0.04] dark:bg-[#2997ff]/[0.06]'
-                            : 'shadow-[inset_0_-2px_0_#0066cc] dark:shadow-[inset_0_-2px_0_#2997ff] bg-[#0066cc]/[0.04] dark:bg-[#2997ff]/[0.06]'
-                          : ''
-                      }`}
-                    >
-                      {/* Drag Handle */}
-                      <td className="w-9 pl-3 pr-1 py-3 text-center cursor-grab active:cursor-grabbing text-[#8e8e93] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-colors select-none">
-                        <div
-                          className="inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all"
-                          title="Kéo thả để sắp xếp thứ tự tùy ý"
-                        >
-                          <SFLine3Horizontal size={14} className="opacity-40 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                      </td>
-
-                      {/* Store Code (Plain bold text, no background, neutral color) */}
-                      <td className="px-4 py-3 font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] min-w-[100px] select-text">
-                        {item.storeCode}
-                      </td>
-
-                      {/* Address (Neutral normal text by default, highlights with Apple blue on hover) */}
-                      <td className="px-3.5 py-3 min-w-[260px] max-w-[550px]">
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(item.address || '', 'địa chỉ', `store-${item.id}`)}
-                          className="inline-flex items-center gap-2 px-2.5 py-1 -ml-2.5 rounded-xl bg-transparent hover:bg-[#0066cc]/[0.08] dark:hover:bg-[#2997ff]/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0066cc] dark:hover:text-[#2997ff] text-[13px] font-[450] transition-colors duration-180 active:scale-[0.98] text-left cursor-pointer group/store max-w-full"
-                          title={`Bấm để sao chép Địa chỉ: ${item.address}`}
-                        >
-                          <span className="truncate max-w-[480px]">
-                            {item.address}
-                          </span>
-                          {copiedKey === `store-${item.id}` ? (
-                            <SFCheckmark size={14} className="text-[#34c759] shrink-0" />
-                          ) : (
-                            <SFSquareOnSquare size={13} className="text-[#86868b] opacity-0 group-hover/store:opacity-100 group-hover/store:text-[#0066cc] dark:group-hover/store:text-[#2997ff] transition-opacity shrink-0" />
-                          )}
-                        </button>
-                      </td>
-
-                      {/* Type */}
-                      <td className="px-3.5 py-3 min-w-[110px]">
-                        {item.type ? (
-                          <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] text-[#76767b] dark:text-[#a1a1a6] font-medium">
-                            {item.type}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-[#a1a1a6] opacity-50">—</span>
-                        )}
-                      </td>
-
-                      {/* Google Maps Link / In-app Preview */}
-                      <td className="px-3.5 py-3 min-w-[130px]">
-                        {item.googleMaps || item.address ? (
-                          <div className="inline-flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => setPreviewMapStore(item)}
-                              className="group/map inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold transition-all duration-200 active:scale-[0.97] cursor-pointer bg-white/70 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.16] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.08] dark:border-white/12 shadow-[0_1px_3px_rgba(0,0,0,0.04),inset_0_1px_0.5px_rgba(255,255,255,0.9)] hover:shadow-[0_4px_14px_rgba(0,113,227,0.18)] backdrop-blur-md"
-                              title="Xem trước bản đồ Google Maps trong web app"
-                            >
-                              <span className="w-3.5 h-3.5 rounded-full bg-[#0071e3]/12 dark:bg-[#2997ff]/20 flex items-center justify-center text-[#0066cc] dark:text-[#2997ff] group-hover/map:bg-[#0071e3] group-hover/map:text-white transition-all shrink-0">
-                                <SFMappinAndEllipse size={10} />
-                              </span>
-                              <span>Xem bản đồ</span>
-                            </button>
-                            {sanitizeUrl(item.googleMaps) && (
-                              <a
-                                href={sanitizeUrl(item.googleMaps)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="w-6 h-6 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/5 dark:hover:bg-white/10 transition-colors shrink-0"
-                                title="Mở trang Google Maps ngoài tab mới"
-                              >
-                                <SFArrowUpRightSquare size={12} className="opacity-70 hover:opacity-100" />
-                              </a>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-[#a1a1a6] opacity-50">Chưa có vị trí</span>
-                        )}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="sticky right-0 z-10 px-4 py-3 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#141418] group-hover:bg-[#f6f7fa] dark:group-hover:bg-[#1a1a20] backdrop-blur-xl border-l border-black/[0.04] dark:border-white/[0.06] transition-colors">
-                        <div className="inline-flex items-center justify-end gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingStore(item);
-                              setStoreDrawerOpen(true);
-                            }}
-                            className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white transition-all active:scale-90"
-                            title="Chỉnh sửa"
-                          >
-                            <SFPencil size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setDeleteTarget({
-                                type: 'stores',
-                                id: item.id,
-                                label: item.storeCode,
-                              })
-                            }
-                            className="p-1.5 rounded-full hover:bg-rose-500/10 text-[#76767b] hover:text-rose-600 transition-all active:scale-90"
-                            title="Xóa cửa hàng"
-                          >
-                            <SFTrash size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                      item={item}
+                      isDragged={draggedId === item.id}
+                      isDragOver={dragOverId === item.id}
+                      dropPosition={dropPosition}
+                      copiedKey={copiedKey}
+                      onDragStart={handleDragStart}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      onDragEnd={handleDragEnd}
+                      onCopy={handleCopy}
+                      onPreviewMap={handlePreviewMapStore}
+                      onEdit={handleEditStore}
+                      onDelete={handleDeleteStore}
+                    />
                   ))
                 ) : (
                   <tr>
