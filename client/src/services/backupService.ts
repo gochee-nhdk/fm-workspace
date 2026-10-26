@@ -121,15 +121,18 @@ function base64ToBlob(base64: string, mimeType: string): Blob {
 async function exportFullBackup(options: BackupExportOptions = {}): Promise<void> {
   const { includeActivities = true } = options;
 
-  // 1. Collect all data from IndexedDB in parallel
-  const [links, accounts, stores, notes, rawActivities, rawAttachments] = await Promise.all([
+  // 1. Collect all data from IndexedDB & noteService in parallel (guarantees both IDB + localStorage cache)
+  const [links, accounts, stores, allNotes, rawActivities, rawAttachments] = await Promise.all([
     idbGetAll<LinkItem>(STORES.LINKS),
     idbGetAll<AccountItem>(STORES.ACCOUNTS),
     idbGetAll<StoreItem>(STORES.STORES),
-    idbGetAll<QuickNoteItem>(STORES.NOTES),
+    noteService.getAllNotes(),
     includeActivities ? idbGetAll<ActivityLogItem>(STORES.ACTIVITIES) : Promise.resolve([]),
     idbGetAll<StoredAttachment>(STORES.ATTACHMENTS),
   ]);
+
+  const textNotes = allNotes.filter((n) => n.noteType !== 'checklist');
+  const todoNotes = allNotes.filter((n) => n.noteType === 'checklist');
 
   // 2. Serialize attachments: Blob → base64
   const attachments: SerializedAttachment[] = [];
@@ -173,7 +176,7 @@ async function exportFullBackup(options: BackupExportOptions = {}): Promise<void
     links,
     accounts, // passwords included — user's own data on their machine
     stores,
-    notes,
+    notes: allNotes,
     attachments,
     activities: rawActivities,
     settings: { theme },
@@ -205,7 +208,8 @@ async function exportFullBackup(options: BackupExportOptions = {}): Promise<void
         links: links.length,
         accounts: accounts.length,
         stores: stores.length,
-        notes: notes.length,
+        notes: textNotes.length,
+        todos: todoNotes.length,
         attachments: attachments.length,
       },
     },
@@ -310,6 +314,7 @@ async function importFullBackup(
     accounts: 0,
     stores: 0,
     notes: 0,
+    todos: 0,
     attachments: 0,
     skipped: 0,
     errors: [],
@@ -361,7 +366,7 @@ async function importFullBackup(
       idbGetAll<LinkItem>(STORES.LINKS),
       idbGetAll<AccountItem>(STORES.ACCOUNTS),
       idbGetAll<StoreItem>(STORES.STORES),
-      idbGetAll<QuickNoteItem>(STORES.NOTES),
+      noteService.getAllNotes(),
       idbGetAll<StoredAttachment>(STORES.ATTACHMENTS),
     ]);
 
@@ -436,46 +441,56 @@ async function importFullBackup(
     }
   }
 
-  // ── Step 7: Import Notes (with HTML sanitization)
-  progress('Đang nhập Ghi chú (đang lọc bảo mật HTML)...');
+  // ── Step 7: Import Notes & To-dos (Checklists)
+  progress('Đang nhập Ghi chú & Danh sách việc cần làm (To-do)...');
   for (const note of payload.notes ?? []) {
     try {
+      const isChecklist = note.noteType === 'checklist';
+      const cleanContent = isChecklist ? (note.content || '<p><br></p>') : sanitizeNoteHTML(note.content || '');
+      const cleanChecklist = note.checklistContent || '';
+
       const dup = existingNotes.find((e) => e.id === note.id);
       if (dup) {
-        if (conflictStrategy === 'skip') { result.skipped++; continue; }
+        if (conflictStrategy === 'skip') {
+          result.skipped++;
+          continue;
+        }
         if (conflictStrategy === 'overwrite') {
           const sanitized: QuickNoteItem = {
             ...note,
-            content: sanitizeNoteHTML(note.content),
-            checklistContent: note.checklistContent ? sanitizeNoteHTML(note.checklistContent) : note.checklistContent,
+            content: cleanContent,
+            checklistContent: cleanChecklist,
+            noteType: note.noteType || (cleanChecklist ? 'checklist' : 'note'),
             updatedAt: now,
           };
           await idbPut<QuickNoteItem>(STORES.NOTES, sanitized);
-          result.notes++;
+          if (isChecklist) result.todos++; else result.notes++;
           continue;
         }
         // merge: add with new id to avoid collision
         const sanitized: QuickNoteItem = {
           ...note,
           id: 'note_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7),
-          content: sanitizeNoteHTML(note.content),
-          checklistContent: note.checklistContent ? sanitizeNoteHTML(note.checklistContent) : note.checklistContent,
+          content: cleanContent,
+          checklistContent: cleanChecklist,
+          noteType: note.noteType || (cleanChecklist ? 'checklist' : 'note'),
           updatedAt: now,
         };
         await idbPut<QuickNoteItem>(STORES.NOTES, sanitized);
-        result.notes++;
+        if (isChecklist) result.todos++; else result.notes++;
         continue;
       }
       // No conflict
       const sanitized: QuickNoteItem = {
         ...note,
-        content: sanitizeNoteHTML(note.content),
-        checklistContent: note.checklistContent ? sanitizeNoteHTML(note.checklistContent) : note.checklistContent,
+        content: cleanContent,
+        checklistContent: cleanChecklist,
+        noteType: note.noteType || (cleanChecklist ? 'checklist' : 'note'),
       };
       await idbPut<QuickNoteItem>(STORES.NOTES, sanitized);
-      result.notes++;
+      if (isChecklist) result.todos++; else result.notes++;
     } catch (e) {
-      result.errors.push(`Ghi chú "${note.title}": ${(e as Error).message}`);
+      result.errors.push(`Ghi chú/To-do "${note.title}": ${(e as Error).message}`);
     }
   }
 
@@ -516,14 +531,18 @@ async function importFullBackup(
     }
   }
 
-  // ── Step 10: Sync notes cache to localStorage
+  // ── Step 10: Sync notes cache to localStorage and refresh active UI store
   try {
-    const allNotes = await idbGetAll<QuickNoteItem>(STORES.NOTES);
-    await noteService.getAllNotes(); // triggers internal cache sync
-  } catch (_) {}
+    const allNotesFromIdb = await idbGetAll<QuickNoteItem>(STORES.NOTES);
+    noteService.saveLocalStorageNotesDirect(allNotesFromIdb);
+    const { useNoteStore } = await import('@/stores/note-store');
+    await useNoteStore.getState().loadNotes();
+  } catch (err) {
+    console.warn('Note store reload error after backup import:', err);
+  }
 
   result.success = result.errors.length === 0 || (
-    result.links + result.accounts + result.stores + result.notes + result.attachments > 0
+    result.links + result.accounts + result.stores + result.notes + result.todos + result.attachments > 0
   );
 
   return result;
@@ -534,14 +553,17 @@ async function importFullBackup(
  * Used for automated background server sync.
  */
 async function generateBackupPayload(): Promise<{ payloadStr: string; checksum: string; itemCounts: any }> {
-  const [links, accounts, stores, notes, rawActivities, rawAttachments] = await Promise.all([
+  const [links, accounts, stores, allNotes, rawActivities, rawAttachments] = await Promise.all([
     idbGetAll<LinkItem>(STORES.LINKS),
     idbGetAll<AccountItem>(STORES.ACCOUNTS),
     idbGetAll<StoreItem>(STORES.STORES),
-    idbGetAll<QuickNoteItem>(STORES.NOTES),
+    noteService.getAllNotes(),
     idbGetAll<ActivityLogItem>(STORES.ACTIVITIES),
     idbGetAll<StoredAttachment>(STORES.ATTACHMENTS),
   ]);
+
+  const textNotes = allNotes.filter((n) => n.noteType !== 'checklist');
+  const todoNotes = allNotes.filter((n) => n.noteType === 'checklist');
 
   const attachments: SerializedAttachment[] = [];
   for (const att of rawAttachments) {
@@ -579,7 +601,7 @@ async function generateBackupPayload(): Promise<{ payloadStr: string; checksum: 
     links,
     accounts,
     stores,
-    notes,
+    notes: allNotes,
     attachments,
     activities: rawActivities,
     settings: { theme },
@@ -595,7 +617,8 @@ async function generateBackupPayload(): Promise<{ payloadStr: string; checksum: 
       links: links.length,
       accounts: accounts.length,
       stores: stores.length,
-      notes: notes.length,
+      notes: textNotes.length,
+      todos: todoNotes.length,
       attachments: attachments.length,
     },
   };

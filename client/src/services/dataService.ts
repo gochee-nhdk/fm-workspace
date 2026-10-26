@@ -16,6 +16,7 @@ import {
 } from '@/types/workspace';
 import { initialLinks, initialAccounts, initialStores } from '@/data/seedData';
 import { autoBackupManager } from './autoBackupManager';
+import { noteService } from './noteService';
 
 const generateId = (): string => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -271,17 +272,23 @@ class DataService {
   // ==================== WORKSPACE SUMMARY ====================
   async getWorkspaceSummary(): Promise<WorkspaceSummary> {
     await this.ensureInitialized();
-    const [links, accounts, stores, activities] = await Promise.all([
+    const [links, accounts, stores, activities, allNotes] = await Promise.all([
       this.getLinks(),
       this.getAccounts(),
       this.getStores(),
       this.getActivities(10),
+      noteService.getAllNotes().catch(() => []),
     ]);
+
+    const textNotes = allNotes.filter((n) => n.noteType !== 'checklist');
+    const todoNotes = allNotes.filter((n) => n.noteType === 'checklist');
 
     return {
       totalLinks: links.length,
       totalAccounts: accounts.length,
       totalStores: stores.length,
+      totalNotes: textNotes.length,
+      totalTodos: todoNotes.length,
       favoriteLinks: links.filter((l) => l.favorite),
       recentStores: stores.slice(0, 5),
       recentActivities: activities,
@@ -293,19 +300,30 @@ class DataService {
     // IMPORTANT: Log BEFORE clearing — after clear, the activity store is also wiped!
     await this.logActivity('delete', 'ALL', 'all', 'Đã xóa toàn bộ dữ liệu workspace');
     await idbClearAll();
+    // Clear note cache as well to prevent resurrection
+    localStorage.removeItem('fm_quick_notes_cache');
     // Mark as seeded so returning to workspace remains 100% clean (does NOT re-seed sample data)
     localStorage.setItem(SEEDED_KEY, 'true');
     this.initialized = true;
+    try {
+      const { useNoteStore } = await import('@/stores/note-store');
+      await useNoteStore.getState().loadNotes();
+    } catch (_) {}
   }
 
   /** Explicitly restores default sample data (Factory Reset) */
   async restoreSeedData(): Promise<void> {
     await idbClearAll();
+    localStorage.removeItem('fm_quick_notes_cache');
     if (initialLinks.length > 0) await idbBulkPut(STORES.LINKS, initialLinks);
     if (initialAccounts.length > 0) await idbBulkPut(STORES.ACCOUNTS, initialAccounts);
     if (initialStores.length > 0) await idbBulkPut(STORES.STORES, initialStores);
     localStorage.setItem(SEEDED_KEY, 'true');
     this.initialized = true;
+    try {
+      const { useNoteStore } = await import('@/stores/note-store');
+      await useNoteStore.getState().loadNotes();
+    } catch (_) {}
     await this.logActivity('create', 'ALL', 'seed-restore', 'Đã khôi phục dữ liệu mẫu ban đầu');
   }
 

@@ -9,6 +9,7 @@ import {
 } from '@/types/workspace';
 import { idbGetAll, idbBulkPut, idbPut, STORES } from './storage/indexedDb';
 import { dataService } from './dataService';
+import { noteService } from './noteService';
 
 // Helper to normalize header string for fuzzy matching
 const norm = (str: any): string => {
@@ -861,11 +862,15 @@ class ExcelService {
   async exportFullWorkspace(options: { maskPasswords?: boolean } = {}): Promise<void> {
     const wb = XLSX.utils.book_new();
 
-    const [links, accounts, stores] = await Promise.all([
+    const [links, accounts, stores, allNotes] = await Promise.all([
       dataService.getLinks(),
       dataService.getAccounts(),
       dataService.getStores(),
+      noteService.getAllNotes().catch(() => []),
     ]);
+
+    const textNotes = allNotes.filter((n) => n.noteType !== 'checklist');
+    const todoNotes = allNotes.filter((n) => n.noteType === 'checklist');
 
     const exportDateStr = new Date().toLocaleDateString('vi-VN', {
       year: 'numeric',
@@ -913,6 +918,16 @@ class ExcelService {
         'CHI TIẾT & HƯỚNG DẪN': 'Tra cứu mã chi nhánh FM, địa chỉ thực tế và vị trí Google Maps',
       },
       {
+        'DANH MỤC HỆ THỐNG': 'PHÂN HỆ 4: GHI CHÚ CÁ NHÂN (Sheet: GHI CHÚ)',
+        'THÔNG SỐ / SỐ LƯỢNG': `${textNotes.length} ghi chú`,
+        'CHI TIẾT & HƯỚNG DẪN': 'Nội dung ghi chép nhanh, màu sắc, ghim và thẻ phân loại',
+      },
+      {
+        'DANH MỤC HỆ THỐNG': 'PHÂN HỆ 5: DANH SÁCH VIỆC CẦN LÀM (Sheet: VIỆC CẦN LÀM)',
+        'THÔNG SỐ / SỐ LƯỢNG': `${todoNotes.length} danh sách to-do`,
+        'CHI TIẾT & HƯỚNG DẪN': 'Các đầu việc to-do checklist, nhắc nhở và tiến độ thực hiện',
+      },
+      {
         'DANH MỤC HỆ THỐNG': '',
         'THÔNG SỐ / SỐ LƯỢNG': '',
         'CHI TIẾT & HƯỚNG DẪN': '',
@@ -925,7 +940,7 @@ class ExcelService {
       {
         'DANH MỤC HỆ THỐNG': '1. Xem chi tiết các sheet',
         'THÔNG SỐ / SỐ LƯỢNG': 'Nhấp vào các Tab phía dưới',
-        'CHI TIẾT & HƯỚNG DẪN': 'Xem từng bảng tương ứng: [LINK] - [ACCOUNT] - [DS CH]',
+        'CHI TIẾT & HƯỚNG DẪN': 'Xem từng bảng tương ứng: [LINK] - [ACCOUNT] - [DS CH] - [GHI CHÚ] - [VIỆC CẦN LÀM]',
       },
       {
         'DANH MỤC HỆ THỐNG': '2. Bộ lọc thông minh',
@@ -1010,6 +1025,54 @@ class ExcelService {
       'Loại cửa hàng': { min: 18, max: 25 },
     });
     XLSX.utils.book_append_sheet(wb, wsStores, 'DS CH');
+
+    // Sheet 5: GHI CHÚ
+    const noteRows = textNotes.map((item, idx) => ({
+      STT: idx + 1,
+      'Tiêu đề': shieldFormula(item.title || 'Ghi chú không tên'),
+      'Nội dung': shieldFormula((item.content || '').replace(/<[^>]+>/g, '\n').replace(/&nbsp;/g, ' ').trim()),
+      'Thẻ (Tags)': shieldFormula(item.tags?.join(', ') || ''),
+      'Màu sắc': shieldFormula(item.color || 'amber'),
+      'Đã ghim': item.pinned ? 'Có' : 'Không',
+      'Ngày tạo': item.createdAt ? new Date(item.createdAt).toLocaleDateString('vi-VN') : '',
+      'Ngày cập nhật': item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('vi-VN') : '',
+    }));
+    const wsNotes = XLSX.utils.json_to_sheet(noteRows);
+    applyWorksheetStyles(wsNotes, noteRows, {
+      STT: { min: 8, max: 10 },
+      'Tiêu đề': { min: 25, max: 40 },
+      'Nội dung': { min: 40, max: 80 },
+      'Thẻ (Tags)': { min: 15, max: 30 },
+      'Màu sắc': { min: 12, max: 18 },
+      'Đã ghim': { min: 10, max: 15 },
+      'Ngày tạo': { min: 14, max: 18 },
+      'Ngày cập nhật': { min: 14, max: 18 },
+    });
+    XLSX.utils.book_append_sheet(wb, wsNotes, 'GHI CHÚ');
+
+    // Sheet 6: VIỆC CẦN LÀM (TO-DO)
+    const todoRows = todoNotes.map((item, idx) => ({
+      STT: idx + 1,
+      'Tiêu đề': shieldFormula(item.title || 'Danh sách việc'),
+      'Danh sách việc (Checklist)': shieldFormula(item.checklistContent || ''),
+      'Nhắc nhở': shieldFormula(item.reminderAt ? new Date(item.reminderAt).toLocaleString('vi-VN') : ''),
+      'Màu sắc': shieldFormula(item.color || 'blue'),
+      'Đã ghim': item.pinned ? 'Có' : 'Không',
+      'Ngày tạo': item.createdAt ? new Date(item.createdAt).toLocaleDateString('vi-VN') : '',
+      'Ngày cập nhật': item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('vi-VN') : '',
+    }));
+    const wsTodos = XLSX.utils.json_to_sheet(todoRows);
+    applyWorksheetStyles(wsTodos, todoRows, {
+      STT: { min: 8, max: 10 },
+      'Tiêu đề': { min: 25, max: 40 },
+      'Danh sách việc (Checklist)': { min: 40, max: 80 },
+      'Nhắc nhở': { min: 20, max: 30 },
+      'Màu sắc': { min: 12, max: 18 },
+      'Đã ghim': { min: 10, max: 15 },
+      'Ngày tạo': { min: 14, max: 18 },
+      'Ngày cập nhật': { min: 14, max: 18 },
+    });
+    XLSX.utils.book_append_sheet(wb, wsTodos, 'VIỆC CẦN LÀM');
 
     const fileName = `FM_WORKSPACE_BACKUP_${new Date().toISOString().slice(0, 10)}.xlsx`;
     XLSX.writeFile(wb, fileName);

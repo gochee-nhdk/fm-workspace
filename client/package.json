@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test": "tsx src/lib/api.test.ts",
+    "test": "tsx src/lib/api.test.ts && tsx src/services/backupService.test.ts",
     "postinstall": "node scripts/postinstall-sf-symbols.cjs",
     "build": "node scripts/postinstall-sf-symbols.cjs && tsc && vite build",
     "lint": "node scripts/postinstall-sf-symbols.cjs && tsc --noEmit",

@@ -65,6 +65,8 @@ export interface WorkspaceSummary {
   totalLinks: number;
   totalAccounts: number;
   totalStores: number;
+  totalNotes?: number;
+  totalTodos?: number;
   favoriteLinks: LinkItem[];
   recentStores: StoreItem[];
   recentActivities: ActivityLogItem[];
@@ -154,6 +156,7 @@ export interface FMBackupFile {
       accounts: number;
       stores: number;
       notes: number;
+      todos?: number;
       attachments: number;
     };
   };
@@ -180,6 +183,7 @@ export interface BackupImportResult {
   accounts: number;
   stores: number;
   notes: number;
+  todos: number;
   attachments: number;
   skipped: number;
   errors: string[];

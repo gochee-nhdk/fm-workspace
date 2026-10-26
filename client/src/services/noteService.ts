@@ -80,9 +80,10 @@ export const noteService = {
 
       // Overwrite/merge with IDB notes based on newest timestamp
       for (const item of idbItems) {
+        const isChecklist = item.noteType === 'checklist';
         const sanitizedItem = {
           ...item,
-          content: sanitizeNoteHTML(item.content || ''),
+          content: isChecklist ? (item.content || '<p><br></p>') : sanitizeNoteHTML(item.content || ''),
         };
         const existingCached = mergedMap.get(item.id);
         if (!existingCached) {
@@ -92,11 +93,18 @@ export const noteService = {
           const itemTime = new Date(item.updatedAt || 0).getTime();
           const cacheTime = new Date(existingCached.updatedAt || 0).getTime();
           const isItemFresher = itemTime >= cacheTime;
+          const winner = isItemFresher ? sanitizedItem : existingCached;
           mergedMap.set(item.id, {
             ...existingCached,
             ...sanitizedItem,
-            content: isItemFresher ? sanitizedItem.content : existingCached.content,
-            images: (sanitizedItem.images && sanitizedItem.images.length > 0) ? sanitizedItem.images : existingCached.images,
+            title: winner.title || sanitizedItem.title,
+            content: winner.content,
+            checklistContent: winner.checklistContent !== undefined ? winner.checklistContent : sanitizedItem.checklistContent,
+            noteType: winner.noteType || sanitizedItem.noteType,
+            pinned: winner.pinned !== undefined ? winner.pinned : sanitizedItem.pinned,
+            color: winner.color || sanitizedItem.color,
+            tags: winner.tags || sanitizedItem.tags,
+            images: (winner.images && winner.images.length > 0) ? winner.images : existingCached.images,
           });
         }
       }
@@ -108,6 +116,14 @@ export const noteService = {
 
     // Fallback to cache if IDB is empty or offline
     return this.sortNotes(cached);
+  },
+
+  /**
+   * Overwrites the localStorage cache directly with the given note items.
+   * Crucial during backup restoration to prevent stale cache entries from resurrecting.
+   */
+  saveLocalStorageNotesDirect(notes: QuickNoteItem[]): void {
+    saveLocalStorageNotes(notes);
   },
 
   /**

@@ -139,7 +139,7 @@ export const ThemeSegmentedControl: React.FC = () => {
 export const SettingsPage: React.FC = () => {
   const { theme } = useUiStore();
 
-  const [counts, setCounts] = useState({ links: 0, accounts: 0, stores: 0, activities: 0 });
+  const [counts, setCounts] = useState({ links: 0, accounts: 0, stores: 0, notes: 0, todos: 0, activities: 0 });
   const [storageBytes, setStorageBytes] = useState<number>(0);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [isRepairing, setIsRepairing] = useState(false);
@@ -206,6 +206,8 @@ export const SettingsPage: React.FC = () => {
         links: summary.totalLinks,
         accounts: summary.totalAccounts,
         stores: summary.totalStores,
+        notes: summary.totalNotes ?? 0,
+        todos: summary.totalTodos ?? 0,
         activities: acts.length,
       });
 
@@ -424,9 +426,15 @@ export const SettingsPage: React.FC = () => {
     try {
       const res = await backupService.restoreFromServer(backupId);
       if (res.success) {
-        toast.success('🎉 Khôi phục thảm họa thành công từ máy chủ! Toàn bộ dữ liệu đã được phục hồi.');
+        toast.success(
+          `🎉 Khôi phục thảm họa thành công! (${res.links} Links, ${res.accounts} TK, ${res.stores} CH, ${res.notes} Ghi chú, ${res.todos || 0} To-do)`
+        );
         await loadStats();
         await loadStorageAndSyncStatus();
+        try {
+          const { useNoteStore } = await import('@/stores/note-store');
+          await useNoteStore.getState().loadNotes();
+        } catch (_) {}
       } else {
         toast.error(`Khôi phục thất bại: ${res.errors[0] || 'Lỗi không xác định'}`);
       }
@@ -476,13 +484,17 @@ export const SettingsPage: React.FC = () => {
       setImportResult(result);
 
       if (result.success) {
-        const total = result.links + result.accounts + result.stores + result.notes + result.attachments;
+        const total = result.links + result.accounts + result.stores + result.notes + (result.todos || 0) + result.attachments;
         toast.success(
-          `✅ Nhập thành công ${total} mục! (${result.links} Links, ${result.accounts} TK, ${result.stores} CH, ${result.notes} Ghi chú, ${result.attachments} Tệp)`,
+          `✅ Nhập thành công ${total} mục! (${result.links} Links, ${result.accounts} TK, ${result.stores} CH, ${result.notes} Ghi chú, ${result.todos || 0} To-do, ${result.attachments} Tệp)`,
           { duration: 7000 }
         );
         await loadStats();
         await loadStorageAndSyncStatus();
+        try {
+          const { useNoteStore } = await import('@/stores/note-store');
+          await useNoteStore.getState().loadNotes();
+        } catch (_) {}
         setShowPasswordPromptModal(false);
         setPendingEncryptedFile(null);
         setImportPassword('');
@@ -594,24 +606,32 @@ export const SettingsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 text-center">
-              <div className="p-4 rounded-[16px] bg-[#f5f5f7]/60 dark:bg-white/5 border border-white/60 dark:border-white/5 shadow-xs">
-                <div className="text-[24px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white">{counts.links}</div>
-                <div className="text-[12px] text-[#86868b] dark:text-[#a1a1a6] font-medium mt-0.5">Links lưu trữ</div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-center">
+              <div className="p-3.5 rounded-[16px] bg-[#f5f5f7]/60 dark:bg-white/5 border border-white/60 dark:border-white/5 shadow-xs">
+                <div className="text-[22px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white">{counts.links}</div>
+                <div className="text-[11.5px] text-[#86868b] dark:text-[#a1a1a6] font-medium mt-0.5">Links lưu trữ</div>
               </div>
-              <div className="p-4 rounded-[16px] bg-[#f5f5f7]/60 dark:bg-white/5 border border-white/60 dark:border-white/5 shadow-xs">
-                <div className="text-[24px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white">{counts.accounts}</div>
-                <div className="text-[12px] text-[#86868b] dark:text-[#a1a1a6] font-medium mt-0.5">Tài khoản</div>
+              <div className="p-3.5 rounded-[16px] bg-[#f5f5f7]/60 dark:bg-white/5 border border-white/60 dark:border-white/5 shadow-xs">
+                <div className="text-[22px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white">{counts.accounts}</div>
+                <div className="text-[11.5px] text-[#86868b] dark:text-[#a1a1a6] font-medium mt-0.5">Tài khoản</div>
               </div>
-              <div className="p-4 rounded-[16px] bg-[#f5f5f7]/60 dark:bg-white/5 border border-white/60 dark:border-white/5 shadow-xs">
-                <div className="text-[24px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white">{counts.stores}</div>
-                <div className="text-[12px] text-[#86868b] dark:text-[#a1a1a6] font-medium mt-0.5">Cửa hàng</div>
+              <div className="p-3.5 rounded-[16px] bg-[#f5f5f7]/60 dark:bg-white/5 border border-white/60 dark:border-white/5 shadow-xs">
+                <div className="text-[22px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white">{counts.stores}</div>
+                <div className="text-[11.5px] text-[#86868b] dark:text-[#a1a1a6] font-medium mt-0.5">Cửa hàng</div>
               </div>
-              <div className="p-4 rounded-[16px] bg-[#f5f5f7]/60 dark:bg-white/5 border border-white/60 dark:border-white/5 shadow-xs">
-                <div className="text-[24px] font-semibold tracking-tight text-[#0071e3] dark:text-[#2997ff]">
+              <div className="p-3.5 rounded-[16px] bg-[#f5f5f7]/60 dark:bg-white/5 border border-white/60 dark:border-white/5 shadow-xs">
+                <div className="text-[22px] font-semibold tracking-tight text-amber-600 dark:text-amber-400">{counts.notes}</div>
+                <div className="text-[11.5px] text-[#86868b] dark:text-[#a1a1a6] font-medium mt-0.5">Ghi chú</div>
+              </div>
+              <div className="p-3.5 rounded-[16px] bg-[#f5f5f7]/60 dark:bg-white/5 border border-white/60 dark:border-white/5 shadow-xs">
+                <div className="text-[22px] font-semibold tracking-tight text-blue-600 dark:text-blue-400">{counts.todos}</div>
+                <div className="text-[11.5px] text-[#86868b] dark:text-[#a1a1a6] font-medium mt-0.5">Việc cần làm</div>
+              </div>
+              <div className="p-3.5 rounded-[16px] bg-[#f5f5f7]/60 dark:bg-white/5 border border-white/60 dark:border-white/5 shadow-xs">
+                <div className="text-[22px] font-semibold tracking-tight text-[#0071e3] dark:text-[#2997ff]">
                   {formatBytes(storageBytes)}
                 </div>
-                <div className="text-[12px] text-[#86868b] dark:text-[#a1a1a6] font-medium mt-0.5">Dung lượng dùng</div>
+                <div className="text-[11.5px] text-[#86868b] dark:text-[#a1a1a6] font-medium mt-0.5">Dung lượng dùng</div>
               </div>
             </div>
 
