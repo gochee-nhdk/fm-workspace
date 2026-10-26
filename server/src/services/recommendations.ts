@@ -8,23 +8,23 @@ export async function generateOrderRecommendations(storeId?: string): Promise<nu
   
   // Clean up previous pending recommendations to prevent duplication
   if (storeId) {
-    db.prepare("DELETE FROM purchase_recommendations WHERE status = 'pending' AND store_id = ?").run(storeId);
+    await db.prepare("DELETE FROM purchase_recommendations WHERE status = 'pending' AND store_id = ?").run(storeId);
   } else {
-    db.prepare("DELETE FROM purchase_recommendations WHERE status = 'pending'").run();
+    await db.prepare("DELETE FROM purchase_recommendations WHERE status = 'pending'").run();
   }
 
   const stores = storeId 
-    ? (db.prepare('SELECT id FROM stores WHERE id = ?').all(storeId) as any[])
-    : (db.prepare('SELECT id FROM stores').all() as any[]);
+    ? ((await db.prepare('SELECT id FROM stores WHERE id = ?').all(storeId)) as any[])
+    : ((await db.prepare('SELECT id FROM stores').all()) as any[]);
 
   for (const store of stores) {
-    const products = db.prepare('SELECT id FROM products WHERE is_active = 1').all() as any[];
+    const products = (await db.prepare('SELECT id FROM products WHERE is_active = 1').all()) as any[];
     
     for (const product of products) {
-      const calc = calculateRecommendedOrderQty(product.id, store.id);
+      const calc = await calculateRecommendedOrderQty(product.id, store.id);
       
       if (calc.recommendedQty > 0) {
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO purchase_recommendations 
           (id, store_id, product_id, recommended_qty, reason, confidence, risk_level, calculation_data, created_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)

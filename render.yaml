@@ -2,10 +2,11 @@ services:
   - type: web
     name: farmers-market-procurement-api
     env: node
-    plan: free
+    plan: free # Zero-Cost Free Web Service on Render
     region: singapore
-    buildCommand: cd server && npm install --include=dev && npm run build
-    startCommand: cd server && npm start
+    rootDir: server
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
@@ -13,4 +14,14 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CLIENT_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      - key: INITIAL_ADMIN_EMAIL
+        value: admin@farmersmarket.vn
+      - key: INITIAL_ADMIN_PASSWORD
         sync: false

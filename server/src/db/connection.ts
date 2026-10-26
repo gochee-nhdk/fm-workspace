@@ -1,61 +1,34 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
+import { createDatabaseAdapter } from './adapter.js';
+import type { IDatabaseAdapter, PreparedStatement, RunResult } from './adapter.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+export type { IDatabaseAdapter, PreparedStatement, RunResult };
 
-function getDatabaseFilePath(): string {
-  if (process.env.DATABASE_PATH) return process.env.DATABASE_PATH;
-  if (process.env.DB_PATH) return process.env.DB_PATH;
-  
-  const rootDataDir = path.resolve(__dirname, '../../data');
-  try {
-    if (!fs.existsSync(rootDataDir)) {
-      fs.mkdirSync(rootDataDir, { recursive: true });
-    }
-    return path.join(rootDataDir, 'procurement.db');
-  } catch {
-    const cwdDataDir = path.resolve(process.cwd(), 'data');
-    if (!fs.existsSync(cwdDataDir)) {
-      fs.mkdirSync(cwdDataDir, { recursive: true });
-    }
-    return path.join(cwdDataDir, 'procurement.db');
-  }
-}
+let dbInstance: IDatabaseAdapter | null = null;
 
-const dbPath = getDatabaseFilePath();
-
-let dbInstance: Database.Database | null = null;
-
-export function getDb(): Database.Database {
+export function getDb(): IDatabaseAdapter {
   if (!dbInstance) {
-    dbInstance = new Database(dbPath, {
-      verbose: process.env.NODE_ENV === 'development' ? console.log : undefined,
-    });
-    
-    // Enable WAL mode and performance pragmas
-    dbInstance.pragma('journal_mode = WAL');
-    dbInstance.pragma('foreign_keys = ON');
-    dbInstance.pragma('synchronous = NORMAL');
-    dbInstance.pragma('cache_size = -64000'); // 64MB memory page cache
-    
-    // Configure busy timeout
-    dbInstance.pragma('busy_timeout = 5000');
+    dbInstance = createDatabaseAdapter();
   }
   return dbInstance;
 }
 
-export function closeDb(): void {
+export function setDb(adapter: IDatabaseAdapter | null): void {
+  dbInstance = adapter;
+}
+
+export async function closeDb(): Promise<void> {
   if (dbInstance) {
-    dbInstance.close();
+    await dbInstance.close();
     dbInstance = null;
   }
 }
 
-// Graceful shutdown
-process.on('exit', () => closeDb());
+// Graceful shutdown handlers
+process.on('exit', () => {
+  if (dbInstance) {
+    dbInstance.close().catch(() => {});
+  }
+});
 process.on('SIGHUP', () => process.exit(128 + 1));
 process.on('SIGINT', () => process.exit(128 + 2));
 process.on('SIGTERM', () => process.exit(128 + 15));

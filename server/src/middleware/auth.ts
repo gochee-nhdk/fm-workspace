@@ -25,18 +25,19 @@ export async function verifyToken(request: FastifyRequest, reply: FastifyReply) 
     }
 
     if (!token) {
-      // In local-first / offline-first desktop mode (when not running unit tests),
+      // In local-first / offline-first desktop mode (when not hosted and not running tests),
       // if request comes from local loopback (127.0.0.1 / ::1), safely resolve active admin user
       const isLocalHost = request.ip === '127.0.0.1' || request.ip === '::1' || request.hostname.includes('localhost');
       const isTestEnv = process.env.NODE_ENV === 'test' || process.env.DATABASE_PATH?.includes('test_security');
+      const db = getDb();
+      const isHosted = db.isRemote() || process.env.APP_ENV === 'hosted' || (process.env.NODE_ENV === 'production' && !process.env.ELECTRON_RUN_AS_NODE);
       
-      if (!isTestEnv && isLocalHost) {
-        const db = getDb();
-        const localAdmin = db.prepare(`
+      if (!isHosted && !isTestEnv && isLocalHost) {
+        const localAdmin = (await db.prepare(`
           SELECT id, email, role, full_name, is_active FROM users 
           WHERE role = 'admin' AND is_active = 1 
           ORDER BY created_at ASC LIMIT 1
-        `).get() as any;
+        `).get()) as any;
 
         if (localAdmin) {
           request.user = {
@@ -56,7 +57,7 @@ export async function verifyToken(request: FastifyRequest, reply: FastifyReply) 
     
     // Check if user is active
     const db = getDb();
-    const user = db.prepare('SELECT id, is_active FROM users WHERE id = ?').get(decoded.id) as any;
+    const user = (await db.prepare('SELECT id, is_active FROM users WHERE id = ?').get(decoded.id)) as any;
     
     if (!user || user.is_active === 0) {
       return reply.code(401).send({ error: 'Unauthorized', message: 'User inactive or not found' });
@@ -89,7 +90,7 @@ export async function optionalAuth(request: FastifyRequest, reply: FastifyReply)
       const decoded = jwt.verify(token, getJwtSecret()) as AuthUser;
       
       const db = getDb();
-      const user = db.prepare('SELECT id, is_active FROM users WHERE id = ?').get(decoded.id) as any;
+      const user = (await db.prepare('SELECT id, is_active FROM users WHERE id = ?').get(decoded.id)) as any;
       if (!user || user.is_active === 0) {
         return reply.code(401).send({ error: 'Unauthorized', message: 'User inactive or not found' });
       }

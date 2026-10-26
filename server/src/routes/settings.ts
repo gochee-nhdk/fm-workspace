@@ -13,7 +13,7 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
    * 1. GET /: Get all system settings (excluding Gemini key and SMTP pass)
    */
   fastify.get('/', async (request: any, reply) => {
-    const data = getDb().prepare("SELECT * FROM system_settings WHERE key NOT IN ('gemini_api_key', 'smtp_pass') ORDER BY category, key").all();
+    const data = await getDb().prepare("SELECT * FROM system_settings WHERE key NOT IN ('gemini_api_key', 'smtp_pass') ORDER BY category, key").all();
     return { success: true, data };
   });
 
@@ -27,17 +27,17 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
     }
 
     const db = getDb();
-    const updateStmt = db.prepare('UPDATE system_settings SET value = ?, updated_by = ?, updated_at = ? WHERE key = ?');
     const now = new Date().toISOString();
     const userId = request.user?.id || 'admin';
 
-    db.transaction(() => {
+    await db.transaction(async (tx) => {
+      const updateStmt = tx.prepare('UPDATE system_settings SET value = ?, updated_by = ?, updated_at = ? WHERE key = ?');
       for (const item of settings) {
         if (item.key !== 'gemini_api_key') {
-          updateStmt.run(String(item.value), userId, now, item.key);
+          await updateStmt.run(String(item.value), userId, now, item.key);
         }
       }
-    })();
+    });
 
     auditLog(request, 'UPDATE_SETTINGS', 'system_settings', null, null, settings);
     return { success: true, message: 'Cài đặt đã được cập nhật thành công.' };
@@ -47,7 +47,7 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
    * 3. GET /gemini-status & /gemini-key-status: Check if Gemini API key is configured
    */
   const getGeminiStatusHandler = async () => {
-    const key = getDb().prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get() as any;
+    const key = (await getDb().prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get()) as any;
     const isConfigured = !!(key && key.value && key.value.trim().length > 0) || !!process.env.GEMINI_API_KEY;
     return {
       success: true,
@@ -75,7 +75,7 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
     const db = getDb();
     const now = new Date().toISOString();
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO system_settings (id, key, value, category, updated_by, updated_at)
       VALUES (?, 'gemini_api_key', ?, 'ai', ?, ?)
       ON CONFLICT(key) DO UPDATE SET
@@ -95,7 +95,7 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
    * 5. GET /users: List users
    */
   fastify.get('/users', { preHandler: requireRole('admin') }, async (request: any, reply) => {
-    const users = getDb().prepare('SELECT id, email, full_name, role, is_active, created_at, updated_at FROM users ORDER BY created_at ASC').all();
+    const users = await getDb().prepare('SELECT id, email, full_name, role, is_active, created_at, updated_at FROM users ORDER BY created_at ASC').all();
     return { success: true, data: users };
   });
 
@@ -109,7 +109,7 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
     }
 
     const db = getDb();
-    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    const existing = await db.prepare('SELECT id FROM users WHERE email = ?').get(email);
     if (existing) {
       return reply.code(400).send({ success: false, message: 'Email này đã được sử dụng trong hệ thống.' });
     }
@@ -118,7 +118,7 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
     const now = new Date().toISOString();
     const passwordHash = await argon2.hash(password);
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO users (id, email, full_name, password_hash, role, is_active, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, 1, ?, ?)
     `).run(id, email.toLowerCase().trim(), full_name.trim(), passwordHash, role || 'staff', now, now);
@@ -136,7 +136,7 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
     const db = getDb();
     const now = new Date().toISOString();
 
-    const existing = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as any;
+    const existing = (await db.prepare('SELECT * FROM users WHERE id = ?').get(id)) as any;
     if (!existing) {
       return reply.code(404).send({ success: false, message: 'Không tìm thấy người dùng.' });
     }
@@ -146,7 +146,7 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
       passwordHash = await argon2.hash(password.trim());
     }
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE users
       SET full_name = COALESCE(?, full_name),
           role = COALESCE(?, role),

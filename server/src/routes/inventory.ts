@@ -35,7 +35,8 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
       ${whereClause}
     `;
 
-    const count = (db.prepare(`SELECT COUNT(*) as total ${baseQuery}`).get(...params) as any)?.total || 0;
+    const countRes = (await db.prepare(`SELECT COUNT(*) as total ${baseQuery}`).get(...params)) as any;
+    const count = Number(countRes?.total || 0);
 
     const selectQuery = `
       SELECT i.*, p.sku_code, p.name as product_name, p.unit, s.name as store_name, c.name as category_name
@@ -44,11 +45,11 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
       LIMIT ? OFFSET ?
     `;
 
-    const rawRows = db.prepare(selectQuery).all(...params, Number(limit), Number(offset)) as any[];
+    const rawRows = (await db.prepare(selectQuery).all(...params, Number(limit), Number(offset))) as any[];
 
     // Calculate dynamic ADS and DoC for each row
-    const enrichedRows = rawRows.map((row) => {
-      const ads = calculateAverageDailySales(row.product_id, row.store_id, 30);
+    const enrichedRows = await Promise.all(rawRows.map(async (row) => {
+      const ads = await calculateAverageDailySales(row.product_id, row.store_id, 30);
       const doc = calculateDaysOfCover(row.available_qty, ads);
 
       let status = 'healthy';
@@ -63,7 +64,7 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
         days_of_cover: doc >= 999 ? 'N/A' : Number(doc.toFixed(1)),
         status
       };
-    });
+    }));
 
     return {
       success: true,
@@ -82,23 +83,23 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/days-of-cover', async (request: any, reply) => {
     const db = getDb();
-    const rows = db.prepare(`
+    const rows = (await db.prepare(`
       SELECT i.product_id, i.store_id, p.sku_code, p.name as product_name, s.name as store_name, i.available_qty
       FROM inventory i
       JOIN products p ON i.product_id = p.id
       JOIN stores s ON i.store_id = s.id
       LIMIT 100
-    `).all() as any[];
+    `).all()) as any[];
 
-    const result = rows.map((r) => {
-      const ads = calculateAverageDailySales(r.product_id, r.store_id, 30);
+    const result = await Promise.all(rows.map(async (r) => {
+      const ads = await calculateAverageDailySales(r.product_id, r.store_id, 30);
       const doc = calculateDaysOfCover(r.available_qty, ads);
       return {
         ...r,
         ads: Number(ads.toFixed(2)),
         days_of_cover: doc >= 999 ? 999 : Number(doc.toFixed(1))
       };
-    });
+    }));
 
     return { success: true, data: result };
   });
@@ -108,7 +109,7 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/stockout-risk', async (request: any, reply) => {
     const db = getDb();
-    const rows = db.prepare(`
+    const rows = (await db.prepare(`
       SELECT i.*, p.sku_code, p.name as product_name, s.name as store_name, sup.name as supplier_name, sup.lead_time_days
       FROM inventory i
       JOIN products p ON i.product_id = p.id
@@ -118,10 +119,10 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
       WHERE i.available_qty <= 5
       ORDER BY i.available_qty ASC
       LIMIT 50
-    `).all() as any[];
+    `).all()) as any[];
 
-    const data = rows.map((r) => {
-      const ads = calculateAverageDailySales(r.product_id, r.store_id, 30);
+    const data = await Promise.all(rows.map(async (r) => {
+      const ads = await calculateAverageDailySales(r.product_id, r.store_id, 30);
       const doc = calculateDaysOfCover(r.available_qty, ads);
       return {
         ...r,
@@ -129,7 +130,7 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
         days_of_cover: doc >= 999 ? 0 : Number(doc.toFixed(1)),
         risk_level: r.available_qty <= 0 ? 'critical' : 'warning'
       };
-    });
+    }));
 
     return { success: true, data };
   });
@@ -139,28 +140,27 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/overstock', async (request: any, reply) => {
     const db = getDb();
-    const rows = db.prepare(`
+    const rows = (await db.prepare(`
       SELECT i.*, p.sku_code, p.name as product_name, s.name as store_name
       FROM inventory i
       JOIN products p ON i.product_id = p.id
       JOIN stores s ON i.store_id = s.id
       WHERE i.available_qty > 20
       LIMIT 100
-    `).all() as any[];
+    `).all()) as any[];
 
     // Filter items where DoC > 30 days
-    const overstocked = rows
-      .map((r) => {
-        const ads = calculateAverageDailySales(r.product_id, r.store_id, 30);
-        const doc = calculateDaysOfCover(r.available_qty, ads);
-        return {
-          ...r,
-          ads: Number(ads.toFixed(2)),
-          days_of_cover: doc >= 999 ? 999 : Number(doc.toFixed(1))
-        };
-      })
-      .filter((r) => r.days_of_cover > 30);
+    const mapped = await Promise.all(rows.map(async (r) => {
+      const ads = await calculateAverageDailySales(r.product_id, r.store_id, 30);
+      const doc = calculateDaysOfCover(r.available_qty, ads);
+      return {
+        ...r,
+        ads: Number(ads.toFixed(2)),
+        days_of_cover: doc >= 999 ? 999 : Number(doc.toFixed(1))
+      };
+    }));
 
+    const overstocked = mapped.filter((r) => r.days_of_cover > 30);
     return { success: true, data: overstocked.slice(0, 50) };
   });
 
@@ -172,7 +172,7 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
     const now = new Date();
     const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    const data = db.prepare(`
+    const data = await db.prepare(`
       SELECT el.*, p.sku_code, p.name as product_name, s.name as store_name,
              CAST((julianday(el.expiry_date) - julianday('now')) AS INTEGER) as days_remaining
       FROM expiry_lots el
@@ -201,7 +201,7 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
     const { id } = request.params;
     const now = new Date().toISOString();
 
-    const existing = db.prepare('SELECT * FROM inventory WHERE id = ?').get(id) as any;
+    const existing = (await db.prepare('SELECT * FROM inventory WHERE id = ?').get(id)) as any;
     if (!existing) {
       return reply.code(404).send({ success: false, message: 'Không tìm thấy dòng tồn kho.' });
     }
@@ -216,7 +216,7 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
 
     const newTotal = newAvail + newRes + newDam;
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE inventory
       SET quantity = ?, available_qty = ?, reserved_qty = ?, damaged_qty = ?, updated_at = ?
       WHERE id = ?

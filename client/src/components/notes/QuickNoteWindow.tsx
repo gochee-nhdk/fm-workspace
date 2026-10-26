@@ -278,6 +278,11 @@ const ensureHtml = (content: string): string => {
     .replace(/<p>\s*<p>/gi, '<p>')
     .replace(/<\/p>\s*<\/p>/gi, '</p>');
 
+  // Normalize headings: Strip redundant <b> or <strong> tags inside headings so all headings render uniformly
+  cleaned = cleaned.replace(/<h([1-3])([^>]*)>([\s\S]*?)<\/h\1>/gi, (_, lvl, attrs, inner) => {
+    return `<h${lvl}${attrs}>${inner.replace(/<\/?(?:b|strong)>/gi, '')}</h${lvl}>`;
+  });
+
   // Dọn dẹp thanh 3 nút cũ nếu có trong các ghi chú trước đó, chuyển sang nút xóa Apple Liquid Glass tròn tinh tế
   if (cleaned.includes('apple-img-action-bar')) {
     cleaned = cleaned.replace(/<span class=["']apple-img-action-bar["'][^>]*>[\s\S]*?<\/span>/gi, '');
@@ -2099,6 +2104,10 @@ export const QuickNoteWindow: React.FC = () => {
           document.execCommand('formatBlock', false, '<p>'); // toggle off
         } else {
           document.execCommand('formatBlock', false, '<h1>');
+          const headingNode = (window.getSelection()?.anchorNode as Element)?.closest?.('h1') || (window.getSelection()?.anchorNode?.parentElement?.closest?.('h1'));
+          headingNode?.querySelectorAll('b, strong').forEach((bNode) => {
+            bNode.replaceWith(...Array.from(bNode.childNodes));
+          });
         }
         break;
       }
@@ -2110,6 +2119,10 @@ export const QuickNoteWindow: React.FC = () => {
           document.execCommand('formatBlock', false, '<p>'); // toggle off
         } else {
           document.execCommand('formatBlock', false, '<h2>');
+          const headingNode = (window.getSelection()?.anchorNode as Element)?.closest?.('h2') || (window.getSelection()?.anchorNode?.parentElement?.closest?.('h2'));
+          headingNode?.querySelectorAll('b, strong').forEach((bNode) => {
+            bNode.replaceWith(...Array.from(bNode.childNodes));
+          });
         }
         break;
       }
@@ -2121,6 +2134,10 @@ export const QuickNoteWindow: React.FC = () => {
           document.execCommand('formatBlock', false, '<p>'); // toggle off
         } else {
           document.execCommand('formatBlock', false, '<h3>');
+          const headingNode = (window.getSelection()?.anchorNode as Element)?.closest?.('h3') || (window.getSelection()?.anchorNode?.parentElement?.closest?.('h3'));
+          headingNode?.querySelectorAll('b, strong').forEach((bNode) => {
+            bNode.replaceWith(...Array.from(bNode.childNodes));
+          });
         }
         break;
       }
@@ -3127,17 +3144,32 @@ export const QuickNoteWindow: React.FC = () => {
         }
         // "### " → H3 (must check before ## and #)
         if (trimmedBefore === '###') {
-          applyBlockShortcut(3, () => document.execCommand('formatBlock', false, '<h3>'));
+          applyBlockShortcut(3, () => {
+            document.execCommand('formatBlock', false, '<h3>');
+            const h = window.getSelection()?.anchorNode;
+            const hEl = h instanceof Element ? h : h?.parentElement;
+            hEl?.closest('h3')?.querySelectorAll('b, strong').forEach((b) => b.replaceWith(...Array.from(b.childNodes)));
+          });
           return;
         }
         // "## " → H2
         if (trimmedBefore === '##') {
-          applyBlockShortcut(2, () => document.execCommand('formatBlock', false, '<h2>'));
+          applyBlockShortcut(2, () => {
+            document.execCommand('formatBlock', false, '<h2>');
+            const h = window.getSelection()?.anchorNode;
+            const hEl = h instanceof Element ? h : h?.parentElement;
+            hEl?.closest('h2')?.querySelectorAll('b, strong').forEach((b) => b.replaceWith(...Array.from(b.childNodes)));
+          });
           return;
         }
         // "# " → H1
         if (trimmedBefore === '#') {
-          applyBlockShortcut(1, () => document.execCommand('formatBlock', false, '<h1>'));
+          applyBlockShortcut(1, () => {
+            document.execCommand('formatBlock', false, '<h1>');
+            const h = window.getSelection()?.anchorNode;
+            const hEl = h instanceof Element ? h : h?.parentElement;
+            hEl?.closest('h1')?.querySelectorAll('b, strong').forEach((b) => b.replaceWith(...Array.from(b.childNodes)));
+          });
           return;
         }
       }
@@ -5547,7 +5579,7 @@ export const QuickNoteWindow: React.FC = () => {
                     onScroll={handleEditorSelect}
                     onPaste={handleEditorPaste}
                     onClick={handleEditorClick}
-                    className="flex-1 w-full bg-transparent border-0 outline-none shadow-none ring-0 focus:ring-0 focus:outline-none focus:border-none font-sans text-[14.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] p-0 pr-1 selection:bg-purple-500/25 selection:text-[#1d1d1f] dark:selection:text-white overflow-y-auto min-h-0 [&_h1]:text-2xl [&_h1]:font-extrabold [&_h1]:text-[#1d1d1f] dark:[&_h1]:text-white [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:leading-tight [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-[#1d1d1f] dark:[&_h2]:text-white [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[17px] [&_h3]:font-semibold [&_h3]:text-[#1d1d1f] dark:[&_h3]:text-white [&_h3]:mt-2 [&_h3]:mb-0.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline [&_s]:line-through [&_img]:!max-w-[320px] [&_img]:!max-h-[220px] [&_img]:!w-auto [&_img]:!h-auto [&_img]:object-contain [&_img]:rounded-xl [&_img]:cursor-zoom-in [&_.apple-img-wrapper]:my-2 [&_.apple-img-wrapper_img]:!m-0 [&_.apple-img-wrapper_img]:!p-0 [&_.apple-img-wrapper_img]:!border-0 [&_.apple-img-wrapper_img]:!shadow-none [&_.apple-img-wrapper_img]:!block [&_.apple-file-attachment]:transition-all hover:[&_.apple-file-attachment]:bg-black/[0.07] dark:hover:[&_.apple-file-attachment]:bg-white/[0.08] cursor-text scrollbar-thin [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-black/30"
+                    className="flex-1 w-full bg-transparent border-0 outline-none shadow-none ring-0 focus:ring-0 focus:outline-none focus:border-none font-sans text-[14.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] p-0 pr-1 selection:bg-purple-500/25 selection:text-[#1d1d1f] dark:selection:text-white overflow-y-auto min-h-0 [&_h1]:text-2xl [&_h1]:font-bold [&_h1_*]:font-bold [&_h1]:text-[#1d1d1f] dark:[&_h1]:text-white [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:leading-tight [&_h2]:text-xl [&_h2]:font-bold [&_h2_*]:font-bold [&_h2]:text-[#1d1d1f] dark:[&_h2]:text-white [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[17px] [&_h3]:font-semibold [&_h3_*]:font-semibold [&_h3]:text-[#1d1d1f] dark:[&_h3]:text-white [&_h3]:mt-2 [&_h3]:mb-0.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline [&_s]:line-through [&_img]:!max-w-[320px] [&_img]:!max-h-[220px] [&_img]:!w-auto [&_img]:!h-auto [&_img]:object-contain [&_img]:rounded-xl [&_img]:cursor-zoom-in [&_.apple-img-wrapper]:my-2 [&_.apple-img-wrapper_img]:!m-0 [&_.apple-img-wrapper_img]:!p-0 [&_.apple-img-wrapper_img]:!border-0 [&_.apple-img-wrapper_img]:!shadow-none [&_.apple-img-wrapper_img]:!block [&_.apple-file-attachment]:transition-all hover:[&_.apple-file-attachment]:bg-black/[0.07] dark:hover:[&_.apple-file-attachment]:bg-white/[0.08] cursor-text scrollbar-thin [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-black/30"
                     style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
                   />
                 </div>

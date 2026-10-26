@@ -17,8 +17,9 @@ export default async function auditRoutes(fastify: FastifyInstance) {
     if (entity_type) { query += ' AND entity_type = ?'; params.push(entity_type); }
     if (action) { query += ' AND action = ?'; params.push(action); }
     
-    const count = (db.prepare(`SELECT COUNT(*) as total FROM (${query})`).get(...params) as any).total;
-    const data = db.prepare(`${query} ORDER BY created_at DESC LIMIT ? OFFSET ?`).all(...params, Number(limit), Number(offset));
+    const countRes = (await db.prepare(`SELECT COUNT(*) as total FROM (${query})`).get(...params)) as any;
+    const count = Number(countRes?.total || 0);
+    const data = await db.prepare(`${query} ORDER BY created_at DESC LIMIT ? OFFSET ?`).all(...params, Number(limit), Number(offset));
     
     return { success: true, data, pagination: { page: Number(page), limit: Number(limit), total: count, total_pages: Math.ceil(count / limit) } };
   });

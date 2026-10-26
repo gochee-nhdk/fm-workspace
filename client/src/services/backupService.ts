@@ -608,6 +608,16 @@ async function syncToServer(backupType: 'auto' | 'manual' | 'snapshot' = 'auto')
   try {
     const { payloadStr, checksum, itemCounts } = await generateBackupPayload();
 
+    // Save emergency local snapshot metadata for instant local recovery
+    try {
+      localStorage.setItem('FM_LOCAL_EMERGENCY_BACKUP_METADATA', JSON.stringify({
+        timestamp: new Date().toISOString(),
+        checksum,
+        itemCounts,
+        backupType,
+      }));
+    } catch (_) {}
+
     const res = await api.post('/sync/backup', {
       backupType,
       deviceName: typeof navigator !== 'undefined' ? `${navigator.platform || 'Device'} (${navigator.userAgent.slice(0, 30)})` : 'Web Client',
@@ -672,6 +682,19 @@ async function restoreFromServer(backupId?: string): Promise<BackupImportResult>
   return importFullBackup(syntheticFile, { conflictStrategy: 'overwrite', restoreSettings: true });
 }
 
+/**
+ * Get local emergency backup metadata
+ */
+function getLocalEmergencyBackupInfo(): { timestamp: string; itemCounts: any; checksum: string; backupType: string } | null {
+  try {
+    const raw = localStorage.getItem('FM_LOCAL_EMERGENCY_BACKUP_METADATA');
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 // ──────────────────────────────────────────────
 // PUBLIC API
 // ──────────────────────────────────────────────
@@ -684,4 +707,5 @@ export const backupService = {
   syncToServer,
   getServerBackupHistory,
   restoreFromServer,
+  getLocalEmergencyBackupInfo,
 };

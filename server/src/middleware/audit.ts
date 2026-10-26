@@ -51,8 +51,10 @@ export function auditLog(
       reason,
       ipAddress,
       new Date().toISOString()
-    );
+    ).catch((err) => {
+      console.error('Error writing audit log:', err);
+    });
   } catch (err) {
-    console.error('Error writing audit log:', err);
+    console.error('Error preparing audit log:', err);
   }
 }

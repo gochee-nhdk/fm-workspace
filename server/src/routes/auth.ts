@@ -21,7 +21,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     }
 
     const db = getDb();
-    const existing = db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail) as any;
+    const existing = (await db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail)) as any;
     if (existing && existing.password_hash) {
       return reply.code(409).send({ error: 'Email này đã có tài khoản. Vui lòng chuyển sang tab Đăng Nhập.' });
     }
@@ -39,14 +39,14 @@ export default async function authRoutes(fastify: FastifyInstance) {
 
       if (existing) {
         userId = existing.id;
-        db.prepare(`
+        await db.prepare(`
           UPDATE users 
           SET password_hash = ?, full_name = COALESCE(?, full_name), avatar_url = COALESCE(?, avatar_url), updated_at = ?
           WHERE id = ?
         `).run(hash, name, avatarUrl, now, userId);
       } else {
         userId = uuidv4();
-        db.prepare(`
+        await db.prepare(`
           INSERT INTO users (id, email, full_name, password_hash, role, avatar_url, is_active, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
         `).run(userId, cleanEmail, name, hash, assignedRole, avatarUrl, now, now);
@@ -97,8 +97,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     }
     const cleanEmail = email.toLowerCase().trim();
     const db = getDb();
-    
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail) as any;
+    const user = (await db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail)) as any;
     if (!user || user.is_active === 0) {
       return reply.code(401).send({ error: 'Email hoặc mật khẩu không chính xác' });
     }
@@ -106,7 +105,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     // If account was created without password previously (e.g. quick profile migration), set it now
     if (!user.password_hash) {
       const newHash = await argon2.hash(password);
-      db.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?').run(
+      await db.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?').run(
         newHash,
         new Date().toISOString(),
         user.id
@@ -134,7 +133,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     );
     const refreshToken = uuidv4();
     
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO sessions (id, user_id, refresh_token_hash, created_at)
       VALUES (?, ?, ?, ?)
     `).run(uuidv4(), user.id, await argon2.hash(refreshToken), new Date().toISOString());
@@ -165,7 +164,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
     }
 
     const db = getDb();
-    const sessions = db.prepare('SELECT * FROM sessions ORDER BY created_at DESC LIMIT 50').all() as any[];
+    const sessions = (await db.prepare('SELECT * FROM sessions ORDER BY created_at DESC LIMIT 50').all()) as any[];
     
     let matchedSession: any = null;
     for (const session of sessions) {
@@ -182,7 +181,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
       return reply.code(401).send({ error: 'Unauthorized', message: 'Invalid or expired session' });
     }
 
-    const user = db.prepare('SELECT id, email, role, full_name, is_active FROM users WHERE id = ?').get(matchedSession.user_id) as any;
+    const user = (await db.prepare('SELECT id, email, role, full_name, is_active FROM users WHERE id = ?').get(matchedSession.user_id)) as any;
     if (!user || user.is_active === 0) {
       reply.clearCookie('refresh_token', { path: '/api/auth/refresh' });
       return reply.code(401).send({ error: 'Unauthorized', message: 'User inactive' });
@@ -204,10 +203,10 @@ export default async function authRoutes(fastify: FastifyInstance) {
     if (refreshToken) {
       try {
         const db = getDb();
-        const sessions = db.prepare('SELECT * FROM sessions ORDER BY created_at DESC LIMIT 50').all() as any[];
+        const sessions = (await db.prepare('SELECT * FROM sessions ORDER BY created_at DESC LIMIT 50').all()) as any[];
         for (const session of sessions) {
           if (await argon2.verify(session.refresh_token_hash, refreshToken)) {
-            db.prepare('DELETE FROM sessions WHERE id = ?').run(session.id);
+            await db.prepare('DELETE FROM sessions WHERE id = ?').run(session.id);
             break;
           }
         }
@@ -259,7 +258,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
           googleProfile = {
             sub: decoded.sub,
             email: String(decoded.email).toLowerCase().trim(),
-            name: decoded.name || String(decoded.email).split('@')[0],
+            name: data.name || String(decoded.email).split('@')[0],
             picture: decoded.picture,
           };
         }
@@ -273,22 +272,22 @@ export default async function authRoutes(fastify: FastifyInstance) {
     const db = getDb();
     const now = new Date().toISOString();
 
-    let user = db.prepare('SELECT * FROM users WHERE email = ? OR google_id = ?').get(googleProfile.email, googleProfile.sub) as any;
+    let user = (await db.prepare('SELECT * FROM users WHERE email = ? OR google_id = ?').get(googleProfile.email, googleProfile.sub)) as any;
 
     if (user) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE users 
         SET google_id = ?, avatar_url = COALESCE(?, avatar_url), full_name = COALESCE(?, full_name), updated_at = ?
         WHERE id = ?
       `).run(googleProfile.sub, googleProfile.picture || null, googleProfile.name, now, user.id);
-      user = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id) as any;
+      user = (await db.prepare('SELECT * FROM users WHERE id = ?').get(user.id)) as any;
     } else {
       const newId = uuidv4();
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO users (id, email, full_name, role, google_id, avatar_url, is_active, created_at, updated_at)
         VALUES (?, ?, ?, 'staff', ?, ?, 1, ?, ?)
       `).run(newId, googleProfile.email, googleProfile.name, googleProfile.sub, googleProfile.picture || null, now, now);
-      user = db.prepare('SELECT * FROM users WHERE id = ?').get(newId) as any;
+      user = (await db.prepare('SELECT * FROM users WHERE id = ?').get(newId)) as any;
     }
 
     const token = jwt.sign(
@@ -334,22 +333,22 @@ export default async function authRoutes(fastify: FastifyInstance) {
     const db = getDb();
     const now = new Date().toISOString();
 
-    let user = db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail) as any;
+    let user = (await db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail)) as any;
 
     if (user) {
-      db.prepare(`
+      await db.prepare(`
         UPDATE users 
         SET full_name = COALESCE(?, full_name), avatar_url = COALESCE(?, avatar_url), updated_at = ?
         WHERE id = ?
       `).run(name, avatar_url || null, now, user.id);
-      user = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id) as any;
+      user = (await db.prepare('SELECT * FROM users WHERE id = ?').get(user.id)) as any;
     } else {
       const newId = uuidv4();
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO users (id, email, full_name, role, avatar_url, is_active, created_at, updated_at)
         VALUES (?, ?, ?, 'staff', ?, 1, ?, ?)
       `).run(newId, cleanEmail, name, avatar_url || null, now, now);
-      user = db.prepare('SELECT * FROM users WHERE id = ?').get(newId) as any;
+      user = (await db.prepare('SELECT * FROM users WHERE id = ?').get(newId)) as any;
     }
 
     const token = jwt.sign(
@@ -376,14 +375,36 @@ export default async function authRoutes(fastify: FastifyInstance) {
   });
 
   // Local/Offline-first bootstrap session endpoint:
-  // Allows the offline desktop client to obtain a valid JWT token on startup
+  // Restricted strictly to local desktop/electron runtime. Disabled in hosted deployments.
   fastify.post('/local-token', async (request, reply) => {
+    // SECURITY GUARD: Strictly disable in hosted environments and default to deny
+    const isDesktop = process.env.ELECTRON_RUN === 'true';
+    const isLocalDev = process.env.LOCAL_DEV === 'true' && process.env.NODE_ENV !== 'production';
     const db = getDb();
-    const user = db.prepare(`
+    const isHosted = db.isRemote() || process.env.RENDER === 'true' || process.env.HOSTED === 'true' || (!isDesktop && process.env.NODE_ENV === 'production');
+
+    if (isHosted || (!isDesktop && !isLocalDev)) {
+      return reply.code(403).send({
+        error: 'Forbidden',
+        message: 'Endpoint cấp token cục bộ bị vô hiệu hóa trên môi trường lưu trữ công khai.',
+      });
+    }
+
+    // Verify request originates from local loopback address
+    const clientIp = request.ip;
+    const isLoopback = clientIp === '127.0.0.1' || clientIp === '::1' || clientIp === '::ffff:127.0.0.1';
+    if (!isLoopback) {
+      return reply.code(403).send({
+        error: 'Forbidden',
+        message: 'Endpoint chỉ cho phép truy cập từ địa chỉ nội bộ (loopback).',
+      });
+    }
+
+    const user = (await db.prepare(`
       SELECT id, email, role, full_name, is_active FROM users 
       WHERE role = 'admin' AND is_active = 1 
       ORDER BY created_at ASC LIMIT 1
-    `).get() as any;
+    `).get()) as any;
 
     if (!user) {
       return reply.code(404).send({ error: 'No admin user configured' });

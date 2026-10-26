@@ -1,5 +1,6 @@
 import { STORES, idbGetById, idbPut, idbDelete } from './storage/indexedDb';
 import { formatFileSize } from './noteImageService';
+import { autoBackupManager } from './autoBackupManager';
 
 export interface StoredAttachment {
   id: string;
@@ -31,6 +32,9 @@ export const attachmentService = {
     };
 
     await idbPut<StoredAttachment>(STORES.ATTACHMENTS, record);
+
+    // Trigger reactive auto-backup whenever new attachment is committed
+    autoBackupManager.scheduleSync(2500);
 
     // Cache the object URL in memory
     let bUrl = '';
@@ -134,6 +138,7 @@ export const attachmentService = {
     }
     try {
       await idbDelete(STORES.ATTACHMENTS, id);
+      autoBackupManager.scheduleSync(2500);
       return true;
     } catch (_) {
       return false;

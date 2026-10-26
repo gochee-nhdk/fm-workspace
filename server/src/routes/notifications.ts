@@ -36,23 +36,23 @@ interface SmtpConfig {
   configured: boolean;
 }
 
-function getSmtpConfig(): SmtpConfig {
+async function getSmtpConfig(): Promise<SmtpConfig> {
   const db = getDb();
-  const getSetting = (k: string) => {
+  const getSetting = async (k: string) => {
     try {
-      const row = db.prepare('SELECT value FROM system_settings WHERE key = ?').get(k) as any;
+      const row = (await db.prepare('SELECT value FROM system_settings WHERE key = ?').get(k)) as any;
       return row?.value ? String(row.value).trim() : '';
     } catch {
       return '';
     }
   };
 
-  const user = getSetting('smtp_user') || process.env.SMTP_USER?.trim() || '';
-  const pass = getSetting('smtp_pass') || process.env.SMTP_PASS?.trim() || '';
-  const host = getSetting('smtp_host') || process.env.SMTP_HOST?.trim() || 'smtp.gmail.com';
-  const port = Number(getSetting('smtp_port') || process.env.SMTP_PORT || 587);
+  const user = (await getSetting('smtp_user')) || process.env.SMTP_USER?.trim() || '';
+  const pass = (await getSetting('smtp_pass')) || process.env.SMTP_PASS?.trim() || '';
+  const host = (await getSetting('smtp_host')) || process.env.SMTP_HOST?.trim() || 'smtp.gmail.com';
+  const port = Number((await getSetting('smtp_port')) || process.env.SMTP_PORT || 587);
   const secure = port === 465;
-  const senderName = getSetting('smtp_sender_name') || 'Farmers Market Assistant';
+  const senderName = (await getSetting('smtp_sender_name')) || 'Farmers Market Assistant';
   const from = getSetting('smtp_from') || process.env.SMTP_FROM || `"${senderName}" <${user}>`;
 
   return {
@@ -79,7 +79,7 @@ function escapeHtml(str: string): string {
 export default async function notificationsRoutes(fastify: FastifyInstance) {
   // 1. Check SMTP Configuration Status (requires authenticated user)
   fastify.get('/smtp-status', { preHandler: verifyToken }, async (request: any, reply) => {
-    const config = getSmtpConfig();
+    const config = await getSmtpConfig();
     const maskedUser = config.user
       ? config.user.replace(/^(.)(.*)(@.*)$/, (_, first, mid, last) => `${first}${'*'.repeat(Math.max(mid.length, 3))}${last}`)
       : null;
@@ -137,11 +137,11 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
       });
     }
 
-    // Save to system_settings in SQLite
+    // Save to system_settings in database
     const db = getDb();
     const now = new Date().toISOString();
-    const saveSetting = (k: string, v: string) => {
-      db.prepare(`
+    const saveSetting = async (k: string, v: string) => {
+      await db.prepare(`
         INSERT INTO system_settings (id, key, value, category, updated_at)
         VALUES (?, ?, ?, 'smtp', ?)
         ON CONFLICT(key) DO UPDATE SET
@@ -150,12 +150,12 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
       `).run(uuidv4(), k, v, now);
     };
 
-    saveSetting('smtp_user', cleanUser);
-    saveSetting('smtp_pass', cleanPass);
-    saveSetting('smtp_host', cleanHost);
-    saveSetting('smtp_port', String(cleanPort));
-    saveSetting('smtp_sender_name', cleanSender);
-    saveSetting('smtp_from', `"${cleanSender}" <${cleanUser}>`);
+    await saveSetting('smtp_user', cleanUser);
+    await saveSetting('smtp_pass', cleanPass);
+    await saveSetting('smtp_host', cleanHost);
+    await saveSetting('smtp_port', String(cleanPort));
+    await saveSetting('smtp_sender_name', cleanSender);
+    await saveSetting('smtp_from', `"${cleanSender}" <${cleanUser}>`);
 
     // Synchronize to current process env
     process.env.SMTP_USER = cleanUser;
@@ -179,7 +179,7 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
   // 2b. Disconnect / Remove SMTP Configuration (strictly Admin role)
   fastify.post('/smtp-disconnect', { preHandler: requireRole('admin') }, async (request: any, reply) => {
     const db = getDb();
-    db.prepare("DELETE FROM system_settings WHERE category = 'smtp'").run();
+    await db.prepare("DELETE FROM system_settings WHERE category = 'smtp'").run();
     delete process.env.SMTP_USER;
     delete process.env.SMTP_PASS;
     delete process.env.SMTP_HOST;
@@ -217,7 +217,7 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
       });
     }
 
-    const config = getSmtpConfig();
+    const config = await getSmtpConfig();
 
     // If SMTP is NOT configured, be completely transparent with user
     if (!config.configured) {
@@ -498,7 +498,7 @@ ${safeContent}
 
     // Record notification in database
     try {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO notifications (id, user_id, type, title, message, severity, entity_type, entity_id, created_at)
         VALUES (?, ?, 'email_reminder', ?, ?, 'info', 'note_reminder', ?, ?)
       `).run(
@@ -589,7 +589,7 @@ ${safeContent}
       });
     }
 
-    const config = getSmtpConfig();
+    const config = await getSmtpConfig();
     if (!config.configured) {
       return reply.code(400).send({
         success: false,
@@ -860,11 +860,13 @@ ${safeContent}
     let data: any[];
 
     if (isAdmin) {
-      count = (db.prepare('SELECT COUNT(*) as total FROM notifications').get() as any).total;
-      data = db.prepare('SELECT * FROM notifications ORDER BY created_at DESC LIMIT ? OFFSET ?').all(Number(limit), Number(offset));
+      const countRes = (await db.prepare('SELECT COUNT(*) as total FROM notifications').get()) as any;
+      count = Number(countRes?.total || 0);
+      data = await db.prepare('SELECT * FROM notifications ORDER BY created_at DESC LIMIT ? OFFSET ?').all(Number(limit), Number(offset));
     } else {
-      count = (db.prepare('SELECT COUNT(*) as total FROM notifications WHERE user_id = ? OR user_id IS NULL OR user_id = "system"').get(userId) as any).total;
-      data = db.prepare('SELECT * FROM notifications WHERE user_id = ? OR user_id IS NULL OR user_id = "system" ORDER BY created_at DESC LIMIT ? OFFSET ?').all(userId, Number(limit), Number(offset));
+      const countRes = (await db.prepare('SELECT COUNT(*) as total FROM notifications WHERE user_id = ? OR user_id IS NULL OR user_id = "system"').get(userId)) as any;
+      count = Number(countRes?.total || 0);
+      data = await db.prepare('SELECT * FROM notifications WHERE user_id = ? OR user_id IS NULL OR user_id = "system" ORDER BY created_at DESC LIMIT ? OFFSET ?').all(userId, Number(limit), Number(offset));
     }
     
     return { success: true, data, pagination: { page: Number(page), limit: Number(limit), total: count, total_pages: Math.ceil(count / Number(limit)) } };
@@ -876,9 +878,9 @@ ${safeContent}
     const isAdmin = request.user?.role === 'admin';
 
     if (isAdmin) {
-      db.prepare('UPDATE notifications SET is_read = 1 WHERE id = ?').run(request.params.id);
+      await db.prepare('UPDATE notifications SET is_read = 1 WHERE id = ?').run(request.params.id);
     } else {
-      db.prepare('UPDATE notifications SET is_read = 1 WHERE id = ? AND (user_id = ? OR user_id IS NULL OR user_id = "system")').run(request.params.id, userId);
+      await db.prepare('UPDATE notifications SET is_read = 1 WHERE id = ? AND (user_id = ? OR user_id IS NULL OR user_id = "system")').run(request.params.id, userId);
     }
     return { success: true, data: { id: request.params.id } };
   });
@@ -889,9 +891,9 @@ ${safeContent}
     const isAdmin = request.user?.role === 'admin';
 
     if (isAdmin) {
-      db.prepare('UPDATE notifications SET is_read = 1 WHERE is_read = 0').run();
+      await db.prepare('UPDATE notifications SET is_read = 1 WHERE is_read = 0').run();
     } else {
-      db.prepare('UPDATE notifications SET is_read = 1 WHERE is_read = 0 AND (user_id = ? OR user_id IS NULL OR user_id = "system")').run(userId);
+      await db.prepare('UPDATE notifications SET is_read = 1 WHERE is_read = 0 AND (user_id = ? OR user_id IS NULL OR user_id = "system")').run(userId);
     }
     return { success: true };
   });
@@ -903,9 +905,11 @@ ${safeContent}
 
     let count: number;
     if (isAdmin) {
-      count = (db.prepare('SELECT COUNT(*) as count FROM notifications WHERE is_read = 0').get() as any).count;
+      const countRes = (await db.prepare('SELECT COUNT(*) as count FROM notifications WHERE is_read = 0').get()) as any;
+      count = Number(countRes?.count || 0);
     } else {
-      count = (db.prepare('SELECT COUNT(*) as count FROM notifications WHERE is_read = 0 AND (user_id = ? OR user_id IS NULL OR user_id = "system")').get(userId) as any).count;
+      const countRes = (await db.prepare('SELECT COUNT(*) as count FROM notifications WHERE is_read = 0 AND (user_id = ? OR user_id IS NULL OR user_id = "system")').get(userId)) as any;
+      count = Number(countRes?.count || 0);
     }
     return { success: true, data: { count } };
   });

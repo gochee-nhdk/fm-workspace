@@ -3,26 +3,8 @@ import { getDb } from '../db/connection.js';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { verifyToken } from '../middleware/auth.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Ensure local file vault directory exists on server disk
-function getVaultDir(userId: string): string {
-  // Sanitize userId to prevent directory traversal
-  const safeUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
-  const vaultPath = path.resolve(__dirname, '../../data/vaults', safeUserId);
-  try {
-    if (!fs.existsSync(vaultPath)) {
-      fs.mkdirSync(vaultPath, { recursive: true });
-    }
-  } catch (err) {
-    console.warn('Failed to ensure vault directory:', err);
-  }
-  return vaultPath;
-}
+import { getVaultDir } from '../config/paths.js';
 
 export default async function syncRoutes(fastify: FastifyInstance) {
   // Enforce verified authentication across all workspace backup and sync endpoints
@@ -30,7 +12,7 @@ export default async function syncRoutes(fastify: FastifyInstance) {
 
   /**
    * 1. POST /api/sync/backup
-   * Accepts workspace backup payload from authenticated client or local app, persists to SQLite and user's isolated vault
+   * Accepts workspace backup payload from authenticated client or local app, persists to SQLite/Turso and user's isolated vault
    */
   fastify.post('/backup', async (request: any, reply) => {
     try {
@@ -65,8 +47,8 @@ export default async function syncRoutes(fastify: FastifyInstance) {
       const itemCountsStr = typeof itemCounts === 'string' ? itemCounts : JSON.stringify(itemCounts || {});
       const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
 
-      // 1. Lưu vào SQLite database gắn liền với user_id
-      db.prepare(`
+      // 1. Lưu vào database (Turso hoặc local SQLite) gắn liền với user_id
+      await db.prepare(`
         INSERT INTO user_workspace_backups (
           id, user_id, backup_type, device_name, checksum, item_counts, payload, is_encrypted, created_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -83,7 +65,7 @@ export default async function syncRoutes(fastify: FastifyInstance) {
       );
 
       // Giữ tối đa 20 bản sao lưu gần nhất của chính user này
-      db.prepare(`
+      await db.prepare(`
         DELETE FROM user_workspace_backups
         WHERE user_id = ? AND id NOT IN (
           SELECT id FROM user_workspace_backups
@@ -93,11 +75,10 @@ export default async function syncRoutes(fastify: FastifyInstance) {
         )
       `).run(userId, userId);
 
-      // 2. Lưu bản sao an toàn vào vault riêng của user trên ổ đĩa
+      // 2. Lưu bản sao an toàn vào vault riêng của user trên ổ đĩa (nếu môi trường hỗ trợ lưu trữ tệp cục bộ)
       try {
         const userVaultDir = getVaultDir(userId);
-        const diskFile = path.join(userVaultDir, 'backup_latest.json');
-        fs.writeFileSync(diskFile, JSON.stringify({
+        const backupData = JSON.stringify({
           id,
           userId,
           checksum,
@@ -105,9 +86,29 @@ export default async function syncRoutes(fastify: FastifyInstance) {
           itemCounts,
           createdAt: now,
           payload: payloadStr,
-        }), 'utf8');
+        }, null, 2);
+
+        // Luôn ghi đè bản mới nhất
+        const diskFile = path.join(userVaultDir, 'backup_latest.json');
+        fs.writeFileSync(diskFile, backupData, 'utf8');
+
+        // Đồng thời lưu bản lịch sử luân phiên (tối đa 10 tệp) để phục hồi khẩn cấp
+        const histFile = path.join(userVaultDir, `backup_${Date.now()}.json`);
+        fs.writeFileSync(histFile, backupData, 'utf8');
+
+        const vaultFiles = fs.readdirSync(userVaultDir)
+          .filter((f) => f.startsWith('backup_') && f.endsWith('.json') && f !== 'backup_latest.json')
+          .map((f) => ({ path: path.join(userVaultDir, f), mtime: fs.statSync(path.join(userVaultDir, f)).mtimeMs }))
+          .sort((a, b) => b.mtime - a.mtime);
+
+        if (vaultFiles.length > 10) {
+          vaultFiles.slice(10).forEach((vf) => {
+            try { fs.unlinkSync(vf.path); } catch (_) {}
+          });
+        }
       } catch (vaultErr) {
-        console.warn('Disk vault write error (non-fatal):', vaultErr);
+        // In hosted cloud environments (e.g. Render Free ephemeral disk), disk writes may be ephemeral or fail
+        // The remote database backup record above is the authoritative durable store.
       }
 
       return {
@@ -144,32 +145,28 @@ export default async function syncRoutes(fastify: FastifyInstance) {
       }
 
       const db = getDb();
-      let latest = db.prepare(`
+      let latest = (await db.prepare(`
         SELECT id, backup_type, device_name, checksum, item_counts, payload, is_encrypted, created_at
         FROM user_workspace_backups
         WHERE user_id = ?
         ORDER BY created_at DESC
         LIMIT 1
-      `).get(userId) as any;
+      `).get(userId)) as any;
 
       if (!latest) {
-        latest = db.prepare(`
+        latest = (await db.prepare(`
           SELECT id, backup_type, device_name, checksum, item_counts, payload, is_encrypted, created_at
           FROM user_workspace_backups
           ORDER BY created_at DESC
           LIMIT 1
-        `).get() as any;
+        `).get()) as any;
       }
 
       if (!latest) {
-        // Multi-level fallback to restore data:
-        // Level 1: User's disk vault
-        // Level 2: default_user disk vault
-        // Level 3: Root backup_latest.json in vaults directory
+        // Multi-level fallback to restore data from disk vault if available
         const potentialFiles = [
           path.join(getVaultDir(userId), 'backup_latest.json'),
-          path.resolve(__dirname, '../../data/vaults/default_user/backup_latest.json'),
-          path.resolve(__dirname, '../../data/vaults/backup_latest.json'),
+          path.join(getVaultDir('default_user'), 'backup_latest.json'),
         ];
 
         for (const diskFile of potentialFiles) {
@@ -230,13 +227,13 @@ export default async function syncRoutes(fastify: FastifyInstance) {
       }
 
       const db = getDb();
-      const list = db.prepare(`
+      const list = (await db.prepare(`
         SELECT id, backup_type, device_name, checksum, item_counts, is_encrypted, created_at
         FROM user_workspace_backups
         WHERE user_id = ?
         ORDER BY created_at DESC
         LIMIT 10
-      `).all(userId) as any[];
+      `).all(userId)) as any[];
 
       const parsedList = list.map((item) => ({
         ...item,
@@ -277,9 +274,9 @@ export default async function syncRoutes(fastify: FastifyInstance) {
 
       const db = getDb();
       // Ensure backup belongs to requesting user (or user is admin)
-      const record = db.prepare(`
+      const record = (await db.prepare(`
         SELECT * FROM user_workspace_backups WHERE id = ? AND (user_id = ? OR ? = 'admin')
-      `).get(id, userId, userRole) as any;
+      `).get(id, userId, userRole)) as any;
 
       if (!record) {
         return reply.code(404).send({
@@ -300,6 +297,4 @@ export default async function syncRoutes(fastify: FastifyInstance) {
       });
     }
   });
-
 }
-

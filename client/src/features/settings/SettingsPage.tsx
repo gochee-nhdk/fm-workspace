@@ -32,7 +32,7 @@ import { AppleLiquidDialog } from '@/components/ui/AppleLiquidDialog';
 import { SegmentedNavigation } from '@/components/ui/SegmentedNavigation';
 import { useUiStore, resolveTheme } from '@/stores/ui-store';
 import { useSecurityStore } from '@/stores/security-store';
-import { Clock, Monitor, Lock, Unlock, Server, ShieldCheck, Database, KeyRound, Bookmark, Info } from 'lucide-react';
+import { Clock, Monitor, Lock, Unlock, Server, ShieldCheck, Database, KeyRound, Bookmark, Info, Zap } from 'lucide-react';
 import { formatBytes } from '@/lib/utils';
 import { useAppleTabSpring, useDirectionalTab } from '@/lib/motion';
 import toast from 'react-hot-toast';
@@ -345,6 +345,8 @@ export const SettingsPage: React.FC = () => {
   const [serverHistory, setServerHistory] = useState<any[]>([]);
   const [isSyncingServer, setIsSyncingServer] = useState(false);
   const [isRestoringServer, setIsRestoringServer] = useState(false);
+  const [lastAutoBackupTime, setLastAutoBackupTime] = useState<Date | null>(autoBackupManager.getLastBackupTime());
+  const [isAutoSyncing, setIsAutoSyncing] = useState<boolean>(autoBackupManager.getIsSyncing());
 
   // Local Security Store
   const { isLockEnabled, setPin, disableLock, autoLockMinutes, setAutoLockMinutes } = useSecurityStore();
@@ -368,6 +370,15 @@ export const SettingsPage: React.FC = () => {
 
   useEffect(() => {
     loadStorageAndSyncStatus();
+
+    const unsub = autoBackupManager.subscribe((time, syncing) => {
+      setLastAutoBackupTime(time);
+      setIsAutoSyncing(syncing);
+      if (!syncing && time) {
+        backupService.getServerBackupHistory().then(setServerHistory).catch(() => {});
+      }
+    });
+    return unsub;
   }, []);
 
   const handleRequestPersistentStorage = async () => {
@@ -943,6 +954,94 @@ export const SettingsPage: React.FC = () => {
             <p className="text-[13px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
               Ứng dụng tự động sao lưu dữ liệu ngầm (Auto-Sync) lên máy chủ cục bộ SQLite và tập tin an toàn. Nếu máy tính của bạn bị mất điện, crash Windows/macOS hoặc bị reset trình duyệt, bạn có thể <strong className="text-[#1d1d1f] dark:text-white font-semibold">khôi phục toàn bộ dữ liệu chỉ bằng 1 cú nhấp chuột</strong>.
             </p>
+
+            {/* Live 4-Layer Auto-Backup Status Indicator (Apple Liquid Glass Design) */}
+            <div className="rounded-[18px] p-4 sm:p-5 bg-white/70 dark:bg-black/30 backdrop-blur-xl border border-black/[0.06] dark:border-white/[0.08] shadow-[0_2px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.2)] space-y-3.5 transition-all">
+              <div className="flex items-center justify-between flex-wrap gap-2.5">
+                <div className="flex items-center gap-3">
+                  <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-[#34c759]/15 dark:bg-[#30d158]/20 text-[#34c759] dark:text-[#30d158] shrink-0">
+                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-[#34c759] opacity-40 ${isAutoSyncing ? 'scale-125' : 'scale-90'}`} />
+                    <SFCheckmarkCircleFill size={16} className="relative z-10" />
+                  </div>
+                  <div>
+                    <h4 className="text-[13.5px] font-semibold text-[#1d1d1f] dark:text-white leading-tight">
+                      {isAutoSyncing
+                        ? 'Đang tự động đồng bộ ngầm dữ liệu...'
+                        : lastAutoBackupTime
+                        ? `Tự động sao lưu an toàn: ${lastAutoBackupTime.toLocaleTimeString('vi-VN')} (${lastAutoBackupTime.toLocaleDateString('vi-VN')})`
+                        : 'Hệ thống tự động sao lưu đang hoạt động liên tục'}
+                    </h4>
+                    <p className="text-[11.5px] text-[#86868b] dark:text-[#a1a1a6] mt-0.5">
+                      Bảo vệ toàn diện không cần thao tác thủ công • Miễn nhiễm lỗi nguồn &amp; sự cố bất ngờ
+                    </p>
+                  </div>
+                </div>
+
+                <div className="apple-badge-base apple-badge-success text-[11px] font-medium py-1 px-2.5">
+                  <ShieldCheck size={12} className="shrink-0" />
+                  <span>4 Lớp Bảo Vệ Active</span>
+                </div>
+              </div>
+
+              {/* 4 Protection Pillars (Apple Micro-Card Grid) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
+                <div className="p-2.5 sm:p-3 rounded-xl bg-black/[0.025] dark:bg-white/[0.035] border border-black/[0.04] dark:border-white/[0.06] flex items-start gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/12 text-emerald-600 dark:bg-emerald-400/20 dark:text-emerald-300 flex items-center justify-center shrink-0 mt-0.5">
+                    <Zap size={14} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
+                      Phản ứng tức thì (2 giây)
+                    </div>
+                    <div className="text-[11px] text-[#6e6e73] dark:text-[#a1a1a6] leading-tight mt-0.5">
+                      Tự động sao lưu sau 2 giây khi gõ ghi chú, sửa liên kết, tải tệp đính kèm.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-2.5 sm:p-3 rounded-xl bg-black/[0.025] dark:bg-white/[0.035] border border-black/[0.04] dark:border-white/[0.06] flex items-start gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-blue-500/12 text-blue-600 dark:bg-blue-400/20 dark:text-blue-300 flex items-center justify-center shrink-0 mt-0.5">
+                    <Clock size={14} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
+                      Nhịp tim định kỳ (3 phút)
+                    </div>
+                    <div className="text-[11px] text-[#6e6e73] dark:text-[#a1a1a6] leading-tight mt-0.5">
+                      Định kỳ quét và tự động chụp snapshot toàn bộ không gian làm việc.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-2.5 sm:p-3 rounded-xl bg-black/[0.025] dark:bg-white/[0.035] border border-black/[0.04] dark:border-white/[0.06] flex items-start gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-purple-500/12 text-purple-600 dark:bg-purple-400/20 dark:text-purple-300 flex items-center justify-center shrink-0 mt-0.5">
+                    <Monitor size={14} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
+                      Vòng đời trang an toàn
+                    </div>
+                    <div className="text-[11px] text-[#6e6e73] dark:text-[#a1a1a6] leading-tight mt-0.5">
+                      Tự động lưu tức thì khi chuyển tab, thu nhỏ app hoặc đóng cửa sổ.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-2.5 sm:p-3 rounded-xl bg-black/[0.025] dark:bg-white/[0.035] border border-black/[0.04] dark:border-white/[0.06] flex items-start gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-indigo-500/12 text-indigo-600 dark:bg-indigo-400/20 dark:text-indigo-300 flex items-center justify-center shrink-0 mt-0.5">
+                    <Database size={14} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
+                      Lưu trữ kép đa tầng
+                    </div>
+                    <div className="text-[11px] text-[#6e6e73] dark:text-[#a1a1a6] leading-tight mt-0.5">
+                      Lưu đồng thời vào SQLite máy chủ + Vault tệp tin + Snapshot ổ đĩa.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <div className="flex flex-wrap items-center gap-2.5 pt-1">
               <Button

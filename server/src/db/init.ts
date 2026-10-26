@@ -1,5 +1,6 @@
 import { getDb } from './connection.js';
 import * as argon2 from 'argon2';
+import crypto from 'node:crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { fileURLToPath } from 'url';
 
@@ -10,7 +11,7 @@ async function initDb() {
 
   console.log('Initializing database tables...');
 
-  db.exec(`
+  await db.exec(`
     -- Users & Auth
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
@@ -406,19 +407,19 @@ async function initDb() {
   console.log('Tables created. Creating indices...');
 
   try {
-    const userCols = db.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
+    const userCols = (await db.prepare("PRAGMA table_info(users)").all()) as Array<{ name: string }>;
     const colNames = userCols.map((c) => c.name);
     if (!colNames.includes('google_id')) {
-      db.prepare("ALTER TABLE users ADD COLUMN google_id TEXT").run();
+      await db.prepare("ALTER TABLE users ADD COLUMN google_id TEXT").run();
     }
     if (!colNames.includes('avatar_url')) {
-      db.prepare("ALTER TABLE users ADD COLUMN avatar_url TEXT").run();
+      await db.prepare("ALTER TABLE users ADD COLUMN avatar_url TEXT").run();
     }
   } catch (err) {
     console.warn('[DB Migration] Notice on users table update:', err);
   }
 
-  db.exec(`
+  await db.exec(`
     CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(sale_date);
     CREATE INDEX IF NOT EXISTS idx_sales_store_prod_date ON sales(store_id, product_id, sale_date);
     CREATE INDEX IF NOT EXISTS idx_po_number ON purchase_orders(po_number);
@@ -444,7 +445,7 @@ async function initDb() {
 
   // Create initial admin user if no users exist
   const adminEmail = process.env.INITIAL_ADMIN_EMAIL || 'admin@farmersmarket.vn';
-  const adminExists = db.prepare('SELECT id FROM users WHERE email = ?').get(adminEmail);
+  const adminExists = await db.prepare('SELECT id FROM users WHERE email = ?').get(adminEmail);
   if (!adminExists) {
     let initialPassword = process.env.INITIAL_ADMIN_PASSWORD;
     let isGenerated = false;
@@ -459,7 +460,7 @@ async function initDb() {
     }
 
     const passwordHash = await argon2.hash(initialPassword);
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO users (id, email, full_name, password_hash, role, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(uuidv4(), adminEmail, 'System Administrator', passwordHash, 'admin', now, now);
@@ -501,7 +502,7 @@ async function initDb() {
   `);
 
   for (const setting of defaultSettings) {
-    insertSetting.run(uuidv4(), setting.key, setting.value, setting.category, now);
+    await insertSetting.run(uuidv4(), setting.key, setting.value, setting.category, now);
   }
   
   console.log('Database initialization complete.');

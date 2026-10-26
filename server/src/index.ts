@@ -11,6 +11,8 @@ import { fileURLToPath } from 'url';
 import { initDb } from './db/init.js';
 import { closeDb } from './db/connection.js';
 import { getJwtSecret } from './config/auth.js';
+import { getAllowedOrigins, isOriginAllowed } from './config/cors.js';
+import { startDbAutoBackup, stopDbAutoBackup } from './services/dbBackupManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,32 +43,21 @@ const fastify = Fastify({
 });
 
 async function build() {
-  // Enterprise Security: Restrict CORS to trusted origins & cloud frontend
-  const envOrigins = [
-    process.env.CLIENT_URL,
-    ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : []),
-  ].filter(Boolean).map((s) => (s as string).trim().replace(/\/+$/, ''));
+  const isProd = process.env.NODE_ENV === 'production';
+  const isDesktop = process.env.ELECTRON_RUN === 'true' || process.env.LOCAL_DEV === 'true';
 
-  const allowedOrigins = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    ...envOrigins,
-  ];
+  // Enterprise Security: Restrict CORS strictly to explicitly trusted origins
+  const allowedOrigins = getAllowedOrigins();
 
   await fastify.register(cors, {
     origin: (origin, cb) => {
-      if (
-        !origin ||
-        allowedOrigins.includes(origin) ||
-        (origin && origin.endsWith('.vercel.app')) ||
-        process.env.NODE_ENV !== 'production'
-      ) {
+      if (isOriginAllowed(origin, allowedOrigins)) {
         cb(null, true);
         return;
       }
-      cb(new Error('Blocked by CORS policy: Untrusted origin'), false);
+
+      // Deny untrusted origins (including arbitrary third-party .vercel.app preview URLs)
+      cb(null, false);
     },
     credentials: true,
   });
@@ -194,6 +185,7 @@ async function build() {
   });
 
   fastify.addHook('onClose', async () => {
+    await stopDbAutoBackup();
     closeDb();
   });
 
@@ -209,6 +201,7 @@ const start = async () => {
     const host = process.env.HOST || (isDesktop ? '127.0.0.1' : (process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1'));
     await server.listen({ port, host });
     console.log(`[FM Security Shield] Server securely listening on http://${host}:${port}`);
+    startDbAutoBackup();
   } catch (err) {
     console.error('Server failed to start:', err);
     process.exit(1);

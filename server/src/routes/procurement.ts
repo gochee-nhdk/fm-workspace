@@ -40,7 +40,7 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
 
     query += ' ORDER BY pr.created_at DESC';
 
-    const records = db.prepare(query).all(...params);
+    const records = await db.prepare(query).all(...params);
     return { success: true, data: records };
   });
 
@@ -61,12 +61,12 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
     const { status, notes } = request.body || {};
     const { id } = request.params;
 
-    const existing = db.prepare('SELECT * FROM purchase_recommendations WHERE id = ?').get(id);
+    const existing = await db.prepare('SELECT * FROM purchase_recommendations WHERE id = ?').get(id);
     if (!existing) {
       return reply.code(404).send({ success: false, message: 'Không tìm thấy gợi ý.' });
     }
 
-    db.prepare('UPDATE purchase_recommendations SET status = ? WHERE id = ?').run(status, id);
+    await db.prepare('UPDATE purchase_recommendations SET status = ? WHERE id = ?').run(status, id);
 
     auditLog(request, 'UPDATE_RECOMMENDATION', 'purchase_recommendations', id, existing, { status, notes });
     return { success: true, message: 'Đã cập nhật trạng thái gợi ý.' };
@@ -77,7 +77,7 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/purchase-orders', async (request: any, reply) => {
     const db = getDb();
-    const pos = db.prepare(`
+    const pos = await db.prepare(`
       SELECT po.*, s.name as supplier_name, st.name as store_name,
              (SELECT COUNT(*) FROM po_items WHERE po_id = po.id) as item_count
       FROM purchase_orders po
@@ -95,7 +95,7 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
     const db = getDb();
     const { id } = request.params;
 
-    const po = db.prepare(`
+    const po = await db.prepare(`
       SELECT po.*, s.name as supplier_name, st.name as store_name, u.full_name as creator_name
       FROM purchase_orders po
       LEFT JOIN suppliers s ON po.supplier_id = s.id
@@ -108,7 +108,7 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
       return reply.code(404).send({ success: false, message: 'Không tìm thấy đơn đặt hàng.' });
     }
 
-    const items = db.prepare(`
+    const items = await db.prepare(`
       SELECT poi.*, p.sku_code, p.name as product_name, p.unit
       FROM po_items poi
       JOIN products p ON poi.product_id = p.id
@@ -133,7 +133,7 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
     const now = new Date().toISOString();
     const poNumber = `PO-${Date.now().toString().slice(-8)}`;
 
-    const createTransaction = db.transaction(() => {
+    await db.transaction(async (tx) => {
       let totalValue = 0;
       for (const item of items) {
         const qty = Number(item.ordered_qty || 0);
@@ -142,13 +142,13 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
       }
 
       // 1. Insert parent purchase_orders first to satisfy foreign key constraint
-      db.prepare(`
+      await tx.prepare(`
         INSERT INTO purchase_orders (id, po_number, supplier_id, store_id, status, total_value, notes, created_by, created_at, updated_at)
         VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?)
       `).run(poId, poNumber, supplier_id, store_id, totalValue, notes || '', request.user?.id || 'admin', now, now);
 
       // 2. Insert child po_items
-      const insertItem = db.prepare(`
+      const insertItem = tx.prepare(`
         INSERT INTO po_items (id, po_id, product_id, ordered_qty, unit_price, status)
         VALUES (?, ?, ?, ?, ?, 'pending')
       `);
@@ -156,11 +156,10 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
       for (const item of items) {
         const qty = Number(item.ordered_qty || 0);
         const price = Number(item.unit_price || 0);
-        insertItem.run(uuidv4(), poId, item.product_id, qty, price);
+        await insertItem.run(uuidv4(), poId, item.product_id, qty, price);
       }
     });
 
-    createTransaction();
     auditLog(request, 'CREATE_PO', 'purchase_orders', poId, null, { poNumber, totalItems: items.length });
 
     return { success: true, data: { id: poId, poNumber, message: 'Đã tạo đơn đặt hàng thành công.' } };
@@ -183,12 +182,12 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
       });
     }
 
-    const existing = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(id) as any;
+    const existing = (await db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(id)) as any;
     if (!existing) {
       return reply.code(404).send({ success: false, message: 'Không tìm thấy đơn hàng.' });
     }
 
-    db.prepare('UPDATE purchase_orders SET status = ?, updated_at = ? WHERE id = ?').run(status, now, id);
+    await db.prepare('UPDATE purchase_orders SET status = ?, updated_at = ? WHERE id = ?').run(status, now, id);
     auditLog(request, 'UPDATE_PO_STATUS', 'purchase_orders', id, existing, { status });
 
     return { success: true, message: `Đã cập nhật trạng thái PO sang ${status}.` };
@@ -203,7 +202,7 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
     const { received_items } = request.body || {}; // array of { product_id, received_qty, lot_number?, expiry_date? }
     const now = new Date().toISOString();
 
-    const po = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(id) as any;
+    const po = (await db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(id)) as any;
     if (!po) {
       return reply.code(404).send({ success: false, message: 'Không tìm thấy đơn hàng.' });
     }
@@ -220,7 +219,7 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
     }
 
     // Get current po_items to validate and track remaining quantities
-    const existingPoItems = db.prepare('SELECT * FROM po_items WHERE po_id = ?').all(id) as any[];
+    const existingPoItems = (await db.prepare('SELECT * FROM po_items WHERE po_id = ?').all(id)) as any[];
     const poItemsMap = new Map<string, any>();
     for (const pi of existingPoItems) {
       poItemsMap.set(pi.product_id, pi);
@@ -245,12 +244,12 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
 
     let allFullyReceived = true;
 
-    const receiveTransaction = db.transaction(() => {
-      const updatePoItem = db.prepare(`
+    await db.transaction(async (tx) => {
+      const updatePoItem = tx.prepare(`
         UPDATE po_items SET received_qty = ?, status = ? WHERE po_id = ? AND product_id = ?
       `);
 
-      const upsertInventory = db.prepare(`
+      const upsertInventory = tx.prepare(`
         INSERT INTO inventory (id, store_id, product_id, quantity, available_qty, updated_at)
         VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(store_id, product_id) DO UPDATE SET
@@ -259,7 +258,7 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
           updated_at = excluded.updated_at
       `);
 
-      const insertExpiryLot = db.prepare(`
+      const insertExpiryLot = tx.prepare(`
         INSERT INTO expiry_lots (id, store_id, product_id, lot_number, quantity, expiry_date, status, created_at)
         VALUES (?, ?, ?, ?, ?, ?, 'active', ?)
       `);
@@ -272,11 +271,11 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
         const ordered = Number(pi.ordered_qty || 0);
         const itemStatus = newTotalReceived >= ordered ? 'received' : 'partial';
 
-        updatePoItem.run(newTotalReceived, itemStatus, id, item.product_id);
-        upsertInventory.run(uuidv4(), po.store_id, item.product_id, addQty, addQty, now);
+        await updatePoItem.run(newTotalReceived, itemStatus, id, item.product_id);
+        await upsertInventory.run(uuidv4(), po.store_id, item.product_id, addQty, addQty, now);
 
         if (item.expiry_date) {
-          insertExpiryLot.run(
+          await insertExpiryLot.run(
             uuidv4(), po.store_id, item.product_id,
             item.lot_number || `LOT-${Date.now()}`, addQty, item.expiry_date, now
           );
@@ -296,12 +295,11 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
       }
 
       const finalPoStatus = allFullyReceived ? 'received' : 'partial_received';
-      db.prepare(`
+      await tx.prepare(`
         UPDATE purchase_orders SET status = ?, received_date = ?, updated_at = ? WHERE id = ?
       `).run(finalPoStatus, now, now, id);
     });
 
-    receiveTransaction();
     auditLog(request, 'RECEIVE_PO_GOODS', 'purchase_orders', id, po, { receivedItemsCount: received_items.length });
 
     return {

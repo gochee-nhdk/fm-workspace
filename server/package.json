@@ -11,7 +11,7 @@
     "start": "node dist/index.js",
     "db:init": "tsx src/db/init.ts",
     "db:seed": "tsx src/db/seed.ts",
-    "test": "tsx src/__tests__/calculations.test.ts && tsx src/__tests__/excel-quality.test.ts && tsx src/__tests__/e2e-workflow.test.ts && tsx src/__tests__/security-access-control.test.ts"
+    "test": "tsx src/__tests__/calculations.test.ts && tsx src/__tests__/excel-quality.test.ts && tsx src/__tests__/e2e-workflow.test.ts && tsx src/__tests__/security-access-control.test.ts && tsx src/__tests__/turso-adapter.test.ts && tsx src/__tests__/cors-standardization.test.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^9.3.1",
@@ -20,6 +20,7 @@
     "@fastify/rate-limit": "^9.1.0",
     "@fastify/static": "^7.0.1",
     "@google/genai": "^0.3.1",
+    "@libsql/client": "^0.18.0",
     "argon2": "^0.45.1",
     "better-sqlite3": "^13.0.3",
     "date-fns": "^3.6.0",

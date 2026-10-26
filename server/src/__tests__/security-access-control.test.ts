@@ -40,7 +40,7 @@ async function runSecurityTests() {
   const db = getDb();
 
   // Setup schema
-  db.exec(`
+  await db.exec(`
     CREATE TABLE users (
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
@@ -108,17 +108,17 @@ async function runSecurityTests() {
   const adminId = 'admin_999_xyz';
   const now = new Date().toISOString();
 
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO users (id, email, full_name, password_hash, role, is_active, created_at, updated_at)
     VALUES (?, ?, ?, 'mockhash', ?, 1, ?, ?)
   `).run(userAId, 'usera@fm.vn', 'User A', 'user', now, now);
 
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO users (id, email, full_name, password_hash, role, is_active, created_at, updated_at)
     VALUES (?, ?, ?, 'mockhash', ?, 1, ?, ?)
   `).run(userBId, 'userb@fm.vn', 'User B', 'user', now, now);
 
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO users (id, email, full_name, password_hash, role, is_active, created_at, updated_at)
     VALUES (?, ?, ?, 'mockhash', ?, 1, ?, ?)
   `).run(adminId, 'admin@fm.vn', 'Admin User', 'admin', now, now);
@@ -126,12 +126,12 @@ async function runSecurityTests() {
   // Seed User A and User B backups
   const backupUserAId = 'backup_a_001';
   const backupUserBId = 'backup_b_002';
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO user_workspace_backups (id, user_id, backup_type, device_name, checksum, item_counts, payload, is_encrypted, created_at)
     VALUES (?, ?, 'auto', 'Device A', 'checksum_a', '{}', '{"notes":["private A"]}', 0, ?)
   `).run(backupUserAId, userAId, now);
 
-  db.prepare(`
+  await db.prepare(`
     INSERT INTO user_workspace_backups (id, user_id, backup_type, device_name, checksum, item_counts, payload, is_encrypted, created_at)
     VALUES (?, ?, 'auto', 'Device B', 'checksum_b', '{}', '{"notes":["private B"]}', 0, ?)
   `).run(backupUserBId, userBId, now);
@@ -146,6 +146,7 @@ async function runSecurityTests() {
   const syncRoutes = (await import('../routes/sync.js')).default;
   const aiRoutes = (await import('../routes/ai.js')).default;
   const notificationsRoutes = (await import('../routes/notifications.js')).default;
+  const authRoutes = (await import('../routes/auth.js')).default;
 
   // Build Fastify instance for testing
   const app = fastify();
@@ -153,6 +154,7 @@ async function runSecurityTests() {
   await app.register(syncRoutes, { prefix: '/api/sync' });
   await app.register(aiRoutes, { prefix: '/api/ai' });
   await app.register(notificationsRoutes, { prefix: '/api/notifications' });
+  await app.register(authRoutes, { prefix: '/api/auth' });
   await app.ready();
 
   // ── TEST 1: Request without token cannot download or overwrite backups
@@ -235,7 +237,7 @@ async function runSecurityTests() {
   });
   assert(resSpoofedBackup.statusCode === 200, '4.1: Backup creation succeeds under authenticated identity');
   // Check in DB that the record was created for User A, NOT User B
-  const spoofedRecord = db.prepare(`SELECT user_id FROM user_workspace_backups WHERE checksum = 'check_spoof_1'`).get() as any;
+  const spoofedRecord = (await db.prepare(`SELECT user_id FROM user_workspace_backups WHERE checksum = 'check_spoof_1'`).get()) as any;
   assert(spoofedRecord?.user_id === userAId, '4.2: Backup strictly assigned to User A (server identity), ignoring spoofed user_id in payload');
 
   // ── TEST 5: Admin endpoint protection
@@ -277,7 +279,131 @@ async function runSecurityTests() {
   });
   assert(resNoAuthAiVerifyKey.statusCode === 401, '6.2: Unauthenticated request to /api/ai/verify-key returns 401 Unauthorized');
 
+  // ── TEST 7: Production Deployment & Hardening Verification
+  console.log('\n--- TEST GROUP 7: Production Deployment & Hardening Verification ---');
+
+  // 7.1: Hosted production rejects local-token bypass with 403 Forbidden
+  const savedNodeEnv = process.env.NODE_ENV;
+  const savedElectron = process.env.ELECTRON_RUN;
+  const savedLocalDev = process.env.LOCAL_DEV;
+
+  process.env.NODE_ENV = 'production';
+  delete process.env.ELECTRON_RUN;
+  delete process.env.LOCAL_DEV;
+
+  const resHostedLocalToken = await app.inject({
+    method: 'POST',
+    url: '/api/auth/local-token',
+  });
+  assert(resHostedLocalToken.statusCode === 403, '7.1: Hosted production rejects local-token unauthenticated admin issuance with 403 Forbidden');
+
+  // 7.2: Request from non-loopback IP rejected with 403 Forbidden
+  process.env.ELECTRON_RUN = 'true';
+  const resRemoteIpLocalToken = await app.inject({
+    method: 'POST',
+    url: '/api/auth/local-token',
+    remoteAddress: '203.0.113.195',
+  });
+  assert(resRemoteIpLocalToken.statusCode === 403, '7.2: Non-loopback remote IP rejected from accessing local-token');
+
+  // 7.3: Legitimate local desktop environment can obtain session token
+  const resDesktopLocalToken = await app.inject({
+    method: 'POST',
+    url: '/api/auth/local-token',
+    remoteAddress: '127.0.0.1',
+  });
+  const desktopBody = resDesktopLocalToken.json();
+  assert(resDesktopLocalToken.statusCode === 200 && Boolean(desktopBody.token), '7.3: Legitimate local desktop environment (ELECTRON_RUN) can obtain session token');
+
+  // Restore env
+  process.env.NODE_ENV = savedNodeEnv;
+  if (savedElectron) process.env.ELECTRON_RUN = savedElectron; else delete process.env.ELECTRON_RUN;
+  if (savedLocalDev) process.env.LOCAL_DEV = savedLocalDev; else delete process.env.LOCAL_DEV;
+
+  // 7.4 - 7.7: CORS Protection Tests using standardized config resolver
+  const trustedFrontend = 'https://farmers-market-procurement.vercel.app';
+  const { getAllowedOrigins, isOriginAllowed } = await import('../config/cors.js');
+  const allowedOriginsList = getAllowedOrigins({
+    nodeEnv: 'production',
+    isDesktop: false,
+    clientUrl: trustedFrontend,
+  });
+
+  const corsApp = fastify();
+  const corsPlugin = (await import('@fastify/cors')).default;
+  await corsApp.register(corsPlugin, {
+    origin: (origin, cb) => {
+      if (isOriginAllowed(origin, allowedOriginsList)) {
+        cb(null, true);
+        return;
+      }
+      cb(null, false);
+    },
+    credentials: true,
+  });
+  corsApp.get('/test-cors', async () => ({ status: 'ok' }));
+  await corsApp.ready();
+
+  const resUntrustedVercel = await corsApp.inject({
+    method: 'GET',
+    url: '/test-cors',
+    headers: { origin: 'https://attacker-preview.vercel.app' },
+  });
+  assert(!resUntrustedVercel.headers['access-control-allow-origin'], '7.4: CORS rejects untrusted arbitrary vercel.app preview origin');
+
+  const resUntrustedExternal = await corsApp.inject({
+    method: 'GET',
+    url: '/test-cors',
+    headers: { origin: 'https://evil-site.com' },
+  });
+  assert(!resUntrustedExternal.headers['access-control-allow-origin'], '7.5: CORS rejects arbitrary external origin');
+
+  const resTrustedFrontend = await corsApp.inject({
+    method: 'GET',
+    url: '/test-cors',
+    headers: { origin: trustedFrontend },
+  });
+  assert(resTrustedFrontend.headers['access-control-allow-origin'] === trustedFrontend, '7.6: CORS accepts configured CLIENT_URL');
+
+  const resNoOrigin = await corsApp.inject({
+    method: 'GET',
+    url: '/test-cors',
+  });
+  assert(resNoOrigin.statusCode === 200, '7.7: Request without Origin header allowed');
+  await corsApp.close();
+
+  // 7.8 - 7.10: DATA_DIR Storage Paths Verification
+  const { getDataDir, getDatabasePath, getVaultDir, getBackupDir } = await import('../config/paths.js');
+  const tempCustomDataDir = path.resolve(process.cwd(), 'temp_test_data_dir');
+  process.env.DATA_DIR = tempCustomDataDir;
+
+  const resolvedDataDir = getDataDir();
+  const resolvedDbPath = getDatabasePath();
+  const resolvedVault = getVaultDir('test_user_777');
+  const resolvedBackup = getBackupDir();
+
+  assert(resolvedDataDir === tempCustomDataDir, '7.8: DATA_DIR correctly overrides data storage directory');
+  assert(resolvedVault.startsWith(tempCustomDataDir), '7.9: User vault path resolves inside configured DATA_DIR');
+  assert(resolvedBackup.startsWith(tempCustomDataDir), '7.10: Database backup path resolves inside configured DATA_DIR');
+
+  // Clean up temp test data dir
+  delete process.env.DATA_DIR;
+  try {
+    if (fs.existsSync(tempCustomDataDir)) {
+      fs.rmSync(tempCustomDataDir, { recursive: true, force: true });
+    }
+  } catch (_) {}
+
   await app.close();
+  const { closeDb } = await import('../db/connection.js');
+  await closeDb();
+
+  try {
+    if (fs.existsSync(testDbPath)) {
+      fs.unlinkSync(testDbPath);
+    }
+  } catch (_) {}
+
   console.log(`\n=== KẾT QUẢ KIỂM THỬ: ${passed} ĐẠT, ${failed} THẤT BẠI ===\n`);
   if (failed > 0) {
     process.exit(1);

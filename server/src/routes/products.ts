@@ -8,7 +8,7 @@ export default async function productRoutes(fastify: FastifyInstance) {
 
   fastify.get('/', async (request, reply) => {
     const db = getDb();
-    const products = db.prepare(`
+    const products = await db.prepare(`
       SELECT p.*, c.name as category_name, b.name as brand_name
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
@@ -21,7 +21,7 @@ export default async function productRoutes(fastify: FastifyInstance) {
 
   fastify.get('/:id', async (request: any, reply) => {
     const db = getDb();
-    const product = db.prepare('SELECT * FROM products WHERE id = ?').get(request.params.id);
+    const product = await db.prepare('SELECT * FROM products WHERE id = ?').get(request.params.id);
     if (!product) return reply.code(404).send({ error: 'Not found' });
     return product;
   });
@@ -32,7 +32,7 @@ export default async function productRoutes(fastify: FastifyInstance) {
     const id = uuidv4();
     const now = new Date().toISOString();
     
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO products (id, sku_code, name, category_id, brand_id, shelf_life_days, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(id, sku_code, name, category_id, brand_id, shelf_life_days, now, now);

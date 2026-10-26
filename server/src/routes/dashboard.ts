@@ -12,54 +12,61 @@ export default async function dashboardRoutes(fastify: FastifyInstance) {
     const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     // 1. Basic counts
-    const totalSkus = (db.prepare('SELECT COUNT(*) as count FROM products WHERE is_active = 1').get() as any)?.count || 0;
-    const totalStores = (db.prepare('SELECT COUNT(*) as count FROM stores WHERE is_active = 1').get() as any)?.count || 0;
+    const totalSkusRes = (await db.prepare('SELECT COUNT(*) as count FROM products WHERE is_active = 1').get()) as any;
+    const totalSkus = totalSkusRes?.count || 0;
+
+    const totalStoresRes = (await db.prepare('SELECT COUNT(*) as count FROM stores WHERE is_active = 1').get()) as any;
+    const totalStores = totalStoresRes?.count || 0;
 
     // 2. Inventory valuation
-    const inventoryValRow = db.prepare(`
+    const inventoryValRow = (await db.prepare(`
       SELECT SUM(i.available_qty * COALESCE(ps.cost_price, 0)) as total
       FROM inventory i
       LEFT JOIN product_suppliers ps ON i.product_id = ps.product_id AND ps.is_primary = 1
-    `).get() as any;
+    `).get()) as any;
     const inventoryValue = inventoryValRow?.total || 0;
 
     // 3. Stockout risk count (available_qty <= 0 or pending recommendations)
-    const stockoutRiskCount = (db.prepare(`
+    const stockoutRiskRes = (await db.prepare(`
       SELECT COUNT(DISTINCT product_id) as count
       FROM inventory
       WHERE available_qty <= 0
-    `).get() as any)?.count || 0;
+    `).get()) as any;
+    const stockoutRiskCount = stockoutRiskRes?.count || 0;
 
     // 4. Near expiry count (active lots expiring within 7 days)
-    const nearExpiryCount = (db.prepare(`
+    const nearExpiryRes = (await db.prepare(`
       SELECT COUNT(*) as count
       FROM expiry_lots
       WHERE status = 'active' AND expiry_date <= ? AND expiry_date >= ?
-    `).get(sevenDaysLater, todayStr) as any)?.count || 0;
+    `).get(sevenDaysLater, todayStr)) as any;
+    const nearExpiryCount = nearExpiryRes?.count || 0;
 
     // 5. Open purchase orders count
-    const openPoCount = (db.prepare(`
+    const openPoRes = (await db.prepare(`
       SELECT COUNT(*) as count
       FROM purchase_orders
       WHERE status NOT IN ('received', 'cancelled')
-    `).get() as any)?.count || 0;
+    `).get()) as any;
+    const openPoCount = openPoRes?.count || 0;
 
     // 6. Today sales revenue (or recent day)
-    const salesTodayRow = db.prepare(`
+    const salesTodayRow = (await db.prepare(`
       SELECT SUM(revenue) as revenue
       FROM sales
       WHERE sale_date = ?
-    `).get(todayStr) as any;
+    `).get(todayStr)) as any;
     const todaySalesRevenue = salesTodayRow?.revenue || 0;
 
     // 7. Recent sales trend (last 7 days)
-    const salesTrend = db.prepare(`
+    const salesTrendRows = (await db.prepare(`
       SELECT sale_date as date, SUM(revenue) as revenue, SUM(quantity) as quantity
       FROM sales
       GROUP BY sale_date
       ORDER BY sale_date DESC
       LIMIT 7
-    `).all().reverse();
+    `).all()) as any[];
+    const salesTrend = salesTrendRows.reverse();
 
     // 8. Dynamic priorities list
     const priorities: Array<{ id: string; type: string; title: string; severity: 'critical' | 'high' | 'medium' | 'low'; actionUrl: string }> = [];

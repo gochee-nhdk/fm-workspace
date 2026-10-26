@@ -19,18 +19,19 @@ export default async function storesRoutes(fastify: FastifyInstance) {
     }
     
     const countQuery = `SELECT COUNT(*) as total FROM (${query})`;
-    const total = (db.prepare(countQuery).get(...params) as any).total;
+    const countRes = (await db.prepare(countQuery).get(...params)) as any;
+    const total = Number(countRes?.total || 0);
     
     query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
     params.push(Number(limit), Number(offset));
     
-    const data = db.prepare(query).all(...params);
+    const data = await db.prepare(query).all(...params);
     return { success: true, data, pagination: { page: Number(page), limit: Number(limit), total, total_pages: Math.ceil(total / limit) } };
   });
 
   fastify.get('/:id', async (request: any, reply) => {
     const db = getDb();
-    const data = db.prepare('SELECT * FROM stores WHERE id = ?').get(request.params.id);
+    const data = await db.prepare('SELECT * FROM stores WHERE id = ?').get(request.params.id);
     if (!data) return reply.code(404).send({ success: false, error: 'Not found' });
     return { success: true, data };
   });
@@ -41,7 +42,7 @@ export default async function storesRoutes(fastify: FastifyInstance) {
     const id = uuidv4();
     const now = new Date().toISOString();
     
-    db.prepare('INSERT INTO stores (id, name, code, region_id, address, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    await db.prepare('INSERT INTO stores (id, name, code, region_id, address, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
       .run(id, name, code, region_id, address, now, now);
       
     return { success: true, data: { id, name, code } };
@@ -50,14 +51,14 @@ export default async function storesRoutes(fastify: FastifyInstance) {
   fastify.put('/:id', async (request: any, reply) => {
     const db = getDb();
     const { name, address, is_active } = request.body;
-    db.prepare('UPDATE stores SET name = ?, address = ?, is_active = ?, updated_at = ? WHERE id = ?')
+    await db.prepare('UPDATE stores SET name = ?, address = ?, is_active = ?, updated_at = ? WHERE id = ?')
       .run(name, address, is_active, new Date().toISOString(), request.params.id);
     return { success: true, data: { id: request.params.id } };
   });
 
   fastify.get('/:id/inventory', async (request: any, reply) => {
     const db = getDb();
-    const data = db.prepare(`
+    const data = await db.prepare(`
       SELECT i.*, p.name, p.sku_code 
       FROM inventory i 
       JOIN products p ON i.product_id = p.id 
@@ -68,7 +69,7 @@ export default async function storesRoutes(fastify: FastifyInstance) {
 
   fastify.get('/:id/sales', async (request: any, reply) => {
     const db = getDb();
-    const data = db.prepare(`
+    const data = await db.prepare(`
       SELECT SUM(revenue) as total_revenue, SUM(quantity) as total_quantity 
       FROM sales 
       WHERE store_id = ?

@@ -16,10 +16,14 @@ export async function buildDataContext(intent: string, message: string): Promise
   const context: any = {};
 
   // 1. Check workspace entity counts
-  const productCount = (db.prepare('SELECT COUNT(*) as count FROM products').get() as any)?.count || 0;
-  const storeCount = (db.prepare('SELECT COUNT(*) as count FROM stores').get() as any)?.count || 0;
-  const inventoryCount = (db.prepare('SELECT COUNT(*) as count FROM inventory').get() as any)?.count || 0;
-  const datasetCount = (db.prepare('SELECT COUNT(*) as count FROM datasets').get() as any)?.count || 0;
+  const prodRow = (await db.prepare('SELECT COUNT(*) as count FROM products').get()) as any;
+  const productCount = prodRow?.count || 0;
+  const storeRow = (await db.prepare('SELECT COUNT(*) as count FROM stores').get()) as any;
+  const storeCount = storeRow?.count || 0;
+  const invRow = (await db.prepare('SELECT COUNT(*) as count FROM inventory').get()) as any;
+  const inventoryCount = invRow?.count || 0;
+  const dsRow = (await db.prepare('SELECT COUNT(*) as count FROM datasets').get()) as any;
+  const datasetCount = dsRow?.count || 0;
 
   context.workspaceStatus = {
     isZeroData: productCount === 0 && inventoryCount === 0,
@@ -30,18 +34,18 @@ export async function buildDataContext(intent: string, message: string): Promise
   };
 
   // 2. Load active company terminology
-  context.companyTerminology = db.prepare(`SELECT term, meaning, standard_term FROM company_terminology WHERE status = 'active'`).all();
+  context.companyTerminology = await db.prepare(`SELECT term, meaning, standard_term FROM company_terminology WHERE status = 'active'`).all();
 
   // 3. Load active business rules
-  context.businessRules = db.prepare(`SELECT rule_code, name, category, description, condition_logic, action_logic FROM business_rules WHERE status = 'active'`).all();
+  context.businessRules = await db.prepare(`SELECT rule_code, name, category, description, condition_logic, action_logic FROM business_rules WHERE status = 'active'`).all();
 
   // 4. Load company SOP documents summaries
-  context.activeSOPs = db.prepare(`SELECT title, doc_type, summary, applicable_scope FROM company_knowledge WHERE status = 'active' LIMIT 5`).all();
+  context.activeSOPs = await db.prepare(`SELECT title, doc_type, summary, applicable_scope FROM company_knowledge WHERE status = 'active' LIMIT 5`).all();
 
   // 5. Query specific operational data based on intent if data exists
   if (!context.workspaceStatus.isZeroData) {
     if (intent === 'inventory_check') {
-      context.inventorySummary = db.prepare(`
+      context.inventorySummary = await db.prepare(`
         SELECT p.name as product_name, p.sku_code, s.name as store_name, i.available_qty
         FROM inventory i
         JOIN products p ON i.product_id = p.id
@@ -50,7 +54,7 @@ export async function buildDataContext(intent: string, message: string): Promise
         LIMIT 25
       `).all();
     } else if (intent === 'procurement_recommendation') {
-      context.recommendations = db.prepare(`
+      context.recommendations = await db.prepare(`
         SELECT pr.*, p.name as product_name, p.sku_code, s.name as store_name
         FROM purchase_recommendations pr
         JOIN products p ON pr.product_id = p.id
@@ -59,7 +63,7 @@ export async function buildDataContext(intent: string, message: string): Promise
         LIMIT 25
       `).all();
     } else if (intent === 'near_expiry_check') {
-      context.nearExpiryLots = db.prepare(`
+      context.nearExpiryLots = await db.prepare(`
         SELECT el.*, p.sku_code, p.name as product_name, s.name as store_name,
                CAST((julianday(el.expiry_date) - julianday('now')) AS INTEGER) as days_remaining
         FROM expiry_lots el
@@ -70,7 +74,7 @@ export async function buildDataContext(intent: string, message: string): Promise
         LIMIT 20
       `).all();
     } else if (intent === 'sales_analysis') {
-      context.recentSales = db.prepare(`
+      context.recentSales = await db.prepare(`
         SELECT p.sku_code, p.name as product_name, SUM(s.quantity) as total_qty, SUM(s.revenue) as total_rev
         FROM sales s
         JOIN products p ON s.product_id = p.id
@@ -82,7 +86,7 @@ export async function buildDataContext(intent: string, message: string): Promise
   }
 
   // 6. System settings
-  context.systemSettings = db.prepare("SELECT key, value FROM system_settings WHERE category IN ('procurement', 'inventory', 'sales')").all();
+  context.systemSettings = await db.prepare("SELECT key, value FROM system_settings WHERE category IN ('procurement', 'inventory', 'sales')").all();
 
   return context;
 }

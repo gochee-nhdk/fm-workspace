@@ -1,12 +1,15 @@
 import axios, { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
 
-const getApiBaseUrl = (): string => {
-  const envUrl = import.meta.env.VITE_API_URL;
-  if (envUrl) {
-    return envUrl.endsWith('/api') ? envUrl : `${envUrl.replace(/\/+$/, '')}/api`;
-  }
-  return '/api';
+export const resolveApiBaseUrl = (rawUrl?: string): string => {
+  if (!rawUrl || typeof rawUrl !== 'string') return '/api';
+  const trimmed = rawUrl.trim().replace(/\/+$/, '');
+  if (!trimmed) return '/api';
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+};
+
+export const getApiBaseUrl = (): string => {
+  return resolveApiBaseUrl(import.meta.env?.VITE_API_URL);
 };
 
 export const api = axios.create({

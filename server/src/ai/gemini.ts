@@ -6,18 +6,20 @@ export class GeminiService {
   private model = 'gemini-2.5-flash';
 
   constructor() {
-    try {
-      this.initClient();
-    } catch (_) {
-      // Table system_settings may not be initialized yet during early boot
+    // Initial sync fallback with environment variable
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (apiKey) {
+      try {
+        this.ai = new GoogleGenAI({ apiKey });
+      } catch (_) {}
     }
   }
 
-  public initClient() {
+  public async initClient(): Promise<void> {
     try {
       const db = getDb();
-      const keySetting = db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get() as any;
-      const modelSetting = db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_model'").get() as any;
+      const keySetting = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get()) as any;
+      const modelSetting = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_model'").get()) as any;
 
       const apiKey = keySetting?.value || process.env.GEMINI_API_KEY;
 
@@ -40,7 +42,7 @@ export class GeminiService {
 
   async chat(userMessage: string, dataContext: any): Promise<string> {
     if (!this.ai) {
-      this.initClient();
+      await this.initClient();
     }
 
     // If still no API key, return helpful guidance

@@ -11,7 +11,7 @@ export default async function knowledgeRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/', async (request: any, reply) => {
     const db = getDb();
-    const docs = db.prepare(`
+    const docs = await db.prepare(`
       SELECT * FROM company_knowledge
       WHERE status != 'archived'
       ORDER BY updated_at DESC
@@ -33,7 +33,7 @@ export default async function knowledgeRoutes(fastify: FastifyInstance) {
     const id = uuidv4();
     const now = new Date().toISOString();
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO company_knowledge (
         id, title, doc_type, content, summary, source, version, department,
         applicable_scope, status, created_at, updated_at
@@ -52,7 +52,7 @@ export default async function knowledgeRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/terminology', async (request: any, reply) => {
     const db = getDb();
-    const terms = db.prepare('SELECT * FROM company_terminology ORDER BY term ASC').all();
+    const terms = await db.prepare('SELECT * FROM company_terminology ORDER BY term ASC').all();
     return { success: true, data: terms };
   });
 
@@ -69,7 +69,7 @@ export default async function knowledgeRoutes(fastify: FastifyInstance) {
     const id = uuidv4();
     const now = new Date().toISOString();
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO company_terminology (id, term, meaning, standard_term, usage_context, status, created_at)
       VALUES (?, ?, ?, ?, ?, 'active', ?)
       ON CONFLICT(term) DO UPDATE SET
@@ -86,7 +86,7 @@ export default async function knowledgeRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/rules', async (request: any, reply) => {
     const db = getDb();
-    const rules = db.prepare('SELECT * FROM business_rules ORDER BY priority ASC, created_at DESC').all();
+    const rules = await db.prepare('SELECT * FROM business_rules ORDER BY priority ASC, created_at DESC').all();
     return { success: true, data: rules };
   });
 
@@ -104,7 +104,7 @@ export default async function knowledgeRoutes(fastify: FastifyInstance) {
     const now = new Date().toISOString();
     const userId = request.user?.id || 'admin';
 
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO business_rules (
         id, rule_code, name, category, description, condition_logic, action_logic,
         priority, status, created_by, created_at, updated_at
@@ -134,15 +134,15 @@ export default async function knowledgeRoutes(fastify: FastifyInstance) {
     const db = getDb();
 
     // 1. Entities known
-    const storeCount = (db.prepare('SELECT COUNT(*) as count FROM stores').get() as any)?.count || 0;
-    const productCount = (db.prepare('SELECT COUNT(*) as count FROM products').get() as any)?.count || 0;
-    const supplierCount = (db.prepare('SELECT COUNT(*) as count FROM suppliers').get() as any)?.count || 0;
-    const datasetCount = (db.prepare('SELECT COUNT(*) as count FROM datasets').get() as any)?.count || 0;
-    const inventoryCount = (db.prepare('SELECT COUNT(*) as count FROM inventory').get() as any)?.count || 0;
-    const salesCount = (db.prepare('SELECT COUNT(*) as count FROM sales').get() as any)?.count || 0;
-    const knowledgeCount = (db.prepare("SELECT COUNT(*) as count FROM company_knowledge WHERE status = 'active'").get() as any)?.count || 0;
-    const ruleCount = (db.prepare("SELECT COUNT(*) as count FROM business_rules WHERE status = 'active'").get() as any)?.count || 0;
-    const termCount = (db.prepare("SELECT COUNT(*) as count FROM company_terminology WHERE status = 'active'").get() as any)?.count || 0;
+    const storeCount = ((await db.prepare('SELECT COUNT(*) as count FROM stores').get()) as any)?.count || 0;
+    const productCount = ((await db.prepare('SELECT COUNT(*) as count FROM products').get()) as any)?.count || 0;
+    const supplierCount = ((await db.prepare('SELECT COUNT(*) as count FROM suppliers').get()) as any)?.count || 0;
+    const datasetCount = ((await db.prepare('SELECT COUNT(*) as count FROM datasets').get()) as any)?.count || 0;
+    const inventoryCount = ((await db.prepare('SELECT COUNT(*) as count FROM inventory').get()) as any)?.count || 0;
+    const salesCount = ((await db.prepare('SELECT COUNT(*) as count FROM sales').get()) as any)?.count || 0;
+    const knowledgeCount = ((await db.prepare("SELECT COUNT(*) as count FROM company_knowledge WHERE status = 'active'").get()) as any)?.count || 0;
+    const ruleCount = ((await db.prepare("SELECT COUNT(*) as count FROM business_rules WHERE status = 'active'").get()) as any)?.count || 0;
+    const termCount = ((await db.prepare("SELECT COUNT(*) as count FROM company_terminology WHERE status = 'active'").get()) as any)?.count || 0;
 
     // 2. Identify missing or incomplete information
     const missing: string[] = [];

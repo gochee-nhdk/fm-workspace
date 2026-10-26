@@ -203,22 +203,22 @@ export default async function importsRoutes(fastify: FastifyInstance) {
 
       // Begin SQLite transaction
       let importedCount = 0;
-      const runTransaction = db.transaction(() => {
+      await db.transaction(async (tx) => {
         // Ensure default store exists
-        let defaultStore = db.prepare("SELECT id FROM stores LIMIT 1").get() as any;
+        let defaultStore = (await tx.prepare("SELECT id FROM stores LIMIT 1").get()) as any;
         if (!defaultStore) {
           const defStoreId = uuidv4();
-          db.prepare("INSERT INTO stores (id, name, code, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").run(
+          await tx.prepare("INSERT INTO stores (id, name, code, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").run(
             defStoreId, 'Kho Tổng / Cửa hàng chính', 'STORE-DEFAULT', now, now
           );
           defaultStore = { id: defStoreId };
         }
 
         // Ensure default supplier exists
-        let defaultSupplier = db.prepare("SELECT id FROM suppliers LIMIT 1").get() as any;
+        let defaultSupplier = (await tx.prepare("SELECT id FROM suppliers LIMIT 1").get()) as any;
         if (!defaultSupplier) {
           const defSupId = uuidv4();
-          db.prepare("INSERT INTO suppliers (id, name, code, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").run(
+          await tx.prepare("INSERT INTO suppliers (id, name, code, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").run(
             defSupId, 'Nhà cung cấp nội bộ / Tổng kho', 'SUP-DEFAULT', now, now
           );
           defaultSupplier = { id: defSupId };
@@ -226,15 +226,15 @@ export default async function importsRoutes(fastify: FastifyInstance) {
 
         // Ingestion logic per entity type
         if (entityType === 'inventory' || entityType === 'general') {
-          const insertProduct = db.prepare(`
+          const insertProduct = tx.prepare(`
             INSERT OR IGNORE INTO products (id, sku_code, name, unit, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?)
           `);
-          const insertStore = db.prepare(`
+          const insertStore = tx.prepare(`
             INSERT OR IGNORE INTO stores (id, name, code, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?)
           `);
-          const upsertInventory = db.prepare(`
+          const upsertInventory = tx.prepare(`
             INSERT INTO inventory (id, store_id, product_id, quantity, available_qty, updated_at)
             VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(store_id, product_id) DO UPDATE SET
@@ -242,13 +242,13 @@ export default async function importsRoutes(fastify: FastifyInstance) {
               available_qty = excluded.available_qty,
               updated_at = excluded.updated_at
           `);
-          const upsertProductSupplier = db.prepare(`
+          const upsertProductSupplier = tx.prepare(`
             INSERT INTO product_suppliers (id, product_id, supplier_id, cost_price, is_primary)
             VALUES (?, ?, ?, ?, 1)
             ON CONFLICT(product_id, supplier_id) DO UPDATE SET
               cost_price = excluded.cost_price
           `);
-          const insertExpiryLot = db.prepare(`
+          const insertExpiryLot = tx.prepare(`
             INSERT INTO expiry_lots (id, store_id, product_id, lot_number, quantity, expiry_date, status, created_at)
             VALUES (?, ?, ?, ?, ?, ?, 'active', ?)
           `);
@@ -265,31 +265,31 @@ export default async function importsRoutes(fastify: FastifyInstance) {
               : null;
 
             // 1. Ensure product exists
-            let prod = db.prepare("SELECT id FROM products WHERE sku_code = ?").get(sku) as any;
+            let prod = (await tx.prepare("SELECT id FROM products WHERE sku_code = ?").get(sku)) as any;
             if (!prod) {
               const prodId = uuidv4();
-              insertProduct.run(prodId, sku, name, unit, now, now);
+              await insertProduct.run(prodId, sku, name, unit, now, now);
               prod = { id: prodId };
             }
 
             // 2. Store resolution
             let storeId = defaultStore.id;
             if (row.store_code) {
-              let store = db.prepare("SELECT id FROM stores WHERE code = ?").get(row.store_code) as any;
+              let store = (await tx.prepare("SELECT id FROM stores WHERE code = ?").get(row.store_code)) as any;
               if (!store) {
                 const newStoreId = uuidv4();
-                insertStore.run(newStoreId, row.store_name || `Cửa hàng ${row.store_code}`, row.store_code, now, now);
+                await insertStore.run(newStoreId, row.store_name || `Cửa hàng ${row.store_code}`, row.store_code, now, now);
                 store = { id: newStoreId };
               }
               storeId = store.id;
             }
 
             // 3. Upsert inventory
-            upsertInventory.run(uuidv4(), storeId, prod.id, qty, qty, now);
+            await upsertInventory.run(uuidv4(), storeId, prod.id, qty, qty, now);
 
             // 4. Record cost price in product_suppliers if provided
             if (unitPrice !== null) {
-              upsertProductSupplier.run(uuidv4(), prod.id, defaultSupplier.id, unitPrice);
+              await upsertProductSupplier.run(uuidv4(), prod.id, defaultSupplier.id, unitPrice);
             }
 
             // 5. Record expiry lot if provided
@@ -297,18 +297,18 @@ export default async function importsRoutes(fastify: FastifyInstance) {
               const cleanedExpiry = ExcelParserService.cleanCellValue(row.expiry_date);
               if (cleanedExpiry && String(cleanedExpiry).includes('-')) {
                 const lotNum = row.lot_number || `LOT-${sku}-${String(cleanedExpiry).replace(/[^0-9]/g, '')}`;
-                insertExpiryLot.run(uuidv4(), storeId, prod.id, lotNum, qty, cleanedExpiry, now);
+                await insertExpiryLot.run(uuidv4(), storeId, prod.id, lotNum, qty, cleanedExpiry, now);
               }
             }
 
             importedCount++;
           }
         } else if (entityType === 'sales') {
-          const insertSale = db.prepare(`
+          const insertSale = tx.prepare(`
             INSERT INTO sales (id, store_id, product_id, sale_date, quantity, revenue, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
           `);
-          const insertStore = db.prepare(`
+          const insertStore = tx.prepare(`
             INSERT OR IGNORE INTO stores (id, name, code, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?)
           `);
@@ -317,10 +317,10 @@ export default async function importsRoutes(fastify: FastifyInstance) {
             const sku = row.sku_code || row.sku;
             if (!sku) continue;
 
-            let prod = db.prepare("SELECT id FROM products WHERE sku_code = ?").get(sku) as any;
+            let prod = (await tx.prepare("SELECT id FROM products WHERE sku_code = ?").get(sku)) as any;
             if (!prod) {
               const prodId = uuidv4();
-              db.prepare("INSERT INTO products (id, sku_code, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").run(
+              await tx.prepare("INSERT INTO products (id, sku_code, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").run(
                 prodId, sku, row.product_name || `Sản phẩm ${sku}`, now, now
               );
               prod = { id: prodId };
@@ -329,10 +329,10 @@ export default async function importsRoutes(fastify: FastifyInstance) {
             // Store resolution
             let storeId = defaultStore.id;
             if (row.store_code) {
-              let store = db.prepare("SELECT id FROM stores WHERE code = ?").get(row.store_code) as any;
+              let store = (await tx.prepare("SELECT id FROM stores WHERE code = ?").get(row.store_code)) as any;
               if (!store) {
                 const newStoreId = uuidv4();
-                insertStore.run(newStoreId, row.store_name || `Cửa hàng ${row.store_code}`, row.store_code, now, now);
+                await insertStore.run(newStoreId, row.store_name || `Cửa hàng ${row.store_code}`, row.store_code, now, now);
                 store = { id: newStoreId };
               }
               storeId = store.id;
@@ -344,14 +344,14 @@ export default async function importsRoutes(fastify: FastifyInstance) {
             const qty = Number.isFinite(Number(rawQty)) ? Number(rawQty) : 1;
             const rev = Number(row.sales_revenue || row.revenue || 0);
 
-            insertSale.run(uuidv4(), storeId, prod.id, saleDate, qty, rev, now);
+            await insertSale.run(uuidv4(), storeId, prod.id, saleDate, qty, rev, now);
             importedCount++;
           }
         }
 
         // Record in datasets table
         const datasetId = uuidv4();
-        db.prepare(`
+        await tx.prepare(`
           INSERT INTO datasets (
             id, name, version, file_name, file_size, row_count, entity_type,
             quality_score, status, columns_mapped, error_summary, uploaded_by, created_at
@@ -373,7 +373,7 @@ export default async function importsRoutes(fastify: FastifyInstance) {
         );
 
         // Record in data_imports table
-        db.prepare(`
+        await tx.prepare(`
           INSERT INTO data_imports (
             id, user_id, file_name, entity_type, total_rows, success_rows, error_rows, status, errors, created_at
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -391,7 +391,6 @@ export default async function importsRoutes(fastify: FastifyInstance) {
         );
       });
 
-      runTransaction();
       uploadCache.delete(uploadId);
 
       return {
@@ -414,8 +413,8 @@ export default async function importsRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/history', async (request: any, reply) => {
     const db = getDb();
-    const datasets = db.prepare('SELECT * FROM datasets ORDER BY created_at DESC LIMIT 50').all();
-    const imports = db.prepare('SELECT * FROM data_imports ORDER BY created_at DESC LIMIT 50').all();
+    const datasets = await db.prepare('SELECT * FROM datasets ORDER BY created_at DESC LIMIT 50').all();
+    const imports = await db.prepare('SELECT * FROM data_imports ORDER BY created_at DESC LIMIT 50').all();
 
     return {
       success: true,

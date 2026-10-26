@@ -29,7 +29,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
 
     try {
       const db = getDb();
-      const keySetting = db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get() as any;
+      const keySetting = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get()) as any;
       const apiKey = clientApiKey || keySetting?.value || process.env.GEMINI_API_KEY;
 
       if (!apiKey) {
@@ -165,11 +165,11 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       
       if (!convId) {
         convId = uuidv4();
-        db.prepare('INSERT INTO ai_conversations (id, user_id, title, created_at) VALUES (?, ?, ?, ?)').run(
+        await db.prepare('INSERT INTO ai_conversations (id, user_id, title, created_at) VALUES (?, ?, ?, ?)').run(
           convId, request.user.id, message.substring(0, 50), now
         );
       } else {
-        const existingConv = db.prepare('SELECT user_id FROM ai_conversations WHERE id = ?').get(convId) as any;
+        const existingConv = (await db.prepare('SELECT user_id FROM ai_conversations WHERE id = ?').get(convId)) as any;
         if (!existingConv) {
           return reply.code(404).send({ success: false, message: 'Không tìm thấy cuộc trò chuyện.' });
         }
@@ -178,11 +178,11 @@ export default async function aiRoutes(fastify: FastifyInstance) {
         }
       }
       
-      db.prepare('INSERT INTO ai_messages (id, conversation_id, role, content, data_context, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(
+      await db.prepare('INSERT INTO ai_messages (id, conversation_id, role, content, data_context, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(
         uuidv4(), convId, 'user', message, null, now
       );
       
-      db.prepare('INSERT INTO ai_messages (id, conversation_id, role, content, data_context, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(
+      await db.prepare('INSERT INTO ai_messages (id, conversation_id, role, content, data_context, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(
         uuidv4(), convId, 'assistant', response, JSON.stringify(dataContext), now
       );
       
@@ -206,6 +206,6 @@ export default async function aiRoutes(fastify: FastifyInstance) {
 
   fastify.get('/conversations', { preHandler: verifyToken }, async (request: any, reply) => {
     const db = getDb();
-    return db.prepare('SELECT * FROM ai_conversations WHERE user_id = ? ORDER BY created_at DESC').all(request.user.id);
+    return await db.prepare('SELECT * FROM ai_conversations WHERE user_id = ? ORDER BY created_at DESC').all(request.user.id);
   });
 }

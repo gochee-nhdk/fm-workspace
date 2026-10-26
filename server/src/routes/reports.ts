@@ -11,9 +11,9 @@ export default async function reportsRoutes(fastify: FastifyInstance) {
   /**
    * Helper function to fetch data for report type
    */
-  function getReportData(type: string, db: any) {
+  async function getReportData(type: string, db: any) {
     if (type === 'inventory') {
-      const rows = db.prepare(`
+      const rows = await db.prepare(`
         SELECT p.sku_code, p.name as product_name, s.name as store_name,
                i.available_qty, ps.cost_price, (i.available_qty * COALESCE(ps.cost_price, 0)) as total_value
         FROM inventory i
@@ -29,7 +29,7 @@ export default async function reportsRoutes(fastify: FastifyInstance) {
         rows
       };
     } else if (type === 'near_expiry') {
-      const rows = db.prepare(`
+      const rows = await db.prepare(`
         SELECT p.sku_code, p.name as product_name, s.name as store_name,
                el.lot_number, el.quantity, el.expiry_date,
                CAST((julianday(el.expiry_date) - julianday('now')) AS INTEGER) as days_left
@@ -46,7 +46,7 @@ export default async function reportsRoutes(fastify: FastifyInstance) {
         rows
       };
     } else if (type === 'procurement_recommendations') {
-      const rows = db.prepare(`
+      const rows = await db.prepare(`
         SELECT p.sku_code, p.name as product_name, s.name as store_name,
                pr.recommended_qty, pr.reason, pr.risk_level, pr.status, pr.created_at
         FROM purchase_recommendations pr
@@ -62,7 +62,7 @@ export default async function reportsRoutes(fastify: FastifyInstance) {
       };
     } else {
       // Default / Daily procurement report
-      const rows = db.prepare(`
+      const rows = await db.prepare(`
         SELECT p.sku_code, p.name as product_name, s.name as store_name, i.available_qty
         FROM inventory i
         JOIN products p ON i.product_id = p.id
@@ -84,7 +84,7 @@ export default async function reportsRoutes(fastify: FastifyInstance) {
   fastify.post('/generate', async (request: any, reply) => {
     const { type = 'daily_procurement' } = request.body || {};
     const db = getDb();
-    const data = getReportData(type, db);
+    const data = await getReportData(type, db);
 
     return {
       success: true,
@@ -102,7 +102,7 @@ export default async function reportsRoutes(fastify: FastifyInstance) {
   const exportExcelHandler = async (request: any, reply: any) => {
     const { type = 'daily_procurement' } = request.query as { type?: string };
     const db = getDb();
-    const report = getReportData(type, db);
+    const report = await getReportData(type, db);
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Farmers Market AI Procurement Copilot';
@@ -194,7 +194,7 @@ export default async function reportsRoutes(fastify: FastifyInstance) {
   fastify.get('/export/csv', async (request: any, reply) => {
     const { type = 'daily_procurement' } = request.query as { type?: string };
     const db = getDb();
-    const report = getReportData(type, db);
+    const report = await getReportData(type, db);
 
     const csvData = report.rows.map((rowObj: any) => {
       const obj: Record<string, any> = {};

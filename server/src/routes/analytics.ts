@@ -7,7 +7,7 @@ export default async function analyticsRoutes(fastify: FastifyInstance) {
 
   fastify.get('/sku-performance', async (request: any, reply) => {
     const db = getDb();
-    const data = db.prepare(`
+    const data = await db.prepare(`
       SELECT p.name, p.sku_code, SUM(s.quantity) as total_sold, SUM(s.revenue) as total_revenue
       FROM sales s
       JOIN products p ON s.product_id = p.id
@@ -19,7 +19,7 @@ export default async function analyticsRoutes(fastify: FastifyInstance) {
 
   fastify.get('/store-performance', async (request: any, reply) => {
     const db = getDb();
-    const data = db.prepare(`
+    const data = await db.prepare(`
       SELECT st.name, SUM(s.revenue) as revenue
       FROM sales s
       JOIN stores st ON s.store_id = st.id
@@ -31,7 +31,7 @@ export default async function analyticsRoutes(fastify: FastifyInstance) {
 
   fastify.get('/category-performance', async (request: any, reply) => {
     const db = getDb();
-    const data = db.prepare(`
+    const data = await db.prepare(`
       SELECT c.name, SUM(s.revenue) as revenue
       FROM sales s
       JOIN products p ON s.product_id = p.id
@@ -44,7 +44,7 @@ export default async function analyticsRoutes(fastify: FastifyInstance) {
 
   fastify.get('/sales', async (request: any, reply) => {
     const db = getDb();
-    const data = db.prepare(`
+    const data = await db.prepare(`
       SELECT sale_date, SUM(revenue) as daily_revenue
       FROM sales
       GROUP BY sale_date
@@ -55,7 +55,7 @@ export default async function analyticsRoutes(fastify: FastifyInstance) {
 
   fastify.get('/supplier-performance', async (request: any, reply) => {
     const db = getDb();
-    const data = db.prepare(`
+    const data = await db.prepare(`
       SELECT su.name, COUNT(po.id) as total_orders
       FROM purchase_orders po
       JOIN suppliers su ON po.supplier_id = su.id

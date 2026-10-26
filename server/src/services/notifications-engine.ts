@@ -6,10 +6,10 @@ export async function generateAlerts() {
   const now = new Date().toISOString();
 
   // Stockout Risk Check
-  const recommendations = db.prepare("SELECT id, store_id, product_id FROM purchase_recommendations WHERE status = 'pending'").all() as any[];
+  const recommendations = (await db.prepare("SELECT id, store_id, product_id FROM purchase_recommendations WHERE status = 'pending'").all()) as any[];
   
   for (const rec of recommendations) {
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO notifications (id, user_id, type, title, message, severity, entity_type, entity_id, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -26,14 +26,14 @@ export async function generateAlerts() {
   }
 
   // Near Expiry Check
-  const nearExpiry = db.prepare(`
+  const nearExpiry = (await db.prepare(`
     SELECT id, product_id, expiry_date 
     FROM expiry_lots 
     WHERE status = 'active' AND expiry_date <= date('now', '+7 days')
-  `).all() as any[];
+  `).all()) as any[];
 
   for (const lot of nearExpiry) {
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO notifications (id, user_id, type, title, message, severity, entity_type, entity_id, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
