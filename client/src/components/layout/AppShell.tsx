@@ -47,7 +47,12 @@ export const AppShell: React.FC = () => {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
-    return localStorage.getItem('fm_sidebar_collapsed') === 'true';
+    const saved = localStorage.getItem('fm_sidebar_collapsed');
+    if (saved !== null) return saved === 'true';
+    if (typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth < 1024) {
+      return true;
+    }
+    return false;
   });
 
   const toggleSidebar = () => {
@@ -338,20 +343,20 @@ export const AppShell: React.FC = () => {
 
       {/* ─────────────────── Main Content Canvas ─────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative z-10 bg-[#f8f9fc] dark:bg-[#121216]">
-        {/* Topbar: Hardware-Accelerated Translucent Liquid Glass Bar */}
+        {/* Topbar: Hardware-Accelerated Translucent Liquid Glass Bar with Safe-Area Awareness */}
         <header
           className={cn(
-            "h-16 shrink-0 px-4 sm:px-6 border-b flex items-center justify-between z-20 transition-[background-color,border-color,box-shadow] duration-200 ease-out",
+            "h-16 pt-[env(safe-area-inset-top,0px)] shrink-0 px-3.5 sm:px-6 border-b flex items-center justify-between z-20 transition-[background-color,border-color,box-shadow] duration-200 ease-out",
             isScrolled
               ? "bg-white/85 dark:bg-[#16161c]/85 backdrop-blur-2xl border-black/[0.08] dark:border-white/10 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.06),inset_0_-0.5px_0_rgba(255,255,255,0.1)] dark:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.35),inset_0_-0.5px_0_rgba(255,255,255,0.05)]"
               : "bg-white/60 dark:bg-[#16161c]/60 backdrop-blur-xl border-black/[0.04] dark:border-white/[0.06]"
           )}
         >
-          <div className="flex items-center gap-3.5">
+          <div className="flex items-center gap-3.5 min-w-0">
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="md:hidden p-2 rounded-full text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              className="md:hidden p-2 rounded-full text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0"
               title="Mở menu"
               aria-label="Mở menu điều hướng"
             >
@@ -368,26 +373,27 @@ export const AppShell: React.FC = () => {
               <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover rounded-full" />
             </button>
 
-            <div className="flex items-center gap-2 font-sans">
-              <h2 className="text-[16px] font-bold text-[#1d1d1f] dark:text-white tracking-tight">
+            <div className="flex items-center gap-2 font-sans truncate">
+              <h2 className="text-[15px] sm:text-[16px] font-bold text-[#1d1d1f] dark:text-white tracking-tight truncate">
                 {pageTitle}
               </h2>
             </div>
           </div>
 
           {/* Right Floating Controls */}
-          <div className="flex items-center gap-2.5">
-            {/* Global Search Capsule (Spotlight pill) */}
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            {/* Global Search Capsule (Spotlight pill - Icon on mobile, capsule on desktop) */}
             <button
               onClick={() => setCommandPaletteOpen(true)}
-              className="liquid-lens-pill group relative flex items-center gap-2.5 px-3.5 py-2 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white text-[13px] w-44 md:w-52 lg:w-64 active:scale-[0.98] cursor-pointer"
+              className="liquid-lens-pill group relative flex items-center justify-center sm:justify-start gap-2 p-2 sm:px-3.5 sm:py-2 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white text-[13px] w-10 sm:w-44 md:w-52 lg:w-64 active:scale-[0.98] cursor-pointer"
               aria-label="Tìm kiếm nhanh (Ctrl+K)"
+              title="Tìm kiếm nhanh (Ctrl+K)"
             >
-              <div className="w-5 h-5 rounded-full bg-[#0088FF]/15 dark:bg-[#0091FF]/20 flex items-center justify-center text-[#0088FF] dark:text-[#0091FF] group-hover:scale-110 transition-transform">
+              <div className="w-5 h-5 rounded-full bg-[#0088FF]/15 dark:bg-[#0091FF]/20 flex items-center justify-center text-[#0088FF] dark:text-[#0091FF] group-hover:scale-110 transition-transform shrink-0">
                 <SFMagnifyingglass size={14} />
               </div>
-              <span className="flex-1 text-left truncate font-normal text-[12.5px] opacity-90 group-hover:opacity-100">
-                Tìm nhanh link, CH, tài khoản...
+              <span className="hidden sm:inline-block flex-1 text-left truncate font-normal text-[12.5px] opacity-90 group-hover:opacity-100">
+                Tìm nhanh link, CH...
               </span>
               <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono rounded-md bg-white/80 dark:bg-white/10 border border-black/10 dark:border-white/10 text-[#76767b] dark:text-[#a1a1a6] shadow-2xs group-hover:border-[#0088FF]/30 transition-colors">
                 Ctrl + K
@@ -473,7 +479,7 @@ export const AppShell: React.FC = () => {
               className="fixed inset-0 bg-black/45 backdrop-blur-md transition-opacity"
               onClick={() => setMobileMenuOpen(false)}
             />
-            <div className="fixed inset-y-0 left-0 w-72 vision-glass-sidebar shadow-2xl p-5 flex flex-col z-10 animate-in slide-in-from-left duration-250 ease-out border-r border-[#e0e0e0] dark:border-white/10">
+            <div className="fixed inset-y-0 left-0 w-72 pt-[max(1.25rem,env(safe-area-inset-top,0px))] pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pl-[max(1.25rem,env(safe-area-inset-left,0px))] pr-5 vision-glass-sidebar shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-250 ease-out border-r border-[#e0e0e0] dark:border-white/10">
               <div className="flex items-center justify-between pb-4 border-b border-[#e0e0e0] dark:border-white/10">
                 <button
                   type="button"

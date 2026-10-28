@@ -172,6 +172,12 @@
     --primary: #0066cc;
     --primary-foreground: #ffffff;
     --sidebar-width: 268px;
+
+    /* Mobile & Cross-Platform Safe Area Insets (iOS Safari, Dynamic Island, Android Nav Pill) */
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
     
     /* Concentric Corner Radii Family (macOS 27) */
     --window-radius: 28px;
@@ -3258,6 +3264,28 @@ tbody td {
 .content-auto {
   content-visibility: auto;
   contain-intrinsic-size: 0 49px;
+}
+
+/* Mobile & Tablet Cross-Platform Adaptive Utilities */
+.safe-pt {
+  padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+}
+
+.safe-pb {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+.safe-pl {
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+}
+
+.safe-pr {
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+}
+
+.touch-target-apple {
+  min-height: 44px;
+  min-width: 44px;
 }
 
 

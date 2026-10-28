@@ -81,7 +81,7 @@ export const Drawer: React.FC<DrawerProps> = ({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] overflow-y-auto flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-[9999] overflow-y-auto flex items-end sm:items-center justify-center p-0 sm:p-6">
       {/* Full-screen Liquid Glass backdrop blur */}
       <div
         className={cn(
@@ -90,14 +90,16 @@ export const Drawer: React.FC<DrawerProps> = ({
         )}
         onClick={handleClose}
       />
-      {/* Centered Floating Glass Dialog with Fluid Droplet Motion */}
+      {/* Centered Floating Glass Dialog on Desktop / Fluid Bottom Sheet on Mobile */}
       <div
         className={cn(
-          'relative w-full bg-white dark:bg-[#1c1c22] shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15 rounded-[24px] flex flex-col max-h-[90vh] overflow-hidden z-10',
+          'relative w-full bg-white dark:bg-[#1c1c22] shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border-t sm:border border-black/10 dark:border-white/15 rounded-t-[28px] sm:rounded-[24px] rounded-b-none sm:rounded-b-[24px] flex flex-col max-h-[88vh] sm:max-h-[90vh] overflow-hidden z-10 pb-[env(safe-area-inset-bottom,0px)]',
           widths[width],
           isClosing ? 'liquid-droplet-exit' : 'liquid-droplet-enter'
         )}
       >
+        {/* Mobile Sheet Drag Indicator Handle */}
+        <div className="sm:hidden w-10 h-1.5 rounded-full bg-black/20 dark:bg-white/20 mx-auto mt-2.5 -mb-1 shrink-0" />
         <div className="px-6 py-5 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between shrink-0 bg-[#fbfbfd] dark:bg-white/[0.02]">
           <div>
             {title && (

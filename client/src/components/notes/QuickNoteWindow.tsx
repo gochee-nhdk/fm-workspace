@@ -945,6 +945,18 @@ export const QuickNoteWindow: React.FC = () => {
   const rafIdRef = useRef<number | null>(null);
   const windowRef = useRef<HTMLDivElement>(null);
 
+  const [isMobileScreen, setIsMobileScreen] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileScreen(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Auto-close Writing Tools menu when clicking outside
   useEffect(() => {
     if (!showCompactAiMenu) return;
@@ -2809,6 +2821,9 @@ export const QuickNoteWindow: React.FC = () => {
     savePendingDraft(activeNoteIdRef.current);
     setUnlockedNoteIds([]); // Relock tất cả khi chuyển sang note khác
     selectNote(id);
+    if (isMobileScreen) {
+      setShowSidebar(false);
+    }
   };
 
   const handleCloseNote = useCallback(() => {
@@ -3998,19 +4013,35 @@ export const QuickNoteWindow: React.FC = () => {
         ref={windowRef}
         role="region"
         aria-label="Cửa sổ ghi chú nhanh"
-        style={{
-          right: `${rightPx}px`,
-          bottom: `${bottomPx}px`,
-          width: `${currentW}px`,
-          height: `${currentH}px`,
-        }}
+        style={
+          isMobileScreen
+            ? {
+                left: 0,
+                right: 0,
+                bottom: 0,
+                top: 'max(0.5rem, env(safe-area-inset-top, 0px))',
+                width: '100vw',
+                height: 'calc(100% - max(0.5rem, env(safe-area-inset-top, 0px)))',
+              }
+            : {
+                right: `${rightPx}px`,
+                bottom: `${bottomPx}px`,
+                width: `${currentW}px`,
+                height: `${currentH}px`,
+              }
+        }
         className={cn(
-          "fixed z-[9999] bg-white/95 dark:bg-[#181822]/95 backdrop-blur-3xl border border-white/80 dark:border-white/15 flex overflow-hidden font-sans select-none max-w-[calc(100vw-32px)] max-h-[calc(100vh-32px)]",
-          isWindowClosing ? "liquid-droplet-exit pointer-events-none" : "liquid-droplet-enter",
-          isCompactWindow ? "rounded-[26px]" : "rounded-tl-[26px] rounded-tr-none rounded-br-none rounded-bl-none",
-          (isDraggingCompact || isResizing)
-            ? "shadow-[0_32px_85px_rgba(0,0,0,0.3)] transition-none select-none pointer-events-auto"
-            : "shadow-[0_20px_60px_rgba(0,0,0,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85)] transition-[right,bottom,width,height,border-radius,box-shadow] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+          "fixed z-[9999] bg-white/95 dark:bg-[#181822]/95 backdrop-blur-3xl border border-white/80 dark:border-white/15 flex flex-col overflow-hidden font-sans select-none",
+          isMobileScreen
+            ? "rounded-t-[28px] rounded-b-none border-b-0 max-w-none max-h-none shadow-[0_-12px_40px_rgba(0,0,0,0.22)] pb-[env(safe-area-inset-bottom,0px)]"
+            : cn(
+                "max-w-[calc(100vw-32px)] max-h-[calc(100vh-32px)]",
+                isCompactWindow ? "rounded-[26px]" : "rounded-tl-[26px] rounded-tr-none rounded-br-none rounded-bl-none",
+                (isDraggingCompact || isResizing)
+                  ? "shadow-[0_32px_85px_rgba(0,0,0,0.3)] transition-none select-none pointer-events-auto"
+                  : "shadow-[0_20px_60px_rgba(0,0,0,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85)] transition-[right,bottom,width,height,border-radius,box-shadow] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+              ),
+          isWindowClosing ? "liquid-droplet-exit pointer-events-none" : "liquid-droplet-enter"
         )}
         onClick={(e) => e.stopPropagation()}
         onDragOver={(e) => {
@@ -4078,42 +4109,53 @@ export const QuickNoteWindow: React.FC = () => {
           }
         }}
       >
-        {/* Invisible Resize Hitboxes (All 4 Edges: n, s, w, e & All 4 Corners: nw, ne, sw, se) */}
-        {/* 4 Edges */}
-        <div
-          onMouseDown={(e) => handleResizeStart(e, 'n')}
-          className="absolute top-0 inset-x-6 h-2.5 cursor-ns-resize z-50 select-none bg-transparent touch-none"
-        />
-        <div
-          onMouseDown={(e) => handleResizeStart(e, 's')}
-          className="absolute bottom-0 inset-x-6 h-2.5 cursor-ns-resize z-50 select-none bg-transparent touch-none"
-        />
-        <div
-          onMouseDown={(e) => handleResizeStart(e, 'w')}
-          className="absolute left-0 inset-y-6 w-2.5 cursor-ew-resize z-50 select-none bg-transparent touch-none"
-        />
-        <div
-          onMouseDown={(e) => handleResizeStart(e, 'e')}
-          className="absolute right-0 inset-y-6 w-2.5 cursor-ew-resize z-50 select-none bg-transparent touch-none"
-        />
+        {/* Mobile Sheet Drag Indicator Handle */}
+        {isMobileScreen && (
+          <div className="w-full flex items-center justify-center pt-2.5 pb-1 shrink-0 bg-transparent">
+            <div className="w-10 h-1.5 rounded-full bg-black/20 dark:bg-white/20" />
+          </div>
+        )}
 
-        {/* 4 Corners */}
-        <div
-          onMouseDown={(e) => handleResizeStart(e, 'nw')}
-          className="absolute top-0 left-0 w-6 h-6 cursor-nwse-resize z-50 select-none bg-transparent rounded-tl-[28px] touch-none"
-        />
-        <div
-          onMouseDown={(e) => handleResizeStart(e, 'ne')}
-          className="absolute top-0 right-0 w-6 h-6 cursor-nesw-resize z-50 select-none bg-transparent rounded-tr-[28px] touch-none"
-        />
-        <div
-          onMouseDown={(e) => handleResizeStart(e, 'sw')}
-          className="absolute bottom-0 left-0 w-6 h-6 cursor-nesw-resize z-50 select-none bg-transparent rounded-bl-[28px] touch-none"
-        />
-        <div
-          onMouseDown={(e) => handleResizeStart(e, 'se')}
-          className="absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize z-50 select-none bg-transparent rounded-br-[28px] touch-none"
-        />
+        {/* Invisible Resize Hitboxes (All 4 Edges: n, s, w, e & All 4 Corners: nw, ne, sw, se) - Desktop only */}
+        {!isMobileScreen && (
+          <>
+            {/* 4 Edges */}
+            <div
+              onMouseDown={(e) => handleResizeStart(e, 'n')}
+              className="absolute top-0 inset-x-6 h-2.5 cursor-ns-resize z-50 select-none bg-transparent touch-none"
+            />
+            <div
+              onMouseDown={(e) => handleResizeStart(e, 's')}
+              className="absolute bottom-0 inset-x-6 h-2.5 cursor-ns-resize z-50 select-none bg-transparent touch-none"
+            />
+            <div
+              onMouseDown={(e) => handleResizeStart(e, 'w')}
+              className="absolute left-0 inset-y-6 w-2.5 cursor-ew-resize z-50 select-none bg-transparent touch-none"
+            />
+            <div
+              onMouseDown={(e) => handleResizeStart(e, 'e')}
+              className="absolute right-0 inset-y-6 w-2.5 cursor-ew-resize z-50 select-none bg-transparent touch-none"
+            />
+
+            {/* 4 Corners */}
+            <div
+              onMouseDown={(e) => handleResizeStart(e, 'nw')}
+              className="absolute top-0 left-0 w-6 h-6 cursor-nwse-resize z-50 select-none bg-transparent rounded-tl-[28px] touch-none"
+            />
+            <div
+              onMouseDown={(e) => handleResizeStart(e, 'ne')}
+              className="absolute top-0 right-0 w-6 h-6 cursor-nesw-resize z-50 select-none bg-transparent rounded-tr-[28px] touch-none"
+            />
+            <div
+              onMouseDown={(e) => handleResizeStart(e, 'sw')}
+              className="absolute bottom-0 left-0 w-6 h-6 cursor-nesw-resize z-50 select-none bg-transparent rounded-bl-[28px] touch-none"
+            />
+            <div
+              onMouseDown={(e) => handleResizeStart(e, 'se')}
+              className="absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize z-50 select-none bg-transparent rounded-br-[28px] touch-none"
+            />
+          </>
+        )}
 
         {/* Drag & Drop Visual Indicator Overlay */}
         {isDraggingFile && (
@@ -4146,7 +4188,7 @@ export const QuickNoteWindow: React.FC = () => {
             <div
               aria-hidden={!showSidebar}
               className={cn(
-                "absolute top-0 left-0 bottom-0 w-[275px] z-30 border-r border-black/[0.08] dark:border-white/10 flex flex-col bg-white/95 dark:bg-[#181820]/95 backdrop-blur-3xl shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.06)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.35)] transition-transform duration-280 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform",
+                "absolute top-0 left-0 bottom-0 w-full max-w-[285px] z-30 border-r border-black/[0.08] dark:border-white/10 flex flex-col bg-white/95 dark:bg-[#181820]/95 backdrop-blur-3xl shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.06)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.35)] transition-transform duration-280 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform",
                 showSidebar ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none"
               )}
             >
@@ -4517,11 +4559,11 @@ export const QuickNoteWindow: React.FC = () => {
                 </div>
               )}
 
-              {/* 2. Apple Window Mode Toggle: Phóng to / Thu nhỏ nằm kế bên nút đóng */}
+              {/* 2. Apple Window Mode Toggle: Phóng to / Thu nhỏ nằm kế bên nút đóng (Chỉ trên Desktop) */}
               <button
                 type="button"
                 onClick={handleToggleCompactMode}
-                className="w-7 h-7 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
+                className="hidden sm:flex w-7 h-7 rounded-full items-center justify-center text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
                 title={isCompactWindow ? 'Phóng to thành tab chính cố định (Góc dưới phải)' : 'Thu nhỏ thành cửa sổ nhỏ linh động di chuyển'}
                 aria-label={isCompactWindow ? 'Phóng to tab chính' : 'Thu nhỏ cửa sổ'}
               >

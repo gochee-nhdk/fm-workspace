@@ -142,23 +142,25 @@ export const StoreTableRow = React.memo<StoreTableRowProps>(({
       </td>
 
       {/* Actions */}
-      <td className="sticky right-0 z-10 px-4 py-3 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#141418] group-hover:bg-[#f6f7fa] dark:group-hover:bg-[#1a1a20] backdrop-blur-xl border-l border-black/[0.04] dark:border-white/[0.06] transition-colors duration-150">
-        <div className="inline-flex items-center justify-end gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity duration-150">
+      <td className="sticky right-0 z-10 px-3 sm:px-4 py-2.5 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#141418] group-hover:bg-[#f6f7fa] dark:group-hover:bg-[#1a1a20] backdrop-blur-xl border-l border-black/[0.04] dark:border-white/[0.06] transition-colors duration-150">
+        <div className="inline-flex items-center justify-end gap-1 opacity-90 group-hover:opacity-100 transition-opacity duration-150">
           <button
             type="button"
             onClick={() => onEdit(item)}
-            className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white transition-colors duration-150 active:scale-90"
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white transition-all duration-150 active:scale-90 touch-manipulation"
             title="Chỉnh sửa"
+            aria-label="Chỉnh sửa"
           >
-            <SFPencil size={14} />
+            <SFPencil size={15} />
           </button>
           <button
             type="button"
             onClick={() => onDelete(item)}
-            className="p-1.5 rounded-full hover:bg-rose-500/10 text-[#76767b] hover:text-rose-600 transition-colors duration-150 active:scale-90"
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-rose-500/10 text-[#76767b] hover:text-rose-600 transition-all duration-150 active:scale-90 touch-manipulation"
             title="Xóa cửa hàng"
+            aria-label="Xóa cửa hàng"
           >
-            <SFTrash size={14} />
+            <SFTrash size={15} />
           </button>
         </div>
       </td>

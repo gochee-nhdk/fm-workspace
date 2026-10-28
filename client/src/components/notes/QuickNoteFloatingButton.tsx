@@ -15,7 +15,7 @@ export const QuickNoteFloatingButton: React.FC = () => {
   const noteCount = notes.filter((note) => note.noteType !== 'checklist').length;
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 print:hidden">
+    <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1.25rem)] right-[calc(env(safe-area-inset-right,0px)+1.25rem)] z-40 print:hidden">
       <button
         onClick={toggleNote}
         title="Ghi chú nhanh (Alt + N hoặc Ctrl + J)"

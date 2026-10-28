@@ -427,24 +427,26 @@ export const UnifiedWorkspacePage: React.FC = () => {
     <div className="w-full pb-12">
       {/* ─────────────────── Top Bar: Sheet Tabs & Action Bar (Edge-to-edge Sticky Liquid Glass) ─────────────────── */}
       <div className="sticky-liquid-header -mx-4 sm:-mx-5 lg:-mx-6 px-4 sm:px-5 lg:px-6 pt-4 sm:pt-5 lg:pt-6 pb-3.5 transition-all">
-        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4">
-          <SegmentedNavigation
-            label="Danh mục bảng tính"
-            activeId={activeTab}
-            onChange={(tab) => handleTabChange(tab as TabType)}
-            items={[
-              { id: 'accounts', label: 'Tài khoản', icon: <SFShieldFill size={16} /> },
-              { id: 'links', label: 'Links', icon: <SFLink size={16} /> },
-              { id: 'stores', label: 'DS Cửa hàng', icon: <SFStorefront size={16} /> },
-            ]}
-          />
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+          <div className="max-w-full overflow-x-auto pb-1 scrollbar-none flex-shrink-0">
+            <SegmentedNavigation
+              label="Danh mục bảng tính"
+              activeId={activeTab}
+              onChange={(tab) => handleTabChange(tab as TabType)}
+              items={[
+                { id: 'accounts', label: 'Tài khoản', icon: <SFShieldFill size={16} /> },
+                { id: 'links', label: 'Links', icon: <SFLink size={16} /> },
+                { id: 'stores', label: 'DS Cửa hàng', icon: <SFStorefront size={16} /> },
+              ]}
+            />
+          </div>
 
           {/* Action Controls */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             <Button
               variant="liquiGlass"
               size="sm"
-              className="h-[38px] px-4 rounded-full text-[13px] leading-none font-medium"
+              className="h-[38px] px-3.5 sm:px-4 rounded-full text-[13px] leading-none font-medium"
               onClick={handleExport}
               icon={<SFArrowUpDocument size={14} className="text-[#0066cc] dark:text-[#2997ff]" />}
               title="Xuất bảng tính hiện tại ra file Excel (.xlsx)"
@@ -455,7 +457,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
             <Button
               variant="liquiGlass"
               size="sm"
-              className="h-[38px] px-4 rounded-full text-[13px] leading-none font-medium"
+              className="h-[38px] px-3.5 sm:px-4 rounded-full text-[13px] leading-none font-medium"
               onClick={() => window.dispatchEvent(new CustomEvent('fm:open-import'))}
               icon={<SFArrowDownDocument size={14} className="text-emerald-600 dark:text-emerald-400" />}
               title="Nhập file Excel vào hệ thống"
@@ -465,7 +467,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
 
             <Button
               variant="primary"
-              className="h-10 px-4 rounded-full text-[13px] leading-none font-semibold shadow-sm"
+              className="h-10 px-4 rounded-full text-[13px] leading-none font-semibold shadow-sm flex-1 sm:flex-initial justify-center"
               onClick={handleOpenAdd}
               icon={<SFPlus size={16} />}
             >

@@ -680,7 +680,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   if (!isMounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-20 sm:pt-28 p-3 sm:p-4">
+    <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[calc(env(safe-area-inset-top,0px)+1rem)] sm:pt-28 p-3 sm:p-4 pb-[env(safe-area-inset-bottom,0px)]">
       {/* Liquid Glass Dynamic Backdrop with Smooth Fade */}
       <div
         className={cn(
@@ -756,11 +756,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         {/* Category Filter Segmented Control Bar (Liquid Capsule) */}
         <div
           onMouseEnter={resetSelectionImmediate}
-          className="px-3 sm:px-4 py-2 border-b border-black/[0.05] dark:border-white/8 bg-black/[0.015] dark:bg-white/[0.02]"
+          className="px-3 sm:px-4 py-2 border-b border-black/[0.05] dark:border-white/8 bg-black/[0.015] dark:bg-white/[0.02] overflow-x-auto scrollbar-none"
         >
           <div
             ref={categoryBarRef}
-            className="relative w-full flex items-center p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/10 backdrop-blur-md"
+            className="relative w-full flex items-center p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/10 backdrop-blur-md min-w-[320px]"
           >
             {/* Liquid Droplet Sliding Indicator Pill */}
             {catIndicator.ready && catIndicator.width > 0 && (
