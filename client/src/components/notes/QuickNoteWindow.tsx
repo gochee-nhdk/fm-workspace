@@ -32,6 +32,8 @@ import {
   SFTextQuote,
   SFCheckmarkCircle,
   SFBriefcase,
+  SFDocumentOnDocument,
+  SFGlobe,
   AppleNotesBadge,
 } from '@/components/ui/AppleIcon';
 import {
@@ -61,9 +63,7 @@ import {
   Lock,
   Unlock,
   Shield,
-  Globe,
   Paperclip,
-  Copy,
 } from 'lucide-react';
 import { useNoteStore } from '@/stores/note-store';
 import { QuickNoteColor, QuickNoteItem, TaskReminder, NoteImageAttachment } from '@/types/workspace';
@@ -5379,7 +5379,7 @@ export const QuickNoteWindow: React.FC = () => {
                         className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-blue-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                          <Globe size={12} />
+                          <SFGlobe size={12} />
                         </div>
                         <span className="truncate">Dịch sang tiếng Anh</span>
                       </button>
@@ -5393,7 +5393,7 @@ export const QuickNoteWindow: React.FC = () => {
                         className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-teal-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
-                          <Globe size={12} />
+                          <SFGlobe size={12} />
                         </div>
                         <span className="truncate">Dịch sang tiếng Việt</span>
                       </button>
@@ -5573,12 +5573,12 @@ export const QuickNoteWindow: React.FC = () => {
                       {selectionBounds.lineRects.map((rect, idx) => (
                         <div
                           key={`scan-line-${idx}-${rect.top.toFixed(0)}-${rect.left.toFixed(0)}`}
-                          className="absolute overflow-hidden rounded-[3px]"
+                          className="absolute overflow-hidden apple-ai-line-aura"
                           style={{
-                            top: `${Math.max(0, rect.top)}px`,
-                            left: `${Math.max(0, rect.left)}px`,
-                            width: `${Math.max(4, rect.width)}px`,
-                            height: `${Math.max(16, rect.height)}px`,
+                            top: `${Math.max(0, rect.top - 1)}px`,
+                            left: `${Math.max(0, rect.left - 2)}px`,
+                            width: `${Math.max(6, rect.width + 4)}px`,
+                            height: `${Math.max(18, rect.height + 2)}px`,
                           }}
                         >
                           {/* Synchronized Global Sweep Track - Anchored to selectionBounds.left */}
@@ -5638,100 +5638,110 @@ export const QuickNoteWindow: React.FC = () => {
                     }}
                   />
 
-                  {/* Floating AI Progress & Cancel Pill (Strictly Non-Overlapping) */}
+                  {/* Floating AI Progress & Cancel Pill - Anchored strictly at end of highlighted text */}
                   {writingToolLoading && (() => {
                     const canvasW = canvasRef.current?.clientWidth || 500;
                     const canvasH = canvasRef.current?.clientHeight || 400;
-                    const pillWidth = 220;
-                    const pillHeight = 34;
-                    const verticalGap = 12;
+                    const pillWidth = 165;
+                    const pillHeight = 28;
 
-                    let pillTopStyle: string | undefined = undefined;
-                    let pillBottomStyle: string | undefined = undefined;
+                    let pillTop = 10;
+                    let pillLeft = Math.max(12, canvasW - pillWidth - 12);
 
-                    // Strictly place above or below the selection bounds with a clear 12px gap
-                    if (selectionBounds) {
-                      const fitsBelow = selectionBounds.bottom + verticalGap + pillHeight <= canvasH - 8;
-                      const fitsAbove = selectionBounds.top - verticalGap - pillHeight >= 8;
+                    if (selectionBounds?.lineRects && selectionBounds.lineRects.length > 0) {
+                      const lastLine = selectionBounds.lineRects[selectionBounds.lineRects.length - 1];
+                      const endX = lastLine.left + lastLine.width;
+                      const lineTop = lastLine.top;
+                      const lineH = lastLine.height;
 
-                      if (fitsBelow) {
-                        pillTopStyle = `${selectionBounds.bottom + verticalGap}px`;
-                      } else if (fitsAbove) {
-                        pillTopStyle = `${selectionBounds.top - verticalGap - pillHeight}px`;
+                      // Check if there is enough room on the same line after the last character
+                      const spaceOnSameLine = canvasW - (endX + 8);
+                      if (spaceOnSameLine >= pillWidth + 8) {
+                        // Sit immediately after the last character on the same line
+                        pillLeft = endX + 8;
+                        pillTop = Math.max(4, lineTop + (lineH - pillHeight) / 2);
                       } else {
-                        pillBottomStyle = '10px';
+                        // If end of line is too close to edge, place right below the end of text
+                        pillLeft = Math.max(8, Math.min(canvasW - pillWidth - 12, endX - pillWidth + 30));
+                        pillTop = Math.min(canvasH - pillHeight - 8, lineTop + lineH + 6);
                       }
-                    } else {
-                      pillBottomStyle = '10px';
+                    } else if (selectionBounds) {
+                      pillLeft = Math.max(8, Math.min(canvasW - pillWidth - 12, selectionBounds.right + 8));
+                      pillTop = Math.max(4, selectionBounds.bottom + 6);
                     }
-
-                    const pillLeft = canvasW / 2;
 
                     return (
                       <div
-                        className="absolute z-50 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-2xl border border-purple-500/30 dark:border-purple-400/40 shadow-[0_8px_24px_rgba(0,0,0,0.12),0_2px_8px_rgba(168,85,247,0.15)] select-none animate-in fade-in zoom-in-95 duration-150 pointer-events-auto"
+                        className="absolute z-50 flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-2xl border border-purple-500/35 dark:border-purple-400/45 shadow-[0_8px_24px_rgba(0,0,0,0.14),0_2px_8px_rgba(168,85,247,0.2)] select-none animate-in fade-in zoom-in-95 duration-150 pointer-events-auto"
                         style={{
-                          top: pillTopStyle,
-                          bottom: pillBottomStyle,
+                          top: `${pillTop}px`,
                           left: `${pillLeft}px`,
-                          transform: 'translateX(-50%)',
                         }}
                       >
                         <div className="w-3.5 h-3.5 rounded-full border-2 border-[#a855f7] border-t-transparent animate-spin shrink-0" />
-                        <span className="text-[12px] font-semibold bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] bg-clip-text text-transparent select-none whitespace-nowrap">
-                          Đang xử lý AI...
+                        <span className="text-[11.5px] font-semibold bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] bg-clip-text text-transparent select-none whitespace-nowrap">
+                          Đang xử lý...
                         </span>
                         <button
                           type="button"
                           onClick={handleCancelWritingTool}
-                          className="ml-1 px-2.5 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white text-[11px] font-semibold transition-all duration-150 cursor-pointer active:scale-95 flex items-center gap-0.5 shadow-2xs"
-                          title="Dừng xử lý AI ngay lập tức"
+                          className="ml-1 px-2 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white text-[10.5px] font-semibold transition-all duration-150 cursor-pointer active:scale-95 flex items-center gap-1 shadow-2xs"
+                          title="Dừng xử lý ngay lập tức"
                         >
-                          <span>✕ Hủy</span>
+                          <SFXmark size={10} />
+                          <span>Hủy</span>
                         </button>
                       </div>
                     );
                   })()}
 
-                  {/* Classic Apple Liquid Glass Clean Draft Card (Compact, Non-overlapping, No bulky comparison) */}
+                  {/* Classic Apple Liquid Glass Clean Draft Card (Smart Clamped, Never Cut Off) */}
                   {aiDraft && (() => {
                     const canvasW = canvasRef.current?.clientWidth || 500;
                     const canvasH = canvasRef.current?.clientHeight || 450;
                     const cardWidth = Math.min(460, Math.max(300, canvasW - 24));
-                    const cardEstHeight = 185;
-                    const verticalGap = 12;
+                    const cardMinHeight = 180;
+                    const verticalGap = 10;
 
                     let topStyle: string | undefined = undefined;
                     let bottomStyle: string | undefined = undefined;
+                    let calculatedMaxHeight = Math.min(260, canvasH - 24);
 
                     if (selectionBounds) {
-                      const fitsBelow = selectionBounds.bottom + verticalGap + cardEstHeight <= canvasH - 8;
-                      const fitsAbove = selectionBounds.top - verticalGap - cardEstHeight >= 8;
+                      const spaceBelow = canvasH - selectionBounds.bottom;
+                      const spaceAbove = selectionBounds.top;
 
-                      if (fitsBelow) {
+                      if (spaceBelow >= cardMinHeight + verticalGap + 10) {
+                        // Fits comfortably below selection
                         topStyle = `${selectionBounds.bottom + verticalGap}px`;
-                      } else if (fitsAbove) {
-                        topStyle = `${selectionBounds.top - verticalGap - cardEstHeight}px`;
+                        calculatedMaxHeight = Math.min(260, spaceBelow - verticalGap - 10);
+                      } else if (spaceAbove >= cardMinHeight + verticalGap + 10) {
+                        // Fits comfortably above selection
+                        bottomStyle = `${canvasH - selectionBounds.top + verticalGap}px`;
+                        calculatedMaxHeight = Math.min(260, spaceAbove - verticalGap - 10);
                       } else {
-                        bottomStyle = '10px';
+                        // Fallback: Pin near bottom of canvas with safe clearance so buttons are always visible
+                        bottomStyle = '12px';
+                        calculatedMaxHeight = Math.min(240, canvasH - 32);
                       }
                     } else {
-                      bottomStyle = '10px';
+                      bottomStyle = '12px';
+                      calculatedMaxHeight = Math.min(240, canvasH - 32);
                     }
 
                     return (
                       <div
-                        className="absolute z-50 p-3 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-black/10 dark:border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.22),0_4px_16px_rgba(168,85,247,0.12),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none animate-in fade-in zoom-in-95 duration-180 flex flex-col gap-2 max-w-[calc(100%-24px)]"
+                        className="absolute z-50 p-3 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-purple-500/25 dark:border-purple-400/35 shadow-[0_20px_50px_rgba(0,0,0,0.22),0_4px_24px_rgba(168,85,247,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none animate-in fade-in zoom-in-95 duration-180 flex flex-col gap-2 max-w-[calc(100%-24px)]"
                         style={{
                           top: topStyle,
                           bottom: bottomStyle,
                           left: '50%',
                           width: `${cardWidth}px`,
-                          maxHeight: `${Math.min(canvasH - 20, 260)}px`,
+                          maxHeight: `${calculatedMaxHeight}px`,
                           transform: 'translateX(-50%)',
                         }}
                       >
-                        {/* Header */}
+                        {/* Header (shrink-0) */}
                         <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-black/[0.06] dark:border-white/10 shrink-0">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white flex items-center justify-center shadow-xs shrink-0">
@@ -5749,20 +5759,20 @@ export const QuickNoteWindow: React.FC = () => {
                           />
                         </div>
 
-                        {/* Content Preview inside clean inset glass box */}
-                        <div className="text-[13px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[125px] overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1">
+                        {/* Content Preview inside clean inset glass box (flex-1 overflow-y-auto) */}
+                        <div className="text-[13px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1 min-h-[60px]">
                           {aiDraft.result}
                         </div>
 
-                        {/* Action buttons */}
-                        <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-black/[0.04] dark:border-white/[0.06] shrink-0">
+                        {/* Action buttons bar (ALWAYS shrink-0 so it is NEVER cut off) */}
+                        <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-black/[0.04] dark:border-white/[0.06] shrink-0">
                           <button
                             type="button"
                             onClick={handleCopyAiDraft}
                             className="px-2.5 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1 shadow-2xs"
                             title="Sao chép kết quả"
                           >
-                            <Copy size={11} />
+                            <SFDocumentOnDocument size={11.5} />
                             <span>{aiDraftCopied ? 'Đã chép' : 'Sao chép'}</span>
                           </button>
                           <button
@@ -6089,7 +6099,7 @@ export const QuickNoteWindow: React.FC = () => {
                               className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
                             >
                               <div className="w-5.5 h-5.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-                                <Globe size={12.5} />
+                                <SFGlobe size={12.5} />
                               </div>
                               <span className="truncate">Dịch sang tiếng Anh</span>
                             </button>
@@ -6101,7 +6111,7 @@ export const QuickNoteWindow: React.FC = () => {
                               className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
                             >
                               <div className="w-5.5 h-5.5 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
-                                <Globe size={12.5} />
+                                <SFGlobe size={12.5} />
                               </div>
                               <span className="truncate">Dịch sang tiếng Việt</span>
                             </button>

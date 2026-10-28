@@ -507,15 +507,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'all',
         label: 'Tất cả',
-        icon: <SFSquareStack3dUp size={14} />,
+        icon: <SFSquareStack3dUp size={13.5} />,
         count: counts.all,
-        activeColor: 'text-[#0066cc] dark:text-[#2997ff]',
-        activeBadge: 'bg-[#0066cc]/10 text-[#0066cc] dark:bg-[#2997ff]/20 dark:text-[#2997ff]',
+        activeColor: 'text-[#0071e3] dark:text-[#2997ff]',
+        activeBadge: 'bg-[#0071e3]/12 text-[#0071e3] dark:bg-[#2997ff]/20 dark:text-[#2997ff]',
       },
       {
         id: 'link',
         label: 'Liên kết',
-        icon: <SFLink size={14} />,
+        icon: <SFLink size={13.5} />,
         count: counts.link,
         activeColor: 'text-sky-600 dark:text-sky-400',
         activeBadge: 'bg-sky-500/12 text-sky-600 dark:bg-sky-500/20 dark:text-sky-400',
@@ -523,7 +523,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'account',
         label: 'Tài khoản',
-        icon: <SFShieldFill size={14} />,
+        icon: <SFShieldFill size={13.5} />,
         count: counts.account,
         activeColor: 'text-emerald-600 dark:text-emerald-400',
         activeBadge: 'bg-emerald-500/12 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400',
@@ -531,7 +531,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'store',
         label: 'Cửa hàng',
-        icon: <SFStorefront size={14} />,
+        icon: <SFStorefront size={13.5} />,
         count: counts.store,
         activeColor: 'text-amber-600 dark:text-amber-400',
         activeBadge: 'bg-amber-500/12 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400',
@@ -539,7 +539,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'action',
         label: 'Tác vụ',
-        icon: <SFBoltFill size={14} />,
+        icon: <SFBoltFill size={13.5} />,
         count: counts.action,
         activeColor: 'text-purple-600 dark:text-purple-400',
         activeBadge: 'bg-purple-500/12 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400',
@@ -547,7 +547,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'nav',
         label: 'Trang',
-        icon: <SFLocationFill size={14} />,
+        icon: <SFLocationFill size={13.5} />,
         count: counts.nav,
         activeColor: 'text-indigo-600 dark:text-indigo-400',
         activeBadge: 'bg-indigo-500/12 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400',
@@ -753,14 +753,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           </div>
         </div>
 
-        {/* Category Filter Segmented Control Bar (Liquid Capsule) */}
+        {/* Category Filter Segmented Control Bar (Apple Liquid Segmented Capsule) */}
         <div
           onMouseEnter={resetSelectionImmediate}
           className="px-3 sm:px-4 py-2 border-b border-black/[0.05] dark:border-white/8 bg-black/[0.015] dark:bg-white/[0.02] overflow-x-auto scrollbar-none touch-pan-x"
         >
           <div
             ref={categoryBarRef}
-            className="relative w-max min-w-full flex items-center p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/10 backdrop-blur-md"
+            className="relative w-max min-w-full sm:w-full flex items-center gap-0.5 p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/10 backdrop-blur-md"
           >
             {/* Liquid Droplet Sliding Indicator Pill */}
             {catIndicator.ready && catIndicator.width > 0 && (
@@ -782,21 +782,23 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   type="button"
                   onClick={() => setActiveCategory(cat.id)}
                   className={cn(
-                    'relative z-10 shrink-0 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] sm:text-xs transition-colors duration-120 cursor-pointer active:scale-95 select-none whitespace-nowrap',
+                    'relative z-10 flex-1 sm:flex-initial h-7.5 px-3 rounded-full inline-flex items-center justify-center gap-1.5 text-[12px] transition-colors duration-120 cursor-pointer active:scale-95 select-none whitespace-nowrap',
                     isActive
                       ? 'text-[#1d1d1f] dark:text-white font-semibold'
                       : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium hover:bg-black/[0.02] dark:hover:bg-white/[0.04]'
                   )}
                 >
-                  <span className={cn('shrink-0 transition-colors', isActive ? cat.activeColor : 'text-[#86868b] dark:text-[#a1a1a6]')}>
+                  <span className={cn('shrink-0 flex items-center justify-center transition-colors', isActive ? cat.activeColor : 'text-[#86868b] dark:text-[#a1a1a6]')}>
                     {cat.icon}
                   </span>
-                  <span>{cat.label}</span>
+                  <span className="leading-none">{cat.label}</span>
                   {cat.count > 0 && (
                     <span
                       className={cn(
-                        'shrink-0 text-[10px] px-1.5 py-0.2 rounded-full font-bold transition-colors',
-                        isActive ? cat.activeBadge : 'bg-black/5 dark:bg-white/10 text-[#86868b] dark:text-[#a1a1a6]'
+                        'shrink-0 inline-flex items-center justify-center min-w-[19px] h-4.5 px-1.5 rounded-full text-[10px] font-semibold tabular-nums leading-none transition-colors',
+                        isActive
+                          ? cat.activeBadge
+                          : 'bg-black/5 dark:bg-white/10 text-[#86868b] dark:text-[#a1a1a6]'
                       )}
                     >
                       {cat.count}
