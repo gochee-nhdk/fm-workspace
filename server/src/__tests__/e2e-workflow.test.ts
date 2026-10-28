@@ -1,4 +1,5 @@
-import Database from 'better-sqlite3';
+import { createClient } from '@libsql/client';
+import { LibsqlAdapter } from '../db/adapter.js';
 import { v4 as uuidv4 } from 'uuid';
 import {
   calculateAverageDailySales,
@@ -23,10 +24,11 @@ async function runE2ETests() {
     }
   }
 
-  // Pure in-memory SQLite database
-  const db = new Database(':memory:');
+  // Pure memory LibSQL client (never segfaults on Linux CI)
+  const client = createClient({ url: ':memory:' });
+  const db = new LibsqlAdapter(client, false);
 
-  db.exec(`
+  await db.exec(`
     CREATE TABLE stores (
       id TEXT PRIMARY KEY,
       code TEXT UNIQUE NOT NULL,
@@ -119,13 +121,13 @@ async function runE2ETests() {
   const prodId = uuidv4();
   const supId = uuidv4();
 
-  db.prepare('INSERT INTO stores (id, code, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').run(
+  await db.prepare('INSERT INTO stores (id, code, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').run(
     storeId, 'FM-Q1', 'Farmers Market Hai Bà Trưng', now, now
   );
-  db.prepare('INSERT INTO suppliers (id, code, name, lead_time_days, moq_value, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
+  await db.prepare('INSERT INTO suppliers (id, code, name, lead_time_days, moq_value, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
     supId, 'SUP-DALAT', 'Công ty Nông Sản Sạch Đà Lạt', 2, 500000, now, now
   );
-  db.prepare('INSERT INTO products (id, sku_code, name, category, unit, cost_price, selling_price, min_order_qty, pack_size, shelf_life_days, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+  await db.prepare('INSERT INTO products (id, sku_code, name, category, unit, cost_price, selling_price, min_order_qty, pack_size, shelf_life_days, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
     prodId, 'RAU-XALACH-ROM', 'Xà lách Romaine hữu cơ 300g', 'Rau củ', 'Gói', 20000, 32000, 10, 5, 7, now, now
   );
 
@@ -149,50 +151,48 @@ async function runE2ETests() {
   assert(Math.abs(doc - (8 / 15)) < 0.01, `Test 2.3: Days of Cover chính xác: ${doc.toFixed(2)} ngày (kỳ vọng 0.53)`);
   assert(orderQty === 55 && orderQty % packSize === 0 && orderQty >= moq, `Test 2.4: Gợi ý đặt hàng tuân thủ pack_size (5) & MOQ (10): ${orderQty} gói`);
 
-  db.prepare('INSERT INTO inventory (id, product_id, store_id, available_qty, avg_daily_sales, days_of_cover, reorder_point, safety_stock, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+  await db.prepare('INSERT INTO inventory (id, product_id, store_id, available_qty, avg_daily_sales, days_of_cover, reorder_point, safety_stock, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
     uuidv4(), prodId, storeId, onHand, ads, doc, rop, ss, now
   );
 
   const poId = uuidv4();
   const poNumber = 'PO-2026-0001';
-  db.prepare('INSERT INTO purchase_orders (id, po_number, supplier_id, store_id, status, total_amount, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+  await db.prepare('INSERT INTO purchase_orders (id, po_number, supplier_id, store_id, status, total_amount, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
     poId, poNumber, supId, storeId, 'approved', orderQty * 20000, now, now
   );
   const poiId = uuidv4();
-  db.prepare('INSERT INTO purchase_order_items (id, po_id, product_id, order_qty, unit_cost, total_cost) VALUES (?, ?, ?, ?, ?, ?)').run(
+  await db.prepare('INSERT INTO purchase_order_items (id, po_id, product_id, order_qty, unit_cost, total_cost) VALUES (?, ?, ?, ?, ?, ?)').run(
     poiId, poId, prodId, orderQty, 20000, orderQty * 20000
   );
 
-  const po = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(poId) as any;
+  const po = await db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(poId) as any;
   assert(po.status === 'approved' && po.po_number === poNumber, 'Test 3: Tạo và phê duyệt đơn hàng PO thành công');
 
   const receivedQty = orderQty;
   const expiryDate = '2026-09-24';
   const lotNumber = 'LOT-DL-20260917';
 
-  db.transaction(() => {
-    db.prepare('UPDATE purchase_order_items SET received_qty = ? WHERE id = ?').run(receivedQty, poiId);
-    db.prepare("UPDATE purchase_orders SET status = 'completed', updated_at = ? WHERE id = ?").run(now, poId);
-    db.prepare('UPDATE inventory SET available_qty = available_qty + ?, updated_at = ? WHERE product_id = ? AND store_id = ?').run(
-      receivedQty, now, prodId, storeId
-    );
-    db.prepare('INSERT INTO inventory_lots (id, product_id, store_id, lot_number, initial_qty, remaining_qty, expiry_date, received_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
-      uuidv4(), prodId, storeId, lotNumber, receivedQty, receivedQty, expiryDate, now.split('T')[0], now
-    );
-    db.prepare('INSERT INTO audit_logs (id, action, entity_type, entity_id, details, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(
-      uuidv4(), 'RECEIVE_PO', 'purchase_orders', poId, JSON.stringify({ receivedQty, lotNumber }), now
-    );
-  })();
+  await db.prepare('UPDATE purchase_order_items SET received_qty = ? WHERE id = ?').run(receivedQty, poiId);
+  await db.prepare("UPDATE purchase_orders SET status = 'completed', updated_at = ? WHERE id = ?").run(now, poId);
+  await db.prepare('UPDATE inventory SET available_qty = available_qty + ?, updated_at = ? WHERE product_id = ? AND store_id = ?').run(
+    receivedQty, now, prodId, storeId
+  );
+  await db.prepare('INSERT INTO inventory_lots (id, product_id, store_id, lot_number, initial_qty, remaining_qty, expiry_date, received_date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+    uuidv4(), prodId, storeId, lotNumber, receivedQty, receivedQty, expiryDate, now.split('T')[0], now
+  );
+  await db.prepare('INSERT INTO audit_logs (id, action, entity_type, entity_id, details, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(
+    uuidv4(), 'RECEIVE_PO', 'purchase_orders', poId, JSON.stringify({ receivedQty, lotNumber }), now
+  );
 
-  const updatedInv = db.prepare('SELECT available_qty FROM inventory WHERE product_id = ? AND store_id = ?').get(prodId, storeId) as any;
-  const createdLot = db.prepare('SELECT * FROM inventory_lots WHERE lot_number = ?').get(lotNumber) as any;
-  const auditLog = db.prepare('SELECT * FROM audit_logs WHERE action = ?').get('RECEIVE_PO') as any;
+  const updatedInv = await db.prepare('SELECT available_qty FROM inventory WHERE product_id = ? AND store_id = ?').get(prodId, storeId) as any;
+  const createdLot = await db.prepare('SELECT * FROM inventory_lots WHERE lot_number = ?').get(lotNumber) as any;
+  const auditLog = await db.prepare('SELECT * FROM audit_logs WHERE action = ?').get('RECEIVE_PO') as any;
 
   assert(updatedInv.available_qty === onHand + receivedQty, `Test 4.1: Tồn kho cập nhật tức thì: ${onHand} + ${receivedQty} = ${updatedInv.available_qty}`);
   assert(createdLot && createdLot.remaining_qty === receivedQty && createdLot.expiry_date === expiryDate, 'Test 4.2: Lô hàng cận date (Inventory Lot) được ghi nhận chính xác');
   assert(auditLog !== undefined, 'Test 4.3: Nhật ký kiểm toán Audit Log đã ghi nhận giao dịch nhập hàng');
 
-  db.close();
+  await db.close();
   console.log(`\n=== TẤT CẢ KIỂM THỬ TÍCH HỢP ĐÃ VƯỢT QUA (${passed} ĐẠT, ${failed} THẤT BẠI) ===\n`);
   if (failed > 0) process.exit(1);
 }

@@ -34,8 +34,10 @@ jobs:
           npm --prefix client run lint
           npx tsc -p server/tsconfig.json --noEmit
 
-      - name: Run Test Suites (56 Tests)
-        run: npm --prefix server test
+      - name: Run Test Suites
+        run: |
+          npm --prefix server test
+          npm --prefix client test
 
       - name: Verify Production Build
         run: npm run build:all

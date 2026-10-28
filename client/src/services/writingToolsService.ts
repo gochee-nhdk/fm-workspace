@@ -47,13 +47,14 @@ export const freeTranslate = async (text: string, targetLang: 'vi' | 'en'): Prom
 const callBackendWritingTool = async (
   text: string,
   action: WritingToolAction,
-  apiKey?: string
+  apiKey?: string,
+  signal?: AbortSignal
 ): Promise<string> => {
   const res = await api.post('/ai/writing-tool', {
     text,
     action,
     apiKey: apiKey || undefined,
-  });
+  }, { signal });
   if (res.data?.success && res.data?.result) {
     return res.data.result.trim();
   }
@@ -114,7 +115,10 @@ export const discoverBestFlashModels = async (apiKey: string): Promise<string[]>
 /**
  * Direct Gemini API call from client with dynamic Flash model fallback
  */
-const callGeminiApi = async (prompt: string, apiKey: string): Promise<string> => {
+const callGeminiApi = async (prompt: string, apiKey: string, signal?: AbortSignal): Promise<string> => {
+  if (signal?.aborted) {
+    throw new DOMException('Aborted', 'AbortError');
+  }
   let preferredModel: string | null = null;
   try {
     preferredModel = localStorage.getItem('gemini_preferred_model');
@@ -125,6 +129,9 @@ const callGeminiApi = async (prompt: string, apiKey: string): Promise<string> =>
   let lastError: Error | null = null;
 
   for (const model of models) {
+    if (signal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
+    }
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       const response = await fetch(url, {
@@ -137,6 +144,7 @@ const callGeminiApi = async (prompt: string, apiKey: string): Promise<string> =>
             maxOutputTokens: 2048,
           },
         }),
+        signal,
       });
 
       if (!response.ok) {
@@ -524,8 +532,12 @@ const localTransform = (text: string, action: WritingToolAction): string => {
  */
 export const runWritingTool = async (
   text: string,
-  action: WritingToolAction
+  action: WritingToolAction,
+  signal?: AbortSignal
 ): Promise<{ result: string; usedGemini: boolean; needsApiKey?: boolean }> => {
+  if (signal?.aborted) {
+    throw new DOMException('Aborted', 'AbortError');
+  }
   const trimmed = text.trim();
   if (!trimmed) {
     throw new Error('Nội dung ghi chú đang trống');
@@ -535,16 +547,18 @@ export const runWritingTool = async (
 
   // Tier 1: Try backend AI endpoint (handles both server and client keys)
   try {
-    const backendResult = await callBackendWritingTool(trimmed, action, apiKey);
+    const backendResult = await callBackendWritingTool(trimmed, action, apiKey, signal);
     if (backendResult) {
       return { result: backendResult, usedGemini: true };
     }
   } catch (backendErr: any) {
+    if (signal?.aborted) throw backendErr;
     console.warn('Backend AI writing tool failed or not configured, trying direct API:', backendErr?.message);
   }
 
   // Tier 2: Try direct browser Gemini API if user has stored key
   if (apiKey) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     try {
       const strictConstraint = 'YÊU CẦU BẮT BUỘC: CHỈ trả về duy nhất văn bản kết quả đã xử lý. TUYỆT ĐỐI KHÔNG giải thích, KHÔNG thêm tiêu đề, KHÔNG thêm lời chào/kết, KHÔNG thêm nội dung văn mẫu không liên quan đến ngữ cảnh gốc.';
       let prompt = '';
@@ -568,12 +582,15 @@ export const runWritingTool = async (
         prompt = `Hãy dịch văn bản sau sang tiếng Việt tự nhiên, chuẩn xác, đúng ngữ cảnh.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
       }
 
-      const result = await callGeminiApi(prompt, apiKey);
+      const result = await callGeminiApi(prompt, apiKey, signal);
       return { result, usedGemini: true };
     } catch (err: any) {
+      if (signal?.aborted) throw err;
       console.warn('Direct Gemini call failed, falling back to local writing tools:', err);
     }
   }
+
+  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
   // Tier 3: Instant translation using free public Google Translate endpoint (100% reliable)
   if (action === 'translate_en' || action === 'translate_vi') {

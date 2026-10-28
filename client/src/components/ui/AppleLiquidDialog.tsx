@@ -52,13 +52,15 @@ export const AppleLiquidDialog: React.FC<AppleLiquidDialogProps> = ({
     if (isOpen) {
       setIsMounted(true);
       setIsClosing(false);
+      document.body.style.overflow = 'hidden';
     } else if (isMounted) {
       setIsClosing(true);
-        timerRef.current = setTimeout(() => {
-          setIsMounted(false);
-          setIsClosing(false);
-          timerRef.current = null;
-        }, motionTokens.duration.exit + 50);
+      timerRef.current = setTimeout(() => {
+        setIsMounted(false);
+        setIsClosing(false);
+        document.body.style.overflow = '';
+        timerRef.current = null;
+      }, motionTokens.duration.exit + 10);
     }
   }, [isOpen, isMounted]);
 
@@ -67,17 +69,18 @@ export const AppleLiquidDialog: React.FC<AppleLiquidDialogProps> = ({
     onClose();
   }, [isClosing, onClose]);
 
-  // Keep last non-null children rendered during the 160ms exit animation
+  // Keep last non-null children rendered during the exit animation
   if (isOpen && children) {
     lastChildrenRef.current = typeof children === 'function' ? children({ handleClose, isClosing: false }) : children;
   }
 
-  // Clean up timer when the whole component unmounts
+  // Clean up timer and restore overflow when the whole component unmounts
   useEffect(() => {
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
+      document.body.style.overflow = '';
     };
   }, []);
 
@@ -114,7 +117,7 @@ export const AppleLiquidDialog: React.FC<AppleLiquidDialogProps> = ({
       onClick={closeOnBackdropClick && !isClosing ? handleClose : undefined}
       style={{ zIndex }}
       className={cn(
-        'fixed inset-0 flex items-center justify-center p-4 bg-black/30 dark:bg-black/55 backdrop-blur-md select-none will-change-[backdrop-filter,opacity]',
+        'fixed inset-0 flex items-center justify-center p-4 bg-black/30 dark:bg-black/55 backdrop-blur-md select-none will-change-[opacity] [transform:translateZ(0)]',
         isClosing ? 'liquid-backdrop-exit pointer-events-none' : 'liquid-backdrop-enter pointer-events-auto',
         backdropClassName,
         overlayClassName
@@ -123,7 +126,7 @@ export const AppleLiquidDialog: React.FC<AppleLiquidDialogProps> = ({
       <div
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          'will-change-[transform,opacity]',
+          'will-change-[transform,opacity] [transform:translateZ(0)]',
           isClosing ? 'apple-modal-exit pointer-events-none' : 'apple-modal-enter pointer-events-auto',
           containerClassName,
           contentClassName

@@ -756,16 +756,16 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         {/* Category Filter Segmented Control Bar (Liquid Capsule) */}
         <div
           onMouseEnter={resetSelectionImmediate}
-          className="px-3 sm:px-4 py-2 border-b border-black/[0.05] dark:border-white/8 bg-black/[0.015] dark:bg-white/[0.02] overflow-x-auto scrollbar-none"
+          className="px-3 sm:px-4 py-2 border-b border-black/[0.05] dark:border-white/8 bg-black/[0.015] dark:bg-white/[0.02] overflow-x-auto scrollbar-none touch-pan-x"
         >
           <div
             ref={categoryBarRef}
-            className="relative w-full flex items-center p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/10 backdrop-blur-md min-w-[320px]"
+            className="relative w-max min-w-full flex items-center p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/10 backdrop-blur-md"
           >
             {/* Liquid Droplet Sliding Indicator Pill */}
             {catIndicator.ready && catIndicator.width > 0 && (
               <div
-                className="absolute top-1 bottom-1 rounded-full bg-white dark:bg-[#2c2c2e] shadow-[0_1px_4px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/10 transition-[transform,width] duration-220 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[transform,width] pointer-events-none"
+                className="absolute top-1 bottom-1 rounded-full bg-white dark:bg-[#2c2c2e] shadow-[0_1px_4px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/10 transition-[transform,width] duration-160 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[transform,width] pointer-events-none"
                 style={{
                   transform: `translate3d(${catIndicator.left}px, 0, 0)`,
                   width: `${catIndicator.width}px`,
@@ -782,7 +782,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   type="button"
                   onClick={() => setActiveCategory(cat.id)}
                   className={cn(
-                    'relative z-10 flex-1 flex items-center justify-center gap-1 sm:gap-1.5 px-2 py-1.5 rounded-full text-[11.5px] sm:text-xs transition-colors duration-200 cursor-pointer active:scale-95 select-none min-w-0',
+                    'relative z-10 shrink-0 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] sm:text-xs transition-colors duration-120 cursor-pointer active:scale-95 select-none whitespace-nowrap',
                     isActive
                       ? 'text-[#1d1d1f] dark:text-white font-semibold'
                       : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium hover:bg-black/[0.02] dark:hover:bg-white/[0.04]'
@@ -791,7 +791,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   <span className={cn('shrink-0 transition-colors', isActive ? cat.activeColor : 'text-[#86868b] dark:text-[#a1a1a6]')}>
                     {cat.icon}
                   </span>
-                  <span className="truncate">{cat.label}</span>
+                  <span>{cat.label}</span>
                   {cat.count > 0 && (
                     <span
                       className={cn(
@@ -982,10 +982,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           )}
         </div>
 
-        {/* Footer Navigation Bar */}
+        {/* Footer Navigation Bar - Desktop Keyboard Shortcuts Only */}
         <div
           onMouseEnter={resetSelectionImmediate}
-          className="px-5 py-2.5 border-t border-black/[0.06] dark:border-white/10 bg-white/40 dark:bg-[#1c1c1e]/40 backdrop-blur-md flex items-center justify-between text-[11px] text-[#76767b] dark:text-[#a1a1a6]"
+          className="hidden sm:flex px-5 py-2.5 border-t border-black/[0.06] dark:border-white/10 bg-white/40 dark:bg-[#1c1c1e]/40 backdrop-blur-md items-center justify-between text-[11px] text-[#76767b] dark:text-[#a1a1a6]"
         >
           <div className="flex items-center gap-2.5 flex-wrap">
             <span className="inline-flex items-center gap-1">

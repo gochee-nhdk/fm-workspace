@@ -15,6 +15,7 @@ import {
   SFSquareAndPencil,
 } from '@/components/ui/AppleIcon';
 import { CommandPalette } from '@/components/ui/command-palette';
+import { SFLink, SFShieldFill, SFStorefront } from 'sf-symbols-lib';
 import { ExcelImportModal } from '@/components/excel/ExcelImportModal';
 import { QuickNoteFloatingButton } from '@/components/notes/QuickNoteFloatingButton';
 
@@ -26,7 +27,7 @@ import { useNoteStore } from '@/stores/note-store';
 import { Button } from '@/components/ui/button';
 import { CloseButton } from '@/components/ui/close-button';
 import { reminderService } from '@/services/reminderService';
-import { useTabIndicator, useAppleTabSpring } from '@/lib/motion';
+import { useTabIndicator, useAppleTabSpring, motionTokens } from '@/lib/motion';
 import { useSecurityStore } from '@/stores/security-store';
 import { LocalLockScreen } from '@/components/security/LocalLockScreen';
 import { Lock } from 'lucide-react';
@@ -44,6 +45,8 @@ const PAGE_TITLES: Record<string, string> = {
 
 export const AppShell: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobileMenuClosing, setIsMobileMenuClosing] = useState(false);
+  const closeMobileMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
@@ -125,12 +128,29 @@ export const AppShell: React.FC = () => {
   const sidebarPillRef = useRef<HTMLDivElement>(null);
 
   useAppleTabSpring(sidebarTrackRef, sidebarPillRef, activeTabKey, {
-    stiffness: 440,
-    damping: 26,
-    mass: 0.65,
+    stiffness: 640,
+    damping: 38,
+    mass: 0.40,
     allowDeformation: true,
     orientation: 'vertical',
   });
+
+  const handleCloseMobileMenu = useCallback(() => {
+    if (isMobileMenuClosing) return;
+    setIsMobileMenuClosing(true);
+    if (closeMobileMenuTimerRef.current) clearTimeout(closeMobileMenuTimerRef.current);
+    closeMobileMenuTimerRef.current = setTimeout(() => {
+      setMobileMenuOpen(false);
+      setIsMobileMenuClosing(false);
+      closeMobileMenuTimerRef.current = null;
+    }, motionTokens.duration.exit);
+  }, [isMobileMenuClosing]);
+
+  useEffect(() => {
+    return () => {
+      if (closeMobileMenuTimerRef.current) clearTimeout(closeMobileMenuTimerRef.current);
+    };
+  }, []);
 
   // ✅ Synchronize CSS variable --sidebar-width for exact visual centering of toasts & modals
   useEffect(() => {
@@ -162,7 +182,7 @@ export const AppShell: React.FC = () => {
         toggleNote();
       }
       if (e.key === 'Escape') {
-        setMobileMenuOpen(false);
+        handleCloseMobileMenu();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -251,7 +271,7 @@ export const AppShell: React.FC = () => {
             title={isSidebarCollapsed ? 'Mở rộng thanh bên (Ctrl+\\)' : 'Thu gọn thanh bên (Ctrl+\\)'}
             aria-label={isSidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
           >
-            <SFSidebarLeft size={16} className={`transition-transform duration-280 ease-[cubic-bezier(0.16,1,0.3,1)] ${isSidebarCollapsed ? 'rotate-180' : ''}`} />
+            <SFSidebarLeft size={16} className={`transition-transform duration-180 ease-[cubic-bezier(0.16,1,0.3,1)] ${isSidebarCollapsed ? 'rotate-180' : ''}`} />
           </button>
         </div>
 
@@ -346,17 +366,17 @@ export const AppShell: React.FC = () => {
         {/* Topbar: Hardware-Accelerated Translucent Liquid Glass Bar with Safe-Area Awareness */}
         <header
           className={cn(
-            "h-16 pt-[env(safe-area-inset-top,0px)] shrink-0 px-3.5 sm:px-6 border-b flex items-center justify-between z-20 transition-[background-color,border-color,box-shadow] duration-200 ease-out",
+            "min-h-[calc(3.75rem+env(safe-area-inset-top,0px))] pt-[env(safe-area-inset-top,0px)] shrink-0 px-3 sm:px-6 border-b flex items-center justify-between z-20 transition-[background-color,border-color,box-shadow] duration-200 ease-out",
             isScrolled
               ? "bg-white/85 dark:bg-[#16161c]/85 backdrop-blur-2xl border-black/[0.08] dark:border-white/10 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.06),inset_0_-0.5px_0_rgba(255,255,255,0.1)] dark:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.35),inset_0_-0.5px_0_rgba(255,255,255,0.05)]"
               : "bg-white/60 dark:bg-[#16161c]/60 backdrop-blur-xl border-black/[0.04] dark:border-white/[0.06]"
           )}
         >
-          <div className="flex items-center gap-3.5 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="md:hidden p-2 rounded-full text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+              className="md:hidden w-9 h-9 rounded-full flex items-center justify-center text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0"
               title="Mở menu"
               aria-label="Mở menu điều hướng"
             >
@@ -367,30 +387,30 @@ export const AppShell: React.FC = () => {
             <button
               type="button"
               onClick={handleLogoClick}
-              className="md:hidden w-10 h-10 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-xs border-2 border-white/80 dark:border-white/20 shrink-0 active:scale-95 transition-transform cursor-pointer focus:outline-none"
+              className="md:hidden w-8 h-8 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-xs border border-white/80 dark:border-white/20 shrink-0 active:scale-95 transition-transform cursor-pointer focus:outline-none"
               title="Về trang chủ"
             >
               <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover rounded-full" />
             </button>
 
-            <div className="flex items-center gap-2 font-sans truncate">
-              <h2 className="text-[15px] sm:text-[16px] font-bold text-[#1d1d1f] dark:text-white tracking-tight truncate">
+            <div className="flex items-center gap-2 font-sans truncate min-w-0">
+              <h2 className="text-[14px] sm:text-[16px] font-bold text-[#1d1d1f] dark:text-white tracking-tight truncate">
                 {pageTitle}
               </h2>
             </div>
           </div>
 
           {/* Right Floating Controls */}
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* Global Search Capsule (Spotlight pill - Icon on mobile, capsule on desktop) */}
             <button
               onClick={() => setCommandPaletteOpen(true)}
-              className="liquid-lens-pill group relative flex items-center justify-center sm:justify-start gap-2 p-2 sm:px-3.5 sm:py-2 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white text-[13px] w-10 sm:w-44 md:w-52 lg:w-64 active:scale-[0.98] cursor-pointer"
+              className="liquid-lens-pill group relative flex items-center justify-center sm:justify-start gap-2.5 w-9 h-9 sm:w-44 md:w-52 lg:w-64 sm:h-9 sm:pl-3 sm:pr-2.5 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white text-[13px] active:scale-[0.98] cursor-pointer"
               aria-label="Tìm kiếm nhanh (Ctrl+K)"
               title="Tìm kiếm nhanh (Ctrl+K)"
             >
               <div className="w-5 h-5 rounded-full bg-[#0088FF]/15 dark:bg-[#0091FF]/20 flex items-center justify-center text-[#0088FF] dark:text-[#0091FF] group-hover:scale-110 transition-transform shrink-0">
-                <SFMagnifyingglass size={14} />
+                <SFMagnifyingglass size={13} />
               </div>
               <span className="hidden sm:inline-block flex-1 text-left truncate font-normal text-[12.5px] opacity-90 group-hover:opacity-100">
                 Tìm nhanh link, CH...
@@ -416,7 +436,7 @@ export const AppShell: React.FC = () => {
             {isLockEnabled && (
               <button
                 onClick={() => lockNow()}
-                className="liquid-lens-circle w-10 h-10 group cursor-pointer"
+                className="liquid-lens-circle w-9 h-9 sm:w-10 sm:h-10 group cursor-pointer"
                 title="Khóa bảo vệ màn hình ngay"
                 aria-label="Khóa màn hình làm việc"
               >
@@ -424,10 +444,10 @@ export const AppShell: React.FC = () => {
               </button>
             )}
 
-            {/* Quick Note Button — Liquid Lens Circle */}
+            {/* Quick Note Button — Hiển thị đồng nhất trên cả Desktop và Mobile */}
             <button
               onClick={() => openNote()}
-              className="liquid-lens-circle w-10 h-10 group relative"
+              className="liquid-lens-circle w-9 h-9 sm:w-10 sm:h-10 group relative"
               title="Notes (Alt + N hoặc Ctrl + J)"
               aria-label="Mở Notes"
             >
@@ -445,7 +465,7 @@ export const AppShell: React.FC = () => {
                 const currentResolved = resolveTheme(theme);
                 setTheme(currentResolved === 'dark' ? 'light' : 'dark');
               }}
-              className="liquid-lens-circle w-10 h-10 group cursor-pointer"
+              className="liquid-lens-circle w-9 h-9 sm:w-10 sm:h-10 group cursor-pointer"
               title={
                 resolveTheme(theme) === 'dark'
                   ? 'Chế độ Tối — Nhấp để đổi sang Sáng'
@@ -471,74 +491,115 @@ export const AppShell: React.FC = () => {
         </main>
       </div>
 
-      {/* ─────────────────── Mobile Drawer Menu ─────────────────── */}
-      {mobileMenuOpen &&
+      {/* ─────────────────── visionOS Mobile Drawer Menu (100% Desktop Parity & Spring Physics) ─────────────────── */}
+      {(mobileMenuOpen || isMobileMenuClosing) &&
         createPortal(
           <div className="fixed inset-0 z-[9999] md:hidden">
             <div
-              className="fixed inset-0 bg-black/45 backdrop-blur-md transition-opacity"
-              onClick={() => setMobileMenuOpen(false)}
+              className={cn(
+                "fixed inset-0 bg-black/50 backdrop-blur-md will-change-[opacity] [transform:translateZ(0)]",
+                isMobileMenuClosing ? "liquid-backdrop-exit pointer-events-none" : "liquid-backdrop-enter pointer-events-auto"
+              )}
+              onClick={handleCloseMobileMenu}
             />
-            <div className="fixed inset-y-0 left-0 w-72 pt-[max(1.25rem,env(safe-area-inset-top,0px))] pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pl-[max(1.25rem,env(safe-area-inset-left,0px))] pr-5 vision-glass-sidebar shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-250 ease-out border-r border-[#e0e0e0] dark:border-white/10">
-              <div className="flex items-center justify-between pb-4 border-b border-[#e0e0e0] dark:border-white/10">
+            <div
+              className={cn(
+                "fixed inset-y-0 left-0 w-[285px] max-w-[85vw] pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] vision-glass-sidebar shadow-2xl flex flex-col z-10 border-r border-black/[0.08] dark:border-white/10 select-none will-change-[transform] [transform:translateZ(0)]",
+                isMobileMenuClosing ? "apple-drawer-exit pointer-events-none" : "apple-drawer-enter pointer-events-auto"
+              )}
+            >
+              {/* Workspace Brand Header - Exact 1:1 Desktop Match */}
+              <div className="h-[68px] px-3.5 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between gap-2.5 shrink-0">
                 <button
                   type="button"
                   onClick={(e) => {
-                    setMobileMenuOpen(false);
+                    handleCloseMobileMenu();
                     handleLogoClick(e);
                   }}
-                  className="flex items-center gap-2.5 text-left cursor-pointer group focus:outline-none select-none"
+                  className="flex items-center gap-2.5 text-left min-w-0 flex-1 group cursor-pointer outline-none select-none [-webkit-tap-highlight-color:transparent]"
                   title="Về trang chủ"
                 >
-                  <div className="w-11 h-11 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-md border-2 border-white/80 dark:border-white/20 shrink-0 group-hover:scale-105 group-active:scale-95 transition-all duration-200">
-                    <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover rounded-full" />
+                  <div className="w-11 h-11 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-[0_4px_14px_rgba(250,196,38,0.38),0_1px_3px_rgba(0,0,0,0.06)] border-2 border-white dark:border-white/20 shrink-0 group-hover:scale-105 active:scale-95 transition-all duration-200">
+                    <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover rounded-full pointer-events-none" />
                   </div>
-                  <span className="font-bold text-[15px] text-[#1d1d1f] dark:text-white group-hover:text-[#FAC426] group-active:text-[#E5B01E] dark:group-hover:text-[#FAC426] transition-colors">
-                    FARMERS MARKET
-                  </span>
+                  <div className="min-w-0 flex-1 flex flex-col justify-center select-none font-sans">
+                    <span className="font-extrabold text-[14px] leading-tight tracking-tight text-[#1d1d1f] dark:text-white whitespace-nowrap group-hover:text-[#FAC426] transition-colors duration-150">
+                      FARMERS MARKET
+                    </span>
+                    <span className="text-[9.5px] leading-tight font-bold text-[#0088FF] dark:text-[#0091FF] group-hover:text-[#FAC426] transition-colors duration-150 tracking-wider uppercase mt-1 whitespace-nowrap">
+                      FM WORKSPACE
+                    </span>
+                  </div>
                 </button>
                 <CloseButton
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={handleCloseMobileMenu}
                   size="md"
                   label="Đóng menu"
                   title="Đóng menu"
                 />
               </div>
 
-              <nav className="mt-4 space-y-1.5 flex-1">
-                {navItems.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.to === '/'}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-3.5 py-2.5 rounded-full text-[14px] transition-all duration-200 ${
-                        isActive
-                          ? 'bg-[#0071e3]/12 dark:bg-[#0071e3]/24 text-[#0071e3] dark:text-[#3898ff] font-semibold border border-[#0071e3]/25 dark:border-[#0071e3]/35 shadow-[inset_0_1.5px_1px_rgba(255,255,255,0.7),inset_0_-1px_1px_rgba(0,113,227,0.1),0_2px_8px_rgba(0,113,227,0.08)] backdrop-blur-sm'
-                          : 'text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium border border-transparent'
-                      }`
-                    }
-                  >
-                    <span className="p-1 rounded-lg transition-colors shrink-0">
-                      {item.icon}
-                    </span>
-                    <span>{item.label}</span>
-                  </NavLink>
-                ))}
+              {/* Navigation Items - Exact 1:1 Desktop macOS Sidebar with Apple Spring Sliding Pill */}
+              <nav className="p-3 space-y-2 flex-1 overflow-y-auto select-none scrollbar-none">
+                <div className="px-3.5 py-1 text-[11px] font-bold uppercase tracking-tight text-[#86868b] dark:text-[#a1a1a6]">
+                  Không gian làm việc
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  {navItems.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.to === '/'}
+                      data-tab-id={item.to}
+                      onClick={handleCloseMobileMenu}
+                      className={({ isActive }) =>
+                        `relative flex items-center gap-3 px-3.5 h-11 rounded-full text-[13.5px] transition-all duration-150 active:scale-[0.98] select-none ${
+                          isActive
+                            ? 'fm-primary-pill-surface text-white font-semibold shadow-[0_4px_16px_rgba(0,136,255,0.35)]'
+                            : 'text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium'
+                        }`
+                      }
+                    >
+                      {({ isActive }) => (
+                        <>
+                          <span
+                            className={`p-1 rounded-lg transition-colors shrink-0 ${
+                              isActive ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]' : 'text-[#76767b] dark:text-[#8e8e93]'
+                            }`}
+                          >
+                            {item.icon}
+                          </span>
+                          <span className={`truncate whitespace-nowrap ${isActive ? 'text-white font-semibold drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]' : ''}`}>
+                            {item.label}
+                          </span>
+                        </>
+                      )}
+                    </NavLink>
+                  ))}
+                </div>
               </nav>
 
-              <div className="pt-4 border-t border-[#e0e0e0] dark:border-white/10 space-y-2">
+              {/* Sidebar Bottom Controls - Exact 1:1 Desktop Match */}
+              <div className="p-3 border-t border-black/[0.06] dark:border-white/10 space-y-2 shrink-0 bg-white/40 dark:bg-[#1E1E1E]/40 backdrop-blur-xl">
                 <button
                   onClick={() => {
-                    setMobileMenuOpen(false);
+                    handleCloseMobileMenu();
                     setImportModalOpen(true);
                   }}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium bg-[#0066cc]/10 text-[#0066cc] dark:text-[#2997ff]"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-[13px] font-medium text-[#0088FF] dark:text-[#0091FF] liquid-lens-pill hover:!bg-white/80 dark:hover:!bg-white/[0.14] transition-all duration-200 active:scale-[0.98] cursor-pointer"
                 >
-                  <SFTablecells size={16} />
+                  <SFTablecells size={16} className="shrink-0 text-[#0088FF] dark:text-[#0091FF]" />
                   <span>Import / Export Excel</span>
                 </button>
+
+                <div className="pt-1 px-2 flex items-center justify-between text-[11px] text-[#7a7a7a]">
+                  <div className="flex items-center gap-1.5" title="Đã kết nối trực tuyến qua https://fm-workspace.vercel.app">
+                    <span className="w-2 rounded-full aspect-square bg-emerald-500 shadow-xs shadow-emerald-500/60 animate-pulse" />
+                    <span className="text-[11px] font-medium text-[#7a7a7a]">Trực tuyến (Cloud / Sync)</span>
+                  </div>
+                  <span className="font-mono text-[10px] text-[#999]">v1.0</span>
+                </div>
               </div>
             </div>
           </div>,

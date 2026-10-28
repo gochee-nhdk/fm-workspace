@@ -1,7 +1,7 @@
 {
   "name": "Farmers Market - Personal Work OS",
   "short_name": "FM Workspace",
-  "description": "Trợ lý thu mua & Quản lý vận hành hàng hóa Farmers Market theo chuẩn Apple Liquid Glass",
+  "description": "Trợ lý thu mua & Quản lý vận hành hàng hóa Farmers Market - Hệ thống Liquid Glass thông minh",
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",
@@ -9,7 +9,7 @@
   "theme_color": "#0071e3",
   "icons": [
     {
-      "src": "/apple-app-icon.svg",
+      "src": "/favicon.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"

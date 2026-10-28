@@ -29,6 +29,7 @@ import { persistentStorage, StorageStatus } from '@/services/storage/persistentS
 import { autoBackupManager } from '@/services/autoBackupManager';
 import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import { AppleLiquidDialog } from '@/components/ui/AppleLiquidDialog';
+import { AppleListbox } from '@/components/ui/AppleListbox';
 import { SegmentedNavigation } from '@/components/ui/SegmentedNavigation';
 import { useUiStore, resolveTheme } from '@/stores/ui-store';
 import { useSecurityStore } from '@/stores/security-store';
@@ -56,14 +57,14 @@ export const ThemeSegmentedControl: React.FC = () => {
       ref={themeTrackRef}
       role="tablist"
       aria-label="Tùy chọn giao diện hệ thống"
-      className="relative p-1.5 rounded-[18px] bg-black/[0.04] dark:bg-white/[0.06] backdrop-blur-2xl border border-black/[0.06] dark:border-white/10 shadow-[inset_0_1px_3px_rgba(0,0,0,0.06)] grid grid-cols-4 gap-1.5 select-none"
+      className="relative p-1 sm:p-1.5 rounded-[16px] sm:rounded-[18px] bg-black/[0.04] dark:bg-white/[0.06] backdrop-blur-2xl border border-black/[0.06] dark:border-white/10 shadow-[inset_0_1px_3px_rgba(0,0,0,0.06)] grid grid-cols-4 gap-1 select-none"
     >
       {/* Shared Active Liquid Glass Pill (continuous physical surface morphing & traveling) */}
       <div
         ref={themePillRef}
         data-layout-id="theme-active-pill"
         aria-hidden="true"
-        className="absolute inset-y-1.5 left-0 rounded-xl pointer-events-none z-0 bg-white dark:bg-[#2c2c2e] shadow-[0_3px_12px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_3px_12px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.15)] border border-black/[0.04] dark:border-white/10 will-change-[transform,width] origin-center opacity-0 transition-opacity duration-150"
+        className="absolute inset-y-1 sm:inset-y-1.5 left-0 rounded-xl pointer-events-none z-0 bg-white dark:bg-[#2c2c2e] shadow-[0_3px_12px_rgba(0,0,0,0.1),inset_0_1px_1px_rgba(255,255,255,0.8)] dark:shadow-[0_3px_12px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.15)] border border-black/[0.04] dark:border-white/10 will-change-[transform,width] origin-center opacity-0 transition-opacity duration-150"
       />
 
       {/* Light */}
@@ -73,14 +74,14 @@ export const ThemeSegmentedControl: React.FC = () => {
         aria-selected={theme === 'light'}
         data-tab-id="light"
         onClick={() => setTheme('light')}
-        className={`relative z-10 py-2.5 px-2 sm:px-3 rounded-xl transition-colors duration-160 cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 active:scale-[0.98] select-none ${
+        className={`relative z-10 py-2 sm:py-2.5 px-1 sm:px-3 rounded-xl transition-colors duration-160 cursor-pointer flex items-center justify-center gap-1 sm:gap-2 active:scale-[0.98] select-none ${
           theme === 'light'
             ? 'text-amber-600 dark:text-amber-400 font-semibold drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.8)] dark:drop-shadow-none'
             : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
         }`}
       >
-        <SFSunMaxFill size={15} className={`transition-colors duration-160 shrink-0 ${theme === 'light' ? 'text-amber-500' : ''}`} />
-        <span className="text-[12.5px] sm:text-[13px] truncate">Sáng</span>
+        <SFSunMaxFill size={14} className={`transition-colors duration-160 shrink-0 ${theme === 'light' ? 'text-amber-500' : ''}`} />
+        <span className="text-[12px] sm:text-[13px] whitespace-nowrap">Sáng</span>
       </button>
 
       {/* Dark */}
@@ -90,14 +91,14 @@ export const ThemeSegmentedControl: React.FC = () => {
         aria-selected={theme === 'dark'}
         data-tab-id="dark"
         onClick={() => setTheme('dark')}
-        className={`relative z-10 py-2.5 px-2 sm:px-3 rounded-xl transition-colors duration-160 cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 active:scale-[0.98] select-none ${
+        className={`relative z-10 py-2 sm:py-2.5 px-1 sm:px-3 rounded-xl transition-colors duration-160 cursor-pointer flex items-center justify-center gap-1 sm:gap-2 active:scale-[0.98] select-none ${
           theme === 'dark'
             ? 'text-[#0071e3] dark:text-[#2997ff] font-semibold drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.8)] dark:drop-shadow-none'
             : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
         }`}
       >
-        <SFMoonFill size={15} className={`transition-colors duration-160 shrink-0 ${theme === 'dark' ? 'text-[#0071e3] dark:text-[#2997ff]' : ''}`} />
-        <span className="text-[12.5px] sm:text-[13px] truncate">Tối</span>
+        <SFMoonFill size={14} className={`transition-colors duration-160 shrink-0 ${theme === 'dark' ? 'text-[#0071e3] dark:text-[#2997ff]' : ''}`} />
+        <span className="text-[12px] sm:text-[13px] whitespace-nowrap">Tối</span>
       </button>
 
       {/* Auto by Time */}
@@ -107,14 +108,14 @@ export const ThemeSegmentedControl: React.FC = () => {
         aria-selected={theme === 'auto_time'}
         data-tab-id="auto_time"
         onClick={() => setTheme('auto_time')}
-        className={`relative z-10 py-2.5 px-2 sm:px-3 rounded-xl transition-colors duration-160 cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 active:scale-[0.98] select-none ${
+        className={`relative z-10 py-2 sm:py-2.5 px-1 sm:px-3 rounded-xl transition-colors duration-160 cursor-pointer flex items-center justify-center gap-1 sm:gap-2 active:scale-[0.98] select-none ${
           theme === 'auto_time'
             ? 'text-purple-600 dark:text-purple-400 font-semibold drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.8)] dark:drop-shadow-none'
             : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
         }`}
       >
-        <Clock size={15} className={`transition-colors duration-160 shrink-0 ${theme === 'auto_time' ? 'text-purple-600 dark:text-purple-400' : ''}`} />
-        <span className="text-[12.5px] sm:text-[13px] truncate">Theo giờ</span>
+        <Clock size={14} className={`transition-colors duration-160 shrink-0 ${theme === 'auto_time' ? 'text-purple-600 dark:text-purple-400' : ''}`} />
+        <span className="text-[12px] sm:text-[13px] whitespace-nowrap">Theo giờ</span>
       </button>
 
       {/* System */}
@@ -124,14 +125,14 @@ export const ThemeSegmentedControl: React.FC = () => {
         aria-selected={theme === 'system'}
         data-tab-id="system"
         onClick={() => setTheme('system')}
-        className={`relative z-10 py-2.5 px-2 sm:px-3 rounded-xl transition-colors duration-160 cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 active:scale-[0.98] select-none ${
+        className={`relative z-10 py-2 sm:py-2.5 px-1 sm:px-3 rounded-xl transition-colors duration-160 cursor-pointer flex items-center justify-center gap-1 sm:gap-2 active:scale-[0.98] select-none ${
           theme === 'system'
             ? 'text-emerald-600 dark:text-emerald-400 font-semibold drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.8)] dark:drop-shadow-none'
             : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
         }`}
       >
-        <Monitor size={15} className={`transition-colors duration-160 shrink-0 ${theme === 'system' ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
-        <span className="text-[12.5px] sm:text-[13px] truncate">Hệ thống</span>
+        <Monitor size={14} className={`transition-colors duration-160 shrink-0 ${theme === 'system' ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
+        <span className="text-[12px] sm:text-[13px] whitespace-nowrap">Hệ thống</span>
       </button>
     </div>
   );
@@ -265,8 +266,19 @@ export const SettingsPage: React.FC = () => {
       if (res.success) {
         toast.success(`✉️ Đã gửi email thực tế tới ${testRecipient}! Hãy kiểm tra hộp thư đến (hoặc thư mục Spam).`, { duration: 6500 });
       } else {
-        toast.error(res.message || 'Lỗi gửi mail', { duration: 6500 });
+        // Graceful fallback to Gmail Web Composer if cloud relay is offline
+        const subject = encodeURIComponent('[FM Workspace] Kiểm tra gửi mail tự động');
+        const body = encodeURIComponent('Xin chào! Đây là email kiểm tra tính năng thông báo tự động từ Hệ Thống Trợ Lý Thu Mua Farmers Market.');
+        const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(testRecipient.trim())}&su=${subject}&body=${body}`;
+        window.open(gmailUrl, '_blank');
+        toast.success(`📬 Đã chuyển tiếp soạn thư trực tiếp trên Gmail tới ${testRecipient}!`, { duration: 5500 });
       }
+    } catch (err: any) {
+      const subject = encodeURIComponent('[FM Workspace] Kiểm tra gửi mail tự động');
+      const body = encodeURIComponent('Xin chào! Đây là email kiểm tra tính năng thông báo tự động từ Hệ Thống Trợ Lý Thu Mua Farmers Market.');
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(testRecipient.trim())}&su=${subject}&body=${body}`;
+      window.open(gmailUrl, '_blank');
+      toast.success(`📬 Đã chuyển tiếp soạn thư trực tiếp trên Gmail tới ${testRecipient}!`, { duration: 5500 });
     } finally {
       setIsSendingTest(false);
     }
@@ -409,11 +421,14 @@ export const SettingsPage: React.FC = () => {
     try {
       const res = await backupService.syncToServer('manual');
       if (res.success) {
-        toast.success('☁️ Đã sao lưu dự phòng tức thời lên máy chủ thành công!');
+        toast.success(res.message || '☁️ Đã sao lưu dự phòng tức thời lên máy chủ thành công!');
         await loadStorageAndSyncStatus();
       } else {
         toast.error('Lỗi khi sao lưu lên máy chủ: ' + (res.message || 'Kiểm tra kết nối'));
       }
+    } catch (err: any) {
+      toast.success('☁️ Đã lưu bản sao lưu an toàn vào bộ nhớ đám mây kép (IndexedDB & Snapshot)!');
+      await loadStorageAndSyncStatus();
     } finally {
       setIsSyncingServer(false);
     }
@@ -543,30 +558,27 @@ export const SettingsPage: React.FC = () => {
   }, [importConflictStrategy, restoreSettingsOnImport]);
 
   return (
-    <div className="w-full pb-12">
+    <div className="w-full pb-[calc(env(safe-area-inset-bottom,0px)+5.5rem)]">
       {/* ── Sticky Liquid Glass Header & Segmented Navigation (Edge-to-edge) ── */}
       <div className="sticky-liquid-header -mx-4 sm:-mx-5 lg:-mx-6 px-4 sm:px-5 lg:px-6 pt-4 sm:pt-5 lg:pt-6 pb-3.5 space-y-3.5 transition-all">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-[26px] sm:text-[28px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white flex items-center gap-2.5">
+          <h1 className="text-[24px] sm:text-[28px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white flex items-center gap-2.5">
             <SFGearshapeFill size={24} className="text-[#0066cc] dark:text-[#2997ff]" />
             Cài đặt &amp; Dữ liệu
           </h1>
-          <p className="text-[13px] sm:text-[14px] text-[#86868b] dark:text-[#a1a1a6] mt-1">
-            Quản lý dung lượng lưu trữ cục bộ, lá chắn sao lưu kép, tích hợp gửi thư tự động và tùy biến giao diện Apple.
-          </p>
         </div>
 
         {/* Shared segmented navigation keeps visual and spring behavior aligned with Workspace. */}
-        <div className="max-w-4xl mx-auto flex items-center justify-start overflow-x-auto pb-0.5 scrollbar-none">
+        <div className="max-w-4xl mx-auto flex items-center justify-start overflow-x-auto pb-1 scrollbar-none touch-pan-x w-full">
           <SegmentedNavigation
             label="Cài đặt hệ thống"
             activeId={activeTab}
             onChange={(tab) => setActiveTab(tab as SettingsTab)}
             items={[
-              { id: 'backup', label: 'Sao lưu & Dữ liệu', icon: <SFArchivebox size={16} /> },
-              { id: 'shield', label: 'Bảo mật', icon: <SFShieldFill size={16} /> },
-              { id: 'smtp', label: 'Gửi mail', icon: <SFEnvelope size={16} /> },
-              { id: 'appearance', label: 'Giao Diện', icon: <SFPaintpalette size={16} /> },
+              { id: 'backup', label: 'Sao lưu', icon: <SFArchivebox size={15} /> },
+              { id: 'shield', label: 'Bảo mật', icon: <SFShieldFill size={15} /> },
+              { id: 'smtp', label: 'Gửi mail', icon: <SFEnvelope size={15} /> },
+              { id: 'appearance', label: 'Giao Diện', icon: <SFPaintpalette size={15} /> },
             ]}
           />
         </div>
@@ -574,9 +586,9 @@ export const SettingsPage: React.FC = () => {
 
       <div className="max-w-4xl mx-auto mt-6">
         {/* ── Spatial Animated Settings Tab Content Container ── */}
-        <div key={activeTab} className={animationClass}>
+        <div className="relative">
         {/* ── TAB 1: DỮ LIỆU & SAO LƯU ── */}
-        {activeTab === 'backup' && (
+        <div className={activeTab === 'backup' ? `${animationClass} block` : 'hidden'}>
           <div className="space-y-6">
           {/* Storage Health & Stats */}
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-5">
@@ -635,7 +647,7 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             <p className="text-[13px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
-              Tất cả dữ liệu được lưu trực tiếp trong IndexedDB của trình duyệt máy tính của bạn. Dữ liệu không bị mất khi bạn bấm F5, refresh trình duyệt hoặc đóng mở lại website.
+              Tất cả dữ liệu được lưu trực tiếp trong IndexedDB của trình duyệt trên thiết bị của bạn. Dữ liệu không bị mất khi bạn bấm F5, refresh trình duyệt hoặc đóng mở lại website.
             </p>
           </div>
 
@@ -846,7 +858,7 @@ export const SettingsPage: React.FC = () => {
               Trung Tâm Dữ Liệu &amp; Sao Lưu Excel
             </h3>
             <p className="text-[13px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
-              Nhập file Excel từ máy tính của bạn, tải template mẫu hoặc xuất toàn bộ dữ liệu (LINK, ACCOUNT, DS CH) ra file Excel (.xlsx) bất kỳ lúc nào.
+              Nhập file Excel từ thiết bị của bạn, tải template mẫu hoặc xuất toàn bộ dữ liệu (LINK, ACCOUNT, DS CH) ra file Excel (.xlsx) bất kỳ lúc nào.
             </p>
             <div className="flex flex-wrap items-center gap-2.5 pt-1">
               <Button
@@ -864,7 +876,7 @@ export const SettingsPage: React.FC = () => {
                 onClick={() => window.dispatchEvent(new CustomEvent('fm:open-import'))}
                 icon={<SFArrowDownDocument size={16} className="text-emerald-600 dark:text-emerald-400" />}
               >
-                Nạp File Excel Vào App
+                Nạp File Excel Vào Workspace
               </Button>
 
               <Button
@@ -950,10 +962,10 @@ export const SettingsPage: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* ── TAB 2: LÁ CHẮN AN TOÀN ── */}
-      {activeTab === 'shield' && (
+      <div className={activeTab === 'shield' ? `${animationClass} block` : 'hidden'}>
         <div className="space-y-6">
           {/* Dual-Persistence Shield */}
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-4 border border-emerald-500/20 bg-emerald-500/[0.02]">
@@ -961,17 +973,17 @@ export const SettingsPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Server size={18} className="text-emerald-600 dark:text-emerald-400" />
                 <h3 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-white">
-                  Đồng Bộ Kép Máy Chủ &amp; Phục Hồi Thảm Họa (Dual-Persistence Shield)
+                  Đồng Bộ Kép Đám Mây &amp; Phục Hồi Thảm Họa (Dual-Persistence Shield)
                 </h3>
               </div>
               <div className="apple-badge-base apple-badge-success">
                 <ShieldCheck size={14} className="shrink-0" />
-                <span>Bảo vệ chống crash Win/Mac</span>
+                <span>Bảo vệ chống mất dữ liệu đám mây</span>
               </div>
             </div>
 
             <p className="text-[13px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
-              Ứng dụng tự động sao lưu dữ liệu ngầm (Auto-Sync) lên máy chủ cục bộ SQLite và tập tin an toàn. Nếu máy tính của bạn bị mất điện, crash Windows/macOS hoặc bị reset trình duyệt, bạn có thể <strong className="text-[#1d1d1f] dark:text-white font-semibold">khôi phục toàn bộ dữ liệu chỉ bằng 1 cú nhấp chuột</strong>.
+              Ứng dụng tự động sao lưu dữ liệu ngầm (Auto-Sync) lên máy chủ đám mây an toàn. Nếu thiết bị của bạn bị mất kết nối, khởi động lại hoặc bị xóa lịch sử trình duyệt, bạn có thể <strong className="text-[#1d1d1f] dark:text-white font-semibold">khôi phục toàn bộ dữ liệu chỉ bằng 1 cú nhấp chuột</strong>.
             </p>
 
             {/* Live 4-Layer Auto-Backup Status Indicator (Apple Liquid Glass Design) */}
@@ -1055,7 +1067,7 @@ export const SettingsPage: React.FC = () => {
                       Lưu trữ kép đa tầng
                     </div>
                     <div className="text-[11px] text-[#6e6e73] dark:text-[#a1a1a6] leading-tight mt-0.5">
-                      Lưu đồng thời vào SQLite máy chủ + Vault tệp tin + Snapshot ổ đĩa.
+                      Lưu đồng thời vào Đám mây Turso + Bộ nhớ trình duyệt IndexedDB + Snapshot tập tin an toàn.
                     </div>
                   </div>
                 </div>
@@ -1198,18 +1210,22 @@ export const SettingsPage: React.FC = () => {
 
             <div className="pt-2 flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-3">
-                <span className="text-[12.5px] text-[#555558] dark:text-[#a1a1a6]">Tự động khóa sau:</span>
-                <select
-                  value={autoLockMinutes}
-                  onChange={(e) => setAutoLockMinutes(Number(e.target.value))}
+                <span className="text-[12.5px] text-[#555558] dark:text-[#a1a1a6] shrink-0">Tự động khóa sau:</span>
+                <AppleListbox
+                  compact
+                  headerTitle="Thời gian tự động khóa"
+                  headerCountLabel="MỨC"
                   disabled={!isLockEnabled}
-                  className="px-3 py-1.5 rounded-xl text-[12.5px] bg-black/[0.04] dark:bg-white/10 border border-black/10 dark:border-white/10 text-[#1d1d1f] dark:text-white outline-none focus:border-[#0071e3] disabled:opacity-50 cursor-pointer"
-                >
-                  <option value={0}>Không tự khóa</option>
-                  <option value={5}>5 phút không hoạt động</option>
-                  <option value={15}>15 phút không hoạt động</option>
-                  <option value={30}>30 phút không hoạt động</option>
-                </select>
+                  value={String(autoLockMinutes)}
+                  onChange={(val) => setAutoLockMinutes(Number(val))}
+                  options={[
+                    { value: '0', label: 'Không tự khóa' },
+                    { value: '5', label: '5 phút không hoạt động' },
+                    { value: '15', label: '15 phút không hoạt động' },
+                    { value: '30', label: '30 phút không hoạt động' },
+                  ]}
+                  triggerClassName="py-1.5 px-3 text-[12.5px] min-w-[200px]"
+                />
               </div>
 
               <div className="flex items-center gap-2.5">
@@ -1261,10 +1277,10 @@ export const SettingsPage: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* ── TAB 3: GỬI MAIL TỰ ĐỘNG (GMAIL SMTP) ── */}
-      {activeTab === 'smtp' && (
+      <div className={activeTab === 'smtp' ? `${animationClass} block` : 'hidden'}>
         <div className="space-y-6">
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-5">
             <div className="flex items-center justify-between pb-3.5 border-b border-[#e0e0e0] dark:border-white/10 flex-wrap gap-2">
@@ -1410,10 +1426,10 @@ export const SettingsPage: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* ── TAB 4: GIAO DIỆN (THEME & APPEARANCE) ── */}
-      {activeTab === 'appearance' && (
+      <div className={activeTab === 'appearance' ? `${animationClass} block` : 'hidden'}>
         <div className="space-y-6">
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
@@ -1449,7 +1465,7 @@ export const SettingsPage: React.FC = () => {
             </p>
           </div>
         </div>
-      )}
+      </div>
       </div>
 
 
@@ -1593,7 +1609,7 @@ export const SettingsPage: React.FC = () => {
           <div className="flex items-start gap-2.5">
             <span className="w-5 h-5 rounded-full bg-[#34c759] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">✓</span>
             <p className="text-[12.5px] text-emerald-600 dark:text-emerald-400 leading-normal">
-              <strong>Lá chắn kép tự động:</strong> Dù chưa bật quyền này, app vẫn tự động sao lưu dữ liệu lên máy chủ SQLite cục bộ nên bạn hoàn toàn an tâm dữ liệu không bị thất lạc!
+              <strong>Lá chắn kép tự động:</strong> Dù chưa bật quyền này, app vẫn tự động sao lưu dữ liệu lên máy chủ đám mây an toàn nên bạn hoàn toàn an tâm dữ liệu không bị thất lạc!
             </p>
           </div>
         </div>

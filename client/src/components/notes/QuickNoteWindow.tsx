@@ -51,6 +51,9 @@ import {
   Maximize2,
   Minimize2,
   ChevronDown,
+  ChevronUp,
+  ArrowUp,
+  ArrowDown,
   Mail,
   Send,
   Check,
@@ -60,6 +63,7 @@ import {
   Shield,
   Globe,
   Paperclip,
+  Copy,
 } from 'lucide-react';
 import { useNoteStore } from '@/stores/note-store';
 import { QuickNoteColor, QuickNoteItem, TaskReminder, NoteImageAttachment } from '@/types/workspace';
@@ -254,6 +258,24 @@ const normalizeChecklistDraft = (raw?: string | null): string => {
   return lines.length > 0 ? lines.map((line) => `- [ ] ${line}`).join('\n') : '- [ ] ';
 };
 
+/**
+ * Convert multiline plain text (from AI draft) into cleanly formatted note paragraph blocks,
+ * preserving line breaks and paragraph structure exactly without collapsing lines into one run-on paragraph.
+ */
+const convertTextToNoteBlocks = (text: string): HTMLElement[] => {
+  if (!text) return [];
+  const lines = text.split(/\r?\n/);
+  return lines.map((line) => {
+    const p = document.createElement('p');
+    if (!line.trim()) {
+      p.appendChild(document.createElement('br'));
+    } else {
+      p.textContent = line;
+    }
+    return p;
+  });
+};
+
 interface ChecklistRow {
   lineIndex: number;
   taskId: string;
@@ -261,6 +283,114 @@ interface ChecklistRow {
   text: string;
   reminderAt?: string | null;
 }
+
+/**
+ * Extract precise client rects of selected text nodes only.
+ * This guarantees ZERO bounding boxes for block elements (<p>, <div>, <ul>, etc.)
+ * and strictly isolates only the characters the user has actually highlighted.
+ */
+const getStrictSelectionLineRects = (
+  range: Range,
+  canvasRect: DOMRect
+): Array<{ top: number; left: number; width: number; height: number }> => {
+  if (range.collapsed) return [];
+
+  const textNodes: Text[] = [];
+  const root = range.commonAncestorContainer;
+
+  if (root.nodeType === Node.TEXT_NODE) {
+    if (root.textContent && root.textContent.trim().length > 0) {
+      textNodes.push(root as Text);
+    }
+  } else {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        try {
+          if (!node.textContent || node.textContent.trim().length === 0) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        } catch {
+          return NodeFilter.FILTER_REJECT;
+        }
+      },
+    });
+
+    let curr = walker.currentNode;
+    if (curr && curr.nodeType === Node.TEXT_NODE && curr.textContent && curr.textContent.trim().length > 0) {
+      try {
+        if (range.intersectsNode(curr)) textNodes.push(curr as Text);
+      } catch {}
+    }
+    while (walker.nextNode()) {
+      textNodes.push(walker.currentNode as Text);
+    }
+  }
+
+  const rawRects: DOMRect[] = [];
+
+  for (const node of textNodes) {
+    const text = node.textContent;
+    if (!text || text.trim().length === 0) continue;
+
+    let start = node === range.startContainer ? range.startOffset : 0;
+    let end = node === range.endContainer ? range.endOffset : text.length;
+
+    // Skip leading & trailing whitespace characters so the rect hugs only the visible text
+    while (start < end && /\s/.test(text[start])) start++;
+    while (end > start && /\s/.test(text[end - 1])) end--;
+
+    if (end <= start) continue;
+
+    const nodeRange = document.createRange();
+    try {
+      nodeRange.setStart(node, start);
+      nodeRange.setEnd(node, end);
+      const clientRects = nodeRange.getClientRects();
+      for (let i = 0; i < clientRects.length; i++) {
+        const r = clientRects[i];
+        if (r.width > 2 && r.height > 2) {
+          rawRects.push(r);
+        }
+      }
+    } catch {}
+  }
+
+  if (rawRects.length === 0) return [];
+
+  // Group and merge rects on the same visual line (within 5px vertical tolerance)
+  const merged: Array<{ top: number; left: number; width: number; height: number }> = [];
+
+  for (const r of rawRects) {
+    const relTop = r.top - canvasRect.top;
+    const relLeft = r.left - canvasRect.left;
+
+    const existing = merged.find(
+      (m) => Math.abs(m.top - relTop) < 6 && Math.abs(m.height - r.height) < 8
+    );
+
+    if (existing) {
+      const newLeft = Math.min(existing.left, relLeft);
+      const newRight = Math.max(existing.left + existing.width, relLeft + r.width);
+      existing.left = newLeft;
+      existing.width = newRight - newLeft;
+      existing.top = Math.min(existing.top, relTop);
+      existing.height = Math.max(existing.height, r.height);
+    } else {
+      merged.push({
+        top: relTop,
+        left: relLeft,
+        width: r.width,
+        height: r.height,
+      });
+    }
+  }
+
+  // Filter out any empty lines/whitespace gaps
+  return merged
+    .filter((m) => m.width > 4 && m.height > 4)
+    .sort((a, b) => a.top - b.top || a.left - b.left);
+};
 
 /**
  * Ensure note content is well-formed & strictly sanitized HTML for rich text editing
@@ -1251,6 +1381,9 @@ export const QuickNoteWindow: React.FC = () => {
     originalText: string;
   } | null>(null);
   const [aiDraftCopied, setAiDraftCopied] = useState(false);
+  const [draftViewMode, setDraftViewMode] = useState<'split' | 'draft' | 'original'>('split');
+  const [draftCardPlacement, setDraftCardPlacement] = useState<'auto' | 'top' | 'bottom'>('auto');
+  const savedSelectionRangeRef = useRef<Range | null>(null);
   const [selectionState, setSelectionState] = useState<{
     text: string;
     start: number;
@@ -1262,6 +1395,20 @@ export const QuickNoteWindow: React.FC = () => {
     openMenuUp: boolean;
     maxMenuHeight?: number;
   } | null>(null);
+  const [selectionBounds, setSelectionBounds] = useState<{
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+    width: number;
+    height: number;
+    lineRects: Array<{ top: number; left: number; width: number; height: number }>;
+  } | null>(null);
+  const writingToolAbortControllerRef = useRef<AbortController | null>(null);
+  const writingToolLoadingRef = useRef(false);
+  writingToolLoadingRef.current = writingToolLoading;
+  const aiDraftRef = useRef<any>(null);
+  aiDraftRef.current = aiDraft;
   const [showFloatingAiMenu, setShowFloatingAiMenu] = useState(false);
   const floatingAiPresence = useAnimatedPresence(showFloatingAiMenu, 180);
   const floatingAiContainerRef = useRef<HTMLDivElement>(null);
@@ -1615,7 +1762,23 @@ export const QuickNoteWindow: React.FC = () => {
   };
 
   // ──────── Apple Intelligence Writing Tools (In-place Draft) ────────
+  const handleCancelWritingTool = () => {
+    if (writingToolAbortControllerRef.current) {
+      writingToolAbortControllerRef.current.abort();
+      writingToolAbortControllerRef.current = null;
+    }
+    setWritingToolLoading(false);
+    toast.dismiss('ai-writing');
+    toast('Đã dừng tác vụ AI.', { icon: '⏹️' });
+  };
+
   const handleExecuteWritingTool = async (action: WritingToolAction) => {
+    if (writingToolLoading) {
+      toast('Đang có tác vụ AI đang xử lý. Vui lòng đợi hoặc bấm Hủy.', { icon: '⏳', id: 'writing-busy' });
+      return;
+    }
+    setAiDraft(null);
+    setAiDraftCopied(false);
     setShowWritingToolsMenu(false);
     setShowCompactAiMenu(false);
     let targetText = extractPlainText(localContent);
@@ -1626,17 +1789,52 @@ export const QuickNoteWindow: React.FC = () => {
       if (selectedStr) {
         targetText = selectedStr;
         isSelection = true;
+        savedSelectionRangeRef.current = sel.getRangeAt(0).cloneRange();
+        if (canvasRef.current) {
+          const range = sel.getRangeAt(0);
+          const selRect = range.getBoundingClientRect();
+          const canvasRect = canvasRef.current.getBoundingClientRect();
+          const lineRects = getStrictSelectionLineRects(range, canvasRect);
+          let minLeft = selRect.left - canvasRect.left;
+          let maxRight = selRect.right - canvasRect.left;
+          let minTop = selRect.top - canvasRect.top;
+          let maxBottom = selRect.bottom - canvasRect.top;
+
+          if (lineRects.length > 0) {
+            minLeft = Math.min(...lineRects.map((r) => r.left));
+            maxRight = Math.max(...lineRects.map((r) => r.left + r.width));
+            minTop = Math.min(...lineRects.map((r) => r.top));
+            maxBottom = Math.max(...lineRects.map((r) => r.top + r.height));
+          }
+
+          setSelectionBounds({
+            top: minTop,
+            bottom: maxBottom,
+            left: minLeft,
+            right: maxRight,
+            width: Math.max(20, maxRight - minLeft),
+            height: Math.max(16, maxBottom - minTop),
+            lineRects,
+          });
+        }
       }
+    } else {
+      savedSelectionRangeRef.current = null;
+      setSelectionBounds(null);
     }
     if (!targetText.trim()) {
       toast.error('Ghi chú chưa có nội dung để AI xử lý!');
       return;
     }
 
+    writingToolAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    writingToolAbortControllerRef.current = controller;
+
     setWritingToolLoading(true);
     toast.loading('AI Writing Tool đang tạo bản nháp...', { id: 'ai-writing' });
     try {
-      const result = await runWritingTool(targetText, action);
+      const result = await runWritingTool(targetText, action, controller.signal);
       toast.dismiss('ai-writing');
       playAppleChime();
       const title =
@@ -1665,10 +1863,17 @@ export const QuickNoteWindow: React.FC = () => {
         isSelectionOnly: isSelection,
         originalText: targetText,
       });
+      setDraftCardPlacement('auto');
       toast.success('✨ Đã tạo bản nháp AI trực tiếp trong ghi chú!');
     } catch (err: any) {
+      if (err.name === 'AbortError' || err.message?.includes('aborted') || controller.signal.aborted) {
+        return;
+      }
       toast.error(err.message || 'Không thể xử lý văn bản', { id: 'ai-writing' });
     } finally {
+      if (writingToolAbortControllerRef.current === controller) {
+        writingToolAbortControllerRef.current = null;
+      }
       setWritingToolLoading(false);
     }
   };
@@ -1676,8 +1881,8 @@ export const QuickNoteWindow: React.FC = () => {
   const handleApplyAiDraft = (mode: 'replace' | 'append') => {
     if (!aiDraft) return;
 
-    if (mode === 'replace') {
-      if (editorMode === 'checklist') {
+    if (editorMode === 'checklist') {
+      if (mode === 'replace') {
         const newChecklist = normalizeChecklistDraft(aiDraft.result);
         setLocalChecklist(newChecklist);
         localChecklistRef.current = newChecklist;
@@ -1689,36 +1894,6 @@ export const QuickNoteWindow: React.FC = () => {
           });
         }
       } else {
-        const targetEl = editorRef.current;
-        if (targetEl) {
-          targetEl.focus();
-          if (aiDraft.isSelectionOnly && aiDraft.originalText) {
-            const sel = window.getSelection();
-            if (sel && sel.rangeCount > 0 && !sel.isCollapsed && targetEl.contains(sel.anchorNode)) {
-              document.execCommand('insertText', false, aiDraft.result);
-            } else {
-              const currentHtml = targetEl.innerHTML;
-              const safeDraftResult = sanitizeNoteHTML(aiDraft.result);
-              if (currentHtml.includes(aiDraft.originalText)) {
-                targetEl.innerHTML = currentHtml.replace(aiDraft.originalText, safeDraftResult);
-              } else {
-                targetEl.innerHTML = ensureHtml(safeDraftResult);
-              }
-            }
-          } else {
-            targetEl.innerHTML = ensureHtml(aiDraft.result);
-          }
-          const updated = targetEl.innerHTML;
-          setLocalContent(updated);
-          localContentRef.current = updated;
-          if (activeNoteIdRef.current) {
-            updateNote(activeNoteIdRef.current, { content: updated });
-          }
-        }
-      }
-    } else {
-      // Append mode
-      if (editorMode === 'checklist') {
         const draftChecklist = normalizeChecklistDraft(aiDraft.result);
         const baseChecklist = localChecklist.trim() && localChecklist.trim() !== '- [ ] '
           ? localChecklist.trim()
@@ -1735,11 +1910,84 @@ export const QuickNoteWindow: React.FC = () => {
             images: [],
           });
         }
-      } else if (editorRef.current) {
-        const p = document.createElement('p');
-        p.textContent = aiDraft.result;
-        editorRef.current.appendChild(p);
-        const updated = editorRef.current.innerHTML;
+      }
+    } else {
+      const editor = editorRef.current;
+      if (editor) {
+        editor.focus();
+        const savedRange = savedSelectionRangeRef.current;
+
+        if (mode === 'replace') {
+          if (aiDraft.isSelectionOnly && savedRange && editor.contains(savedRange.commonAncestorContainer)) {
+            let startBlock: Node | null = savedRange.startContainer;
+            while (startBlock && startBlock.parentNode !== editor) {
+              startBlock = startBlock.parentNode;
+            }
+            let endBlock: Node | null = savedRange.endContainer;
+            while (endBlock && endBlock.parentNode !== editor) {
+              endBlock = endBlock.parentNode;
+            }
+
+            const newBlocks = convertTextToNoteBlocks(aiDraft.result);
+            const frag = document.createDocumentFragment();
+            for (const b of newBlocks) {
+              frag.appendChild(b);
+            }
+
+            if (startBlock && endBlock && startBlock.parentNode === editor && endBlock.parentNode === editor) {
+              const blocksToRemove: Node[] = [];
+              let curr: Node | null = startBlock;
+              while (curr) {
+                blocksToRemove.push(curr);
+                if (curr === endBlock) break;
+                curr = curr.nextSibling;
+              }
+              editor.insertBefore(frag, startBlock);
+              for (const b of blocksToRemove) {
+                b.parentNode?.removeChild(b);
+              }
+            } else {
+              savedRange.deleteContents();
+              savedRange.insertNode(frag);
+            }
+          } else {
+            editor.innerHTML = ensureHtml(aiDraft.result);
+          }
+        } else {
+          // 'append' mode (Chèn dưới):
+          // Preserve multi-line paragraph structure exactly without collapsing lines
+          const newBlocks = convertTextToNoteBlocks(aiDraft.result);
+          const frag = document.createDocumentFragment();
+
+          // Spacing separator before inserted content if editor already has text
+          if (editor.textContent?.trim().length) {
+            const sep = document.createElement('p');
+            sep.appendChild(document.createElement('br'));
+            frag.appendChild(sep);
+          }
+          for (const b of newBlocks) {
+            frag.appendChild(b);
+          }
+
+          let targetBlock: HTMLElement | null = null;
+          if (savedRange && editor.contains(savedRange.endContainer)) {
+            let curr: Node | null = savedRange.endContainer;
+            while (curr && curr.parentNode !== editor) {
+              curr = curr.parentNode;
+            }
+            if (curr && curr.parentNode === editor) {
+              targetBlock = curr as HTMLElement;
+            }
+          }
+
+          if (targetBlock && targetBlock.parentNode === editor) {
+            targetBlock.after(frag);
+          } else {
+            editor.appendChild(frag);
+          }
+        }
+
+        const updated = editor.innerHTML;
         setLocalContent(updated);
         localContentRef.current = updated;
         if (activeNoteIdRef.current) {
@@ -1753,6 +2001,8 @@ export const QuickNoteWindow: React.FC = () => {
     setAiDraft(null);
     setAiDraftCopied(false);
     setSelectionState(null);
+    setSelectionBounds(null);
+    savedSelectionRangeRef.current = null;
   };
 
   const handleCopyAiDraft = async () => {
@@ -1771,6 +2021,11 @@ export const QuickNoteWindow: React.FC = () => {
   const handleDiscardAiDraft = () => {
     setAiDraft(null);
     setAiDraftCopied(false);
+    savedSelectionRangeRef.current = null;
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) {
+      setSelectionBounds(null);
+    }
   };
 
   // Switch between Ghi chú (Notes) and To-do (Reminders) modules - 2 ngăn hoàn toàn độc lập
@@ -1972,6 +2227,9 @@ export const QuickNoteWindow: React.FC = () => {
       setSelectionState(null);
       setToolbarCoords(null);
       setShowFloatingAiMenu(false);
+      if (!writingToolLoadingRef.current && !aiDraftRef.current) {
+        setSelectionBounds(null);
+      }
       return;
     }
     const anchor = sel.anchorNode;
@@ -1980,6 +2238,9 @@ export const QuickNoteWindow: React.FC = () => {
       setSelectionState(null);
       setToolbarCoords(null);
       setShowFloatingAiMenu(false);
+      if (!writingToolLoadingRef.current && !aiDraftRef.current) {
+        setSelectionBounds(null);
+      }
       return;
     }
     const text = sel.toString();
@@ -1987,6 +2248,9 @@ export const QuickNoteWindow: React.FC = () => {
       setSelectionState(null);
       setToolbarCoords(null);
       setShowFloatingAiMenu(false);
+      if (!writingToolLoadingRef.current && !aiDraftRef.current) {
+        setSelectionBounds(null);
+      }
       return;
     }
 
@@ -1996,24 +2260,47 @@ export const QuickNoteWindow: React.FC = () => {
       const canvasRect = canvasRef.current.getBoundingClientRect();
 
       if (selRect.width > 0 || selRect.height > 0) {
-        const rects = range.getClientRects();
-        const firstRect = rects.length > 0 ? rects[0] : selRect;
-        const lastRect = rects.length > 0 ? rects[rects.length - 1] : selRect;
+        const lineRects = getStrictSelectionLineRects(range, canvasRect);
+
+        let minLeft = selRect.left - canvasRect.left;
+        let maxRight = selRect.right - canvasRect.left;
+        let minTop = selRect.top - canvasRect.top;
+        let maxBottom = selRect.bottom - canvasRect.top;
+
+        if (lineRects.length > 0) {
+          minLeft = Math.min(...lineRects.map((r) => r.left));
+          maxRight = Math.max(...lineRects.map((r) => r.left + r.width));
+          minTop = Math.min(...lineRects.map((r) => r.top));
+          maxBottom = Math.max(...lineRects.map((r) => r.top + r.height));
+        }
+
+        setSelectionBounds({
+          top: minTop,
+          bottom: maxBottom,
+          left: minLeft,
+          right: maxRight,
+          width: Math.max(20, maxRight - minLeft),
+          height: Math.max(16, maxBottom - minTop),
+          lineRects,
+        });
+
+        const firstRect = lineRects.length > 0 ? lineRects[0] : { top: minTop, left: minLeft, width: maxRight - minLeft, height: 20 };
+        const lastRect = lineRects.length > 0 ? lineRects[lineRects.length - 1] : firstRect;
 
         const toolbarHeight = 40;
         const toolbarHalfWidth = 145;
 
         // Ưu tiên 1: Đặt phía trên dòng đầu tiên của vùng chọn
-        let top = firstRect.top - canvasRect.top - toolbarHeight - 8;
-        let centerX = firstRect.left + firstRect.width / 2 - canvasRect.left;
+        let top = firstRect.top - toolbarHeight - 8;
+        let centerX = firstRect.left + firstRect.width / 2;
 
         // Nếu không đủ chỗ phía trên dòng đầu tiên (sát mép trên của editor)
         if (top < 4) {
           // Thử đặt phía dưới dòng cuối cùng của vùng chọn nếu vừa với khung
-          const belowBottom = lastRect.bottom - canvasRect.top + 8;
+          const belowBottom = lastRect.top + lastRect.height + 8;
           if (belowBottom + toolbarHeight <= canvasRect.height - 4) {
             top = belowBottom;
-            centerX = lastRect.left + lastRect.width / 2 - canvasRect.left;
+            centerX = lastRect.left + lastRect.width / 2;
           } else {
             // Vùng chọn phủ dài từ trên xuống dưới toàn bộ khung: Đặt lơ lửng ngay phía trên canvas để TUYỆT ĐỐI không che chữ đang đọc
             top = -toolbarHeight - 6;
@@ -2072,6 +2359,9 @@ export const QuickNoteWindow: React.FC = () => {
     setSelectionState(null);
     setToolbarCoords(null);
     setShowFloatingAiMenu(false);
+    if (!writingToolLoadingRef.current && !aiDraftRef.current) {
+      setSelectionBounds(null);
+    }
   }, []);
 
   // Listen to document selectionchange for real-time tracking
@@ -2178,13 +2468,54 @@ export const QuickNoteWindow: React.FC = () => {
   };
 
   const handleExecuteSelectedWritingTool = async (action: WritingToolAction) => {
+    if (writingToolLoading) {
+      toast('Đang có tác vụ AI đang xử lý. Vui lòng đợi hoặc bấm Hủy.', { icon: '⏳', id: 'writing-busy' });
+      return;
+    }
+    setAiDraft(null);
+    setAiDraftCopied(false);
     if (!selectionState || !selectionState.text.trim()) return;
     const targetText = selectionState.text.trim();
+
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed && editorRef.current?.contains(sel.anchorNode) && canvasRef.current) {
+      const range = sel.getRangeAt(0);
+      savedSelectionRangeRef.current = range.cloneRange();
+      const selRect = range.getBoundingClientRect();
+      const canvasRect = canvasRef.current.getBoundingClientRect();
+      const lineRects = getStrictSelectionLineRects(range, canvasRect);
+      let minLeft = selRect.left - canvasRect.left;
+      let maxRight = selRect.right - canvasRect.left;
+      let minTop = selRect.top - canvasRect.top;
+      let maxBottom = selRect.bottom - canvasRect.top;
+
+      if (lineRects.length > 0) {
+        minLeft = Math.min(...lineRects.map((r) => r.left));
+        maxRight = Math.max(...lineRects.map((r) => r.left + r.width));
+        minTop = Math.min(...lineRects.map((r) => r.top));
+        maxBottom = Math.max(...lineRects.map((r) => r.top + r.height));
+      }
+
+      setSelectionBounds({
+        top: minTop,
+        bottom: maxBottom,
+        left: minLeft,
+        right: maxRight,
+        width: Math.max(20, maxRight - minLeft),
+        height: Math.max(16, maxBottom - minTop),
+        lineRects,
+      });
+    }
+
+    writingToolAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    writingToolAbortControllerRef.current = controller;
+
     setWritingToolLoading(true);
     setShowFloatingAiMenu(false);
     toast.loading('AI Writing Tool đang tạo bản nháp...', { id: 'ai-writing' });
     try {
-      const result = await runWritingTool(targetText, action);
+      const result = await runWritingTool(targetText, action, controller.signal);
       playAppleChime();
       const title =
         action === 'summarize'
@@ -2212,11 +2543,18 @@ export const QuickNoteWindow: React.FC = () => {
         isSelectionOnly: true,
         originalText: targetText,
       });
+      setDraftCardPlacement('auto');
       toast.dismiss('ai-writing');
       toast.success('✨ Đã tạo bản nháp AI trực tiếp trong ghi chú!');
     } catch (err: any) {
+      if (err.name === 'AbortError' || err.message?.includes('aborted') || controller.signal.aborted) {
+        return;
+      }
       toast.error(err.message || 'Không thể xử lý văn bản', { id: 'ai-writing' });
     } finally {
+      if (writingToolAbortControllerRef.current === controller) {
+        writingToolAbortControllerRef.current = null;
+      }
       setWritingToolLoading(false);
     }
   };
@@ -2228,6 +2566,7 @@ export const QuickNoteWindow: React.FC = () => {
       if (e.key === 'Escape') {
         setAiDraft(null);
         setAiDraftCopied(false);
+        savedSelectionRangeRef.current = null;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -2835,7 +3174,7 @@ export const QuickNoteWindow: React.FC = () => {
       activeNoteIdRef.current = null;
       setIsWindowClosing(false);
       closeNote();
-    }, 180);
+    }, 140);
   }, [closeNote, savePendingDraft]);
 
   // Clean up closing timer on unmount
@@ -4008,6 +4347,17 @@ export const QuickNoteWindow: React.FC = () => {
 
   return createPortal(
     <>
+      {/* Mobile Dimmed Backdrop Overlay */}
+      {isMobileScreen && (
+        <div
+          className={cn(
+            "fixed inset-0 bg-black/40 backdrop-blur-sm z-[9998] will-change-[opacity] [transform:translateZ(0)]",
+            isWindowClosing ? "liquid-backdrop-exit" : "liquid-backdrop-enter"
+          )}
+          onClick={handleCloseNote}
+          aria-hidden="true"
+        />
+      )}
       {/* ─────────────────── Apple Liquid Glass Floating Window (Single Unified Window) ─────────────────── */}
       <div
         ref={windowRef}
@@ -4031,7 +4381,7 @@ export const QuickNoteWindow: React.FC = () => {
               }
         }
         className={cn(
-          "fixed z-[9999] bg-white/95 dark:bg-[#181822]/95 backdrop-blur-3xl border border-white/80 dark:border-white/15 flex flex-col overflow-hidden font-sans select-none",
+          "fixed z-[9999] bg-white/95 dark:bg-[#181822]/95 backdrop-blur-3xl border border-white/80 dark:border-white/15 flex flex-col overflow-hidden font-sans select-none will-change-[transform,opacity] [transform:translateZ(0)]",
           isMobileScreen
             ? "rounded-t-[28px] rounded-b-none border-b-0 max-w-none max-h-none shadow-[0_-12px_40px_rgba(0,0,0,0.22)] pb-[env(safe-area-inset-bottom,0px)]"
             : cn(
@@ -4039,9 +4389,11 @@ export const QuickNoteWindow: React.FC = () => {
                 isCompactWindow ? "rounded-[26px]" : "rounded-tl-[26px] rounded-tr-none rounded-br-none rounded-bl-none",
                 (isDraggingCompact || isResizing)
                   ? "shadow-[0_32px_85px_rgba(0,0,0,0.3)] transition-none select-none pointer-events-auto"
-                  : "shadow-[0_20px_60px_rgba(0,0,0,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85)] transition-[right,bottom,width,height,border-radius,box-shadow] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                  : "shadow-[0_20px_60px_rgba(0,0,0,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85)] transition-[right,bottom,width,height,border-radius,box-shadow] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]"
               ),
-          isWindowClosing ? "liquid-droplet-exit pointer-events-none" : "liquid-droplet-enter"
+          isWindowClosing
+            ? (isMobileScreen ? "apple-bottom-sheet-exit pointer-events-none" : "liquid-droplet-exit pointer-events-none")
+            : (isMobileScreen ? "apple-bottom-sheet-enter" : "liquid-droplet-enter")
         )}
         onClick={(e) => e.stopPropagation()}
         onDragOver={(e) => {
@@ -4181,14 +4533,14 @@ export const QuickNoteWindow: React.FC = () => {
             <div
               onClick={() => setShowSidebar(false)}
               className={cn(
-                "absolute inset-0 z-20 bg-transparent transition-opacity duration-280",
+                "absolute inset-0 z-20 bg-transparent transition-opacity duration-200",
                 showSidebar ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
               )}
             />
             <div
               aria-hidden={!showSidebar}
               className={cn(
-                "absolute top-0 left-0 bottom-0 w-full max-w-[285px] z-30 border-r border-black/[0.08] dark:border-white/10 flex flex-col bg-white/95 dark:bg-[#181820]/95 backdrop-blur-3xl shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.06)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.35)] transition-transform duration-280 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform",
+                "absolute top-0 left-0 bottom-0 w-full max-w-[285px] z-30 border-r border-black/[0.08] dark:border-white/10 flex flex-col bg-white/95 dark:bg-[#181820]/95 backdrop-blur-3xl shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.06)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.35)] transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform",
                 showSidebar ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none"
               )}
             >
@@ -4753,64 +5105,6 @@ export const QuickNoteWindow: React.FC = () => {
               </div>
               )} {/* end !isCompactWindow metadata row */}
 
-              {/* ──────────────── IN-LINE AI WRITING DRAFT PREVIEW (Apple Liquid Glass Diff Card) ──────────────── */}
-              {aiDraft && (
-                <div className="mb-3 p-3.5 rounded-2xl bg-white/95 dark:bg-[#1e1e28]/95 backdrop-blur-3xl border border-black/[0.08] dark:border-white/12 shadow-[0_12px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] flex flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-200 shrink-0 select-none">
-                  {/* Card Header with Apple Intelligence Glow */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white flex items-center justify-center shadow-xs">
-                        <SFWandAndSparkles size={11} className="text-white" />
-                      </div>
-                      <span className="text-[12px] font-semibold tracking-tight bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] bg-clip-text text-transparent">
-                        Bản nháp Writing Tools
-                      </span>
-                    </div>
-                    {/* Action buttons pill */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleApplyAiDraft('replace')}
-                        className="px-2.5 py-1 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
-                        title="Thay thế nội dung đã chọn"
-                      >
-                        <SFCheckmark size={11} className="stroke-[3]" />
-                        <span>Thay thế</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleApplyAiDraft('append')}
-                        className="px-2.5 py-1 rounded-full bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium flex items-center gap-1 transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95"
-                        title="Thêm vào cuối ghi chú"
-                      >
-                        <SFPlus size={11} />
-                        <span>Thêm cuối</span>
-                      </button>
-                      <CloseButton
-                        onClick={handleDiscardAiDraft}
-                        size="sm"
-                        label="Hủy bỏ"
-                        title="Hủy bỏ bản nháp"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Diff Comparison Body */}
-                  <div className="space-y-1.5 text-[13px] leading-relaxed select-text max-h-[140px] overflow-y-auto scrollbar-thin pr-1">
-                    {aiDraft.originalText && aiDraft.originalText !== aiDraft.result && (
-                      <div className="flex items-start gap-1.5 text-[#86868b] dark:text-[#76767b]">
-                        <span className="text-[10.5px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/[0.04] dark:bg-white/[0.06] shrink-0 mt-0.5">Gốc</span>
-                        <p className="line-through line-clamp-2 text-[12px] opacity-80 whitespace-pre-wrap">{aiDraft.originalText}</p>
-                      </div>
-                    )}
-                    <div className="flex items-start gap-1.5 text-emerald-800 dark:text-emerald-300">
-                      <span className="text-[10.5px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold shrink-0 mt-0.5">Gợi ý</span>
-                      <p className="font-medium whitespace-pre-wrap flex-1">{aiDraft.result}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* In-place Quick Formatting & Tools Strip — ẨN trong compact mode HOẶC khi đang ở chế độ To-do */}
               {!isCompactWindow && editorMode !== 'checklist' && (
               <div className="flex items-center justify-between gap-1.5 pb-2 mb-2 border-b border-black/[0.06] dark:border-white/10 shrink-0 select-none relative">
@@ -4949,7 +5243,13 @@ export const QuickNoteWindow: React.FC = () => {
                 <div ref={compactAiMenuRef} className="relative shrink-0">
                   <button
                     type="button"
-                    onClick={() => setShowCompactAiMenu(!showCompactAiMenu)}
+                    onClick={() => {
+                      if (writingToolLoading) {
+                        toast('Đang có tác vụ AI đang xử lý. Vui lòng đợi hoặc bấm Hủy.', { icon: '⏳', id: 'writing-busy' });
+                        return;
+                      }
+                      setShowCompactAiMenu(!showCompactAiMenu);
+                    }}
                     className={`h-7 px-2.5 rounded-full flex items-center gap-1.5 text-[11px] font-semibold transition-all cursor-pointer active:scale-95 shadow-2xs ${
                       showCompactAiMenu
                         ? 'bg-[#0071e3] text-white shadow-xs'
@@ -5271,8 +5571,348 @@ export const QuickNoteWindow: React.FC = () => {
               ) : (
                 /* Seamless Flowing Writing Canvas */
                 <div ref={canvasRef} className="flex-1 flex flex-col min-h-0 relative">
+                  {/* Apple AI Creative Synchronized Text Scan Effect - Strictly Line-Bound to Selected Text */}
+                  {writingToolLoading && selectionBounds?.lineRects && selectionBounds.lineRects.length > 0 && (
+                    <div className="absolute inset-0 pointer-events-none select-none z-20 overflow-hidden">
+                      {selectionBounds.lineRects.map((rect, idx) => (
+                        <div
+                          key={`scan-line-${idx}-${rect.top.toFixed(0)}-${rect.left.toFixed(0)}`}
+                          className="absolute overflow-hidden rounded-[3px]"
+                          style={{
+                            top: `${Math.max(0, rect.top)}px`,
+                            left: `${Math.max(0, rect.left)}px`,
+                            width: `${Math.max(4, rect.width)}px`,
+                            height: `${Math.max(16, rect.height)}px`,
+                          }}
+                        >
+                          {/* Synchronized Global Sweep Track - Anchored to selectionBounds.left */}
+                          <div
+                            className="absolute top-0 bottom-0 pointer-events-none"
+                            style={{
+                              left: `${selectionBounds.left - rect.left}px`,
+                              width: `${selectionBounds.width}px`,
+                            }}
+                          >
+                            <div className="apple-ai-unified-sweep-beam" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Placeholder overlay when empty */}
+                  {(!localContent ||
+                    localContent === '<p><br></p>' ||
+                    localContent === '<br>' ||
+                    localContent.trim() === '') && (
+                    <div className="absolute top-0 left-0 text-[#86868b]/50 dark:text-[#636366]/60 text-[14.5px] pointer-events-none select-none">
+                      Gõ ghi chú, kế hoạch thu mua, thông tin cần nhớ... (Phím tắt Alt + N)
+                    </div>
+                  )}
+
+                  {/* Main ContentEditable Editor */}
+                  <div
+                    ref={(el) => {
+                      (editorRef as any).current = el;
+                      if (el) {
+                        const source = localContentRef.current || activeNote?.content || '';
+                        const html = ensureHtml(source);
+                        if (el.innerHTML !== html) {
+                          el.innerHTML = html;
+                        }
+                      }
+                    }}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onKeyDown={handleEditorKeyDown}
+                    onInput={handleEditorInput}
+                    onSelect={handleEditorSelect}
+                    onMouseDown={handleEditorMouseDown}
+                    onMouseUp={handleEditorSelect}
+                    onKeyUp={handleEditorSelect}
+                    onScroll={handleEditorSelect}
+                    onPaste={handleEditorPaste}
+                    onClick={handleEditorClick}
+                    className="flex-1 w-full bg-transparent border-0 outline-none shadow-none ring-0 focus:ring-0 focus:outline-none focus:border-none font-sans text-[14.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] p-0 pr-1 selection:bg-purple-500/25 selection:text-[#1d1d1f] dark:selection:text-white overflow-y-auto min-h-0 [&_h1]:text-2xl [&_h1]:font-bold [&_h1_*]:font-bold [&_h1]:text-[#1d1d1f] dark:[&_h1]:text-white [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:leading-tight [&_h2]:text-xl [&_h2]:font-bold [&_h2_*]:font-bold [&_h2]:text-[#1d1d1f] dark:[&_h2]:text-white [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[17px] [&_h3]:font-semibold [&_h3_*]:font-semibold [&_h3]:text-[#1d1d1f] dark:[&_h3]:text-white [&_h3]:mt-2 [&_h3]:mb-0.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline [&_s]:line-through [&_img]:!max-w-[320px] [&_img]:!max-h-[220px] [&_img]:!w-auto [&_img]:!h-auto [&_img]:object-contain [&_img]:rounded-xl [&_img]:cursor-zoom-in [&_.apple-img-wrapper]:my-2 [&_.apple-img-wrapper_img]:!m-0 [&_.apple-img-wrapper_img]:!p-0 [&_.apple-img-wrapper_img]:!border-0 [&_.apple-img-wrapper_img]:!shadow-none [&_.apple-img-wrapper_img]:!block [&_.apple-file-attachment]:transition-all hover:[&_.apple-file-attachment]:bg-black/[0.07] dark:hover:[&_.apple-file-attachment]:bg-white/[0.08] cursor-text scrollbar-thin [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-black/30"
+                    style={{
+                      border: 'none',
+                      outline: 'none',
+                      boxShadow: 'none',
+                      paddingBottom: aiDraft ? '260px' : undefined,
+                    }}
+                  />
+
+                  {/* Floating AI Progress & Cancel Pill */}
+                  {writingToolLoading && (() => {
+                    const canvasW = canvasRef.current?.clientWidth || 500;
+                    const canvasH = canvasRef.current?.clientHeight || 400;
+                    const pillWidth = 220;
+                    const pillHeight = 34;
+
+                    const lastLine =
+                      selectionBounds?.lineRects && selectionBounds.lineRects.length > 0
+                        ? selectionBounds.lineRects[selectionBounds.lineRects.length - 1]
+                        : null;
+
+                    let pillLeft: number;
+                    let pillTopStyle: string | undefined = undefined;
+                    let pillBottomStyle: string | undefined = undefined;
+                    let transform = 'none';
+
+                    if (lastLine) {
+                      const textEndX = lastLine.left + lastLine.width;
+                      const fitsOnSameLine = textEndX + 8 + pillWidth <= canvasW - 12;
+
+                      if (fitsOnSameLine) {
+                        // Immediately follow the last character on the same line
+                        pillLeft = textEndX + 8;
+                        const targetTop = lastLine.top + (lastLine.height - pillHeight) / 2;
+                        pillTopStyle = `${Math.max(6, Math.min(canvasH - pillHeight - 6, targetTop))}px`;
+                      } else {
+                        // Place directly underneath the last word
+                        pillLeft = Math.max(12, Math.min(canvasW - pillWidth - 12, lastLine.left));
+                        if (lastLine.top + lastLine.height + 8 + pillHeight <= canvasH) {
+                          pillTopStyle = `${lastLine.top + lastLine.height + 8}px`;
+                        } else if (lastLine.top - pillHeight - 8 >= 6) {
+                          pillTopStyle = `${lastLine.top - pillHeight - 8}px`;
+                        } else {
+                          pillBottomStyle = '12px';
+                        }
+                      }
+                    } else {
+                      pillLeft = canvasW / 2;
+                      transform = 'translateX(-50%)';
+                      pillBottomStyle = '12px';
+                    }
+
+                    return (
+                      <div
+                        className="absolute z-50 flex items-center gap-2 px-3 py-1 rounded-full bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-2xl border border-purple-500/30 dark:border-purple-400/40 shadow-[0_8px_24px_rgba(0,0,0,0.12),0_2px_8px_rgba(168,85,247,0.15)] select-none animate-in fade-in zoom-in-95 duration-150"
+                        style={{
+                          top: pillTopStyle,
+                          bottom: pillBottomStyle,
+                          left: `${pillLeft}px`,
+                          transform,
+                        }}
+                      >
+                        <div className="w-3 h-3 rounded-full border-2 border-[#a855f7] border-t-transparent animate-spin shrink-0" />
+                        <span className="text-[11.5px] font-semibold bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] bg-clip-text text-transparent select-none whitespace-nowrap">
+                          Đang xử lý AI...
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleCancelWritingTool}
+                          className="ml-1 px-2 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white text-[10.5px] font-semibold transition-all duration-150 cursor-pointer active:scale-95 flex items-center gap-0.5 shadow-2xs"
+                          title="Dừng xử lý AI ngay lập tức"
+                        >
+                          <span>✕ Hủy</span>
+                        </button>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Minimalist Apple Liquid Glass Draft Card with Smart Non-Blocking Placement & Side-by-Side Comparison */}
+                  {aiDraft && (() => {
+                    const canvasW = canvasRef.current?.clientWidth || 500;
+                    const canvasH = canvasRef.current?.clientHeight || 450;
+                    const cardWidth = Math.min(680, Math.max(340, canvasW - 24));
+                    const isWide = cardWidth >= 520;
+
+                    // Smart non-blocking placement:
+                    // If selection exists, place card away from the selection so it never obscures the selected text!
+                    let effectivePlacement: 'top' | 'bottom' = 'bottom';
+                    if (draftCardPlacement === 'top') {
+                      effectivePlacement = 'top';
+                    } else if (draftCardPlacement === 'bottom') {
+                      effectivePlacement = 'bottom';
+                    } else {
+                      // Auto mode:
+                      if (selectionBounds && selectionBounds.top > canvasH * 0.42) {
+                        // Selection is in the lower half -> dock card at the top
+                        effectivePlacement = 'top';
+                      } else {
+                        // Selection is in the upper half -> dock card at the bottom
+                        effectivePlacement = 'bottom';
+                      }
+                    }
+
+                    const topStyle = effectivePlacement === 'top' ? '12px' : undefined;
+                    const bottomStyle = effectivePlacement === 'bottom' ? '12px' : undefined;
+
+                    return (
+                      <div
+                        className="absolute z-50 p-3.5 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-black/10 dark:border-white/15 shadow-[0_24px_64px_-10px_rgba(0,0,0,0.28),0_4px_16px_rgba(168,85,247,0.12),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none animate-in fade-in zoom-in-95 duration-180 flex flex-col gap-2.5 max-w-[calc(100%-24px)]"
+                        style={{
+                          top: topStyle,
+                          bottom: bottomStyle,
+                          left: '50%',
+                          width: `${cardWidth}px`,
+                          maxHeight: `${Math.min(canvasH - 24, 340)}px`,
+                          transform: 'translateX(-50%)',
+                        }}
+                      >
+                        {/* Header */}
+                        <div className="flex items-center justify-between gap-2 pb-2 border-b border-black/[0.06] dark:border-white/10 shrink-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white flex items-center justify-center shadow-xs shrink-0">
+                              <SFWandAndSparkles size={11} className="text-white" />
+                            </div>
+                            <span className="text-[12.5px] font-bold tracking-tight text-[#1d1d1f] dark:text-white truncate">
+                              {aiDraft.title || 'Bản nháp Writing Tools'}
+                            </span>
+                          </div>
+
+                          {/* Center / Right controls: Comparison view switch & placement flip */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {/* Segmented Control for Comparison */}
+                            <div className="flex items-center p-0.5 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] border border-black/5 dark:border-white/10 text-[11px]">
+                              {isWide && (
+                                <button
+                                  type="button"
+                                  onClick={() => setDraftViewMode('split')}
+                                  className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${
+                                    draftViewMode === 'split'
+                                      ? 'bg-white dark:bg-[#2c2c36] text-[#0071e3] dark:text-[#2997ff] shadow-xs'
+                                      : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white'
+                                  }`}
+                                  title="So sánh song song bản gốc và bản mới"
+                                >
+                                  So sánh
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setDraftViewMode('draft')}
+                                className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${
+                                  draftViewMode === 'draft' || (!isWide && draftViewMode === 'split')
+                                    ? 'bg-white dark:bg-[#2c2c36] text-[#0071e3] dark:text-[#2997ff] shadow-xs'
+                                    : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white'
+                                }`}
+                                title="Xem riêng bản thảo AI đề xuất"
+                              >
+                                Bản mới
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDraftViewMode('original')}
+                                className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${
+                                  draftViewMode === 'original'
+                                    ? 'bg-white dark:bg-[#2c2c36] text-[#0071e3] dark:text-[#2997ff] shadow-xs'
+                                    : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white'
+                                }`}
+                                title="Xem lại đoạn văn bản gốc ban đầu"
+                              >
+                                Bản gốc
+                              </button>
+                            </div>
+
+                            {/* Flip position button */}
+                            <button
+                              type="button"
+                              onClick={() => setDraftCardPlacement(effectivePlacement === 'top' ? 'bottom' : 'top')}
+                              className="p-1 rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                              title={effectivePlacement === 'top' ? 'Chuyển khung xuống dưới đáy' : 'Chuyển khung lên đỉnh'}
+                            >
+                              {effectivePlacement === 'top' ? <ArrowDown size={13} /> : <ArrowUp size={13} />}
+                            </button>
+
+                            <CloseButton
+                              onClick={handleDiscardAiDraft}
+                              size="sm"
+                              label="Đóng"
+                              title="Hủy bản nháp"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Content Area: Split View or Single View */}
+                        {isWide && draftViewMode === 'split' ? (
+                          <div className="grid grid-cols-2 gap-2.5 flex-1 min-h-0 select-text">
+                            {/* Left column: Original Text */}
+                            <div className="flex flex-col min-h-0">
+                              <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 pb-1 flex items-center gap-1 shrink-0">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                                <span>Văn bản gốc:</span>
+                              </div>
+                              <div className="text-[12.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[145px] overflow-y-auto scrollbar-thin whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1">
+                                {aiDraft.originalText || '(Trống)'}
+                              </div>
+                            </div>
+
+                            {/* Right column: New AI Draft */}
+                            <div className="flex flex-col min-h-0">
+                              <div className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 pb-1 flex items-center gap-1 shrink-0">
+                                <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                <span>Đề xuất mới (AI):</span>
+                              </div>
+                              <div className="text-[12.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[145px] overflow-y-auto scrollbar-thin whitespace-pre-wrap font-normal bg-purple-500/[0.04] dark:bg-purple-500/[0.08] p-2.5 rounded-xl border border-purple-500/20 dark:border-purple-400/25 flex-1">
+                                {aiDraft.result}
+                              </div>
+                            </div>
+                          </div>
+                        ) : draftViewMode === 'original' ? (
+                          <div className="flex flex-col min-h-0 select-text">
+                            <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 pb-1 flex items-center gap-1 shrink-0">
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                              <span>Văn bản gốc ban đầu:</span>
+                            </div>
+                            <div className="text-[13px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[145px] overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1">
+                              {aiDraft.originalText || '(Trống)'}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col min-h-0 select-text">
+                            <div className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 pb-1 flex items-center gap-1 shrink-0">
+                              <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                              <span>Đề xuất mới (AI):</span>
+                            </div>
+                            <div className="text-[13px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[145px] overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal bg-purple-500/[0.04] dark:bg-purple-500/[0.08] p-2.5 rounded-xl border border-purple-500/20 dark:border-purple-400/25 flex-1">
+                              {aiDraft.result}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Action buttons */}
+                        <div className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-black/[0.04] dark:border-white/[0.06] shrink-0">
+                          <span className="text-[10.5px] text-slate-400 dark:text-slate-500 hidden sm:inline">
+                            Giữ nguyên cấu trúc từng đoạn
+                          </span>
+                          <div className="flex items-center gap-1.5 ml-auto">
+                            <button
+                              type="button"
+                              onClick={handleCopyAiDraft}
+                              className="px-2.5 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1 shadow-2xs"
+                              title="Sao chép kết quả"
+                            >
+                              <Copy size={11} />
+                              <span>{aiDraftCopied ? 'Đã chép' : 'Sao chép'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleApplyAiDraft('append')}
+                              className="px-3 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1 shadow-2xs"
+                              title="Chèn nguyên vẹn từng đoạn xuống dưới phần chọn"
+                            >
+                              <SFPlus size={11} />
+                              <span>Chèn dưới</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleApplyAiDraft('replace')}
+                              className="px-3.5 py-1.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
+                              title="Thay thế đoạn văn bản đã chọn"
+                            >
+                              <SFCheckmark size={11.5} className="stroke-[3]" />
+                              <span>Thay thế</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* ──────────────── Apple Liquid Glass Floating Selection Toolbar (Follows Highlighted Text) ──────────────── */}
-                  {selectionState && toolbarCoords && (
+                  {selectionState && toolbarCoords && !writingToolLoading && !aiDraft && (
                     <div
                       onMouseDown={(e) => e.preventDefault()}
                       style={{
@@ -5435,6 +6075,10 @@ export const QuickNoteWindow: React.FC = () => {
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
+                            if (writingToolLoading) {
+                              toast('Đang có tác vụ AI đang xử lý. Vui lòng đợi hoặc bấm Hủy.', { icon: '⏳', id: 'writing-busy' });
+                              return;
+                            }
                             setShowFloatingAiMenu((prev) => !prev);
                           }}
                           className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-90 relative overflow-hidden group ${
@@ -5442,8 +6086,8 @@ export const QuickNoteWindow: React.FC = () => {
                               ? 'bg-[#0071e3] text-white shadow-xs scale-105'
                               : 'bg-black/[0.05] dark:bg-white/[0.1] hover:bg-black/10 dark:hover:bg-white/15 text-[#1d1d1f] dark:text-white border border-black/[0.08] dark:border-white/[0.12] shadow-2xs hover:scale-105'
                           }`}
-                          title={showFloatingAiMenu ? 'Đóng Writing Tools' : 'Công cụ soạn thảo Apple'}
-                          aria-label="Công cụ soạn thảo Apple"
+                          title={showFloatingAiMenu ? 'Đóng Writing Tools' : 'Công cụ soạn thảo AI'}
+                          aria-label="Công cụ soạn thảo AI"
                         >
                           <SFWandAndSparkles size={13.5} />
                         </button>
@@ -5589,42 +6233,6 @@ export const QuickNoteWindow: React.FC = () => {
                       </div>
                     </div>
                   )}
-
-                  {/* Placeholder overlay when empty */}
-                  {(!localContent ||
-                    localContent === '<p><br></p>' ||
-                    localContent === '<br>' ||
-                    localContent.trim() === '') && (
-                    <div className="absolute top-0 left-0 text-[#86868b]/50 dark:text-[#636366]/60 text-[14.5px] pointer-events-none select-none">
-                      Gõ ghi chú, kế hoạch thu mua, thông tin cần nhớ... (Phím tắt Alt + N)
-                    </div>
-                  )}
-
-                  <div
-                    ref={(el) => {
-                      (editorRef as any).current = el;
-                      if (el) {
-                        const source = localContentRef.current || activeNote?.content || '';
-                        const html = ensureHtml(source);
-                        if (el.innerHTML !== html) {
-                          el.innerHTML = html;
-                        }
-                      }
-                    }}
-                    contentEditable
-                    suppressContentEditableWarning
-                    onKeyDown={handleEditorKeyDown}
-                    onInput={handleEditorInput}
-                    onSelect={handleEditorSelect}
-                    onMouseDown={handleEditorMouseDown}
-                    onMouseUp={handleEditorSelect}
-                    onKeyUp={handleEditorSelect}
-                    onScroll={handleEditorSelect}
-                    onPaste={handleEditorPaste}
-                    onClick={handleEditorClick}
-                    className="flex-1 w-full bg-transparent border-0 outline-none shadow-none ring-0 focus:ring-0 focus:outline-none focus:border-none font-sans text-[14.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] p-0 pr-1 selection:bg-purple-500/25 selection:text-[#1d1d1f] dark:selection:text-white overflow-y-auto min-h-0 [&_h1]:text-2xl [&_h1]:font-bold [&_h1_*]:font-bold [&_h1]:text-[#1d1d1f] dark:[&_h1]:text-white [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:leading-tight [&_h2]:text-xl [&_h2]:font-bold [&_h2_*]:font-bold [&_h2]:text-[#1d1d1f] dark:[&_h2]:text-white [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[17px] [&_h3]:font-semibold [&_h3_*]:font-semibold [&_h3]:text-[#1d1d1f] dark:[&_h3]:text-white [&_h3]:mt-2 [&_h3]:mb-0.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline [&_s]:line-through [&_img]:!max-w-[320px] [&_img]:!max-h-[220px] [&_img]:!w-auto [&_img]:!h-auto [&_img]:object-contain [&_img]:rounded-xl [&_img]:cursor-zoom-in [&_.apple-img-wrapper]:my-2 [&_.apple-img-wrapper_img]:!m-0 [&_.apple-img-wrapper_img]:!p-0 [&_.apple-img-wrapper_img]:!border-0 [&_.apple-img-wrapper_img]:!shadow-none [&_.apple-img-wrapper_img]:!block [&_.apple-file-attachment]:transition-all hover:[&_.apple-file-attachment]:bg-black/[0.07] dark:hover:[&_.apple-file-attachment]:bg-white/[0.08] cursor-text scrollbar-thin [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-black/30"
-                    style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
-                  />
                 </div>
               )}
 
@@ -5774,7 +6382,7 @@ export const QuickNoteWindow: React.FC = () => {
                 Gemini API Key
               </h4>
               <p className="text-[11.5px] text-[#86868b] dark:text-[#a1a1a6] mt-0.5">
-                Cung cấp trí tuệ cho Apple Writing Tools
+                Cung cấp trí tuệ cho Writing Tools
               </p>
             </div>
           </div>
@@ -6244,7 +6852,6 @@ export const QuickNoteWindow: React.FC = () => {
                   <span>Chọn ngày & giờ tùy chỉnh:</span>
                 </label>
                 <AppleDateTimePicker
-                  embedded={true}
                   value={todoReminderTarget.reminderAt}
                   onChange={(newVal) =>
                     setTodoReminderTarget((prev) => (prev ? { ...prev, reminderAt: newVal } : null))
@@ -6936,7 +7543,7 @@ export const QuickNoteWindow: React.FC = () => {
         title={currentFilePreview ? `Xem trước tệp ${currentFilePreview.name}` : 'Xem trước tệp'}
         overlayClassName={isPreviewFullscreen ? "p-0" : "p-3 sm:p-6"}
         contentClassName={cn(
-          "relative bg-white dark:bg-[#1c1c24] flex flex-col overflow-hidden transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width,height,transform]",
+          "relative bg-white dark:bg-[#1c1c24] flex flex-col overflow-hidden transition-all duration-220 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width,height,transform]",
           isPreviewFullscreen
             ? "fixed inset-0 w-full h-full max-w-none max-h-none rounded-none shadow-none border-0 z-50"
             : "w-full max-w-4xl h-[85vh] max-h-[850px] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.55)] border border-black/10 dark:border-white/12"

@@ -3,7 +3,8 @@ import { Drawer } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LinkItem } from '@/types/workspace';
-import { SFStar, SFStarFill, SFLink, SFExclamationmarkCircle, SFChevronDown } from 'sf-symbols-lib';
+import { SFStar, SFStarFill, SFLink, SFExclamationmarkCircle } from 'sf-symbols-lib';
+import { AppleListbox } from '@/components/ui/AppleListbox';
 import toast from 'react-hot-toast';
 
 interface LinkDrawerFormProps {
@@ -177,36 +178,24 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
-            <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
-              Phân nhóm
-            </label>
-            <div className="relative">
-              <select
-                className="w-full text-sm rounded-xl border border-[#e0e0e0] dark:border-white/15 bg-white dark:bg-[#1d1d1f] px-3.5 py-2.5 text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] transition-all cursor-pointer font-medium appearance-none pr-9"
-                value={isCustomCategory ? '__CUSTOM__' : category}
-                onChange={(e) => {
-                  if (e.target.value === '__CUSTOM__') {
-                    setIsCustomCategory(true);
-                    setCategory(customCategory || '');
-                  } else {
-                    setIsCustomCategory(false);
-                    setCategory(e.target.value);
-                  }
-                }}
-              >
-                {availableCategories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-                <option value="__CUSTOM__">+ Nhập nhóm mới...</option>
-              </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#86868b]">
-                <SFChevronDown size={14} />
-              </div>
-            </div>
+            <AppleListbox
+              label="Phân nhóm"
+              headerTitle="Phân loại danh mục"
+              value={category}
+              options={availableCategories}
+              customOptionLabel="+ Nhập nhóm mới..."
+              isCustomSelected={isCustomCategory}
+              onSelectCustom={() => {
+                setIsCustomCategory(true);
+                setCategory(customCategory || '');
+              }}
+              onChange={(newVal) => {
+                setIsCustomCategory(false);
+                setCategory(newVal);
+              }}
+            />
 
             {isCustomCategory && (
               <input

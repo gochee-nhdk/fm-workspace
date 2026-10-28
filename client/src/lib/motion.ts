@@ -17,15 +17,15 @@ import { useState, useEffect, useRef, useCallback } from 'react';
  */
 export const motionTokens = {
   duration: {
-    press:      80,   // 60–100ms — tactile press instant feedback
-    micro:      110,  // 90–140ms — micro-interaction (icon swap, badge)
-    hover:      140,  // 110–170ms — hover state morphing
-    tabContent: 160,  // crisp directional content glide
-    popover:    200,  // popover expand from trigger origin
-    exit:       180,  // keep dialog unmount timing aligned with the exit keyframe
-    sidebar:    260,  // sidebar width morph
-    modal:      280,  // modal sheet entrance
-    spatial:    360,  // large spatial transitions (window open)
+    press:      50,   // 50ms — tactile press instant feedback
+    micro:      80,   // 80ms — micro-interaction (icon swap, badge)
+    hover:      110,  // 110ms — hover state morphing
+    tabContent: 100,  // instant 100ms crisp directional content glide
+    popover:    150,  // popover expand from trigger origin
+    exit:       130,  // keep dialog unmount timing aligned with the exit keyframe
+    sidebar:    170,  // sidebar width morph
+    modal:      180,  // modal sheet entrance
+    spatial:    200,  // large spatial transitions (window open)
   },
   easing: {
     // Apple's signature: immediate acceleration, ultra-smooth overshooting deceleration
@@ -43,18 +43,18 @@ export const motionTokens = {
     // Linear for shimmer/orb float
     linear:      'linear',
   },
-  // Physical spring config for useAppleTabSpring
+  // Physical spring config for useAppleTabSpring — 120fps ProMotion instant snap
   spring: {
-    stiffness: 480,  // Higher = snappier, less laggy
-    damping:   32,   // Lower damping = more organic overshoot
-    mass:      0.65, // Lighter mass = faster initial acceleration
+    stiffness: 640,  // Higher = instantaneous acceleration with zero lag
+    damping:   38,   // Critically tuned damping for fast snap without sluggishness
+    mass:      0.40, // Lightweight mass = instant physical response (< 8ms initial impulse)
   },
   scale: {
     hover:        1.012,
     press:        0.972,
     activeSubtle: 0.988,
     dragElevation:1.016,
-    modalEntrance:0.96,
+    modalEntrance:0.965,
   },
   elevation: {
     rest:    '0 2px 12px rgba(0, 0, 0, 0.04)',
@@ -356,18 +356,18 @@ export function useDirectionalTab<T extends string>(
   animationClass: string;
 } {
   const prevTabRef = useRef<T>(currentTab);
-  const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
+  const directionRef = useRef<'forward' | 'backward'>('forward');
 
-  useEffect(() => {
+  if (prevTabRef.current !== currentTab) {
     const prevIndex = tabOrder.indexOf(prevTabRef.current);
     const currIndex = tabOrder.indexOf(currentTab);
-
     if (prevIndex !== -1 && currIndex !== -1 && prevIndex !== currIndex) {
-      setDirection(currIndex > prevIndex ? 'forward' : 'backward');
+      directionRef.current = currIndex > prevIndex ? 'forward' : 'backward';
     }
     prevTabRef.current = currentTab;
-  }, [currentTab, tabOrder]);
+  }
 
+  const direction = directionRef.current;
   return {
     direction,
     animationClass: direction === 'forward' ? 'apple-tab-content-enter' : 'apple-tab-content-enter-rev',

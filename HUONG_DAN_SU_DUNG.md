@@ -1,18 +1,18 @@
 # 📖 Cẩm Nang Sử Dụng Toàn Diện FM Workspace OS
-### Thiết Kế Chuẩn Apple Liquid Glass • Tốc Độ 120 FPS Siêu Mượt • Bảo Mật Local-First
+### Thiết Kế Chuẩn Liquid Glass • Tốc Độ 120 FPS Siêu Mượt • Bảo Mật Local-First
 
-> Chào mừng bạn đến với **FM Workspace** — Không gian làm việc, trợ lý tác nghiệp và tính toán số liệu chuyên nghiệp được xây dựng theo ngôn ngữ thiết kế **Apple Liquid Glass (macOS 27 & iPadOS 18)**. 
+> Chào mừng bạn đến với **FM Workspace** — Không gian làm việc, trợ lý tác nghiệp và tính toán số liệu chuyên nghiệp được xây dựng theo ngôn ngữ thiết kế **Liquid Glass**. 
 
 ---
 
 ## 📑 Mục Lục
-1. [⌨️ Bảng Phím Tắt Toàn Năng (Apple Shortcuts)](#1-bang-phim-tat-toan-nang-apple-shortcuts)
+1. [⌨️ Bảng Phím Tắt Toàn Năng (Shortcuts)](#1-bang-phim-tat-toan-nang-shortcuts)
 2. [🔍 Tìm Kiếm Nhanh Spotlight (`Ctrl + K` / `⌘ + K`)](#2-tim-kiem-nhanh-spotlight-ctrl--k--cmd--k)
 3. [🛡️ Két Quản Lý Mật Khẩu (Account Vault)](#3-ket-quan-ly-mat-khau-account-vault)
 4. [🔗 Danh Mục Liên Kết Nhanh (Quick Links)](#4-danh-muc-lien-ket-nhanh-quick-links)
 5. [🏪 Danh Bạ Cửa Hàng & Bản Đồ 1 Chạm (Store Directory)](#5-danh-ba-cua-hang--ban-do-1-cham-store-directory)
 6. [📝 Cửa Sổ Ghi Chú Nhanh Nổi (Quick Note Window)](#6-cua-so-ghi-chu-nhanh-noi-quick-note-window)
-7. [🧮 Tính Toán Tự Động Apple Math Notes](#7-tinh-toan-tu-dong-apple-math-notes)
+7. [🧮 Tính Toán Tự Động Math Notes](#7-tinh-toan-tu-dong-math-notes)
 8. [✅ Danh Sách Công Việc Tương Tác (Smart Checklist)](#8-danh-sach-cong-viec-tuong-tac-smart-checklist)
 9. [📎 Đính Kèm Tệp Tin & Hình Ảnh](#9-dinh-kem-tep-tin--hinh-anh)
 10. [🤖 Trợ Lý Biên Tập AI (Writing Tools & Intelligence)](#10-tro-ly-bien-tap-ai-writing-tools--intelligence)
@@ -24,7 +24,7 @@
 
 ---
 
-## 1. ⌨️ Bảng Phím Tắt Toàn Năng (Apple Shortcuts)
+## 1. ⌨️ Bảng Phím Tắt Toàn Năng (Shortcuts)
 
 FM Workspace hỗ trợ đầy đủ các phím tắt tiêu chuẩn giúp bạn thao tác với tốc độ tức thì mà không cần dùng chuột:
 
@@ -79,7 +79,7 @@ Nơi lưu trữ an toàn toàn bộ tài khoản tác nghiệp nội bộ (SAP, 
 
 ## 6. 📝 Cửa Sổ Ghi Chú Nhanh Nổi (Quick Note Window)
 
-Lấy cảm hứng từ Quick Note trên iPadOS và macOS Sequoia, cửa sổ ghi chú luôn sẵn sàng hỗ trợ bạn tác nghiệp:
+Cửa sổ ghi chú thông minh luôn sẵn sàng hỗ trợ bạn tác nghiệp:
 
 - **Phím tắt gọi nhanh**: Nhấn **`Alt + N`** (hoặc `Ctrl + J`) ở bất kỳ đâu trong app để bật ghi chú.
 - **Cửa sổ nổi tự do (Free Floating)**: Bấm vào biểu tượng thu nhỏ thành cửa sổ nổi ở góc trên, bạn có thể kéo di chuyển cửa sổ tới bất kỳ góc nào trên màn hình làm việc.
@@ -88,7 +88,7 @@ Lấy cảm hứng từ Quick Note trên iPadOS và macOS Sequoia, cửa sổ gh
 
 ---
 
-## 7. 🧮 Tính Toán Tự Động Apple Math Notes
+## 7. 🧮 Tính Toán Tự Động Math Notes
 
 Tính năng đỉnh cao giúp người làm thu mua, kế toán và kinh doanh tính toán siêu tốc ngay trong khi viết văn bản:
 
@@ -97,7 +97,7 @@ Tính năng đỉnh cao giúp người làm thu mua, kế toán và kinh doanh t
   - `k` hoặc `nghìn` $\rightarrow$ 1.000 (Ví dụ: `150k + 30k =` $\rightarrow$ ra kết quả `180,000`)
   - `tr` hoặc `triệu` $\rightarrow$ 1.000.000 (Ví dụ: `2.5tr * 15% =` $\rightarrow$ ra kết quả `375,000`)
   - Hỗ trợ phần trăm: `1,200,000 * 8% =` $\rightarrow$ ra kết quả `96,000`
-- **Hiệu ứng vật lý**: Kết quả hiển thị với hiệu ứng nảy sáng đàn hồi (Liquid Bounce & Flash) màu xanh Apple nổi bật, có thể sao chép hoặc xóa dễ dàng.
+- **Hiệu ứng vật lý**: Kết quả hiển thị với hiệu ứng nảy sáng đàn hồi (Liquid Bounce & Flash) màu xanh Accent nổi bật, có thể sao chép hoặc xóa dễ dàng.
 
 ---
 
@@ -105,7 +105,7 @@ Tính năng đỉnh cao giúp người làm thu mua, kế toán và kinh doanh t
 
 - Chuyển đổi linh hoạt giữa chế độ **Văn bản giàu (Rich Text)** và chế độ **Danh sách công việc (Checklist)**.
 - Khi tích chọn hoàn thành một đầu việc:
-  - Tự động phát âm thanh tactile thanh thoát chuẩn Apple.
+  - Tự động phát âm thanh tactile thanh thoát.
   - Chữ tự động gạch ngang và mờ đi nhẹ nhàng.
   - Thanh tiến độ ở đầu trang tự động cập nhật phần trăm hoàn thành công việc theo thời gian thực.
 
@@ -139,7 +139,7 @@ Tích hợp công nghệ trí tuệ nhân tạo (Google Gemini) để hỗ trợ
 ## 11. ⏰ Hẹn Giờ & Nhắc Nhở Đa Kênh (Desktop & Email Alert)
 
 - **Đặt lịch nhắc nhở**: Bấm vào biểu tượng chiếc chuông (Reminder) trên ghi chú để hẹn ngày, giờ cần xử lý.
-- **Thông báo nổi trên màn hình**: Đến đúng thời điểm, ứng dụng sẽ phát thông báo nổi Apple HUD kèm âm thanh nhắc việc.
+- **Thông báo nổi trên màn hình**: Đến đúng thời điểm, ứng dụng sẽ phát thông báo nổi HUD kèm âm thanh nhắc việc.
 - **Gửi email cảnh báo (SMTP)**: Trong phần Cài đặt, bạn có thể cấu hình tài khoản Gmail của mình để hệ thống tự động gửi email nhắc việc vào hòm thư điện tử của bạn khi đến hạn.
 
 ---

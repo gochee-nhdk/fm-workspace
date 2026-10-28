@@ -11,7 +11,7 @@ export const LocalLockScreen: React.FC = () => {
   const [isError, setIsError] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
-  const [showKeypad, setShowKeypad] = useState(false);
+  const [showKeypad, setShowKeypad] = useState(() => typeof window !== 'undefined' && (window.innerWidth < 768 || window.matchMedia('(pointer: coarse)').matches));
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 

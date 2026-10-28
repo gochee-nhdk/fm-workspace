@@ -4,13 +4,13 @@
   <a href="https://fm-workspace.vercel.app/">
     <img src="https://img.shields.io/badge/Web%20App%20Trực%20Tuyến-https%3A%2F%2Ffm--workspace.vercel.app-0071e3?style=for-the-badge&logo=vercel&logoColor=white" />
   </a>
-  <img src="https://img.shields.io/badge/UI-Apple%20Liquid%20Glass-0088ff?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/UI-Liquid%20Glass-0088ff?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Performance-120%20FPS-34c759?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Database-Turso%20libSQL-4ff8d2?style=for-the-badge" />
   <img src="https://img.shields.io/badge/Hosting-Vercel%20%2B%20Render-black?style=for-the-badge" />
 </p>
 
-> Không gian làm việc, quản lý thu mua & tác nghiệp thông minh dành cho đội ngũ Farmers Market Việt Nam — thiết kế theo tiêu chuẩn thẩm mỹ **Apple Liquid Glass (macOS 26 & iPadOS 18)**, vận hành trực tuyến liên tục tại: **[https://fm-workspace.vercel.app/](https://fm-workspace.vercel.app/)**.
+> Không gian làm việc, quản lý thu mua & tác nghiệp thông minh dành cho đội ngũ Farmers Market Việt Nam — thiết kế theo tiêu chuẩn thẩm mỹ **Liquid Glass**, vận hành trực tuyến liên tục tại: **[https://fm-workspace.vercel.app/](https://fm-workspace.vercel.app/)**.
 
 ---
 
@@ -33,7 +33,7 @@ Bạn có thể ghim ứng dụng vào Taskbar / Desktop hoặc màn hình đi�
 
 ```mermaid
 flowchart TD
-    User["Người dùng truy cập:\nhttps://fm-workspace.vercel.app/"] --> Vercel["Frontend Edge Web App (Vercel)\nReact 18 + TailwindCSS + Apple Liquid Glass\nPhản hồi 120 FPS"]
+    User["Người dùng truy cập:\nhttps://fm-workspace.vercel.app/"] --> Vercel["Frontend Edge Web App (Vercel)\nReact 18 + TailwindCSS + Liquid Glass\nPhản hồi 120 FPS"]
     
     subgraph Browser ["Trình duyệt người dùng (Offline Cache & Sync)"]
         Vercel --> LocalIDB[("IndexedDB Trình duyệt\n(Cache tức thì < 50ms,\nkhông chờ đợi mạng)")]
@@ -49,11 +49,11 @@ flowchart TD
 
 ## ✨ Tính Năng Nổi Bật
 
-### 📝 Apple Math Notes & Ghi Chú Nhanh
+### 📝 Math Notes & Ghi Chú Nhanh
 - Tự động tính toán tức thì khi gõ phép tính kết thúc bằng dấu `=` (ví dụ: `15 * 45000 =` &rarr; `675,000`).
 - Cửa sổ nổi tự do (Free Floating Window) chuẩn **120 FPS**, không giật lag.
 - Interactive Checklist phân tách độc lập, hỗ trợ đính kèm hình ảnh và xem trước tệp tài liệu.
-- Bộ chọn ngày giờ nhắc việc Apple Date Picker thanh lịch.
+- Bộ chọn ngày giờ nhắc việc Date Picker thanh lịch.
 
 ### 🔐 Két Mật Khẩu Tác Nghiệp (Account Vault)
 - Lưu trữ và phân loại tài khoản: SAP, POS, Bravo, KiotViet, Portal Nhà Cung Cấp.

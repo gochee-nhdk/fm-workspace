@@ -88,10 +88,10 @@ A comprehensive full-scale autonomous audit, testing, security verification, per
 
 ---
 
-## 7. UX/UI & Apple Liquid Glass Audit
+## 7. UX/UI & Liquid Glass Audit
 
-- **Design Language:** Apple Liquid Glass (macOS / iOS inspired Glassmorphism) with subtle blur, translucent layers, and high-contrast typography for readability.
-- **Toasts & Notifications:** Apple Dynamic Island / HUD notification system enforcing a maximum of 1 active toast at any time to eliminate visual clutter.
+- **Design Language:** Liquid Glass (Glassmorphism) with subtle blur, translucent layers, and high-contrast typography for readability.
+- **Toasts & Notifications:** Dynamic Island / HUD notification system enforcing a maximum of 1 active toast at any time to eliminate visual clutter.
 - **Theme Engine:** Real-time synchronization between System OS preference, Light, Dark, and Time-based auto modes.
 
 ---
