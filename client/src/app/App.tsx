@@ -3,6 +3,7 @@ import { BrowserRouter } from 'react-router-dom';
 import toast, { Toaster, resolveValue } from 'react-hot-toast';
 import { Suspense, useEffect, useRef } from 'react';
 import { SFCheckmarkCircleFill, SFExclamationmarkCircle, SFInfoCircle, SFArrowClockwise } from 'sf-symbols-lib';
+import { Analytics } from '@vercel/analytics/react';
 import RoutesConfig from './routes';
 import { useUiStore, resolveTheme } from '@/stores/ui-store';
 import { useAuthStore } from '@/stores/auth-store';
@@ -105,6 +106,7 @@ export default function App() {
         <Suspense fallback={null}>
           <RoutesConfig />
         </Suspense>
+        <Analytics />
         <Toaster
           position="top-right"
           gutter={12}
