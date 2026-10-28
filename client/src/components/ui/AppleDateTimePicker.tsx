@@ -7,7 +7,7 @@ import {
   SFChevronRight,
   SFCheckmark,
 } from '@/components/ui/AppleIcon';
-import { Calendar as CalendarIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
 
 export interface AppleDateTimePickerProps {
@@ -86,8 +86,12 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
   const [isOpen, setIsOpen] = useState(embedded || defaultOpen);
   const { shouldRender: shouldRenderDropdown, isExiting: isDropdownExiting } = useAnimatedPresence(isOpen, 220);
 
-  // View mode: 'calendar' | 'monthPicker' | 'yearPicker'
-  const [viewMode, setViewMode] = useState<'calendar' | 'monthPicker' | 'yearPicker'>('calendar');
+  // Layer 3 sub-picker state: 'month' | 'year' | null
+  const [activeSubPicker, setActiveSubPicker] = useState<'month' | 'year' | null>(null);
+  const { shouldRender: shouldRenderSubPicker, isExiting: isSubPickerExiting } = useAnimatedPresence(
+    activeSubPicker !== null,
+    180
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -151,10 +155,17 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
   // Calendar navigation state (month & year)
   const [navYear, setNavYear] = useState(currentDate.getFullYear());
   const [navMonth, setNavMonth] = useState(currentDate.getMonth());
-  const [yearInputStr, setYearInputStr] = useState(() => String(currentDate.getFullYear()));
+  const [yearPageBase, setYearPageBase] = useState(() => Math.floor(currentDate.getFullYear() / 12) * 12);
+
+  // Close sub-picker if main popover closes
+  useEffect(() => {
+    if (!isOpen) {
+      setActiveSubPicker(null);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
-    setYearInputStr(String(navYear));
+    setYearPageBase(Math.floor(navYear / 12) * 12);
   }, [navYear]);
 
   // Local hours & minutes
@@ -303,7 +314,8 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
 
   // Render the petite, ultra-compact square Apple picker panel
   const renderPickerBody = () => (
-    <div className="w-[288px] mx-auto p-3.5 rounded-2xl bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-2xl border border-black/[0.08] dark:border-white/[0.12] shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.65)] space-y-2.5 select-none font-sans text-left">
+    <div className="relative w-[288px] mx-auto p-3.5 rounded-2xl bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-2xl border border-black/[0.08] dark:border-white/[0.12] shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.65)] space-y-2.5 select-none font-sans text-left overflow-hidden">
+      {/* ─────────────────── LAYER 2: Main Calendar & Time Controls ─────────────────── */}
       {/* 1. Month & Year Navigation Header: Separated Month & Year controls */}
       <div className="flex items-center justify-between gap-1.5 px-0.5">
         {/* Month Selector Capsule */}
@@ -319,14 +331,9 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
 
           <button
             type="button"
-            onClick={() => setViewMode(viewMode === 'monthPicker' ? 'calendar' : 'monthPicker')}
-            className={cn(
-              'px-2.5 py-0.5 rounded-lg text-[12.5px] font-semibold transition-all cursor-pointer select-none',
-              viewMode === 'monthPicker'
-                ? 'bg-[#0071e3]/12 text-[#0071e3] dark:text-[#2997ff] ring-1 ring-[#0071e3]/30 shadow-2xs'
-                : 'text-[#1d1d1f] dark:text-white hover:text-[#0071e3]'
-            )}
-            title="Nhấp để mở bảng chọn 12 tháng"
+            onClick={() => setActiveSubPicker(activeSubPicker === 'month' ? null : 'month')}
+            className="px-2 py-0.5 text-[12.5px] font-semibold text-[#0071e3] dark:text-[#2997ff] hover:opacity-80 active:scale-95 transition-opacity cursor-pointer select-none"
+            title="Nhấp để mở bảng chọn tháng"
           >
             <span>{MONTH_NAMES[navMonth]}</span>
           </button>
@@ -354,14 +361,12 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
 
           <button
             type="button"
-            onClick={() => setViewMode(viewMode === 'yearPicker' ? 'calendar' : 'yearPicker')}
-            className={cn(
-              'px-2.5 py-0.5 rounded-lg text-[12.5px] font-semibold transition-all cursor-pointer select-none tabular-nums',
-              viewMode === 'yearPicker'
-                ? 'bg-[#0071e3]/12 text-[#0071e3] dark:text-[#2997ff] ring-1 ring-[#0071e3]/30 shadow-2xs'
-                : 'text-[#1d1d1f] dark:text-white hover:text-[#0071e3]'
-            )}
-            title="Nhấp để mở bảng chọn năm (0 - 9999)"
+            onClick={() => {
+              setYearPageBase(Math.floor(navYear / 12) * 12);
+              setActiveSubPicker(activeSubPicker === 'year' ? null : 'year');
+            }}
+            className="px-2 py-0.5 text-[12.5px] font-semibold text-[#0071e3] dark:text-[#2997ff] hover:opacity-80 active:scale-95 transition-opacity cursor-pointer select-none tabular-nums"
+            title="Nhấp để mở bảng chọn năm"
           >
             <span>{navYear}</span>
           </button>
@@ -377,155 +382,48 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
         </div>
       </div>
 
-      {/* 2. Calendar Body */}
-      {viewMode === 'monthPicker' ? (
-        <div className="grid grid-cols-3 gap-1.5 py-1 animate-in fade-in zoom-in-95 duration-150 ease-out">
-          {MONTH_NAMES.map((mName, mIdx) => {
-            const isCurrMonth = mIdx === navMonth;
+      {/* 2. Calendar Days Grid (ALWAYS intact in Layer 2) */}
+      <div className="space-y-1 animate-in fade-in duration-150 ease-out">
+        {/* Weekday Row */}
+        <div className="grid grid-cols-7 gap-1 text-center py-0.5">
+          {WEEKDAYS.map((wd) => (
+            <span key={wd} className="text-[10px] font-semibold text-[#86868b] dark:text-[#a1a1a6]">
+              {wd}
+            </span>
+          ))}
+        </div>
+
+        {/* Days Grid: Uniform 30px Circular Hit Targets */}
+        <div className="grid grid-cols-7 gap-1 place-items-center">
+          {calendarDays.map((item, index) => {
+            const selected = isSelected(item.date);
+            const today = isToday(item.date);
+            const dayNum = item.date.getDate();
+
             return (
               <button
-                key={mName}
+                key={index}
                 type="button"
-                onClick={() => {
-                  setNavMonth(mIdx);
-                  const newD = new Date(currentDate);
-                  newD.setFullYear(navYear);
-                  newD.setMonth(mIdx);
-                  onChange(toDatetimeLocalString(newD));
-                  setViewMode('calendar');
-                }}
+                onClick={() => handleSelectDay(item.date)}
                 className={cn(
-                  'py-2 rounded-xl text-[11px] font-medium transition-all cursor-pointer',
-                  isCurrMonth
-                    ? 'bg-[#0071e3] text-white font-semibold shadow-2xs'
-                    : 'hover:bg-black/5 dark:hover:bg-white/10 text-[#1d1d1f] dark:text-[#f5f5f7]'
+                  'w-[30px] h-[30px] rounded-full text-[12px] font-medium flex items-center justify-center transition-all cursor-pointer relative',
+                  item.isCurrentMonth
+                    ? 'text-[#1d1d1f] dark:text-[#f5f5f7]'
+                    : 'text-[#86868b]/30 dark:text-[#a1a1a6]/25',
+                  selected &&
+                    'bg-[#0071e3] text-white font-semibold shadow-[0_2px_8px_rgba(0,113,227,0.4)] ring-0',
+                  today &&
+                    !selected &&
+                    'font-bold text-[#0071e3] dark:text-[#2997ff] bg-[#0071e3]/12 ring-1 ring-[#0071e3]/30',
+                  !selected && 'hover:bg-black/5 dark:hover:bg-white/10 active:scale-95'
                 )}
               >
-                {mName}
+                <span className="tabular-nums leading-none">{dayNum}</span>
               </button>
             );
           })}
         </div>
-      ) : viewMode === 'yearPicker' ? (
-        <div className="space-y-2 py-1 animate-in fade-in zoom-in-95 duration-150 ease-out">
-          {/* Quick Year Jump Input & Decade Steppers */}
-          <div className="flex items-center gap-1 px-1.5 py-1 bg-black/[0.03] dark:bg-white/[0.05] rounded-xl border border-black/5 dark:border-white/10">
-            <button
-              type="button"
-              onClick={() => setNavYear((y) => Math.max(0, y - 10))}
-              className="px-1.5 py-0.5 rounded-lg text-[10.5px] font-semibold text-[#86868b] hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-              title="Lùi 10 năm"
-            >
-              -10
-            </button>
-            <input
-              type="number"
-              min={0}
-              max={9999}
-              value={yearInputStr}
-              onChange={(e) => {
-                const val = e.target.value;
-                setYearInputStr(val);
-                const parsed = parseInt(val, 10);
-                if (!isNaN(parsed) && parsed >= 0 && parsed <= 9999) {
-                  setNavYear(parsed);
-                  const newD = new Date(currentDate);
-                  newD.setFullYear(parsed);
-                  newD.setMonth(navMonth);
-                  onChange(toDatetimeLocalString(newD));
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  setViewMode('calendar');
-                }
-              }}
-              placeholder="0 - 9999"
-              className="flex-1 bg-transparent text-center font-bold text-[13px] text-[#1d1d1f] dark:text-white outline-none tabular-nums"
-              autoFocus
-            />
-            <button
-              type="button"
-              onClick={() => setNavYear((y) => Math.min(9999, y + 10))}
-              className="px-1.5 py-0.5 rounded-lg text-[10.5px] font-semibold text-[#86868b] hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-              title="Tiến 10 năm"
-            >
-              +10
-            </button>
-          </div>
-
-          {/* Quick Select Grid around current year */}
-          <div className="grid grid-cols-3 gap-1.5 max-h-[140px] overflow-y-auto scrollbar-thin pr-0.5">
-            {Array.from({ length: 15 }, (_, i) => Math.max(0, Math.min(9999, navYear - 7 + i))).map((y) => {
-              const isCurrYear = y === navYear;
-              return (
-                <button
-                  key={y}
-                  type="button"
-                  onClick={() => {
-                    setNavYear(y);
-                    const newD = new Date(currentDate);
-                    newD.setFullYear(y);
-                    newD.setMonth(navMonth);
-                    onChange(toDatetimeLocalString(newD));
-                    setViewMode('calendar');
-                  }}
-                  className={cn(
-                    'py-1.5 rounded-xl text-[12px] font-medium transition-all cursor-pointer tabular-nums',
-                    isCurrYear
-                      ? 'bg-[#0071e3] text-white font-semibold shadow-2xs'
-                      : 'hover:bg-black/5 dark:hover:bg-white/10 text-[#1d1d1f] dark:text-[#f5f5f7]'
-                  )}
-                >
-                  {y}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-1 animate-in fade-in duration-150 ease-out">
-          {/* Weekday Row */}
-          <div className="grid grid-cols-7 gap-1 text-center py-0.5">
-            {WEEKDAYS.map((wd) => (
-              <span key={wd} className="text-[10px] font-semibold text-[#86868b] dark:text-[#a1a1a6]">
-                {wd}
-              </span>
-            ))}
-          </div>
-
-          {/* Days Grid: Uniform 30px Circular Hit Targets */}
-          <div className="grid grid-cols-7 gap-1 place-items-center">
-            {calendarDays.map((item, index) => {
-              const selected = isSelected(item.date);
-              const today = isToday(item.date);
-              const dayNum = item.date.getDate();
-
-              return (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => handleSelectDay(item.date)}
-                  className={cn(
-                    'w-[30px] h-[30px] rounded-full text-[12px] font-medium flex items-center justify-center transition-all cursor-pointer relative',
-                    item.isCurrentMonth
-                      ? 'text-[#1d1d1f] dark:text-[#f5f5f7]'
-                      : 'text-[#86868b]/30 dark:text-[#a1a1a6]/25',
-                    selected &&
-                      'bg-[#0071e3] text-white font-semibold shadow-[0_2px_8px_rgba(0,113,227,0.4)] ring-0',
-                    today &&
-                      !selected &&
-                      'font-bold text-[#0071e3] dark:text-[#2997ff] bg-[#0071e3]/12 ring-1 ring-[#0071e3]/30',
-                    !selected && 'hover:bg-black/5 dark:hover:bg-white/10 active:scale-95'
-                  )}
-                >
-                  <span className="tabular-nums leading-none">{dayNum}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* 3. Detailed Time Capsule & Done Action Bar */}
       <div className="pt-2 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-between gap-2">
@@ -621,6 +519,133 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
           </button>
         )}
       </div>
+
+      {/* ─────────────────── LAYER 3: Dedicated Pop-up Box for Month / Year ─────────────────── */}
+      {shouldRenderSubPicker && (
+        <div
+          className={cn(
+            'absolute inset-0 z-30 rounded-2xl flex items-center justify-center p-2.5',
+            'bg-black/20 dark:bg-black/45 backdrop-blur-xs',
+            'transition-opacity duration-200 ease-out',
+            isSubPickerExiting
+              ? 'opacity-0 pointer-events-none'
+              : 'opacity-100 pointer-events-auto animate-in fade-in duration-200'
+          )}
+          onClick={() => setActiveSubPicker(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              'w-full p-3 rounded-2xl bg-white/98 dark:bg-[#252528]/98 backdrop-blur-2xl shadow-[0_16px_40px_rgba(0,0,0,0.3)] border border-black/10 dark:border-white/15 flex flex-col gap-2',
+              'transition-all duration-200 ease-out',
+              isSubPickerExiting
+                ? 'scale-95 opacity-0'
+                : 'scale-100 opacity-100 animate-in fade-in zoom-in-95 duration-200'
+            )}
+          >
+            {/* Header: Title / Navigation + Close Button */}
+            <div className="flex items-center justify-between pb-1.5 border-b border-black/5 dark:border-white/10">
+              {activeSubPicker === 'month' ? (
+                <span className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-white px-1">
+                  Chọn tháng
+                </span>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setYearPageBase((p) => Math.max(0, p - 12))}
+                    className="w-6 h-6 rounded-lg flex items-center justify-center text-[#86868b] hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
+                    title="12 năm trước"
+                  >
+                    <SFChevronLeft size={11} />
+                  </button>
+                  <span className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-white px-1 tabular-nums">
+                    Chọn năm
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setYearPageBase((p) => Math.min(9988, p + 12))}
+                    className="w-6 h-6 rounded-lg flex items-center justify-center text-[#86868b] hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
+                    title="12 năm sau"
+                  >
+                    <SFChevronRight size={11} />
+                  </button>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setActiveSubPicker(null)}
+                className="w-6 h-6 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer active:scale-90"
+                title="Đóng"
+              >
+                <X size={12} />
+              </button>
+            </div>
+
+            {/* Body Grid: 12 options in 4 rows of 3 cols */}
+            {activeSubPicker === 'month' ? (
+              <div className="grid grid-cols-3 gap-1.5 py-0.5">
+                {MONTH_NAMES.map((mName, mIdx) => {
+                  const isCurrMonth = mIdx === navMonth;
+                  return (
+                    <button
+                      key={mName}
+                      type="button"
+                      onClick={() => {
+                        setNavMonth(mIdx);
+                        const newD = new Date(currentDate);
+                        newD.setFullYear(navYear);
+                        newD.setMonth(mIdx);
+                        onChange(toDatetimeLocalString(newD));
+                        setActiveSubPicker(null);
+                      }}
+                      className={cn(
+                        'py-2 rounded-xl text-[11.5px] font-medium transition-all cursor-pointer',
+                        isCurrMonth
+                          ? 'bg-[#0071e3] text-white font-semibold shadow-2xs'
+                          : 'hover:bg-black/5 dark:hover:bg-white/10 text-[#1d1d1f] dark:text-[#f5f5f7]'
+                      )}
+                    >
+                      {mName}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-1.5 py-0.5">
+                {Array.from({ length: 12 }, (_, i) => yearPageBase + i)
+                  .filter((y) => y <= 9999)
+                  .map((y) => {
+                    const isCurrYear = y === navYear;
+                    return (
+                      <button
+                        key={y}
+                        type="button"
+                        onClick={() => {
+                          setNavYear(y);
+                          const newD = new Date(currentDate);
+                          newD.setFullYear(y);
+                          newD.setMonth(navMonth);
+                          onChange(toDatetimeLocalString(newD));
+                          setActiveSubPicker(null);
+                        }}
+                        className={cn(
+                          'py-2 rounded-xl text-[12px] font-medium transition-all cursor-pointer tabular-nums',
+                          isCurrYear
+                            ? 'bg-[#0071e3] text-white font-semibold shadow-2xs'
+                            : 'hover:bg-black/5 dark:hover:bg-white/10 text-[#1d1d1f] dark:text-[#f5f5f7]'
+                        )}
+                      >
+                        {y}
+                      </button>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 
