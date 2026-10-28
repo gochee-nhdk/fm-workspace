@@ -1269,6 +1269,7 @@ export const QuickNoteWindow: React.FC = () => {
     left: number;
     right: number;
     width: number;
+    height: number;
     lineRects: Array<{ top: number; left: number; width: number; height: number }>;
   } | null>(null);
   const writingToolAbortControllerRef = useRef<AbortController | null>(null);
@@ -1644,6 +1645,8 @@ export const QuickNoteWindow: React.FC = () => {
       toast('Đang có tác vụ AI đang xử lý. Vui lòng đợi hoặc bấm Hủy.', { icon: '⏳', id: 'writing-busy' });
       return;
     }
+    setAiDraft(null);
+    setAiDraftCopied(false);
     setShowWritingToolsMenu(false);
     setShowCompactAiMenu(false);
     let targetText = extractPlainText(localContent);
@@ -2062,6 +2065,7 @@ export const QuickNoteWindow: React.FC = () => {
           left: selRect.left - canvasRect.left,
           right: selRect.right - canvasRect.left,
           width: selRect.width,
+          height: selRect.height,
           lineRects,
         });
 
@@ -2253,6 +2257,8 @@ export const QuickNoteWindow: React.FC = () => {
       toast('Đang có tác vụ AI đang xử lý. Vui lòng đợi hoặc bấm Hủy.', { icon: '⏳', id: 'writing-busy' });
       return;
     }
+    setAiDraft(null);
+    setAiDraftCopied(false);
     if (!selectionState || !selectionState.text.trim()) return;
     const targetText = selectionState.text.trim();
 
@@ -5318,119 +5324,188 @@ export const QuickNoteWindow: React.FC = () => {
               ) : (
                 /* Seamless Flowing Writing Canvas */
                 <div ref={canvasRef} className="flex-1 flex flex-col min-h-0 relative">
-                  {/* Apple AI Sweeping Scanning Beam over selected text lines */}
-                  {writingToolLoading && selectionBounds?.lineRects && selectionBounds.lineRects.length > 0 && (
-                    <div className="pointer-events-none select-none z-20">
-                      {selectionBounds.lineRects.map((r, i) => (
-                        <div
-                          key={`scanning-line-${i}`}
-                          className="absolute apple-ai-scanning-overlay overflow-hidden rounded-md pointer-events-none"
-                          style={{
-                            top: `${r.top}px`,
-                            left: `${r.left}px`,
-                            width: `${r.width}px`,
-                            height: `${r.height}px`,
-                          }}
-                        >
-                          <div className="apple-ai-scanning-beam" />
-                        </div>
-                      ))}
+                  {/* Apple Intelligence Unified Scanning Aura & Laser Beam across the selected text */}
+                  {writingToolLoading && selectionBounds && (
+                    <div
+                      className="absolute pointer-events-none select-none z-20 overflow-hidden apple-ai-unified-aura"
+                      style={{
+                        top: `${Math.max(0, selectionBounds.top - 3)}px`,
+                        left: `${Math.max(0, selectionBounds.left - 4)}px`,
+                        width: `${Math.max(30, selectionBounds.width + 8)}px`,
+                        height: `${Math.max(22, (selectionBounds.height || selectionBounds.bottom - selectionBounds.top) + 6)}px`,
+                      }}
+                    >
+                      <div className="apple-ai-scanning-beam" />
                     </div>
                   )}
+
+                  {/* Placeholder overlay when empty */}
+                  {(!localContent ||
+                    localContent === '<p><br></p>' ||
+                    localContent === '<br>' ||
+                    localContent.trim() === '') && (
+                    <div className="absolute top-0 left-0 text-[#86868b]/50 dark:text-[#636366]/60 text-[14.5px] pointer-events-none select-none">
+                      Gõ ghi chú, kế hoạch thu mua, thông tin cần nhớ... (Phím tắt Alt + N)
+                    </div>
+                  )}
+
+                  {/* Main ContentEditable Editor */}
+                  <div
+                    ref={(el) => {
+                      (editorRef as any).current = el;
+                      if (el) {
+                        const source = localContentRef.current || activeNote?.content || '';
+                        const html = ensureHtml(source);
+                        if (el.innerHTML !== html) {
+                          el.innerHTML = html;
+                        }
+                      }
+                    }}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onKeyDown={handleEditorKeyDown}
+                    onInput={handleEditorInput}
+                    onSelect={handleEditorSelect}
+                    onMouseDown={handleEditorMouseDown}
+                    onMouseUp={handleEditorSelect}
+                    onKeyUp={handleEditorSelect}
+                    onScroll={handleEditorSelect}
+                    onPaste={handleEditorPaste}
+                    onClick={handleEditorClick}
+                    className="flex-1 w-full bg-transparent border-0 outline-none shadow-none ring-0 focus:ring-0 focus:outline-none focus:border-none font-sans text-[14.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] p-0 pr-1 selection:bg-purple-500/25 selection:text-[#1d1d1f] dark:selection:text-white overflow-y-auto min-h-0 [&_h1]:text-2xl [&_h1]:font-bold [&_h1_*]:font-bold [&_h1]:text-[#1d1d1f] dark:[&_h1]:text-white [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:leading-tight [&_h2]:text-xl [&_h2]:font-bold [&_h2_*]:font-bold [&_h2]:text-[#1d1d1f] dark:[&_h2]:text-white [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[17px] [&_h3]:font-semibold [&_h3_*]:font-semibold [&_h3]:text-[#1d1d1f] dark:[&_h3]:text-white [&_h3]:mt-2 [&_h3]:mb-0.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline [&_s]:line-through [&_img]:!max-w-[320px] [&_img]:!max-h-[220px] [&_img]:!w-auto [&_img]:!h-auto [&_img]:object-contain [&_img]:rounded-xl [&_img]:cursor-zoom-in [&_.apple-img-wrapper]:my-2 [&_.apple-img-wrapper_img]:!m-0 [&_.apple-img-wrapper_img]:!p-0 [&_.apple-img-wrapper_img]:!border-0 [&_.apple-img-wrapper_img]:!shadow-none [&_.apple-img-wrapper_img]:!block [&_.apple-file-attachment]:transition-all hover:[&_.apple-file-attachment]:bg-black/[0.07] dark:hover:[&_.apple-file-attachment]:bg-white/[0.08] cursor-text scrollbar-thin [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-black/30"
+                    style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
+                  />
 
                   {/* Floating AI Progress & Cancel Pill */}
-                  {writingToolLoading && (
-                    <div
-                      className="absolute z-35 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-3xl border border-purple-500/30 dark:border-purple-400/40 shadow-[0_12px_32px_rgba(147,51,234,0.18)] select-none apple-floating-toolbar-enter"
-                      style={{
-                        top: `${Math.max(6, Math.min((canvasRef.current?.clientHeight || 400) - 44, (selectionBounds?.bottom || 80) + 8))}px`,
-                        left: `${Math.max(12, Math.min((canvasRef.current?.clientWidth || 500) - 220, selectionBounds ? selectionBounds.left : 20))}px`,
-                      }}
-                    >
-                      <div className="w-3.5 h-3.5 rounded-full border-2 border-[#a855f7] border-t-transparent animate-spin shrink-0" />
-                      <span className="text-[12px] font-semibold bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] bg-clip-text text-transparent select-none whitespace-nowrap">
-                        Đang quét & xử lý AI...
-                      </span>
-                      <button
-                        type="button"
-                        onClick={handleCancelWritingTool}
-                        className="ml-1 px-2 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white text-[11px] font-semibold transition-all duration-150 cursor-pointer active:scale-95 flex items-center gap-1 shadow-2xs"
-                        title="Dừng xử lý AI ngay lập tức"
+                  {writingToolLoading && (() => {
+                    const canvasW = canvasRef.current?.clientWidth || 500;
+                    const canvasH = canvasRef.current?.clientHeight || 400;
+                    const pillWidth = 240;
+                    let pillLeft = selectionBounds
+                      ? selectionBounds.left + selectionBounds.width / 2
+                      : canvasW / 2;
+                    pillLeft = Math.max(pillWidth / 2 + 16, Math.min(canvasW - pillWidth / 2 - 16, pillLeft));
+
+                    let pillTop = (selectionBounds?.bottom || 60) + 10;
+                    if (pillTop + 44 > canvasH && selectionBounds && selectionBounds.top > 50) {
+                      pillTop = Math.max(10, selectionBounds.top - 44 - 10);
+                    } else {
+                      pillTop = Math.min(canvasH - 48, Math.max(10, pillTop));
+                    }
+
+                    return (
+                      <div
+                        className="absolute z-50 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white dark:bg-[#1c1c24] border border-purple-500/40 dark:border-purple-400/50 shadow-[0_14px_36px_rgba(0,0,0,0.22),0_2px_8px_rgba(168,85,247,0.18)] select-none animate-in fade-in zoom-in-95 duration-150"
+                        style={{
+                          top: `${pillTop}px`,
+                          left: `${pillLeft}px`,
+                          transform: 'translateX(-50%)',
+                        }}
                       >
-                        <span>✕ Hủy</span>
-                      </button>
-                    </div>
-                  )}
+                        <div className="w-3.5 h-3.5 rounded-full border-2 border-[#a855f7] border-t-transparent animate-spin shrink-0" />
+                        <span className="text-[12px] font-semibold bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] bg-clip-text text-transparent select-none whitespace-nowrap">
+                          Đang quét & xử lý AI...
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleCancelWritingTool}
+                          className="ml-1 px-2.5 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white text-[11px] font-semibold transition-all duration-150 cursor-pointer active:scale-95 flex items-center gap-1 shadow-2xs"
+                          title="Dừng xử lý AI ngay lập tức"
+                        >
+                          <span>✕ Hủy</span>
+                        </button>
+                      </div>
+                    );
+                  })()}
 
-                  {/* Minimalist Apple Liquid Glass Draft Card Floating Below Selection */}
-                  {aiDraft && (
-                    <div
-                      className="absolute z-35 w-[calc(100%-24px)] max-w-[500px] p-3 rounded-2xl bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-3xl border border-purple-500/25 dark:border-purple-400/30 shadow-[0_20px_50px_rgba(0,0,0,0.22),0_4px_16px_rgba(147,51,234,0.1)] select-none animate-in fade-in zoom-in-95 duration-200 flex flex-col gap-2.5"
-                      style={{
-                        top: `${Math.max(8, Math.min((canvasRef.current?.clientHeight || 500) - 190, (selectionBounds?.bottom || 80) + 8))}px`,
-                        left: `${Math.max(12, Math.min((canvasRef.current?.clientWidth || 600) - 520, selectionBounds ? selectionBounds.left : 12))}px`,
-                      }}
-                    >
-                      {/* Header */}
-                      <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-black/[0.06] dark:border-white/10">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white flex items-center justify-center shadow-xs shrink-0">
-                            <SFWandAndSparkles size={11} className="text-white" />
-                          </div>
-                          <span className="text-[12px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white truncate">
-                            {aiDraft.title || 'Bản nháp Writing Tools'}
-                          </span>
-                          {aiDraft.usedGemini && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
-                              Gemini
+                  {/* Minimalist Apple Liquid Glass Draft Card Floating Below/Above Selection */}
+                  {aiDraft && (() => {
+                    const canvasW = canvasRef.current?.clientWidth || 500;
+                    const canvasH = canvasRef.current?.clientHeight || 500;
+                    const cardWidth = Math.min(460, Math.max(320, canvasW - 32));
+                    let cardLeft = selectionBounds
+                      ? selectionBounds.left + selectionBounds.width / 2
+                      : canvasW / 2;
+                    cardLeft = Math.max(cardWidth / 2 + 16, Math.min(canvasW - cardWidth / 2 - 16, cardLeft));
+
+                    let cardTop = (selectionBounds?.bottom || 60) + 10;
+                    if (cardTop + 210 > canvasH && selectionBounds && selectionBounds.top > 210) {
+                      cardTop = Math.max(10, selectionBounds.top - 210 - 10);
+                    } else {
+                      cardTop = Math.min(canvasH - 190, Math.max(10, cardTop));
+                    }
+
+                    return (
+                      <div
+                        className="absolute z-50 p-3.5 rounded-2xl bg-white dark:bg-[#1e1e26] border border-black/10 dark:border-white/15 shadow-[0_24px_64px_-10px_rgba(0,0,0,0.28),0_4px_16px_rgba(168,85,247,0.12),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none animate-in fade-in zoom-in-95 duration-180 flex flex-col gap-2.5"
+                        style={{
+                          top: `${cardTop}px`,
+                          left: `${cardLeft}px`,
+                          width: `${cardWidth}px`,
+                          transform: 'translateX(-50%)',
+                        }}
+                      >
+                        {/* Header */}
+                        <div className="flex items-center justify-between gap-2 pb-2 border-b border-black/[0.06] dark:border-white/10">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-5.5 h-5.5 rounded-lg bg-gradient-to-tr from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white flex items-center justify-center shadow-xs shrink-0">
+                              <SFWandAndSparkles size={11.5} className="text-white" />
+                            </div>
+                            <span className="text-[12.5px] font-bold tracking-tight text-[#1d1d1f] dark:text-white truncate">
+                              {aiDraft.title || 'Bản nháp Writing Tools'}
                             </span>
-                          )}
+                            {aiDraft.usedGemini && (
+                              <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
+                                Gemini
+                              </span>
+                            )}
+                          </div>
+                          <CloseButton
+                            onClick={handleDiscardAiDraft}
+                            size="sm"
+                            label="Đóng"
+                            title="Hủy bản nháp"
+                          />
                         </div>
-                        <CloseButton
-                          onClick={handleDiscardAiDraft}
-                          size="sm"
-                          label="Đóng"
-                          title="Hủy bản nháp"
-                        />
-                      </div>
 
-                      {/* Content Preview */}
-                      <div className="text-[13px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[160px] overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal">
-                        {aiDraft.result}
-                      </div>
+                        {/* Content Preview */}
+                        <div className="text-[13.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[180px] overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
+                          {aiDraft.result}
+                        </div>
 
-                      {/* Action buttons */}
-                      <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-black/[0.06] dark:border-white/10">
-                        <button
-                          type="button"
-                          onClick={handleCopyAiDraft}
-                          className="px-2.5 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1"
-                          title="Sao chép kết quả"
-                        >
-                          <Copy size={11} />
-                          <span>{aiDraftCopied ? 'Đã sao chép' : 'Sao chép'}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleApplyAiDraft('append')}
-                          className="px-2.5 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1"
-                          title="Chèn tiếp vào dưới ghi chú"
-                        >
-                          <SFPlus size={11} />
-                          <span>Chèn dưới</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleApplyAiDraft('replace')}
-                          className="px-3 py-1 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
-                          title="Thay thế văn bản đã chọn"
-                        >
-                          <SFCheckmark size={11} className="stroke-[3]" />
-                          <span>Thay thế</span>
-                        </button>
+                        {/* Action buttons */}
+                        <div className="flex items-center justify-end gap-1.5 pt-1">
+                          <button
+                            type="button"
+                            onClick={handleCopyAiDraft}
+                            className="px-2.5 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1 shadow-2xs"
+                            title="Sao chép kết quả"
+                          >
+                            <Copy size={11} />
+                            <span>{aiDraftCopied ? 'Đã chép' : 'Sao chép'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyAiDraft('append')}
+                            className="px-3 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1 shadow-2xs"
+                            title="Chèn tiếp vào dưới ghi chú"
+                          >
+                            <SFPlus size={11} />
+                            <span>Chèn dưới</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyAiDraft('replace')}
+                            className="px-3.5 py-1.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11.5px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
+                            title="Thay thế văn bản đã chọn"
+                          >
+                            <SFCheckmark size={11.5} className="stroke-[3]" />
+                            <span>Thay thế</span>
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {/* ──────────────── Apple Liquid Glass Floating Selection Toolbar (Follows Highlighted Text) ──────────────── */}
                   {selectionState && toolbarCoords && !writingToolLoading && !aiDraft && (
@@ -5754,42 +5829,6 @@ export const QuickNoteWindow: React.FC = () => {
                       </div>
                     </div>
                   )}
-
-                  {/* Placeholder overlay when empty */}
-                  {(!localContent ||
-                    localContent === '<p><br></p>' ||
-                    localContent === '<br>' ||
-                    localContent.trim() === '') && (
-                    <div className="absolute top-0 left-0 text-[#86868b]/50 dark:text-[#636366]/60 text-[14.5px] pointer-events-none select-none">
-                      Gõ ghi chú, kế hoạch thu mua, thông tin cần nhớ... (Phím tắt Alt + N)
-                    </div>
-                  )}
-
-                  <div
-                    ref={(el) => {
-                      (editorRef as any).current = el;
-                      if (el) {
-                        const source = localContentRef.current || activeNote?.content || '';
-                        const html = ensureHtml(source);
-                        if (el.innerHTML !== html) {
-                          el.innerHTML = html;
-                        }
-                      }
-                    }}
-                    contentEditable
-                    suppressContentEditableWarning
-                    onKeyDown={handleEditorKeyDown}
-                    onInput={handleEditorInput}
-                    onSelect={handleEditorSelect}
-                    onMouseDown={handleEditorMouseDown}
-                    onMouseUp={handleEditorSelect}
-                    onKeyUp={handleEditorSelect}
-                    onScroll={handleEditorSelect}
-                    onPaste={handleEditorPaste}
-                    onClick={handleEditorClick}
-                    className="flex-1 w-full bg-transparent border-0 outline-none shadow-none ring-0 focus:ring-0 focus:outline-none focus:border-none font-sans text-[14.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] p-0 pr-1 selection:bg-purple-500/25 selection:text-[#1d1d1f] dark:selection:text-white overflow-y-auto min-h-0 [&_h1]:text-2xl [&_h1]:font-bold [&_h1_*]:font-bold [&_h1]:text-[#1d1d1f] dark:[&_h1]:text-white [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:leading-tight [&_h2]:text-xl [&_h2]:font-bold [&_h2_*]:font-bold [&_h2]:text-[#1d1d1f] dark:[&_h2]:text-white [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[17px] [&_h3]:font-semibold [&_h3_*]:font-semibold [&_h3]:text-[#1d1d1f] dark:[&_h3]:text-white [&_h3]:mt-2 [&_h3]:mb-0.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline [&_s]:line-through [&_img]:!max-w-[320px] [&_img]:!max-h-[220px] [&_img]:!w-auto [&_img]:!h-auto [&_img]:object-contain [&_img]:rounded-xl [&_img]:cursor-zoom-in [&_.apple-img-wrapper]:my-2 [&_.apple-img-wrapper_img]:!m-0 [&_.apple-img-wrapper_img]:!p-0 [&_.apple-img-wrapper_img]:!border-0 [&_.apple-img-wrapper_img]:!shadow-none [&_.apple-img-wrapper_img]:!block [&_.apple-file-attachment]:transition-all hover:[&_.apple-file-attachment]:bg-black/[0.07] dark:hover:[&_.apple-file-attachment]:bg-white/[0.08] cursor-text scrollbar-thin [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-black/30"
-                    style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
-                  />
                 </div>
               )}
 
