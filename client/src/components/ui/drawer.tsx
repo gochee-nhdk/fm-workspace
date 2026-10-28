@@ -95,7 +95,7 @@ export const Drawer: React.FC<DrawerProps> = ({
         className={cn(
           'relative w-full bg-white dark:bg-[#1c1c22] shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border-t sm:border border-black/10 dark:border-white/15 rounded-t-[28px] sm:rounded-[24px] rounded-b-none sm:rounded-b-[24px] flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden z-10 pb-[env(safe-area-inset-bottom,0px)]',
           widths[width],
-          isClosing ? 'liquid-droplet-exit' : 'liquid-droplet-enter'
+          isClosing ? 'apple-bottom-sheet-exit sm:liquid-droplet-exit' : 'apple-bottom-sheet-enter sm:liquid-droplet-enter'
         )}
       >
         {/* Mobile Sheet Drag Indicator Handle */}

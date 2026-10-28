@@ -4052,7 +4052,9 @@ export const QuickNoteWindow: React.FC = () => {
                   ? "shadow-[0_32px_85px_rgba(0,0,0,0.3)] transition-none select-none pointer-events-auto"
                   : "shadow-[0_20px_60px_rgba(0,0,0,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85)] transition-[right,bottom,width,height,border-radius,box-shadow] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
               ),
-          isWindowClosing ? "liquid-droplet-exit pointer-events-none" : "liquid-droplet-enter"
+          isWindowClosing
+            ? (isMobileScreen ? "apple-bottom-sheet-exit pointer-events-none" : "liquid-droplet-exit pointer-events-none")
+            : (isMobileScreen ? "apple-bottom-sheet-enter" : "liquid-droplet-enter")
         )}
         onClick={(e) => e.stopPropagation()}
         onDragOver={(e) => {

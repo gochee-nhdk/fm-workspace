@@ -27,7 +27,7 @@ import { useNoteStore } from '@/stores/note-store';
 import { Button } from '@/components/ui/button';
 import { CloseButton } from '@/components/ui/close-button';
 import { reminderService } from '@/services/reminderService';
-import { useTabIndicator, useAppleTabSpring } from '@/lib/motion';
+import { useTabIndicator, useAppleTabSpring, motionTokens } from '@/lib/motion';
 import { useSecurityStore } from '@/stores/security-store';
 import { LocalLockScreen } from '@/components/security/LocalLockScreen';
 import { Lock } from 'lucide-react';
@@ -45,6 +45,8 @@ const PAGE_TITLES: Record<string, string> = {
 
 export const AppShell: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMobileMenuClosing, setIsMobileMenuClosing] = useState(false);
+  const closeMobileMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
@@ -124,6 +126,8 @@ export const AppShell: React.FC = () => {
   const activeTabKey = location.pathname.startsWith('/settings') ? '/settings' : '/';
   const sidebarTrackRef = useRef<HTMLDivElement>(null);
   const sidebarPillRef = useRef<HTMLDivElement>(null);
+  const mobileTrackRef = useRef<HTMLDivElement>(null);
+  const mobilePillRef = useRef<HTMLDivElement>(null);
 
   useAppleTabSpring(sidebarTrackRef, sidebarPillRef, activeTabKey, {
     stiffness: 440,
@@ -132,6 +136,31 @@ export const AppShell: React.FC = () => {
     allowDeformation: true,
     orientation: 'vertical',
   });
+
+  useAppleTabSpring(mobileTrackRef, mobilePillRef, activeTabKey, {
+    stiffness: 440,
+    damping: 26,
+    mass: 0.65,
+    allowDeformation: true,
+    orientation: 'vertical',
+  });
+
+  const handleCloseMobileMenu = useCallback(() => {
+    if (isMobileMenuClosing) return;
+    setIsMobileMenuClosing(true);
+    if (closeMobileMenuTimerRef.current) clearTimeout(closeMobileMenuTimerRef.current);
+    closeMobileMenuTimerRef.current = setTimeout(() => {
+      setMobileMenuOpen(false);
+      setIsMobileMenuClosing(false);
+      closeMobileMenuTimerRef.current = null;
+    }, motionTokens.duration.exit);
+  }, [isMobileMenuClosing]);
+
+  useEffect(() => {
+    return () => {
+      if (closeMobileMenuTimerRef.current) clearTimeout(closeMobileMenuTimerRef.current);
+    };
+  }, []);
 
   // ✅ Synchronize CSS variable --sidebar-width for exact visual centering of toasts & modals
   useEffect(() => {
@@ -163,7 +192,7 @@ export const AppShell: React.FC = () => {
         toggleNote();
       }
       if (e.key === 'Escape') {
-        setMobileMenuOpen(false);
+        handleCloseMobileMenu();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -425,10 +454,10 @@ export const AppShell: React.FC = () => {
               </button>
             )}
 
-            {/* Quick Note Button — Chỉ hiển thị trên Desktop (Mobile đã có nút tròn nổi) */}
+            {/* Quick Note Button — Hiển thị đồng nhất trên cả Desktop và Mobile */}
             <button
               onClick={() => openNote()}
-              className="hidden sm:flex liquid-lens-circle w-10 h-10 group relative"
+              className="liquid-lens-circle w-9 h-9 sm:w-10 sm:h-10 group relative"
               title="Notes (Alt + N hoặc Ctrl + J)"
               aria-label="Mở Notes"
             >
@@ -472,158 +501,121 @@ export const AppShell: React.FC = () => {
         </main>
       </div>
 
-      {/* ─────────────────── Mobile Drawer Menu ─────────────────── */}
-      {mobileMenuOpen &&
+      {/* ─────────────────── visionOS Mobile Drawer Menu (100% Desktop Parity & Spring Physics) ─────────────────── */}
+      {(mobileMenuOpen || isMobileMenuClosing) &&
         createPortal(
           <div className="fixed inset-0 z-[9999] md:hidden">
             <div
-              className="fixed inset-0 bg-black/50 backdrop-blur-md transition-opacity"
-              onClick={() => setMobileMenuOpen(false)}
+              className={cn(
+                "fixed inset-0 bg-black/50 backdrop-blur-md",
+                isMobileMenuClosing ? "liquid-backdrop-exit pointer-events-none" : "liquid-backdrop-enter pointer-events-auto"
+              )}
+              onClick={handleCloseMobileMenu}
             />
-            <div className="fixed inset-y-0 left-0 w-[295px] max-w-[85vw] pt-[max(1.25rem,env(safe-area-inset-top,0px))] pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pl-[max(1.25rem,env(safe-area-inset-left,0px))] pr-4 bg-white/95 dark:bg-[#181822]/95 backdrop-blur-3xl shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-250 ease-out border-r border-black/[0.08] dark:border-white/10">
-              {/* Header */}
-              <div className="flex items-center justify-between pb-3.5 border-b border-black/[0.06] dark:border-white/10">
+            <div
+              className={cn(
+                "fixed inset-y-0 left-0 w-[285px] max-w-[85vw] pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] vision-glass-sidebar shadow-2xl flex flex-col z-10 border-r border-black/[0.08] dark:border-white/10 select-none",
+                isMobileMenuClosing ? "apple-drawer-exit pointer-events-none" : "apple-drawer-enter pointer-events-auto"
+              )}
+            >
+              {/* Workspace Brand Header - Exact 1:1 Desktop Match */}
+              <div className="h-[68px] px-3.5 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between gap-2.5 shrink-0">
                 <button
                   type="button"
                   onClick={(e) => {
-                    setMobileMenuOpen(false);
+                    handleCloseMobileMenu();
                     handleLogoClick(e);
                   }}
-                  className="flex items-center gap-2.5 text-left cursor-pointer group focus:outline-none select-none min-w-0"
+                  className="flex items-center gap-2.5 text-left min-w-0 flex-1 group cursor-pointer outline-none select-none [-webkit-tap-highlight-color:transparent]"
                   title="Về trang chủ"
                 >
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-xs border-2 border-white/80 dark:border-white/20 shrink-0">
-                    <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover rounded-full" />
+                  <div className="w-11 h-11 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-[0_4px_14px_rgba(250,196,38,0.38),0_1px_3px_rgba(0,0,0,0.06)] border-2 border-white dark:border-white/20 shrink-0 group-hover:scale-105 active:scale-95 transition-all duration-200">
+                    <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover rounded-full pointer-events-none" />
                   </div>
-                  <div className="min-w-0 flex flex-col">
-                    <span className="font-extrabold text-[14px] leading-tight text-[#1d1d1f] dark:text-white truncate">
+                  <div className="min-w-0 flex-1 flex flex-col justify-center select-none font-sans">
+                    <span className="font-extrabold text-[14px] leading-tight tracking-tight text-[#1d1d1f] dark:text-white whitespace-nowrap group-hover:text-[#FAC426] transition-colors duration-150">
                       FARMERS MARKET
                     </span>
-                    <span className="text-[9.5px] font-bold text-[#0088FF] dark:text-[#0091FF] tracking-wider uppercase mt-0.5">
+                    <span className="text-[9.5px] leading-tight font-bold text-[#0088FF] dark:text-[#0091FF] group-hover:text-[#FAC426] transition-colors duration-150 tracking-wider uppercase mt-1 whitespace-nowrap">
                       FM WORKSPACE
                     </span>
                   </div>
                 </button>
                 <CloseButton
-                  onClick={() => setMobileMenuOpen(false)}
-                  size="sm"
+                  onClick={handleCloseMobileMenu}
+                  size="md"
                   label="Đóng menu"
                   title="Đóng menu"
                 />
               </div>
 
-              {/* Navigation Links */}
-              <div className="mt-4 space-y-4 flex-1 overflow-y-auto scrollbar-none">
-                <div>
-                  <div className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#86868b] dark:text-[#a1a1a6]">
-                    Trang chính
-                  </div>
-                  <nav className="space-y-1">
-                    {navItems.map((item) => (
-                      <NavLink
-                        key={item.to}
-                        to={item.to}
-                        end={item.to === '/'}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className={({ isActive }) =>
-                          `flex items-center gap-3 px-3.5 py-2.5 rounded-full text-[13.5px] transition-all duration-200 ${
-                            isActive
-                              ? 'bg-[#0071e3]/12 dark:bg-[#0071e3]/24 text-[#0071e3] dark:text-[#3898ff] font-semibold border border-[#0071e3]/25 dark:border-[#0071e3]/35 shadow-[inset_0_1.5px_1px_rgba(255,255,255,0.7),inset_0_-1px_1px_rgba(0,113,227,0.1),0_2px_8px_rgba(0,113,227,0.08)] backdrop-blur-sm'
-                              : 'text-[#2c2c2e] dark:text-[#e5e5ea] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium border border-transparent'
-                          }`
-                        }
-                      >
-                        <span className="p-1 rounded-lg transition-colors shrink-0">
-                          {item.icon}
-                        </span>
-                        <span>{item.label}</span>
-                      </NavLink>
-                    ))}
-                  </nav>
+              {/* Navigation Items - Exact 1:1 Desktop macOS Sidebar with Apple Spring Sliding Pill */}
+              <nav className="p-3 space-y-2 flex-1 overflow-y-auto select-none scrollbar-none">
+                <div className="px-3.5 py-1 text-[11px] font-bold uppercase tracking-tight text-[#86868b] dark:text-[#a1a1a6]">
+                  Không gian làm việc
                 </div>
 
-                {/* Quick Shortcuts Section */}
-                <div>
-                  <div className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[#86868b] dark:text-[#a1a1a6]">
-                    Lối tắt bảng làm việc
-                  </div>
-                  <div className="space-y-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        navigate('/?tab=links');
-                      }}
-                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-full text-[13px] text-[#48484a] dark:text-[#a1a1a6] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium transition-colors text-left"
-                    >
-                      <span className="w-7 h-7 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
-                        <SFLink size={14} />
-                      </span>
-                      <span>Quick Links (Liên kết)</span>
-                    </button>
+                <div ref={mobileTrackRef} className="relative flex flex-col gap-1.5">
+                  {/* Fluid Apple Spring Sliding Indicator */}
+                  <div
+                    ref={mobilePillRef}
+                    data-layout-id="active-mobile-sidebar-pill"
+                    aria-hidden="true"
+                    className="absolute top-0 inset-x-0 mx-auto fm-primary-pill-surface rounded-full pointer-events-none z-0 will-change-transform w-full"
+                    style={{ opacity: 0 }}
+                  />
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        navigate('/?tab=accounts');
-                      }}
-                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-full text-[13px] text-[#48484a] dark:text-[#a1a1a6] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium transition-colors text-left"
+                  {navItems.map((item) => (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.to === '/'}
+                      data-tab-id={item.to}
+                      onClick={handleCloseMobileMenu}
+                      className={({ isActive }) =>
+                        `relative z-10 flex items-center gap-3 px-3.5 h-11 rounded-full text-[13.5px] transition-colors duration-120 active:scale-[0.98] select-none ${
+                          isActive
+                            ? 'text-white font-semibold'
+                            : 'text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium'
+                        }`
+                      }
                     >
-                      <span className="w-7 h-7 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
-                        <SFShieldFill size={14} />
-                      </span>
-                      <span>Account Vault (Tài khoản)</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        navigate('/?tab=stores');
-                      }}
-                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-full text-[13px] text-[#48484a] dark:text-[#a1a1a6] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium transition-colors text-left"
-                    >
-                      <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                        <SFStorefront size={14} />
-                      </span>
-                      <span>Store Directory (Cửa hàng)</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        openNote();
-                      }}
-                      className="w-full flex items-center gap-3 px-3.5 py-2 rounded-full text-[13px] text-[#48484a] dark:text-[#a1a1a6] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium transition-colors text-left"
-                    >
-                      <span className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                        <SFSquareAndPencil size={14} />
-                      </span>
-                      <span>Ghi chú nhanh &amp; To-do</span>
-                    </button>
-                  </div>
+                      {({ isActive }) => (
+                        <>
+                          <span
+                            className={`p-1 rounded-lg transition-colors shrink-0 ${
+                              isActive ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]' : 'text-[#76767b] dark:text-[#8e8e93]'
+                            }`}
+                          >
+                            {item.icon}
+                          </span>
+                          <span className={`truncate whitespace-nowrap ${isActive ? 'text-white font-semibold drop-shadow-[0_1px_1px_rgba(0,0,0,0.2)]' : ''}`}>
+                            {item.label}
+                          </span>
+                        </>
+                      )}
+                    </NavLink>
+                  ))}
                 </div>
-              </div>
+              </nav>
 
-              {/* Bottom Actions */}
-              <div className="pt-3 border-t border-black/[0.06] dark:border-white/10 space-y-2.5 shrink-0">
+              {/* Sidebar Bottom Controls - Exact 1:1 Desktop Match */}
+              <div className="p-3 border-t border-black/[0.06] dark:border-white/10 space-y-2 shrink-0 bg-white/40 dark:bg-[#1E1E1E]/40 backdrop-blur-xl">
                 <button
                   onClick={() => {
-                    setMobileMenuOpen(false);
+                    handleCloseMobileMenu();
                     setImportModalOpen(true);
                   }}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-[13px] font-medium bg-[#0066cc]/10 dark:bg-[#0066cc]/20 text-[#0066cc] dark:text-[#2997ff] active:scale-[0.98] transition-transform"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-[13px] font-medium text-[#0088FF] dark:text-[#0091FF] liquid-lens-pill hover:!bg-white/80 dark:hover:!bg-white/[0.14] transition-all duration-200 active:scale-[0.98] cursor-pointer"
                 >
-                  <SFTablecells size={16} />
+                  <SFTablecells size={16} className="shrink-0 text-[#0088FF] dark:text-[#0091FF]" />
                   <span>Import / Export Excel</span>
                 </button>
 
-                <div className="flex items-center justify-between px-2 text-[11px] text-[#7a7a7a]">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-xs shadow-emerald-500/60 animate-pulse" />
-                    <span className="font-medium text-[#7a7a7a]">Trực tuyến (Cloud / Sync)</span>
+                <div className="pt-1 px-2 flex items-center justify-between text-[11px] text-[#7a7a7a]">
+                  <div className="flex items-center gap-1.5" title="Đã kết nối trực tuyến qua https://fm-workspace.vercel.app">
+                    <span className="w-2 rounded-full aspect-square bg-emerald-500 shadow-xs shadow-emerald-500/60 animate-pulse" />
+                    <span className="text-[11px] font-medium text-[#7a7a7a]">Trực tuyến (Cloud / Sync)</span>
                   </div>
                   <span className="font-mono text-[10px] text-[#999]">v1.0</span>
                 </div>
