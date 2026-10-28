@@ -271,6 +271,14 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     }
   };
 
+  const prevYear = () => {
+    setNavYear((y) => y - 1);
+  };
+
+  const nextYear = () => {
+    setNavYear((y) => y + 1);
+  };
+
   const isToday = (d: Date) => {
     const now = new Date();
     return (
@@ -291,25 +299,10 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
   // Render the petite, ultra-compact square Apple picker panel
   const renderPickerBody = () => (
     <div className="w-[288px] mx-auto p-3.5 rounded-2xl bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-2xl border border-black/[0.08] dark:border-white/[0.12] shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.65)] space-y-2.5 select-none font-sans text-left">
-      {/* 1. Month & Year Navigation Header */}
-      <div className="flex items-center justify-between px-1">
-        <button
-          type="button"
-          onClick={() => setViewMode(viewMode === 'calendar' ? 'monthYearPicker' : 'calendar')}
-          className="flex items-center gap-1.5 text-[13px] font-semibold text-[#1d1d1f] dark:text-white hover:text-[#0071e3] transition-colors cursor-pointer group"
-          title="Nhấp để đổi tháng / năm"
-        >
-          <span className="tabular-nums">{MONTH_NAMES[navMonth]}, {navYear}</span>
-          <ChevronDown
-            size={12}
-            className={cn(
-              'text-[#86868b] transition-transform duration-200',
-              viewMode === 'monthYearPicker' && 'rotate-180 text-[#0071e3]'
-            )}
-          />
-        </button>
-
-        <div className="flex items-center gap-1">
+      {/* 1. Month & Year Navigation Header: Separated Month & Year controls */}
+      <div className="flex items-center justify-between gap-1.5 px-0.5">
+        {/* Month Selector Capsule */}
+        <div className="flex items-center bg-black/[0.03] dark:bg-white/[0.05] border border-black/5 dark:border-white/10 rounded-xl p-0.5">
           <button
             type="button"
             onClick={prevMonth}
@@ -318,11 +311,58 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
           >
             <SFChevronLeft size={11} />
           </button>
+
+          <button
+            type="button"
+            onClick={() => setViewMode(viewMode === 'monthYearPicker' ? 'calendar' : 'monthYearPicker')}
+            className={cn(
+              'px-2 py-0.5 rounded-lg text-[12.5px] font-semibold transition-colors cursor-pointer flex items-center gap-1 select-none',
+              viewMode === 'monthYearPicker'
+                ? 'bg-[#0071e3] text-white shadow-2xs'
+                : 'text-[#1d1d1f] dark:text-white hover:text-[#0071e3]'
+            )}
+            title="Nhấp để mở danh sách 12 tháng"
+          >
+            <span>{MONTH_NAMES[navMonth]}</span>
+            <ChevronDown
+              size={11}
+              className={cn(
+                'transition-transform duration-200',
+                viewMode === 'monthYearPicker' && 'rotate-180 text-white'
+              )}
+            />
+          </button>
+
           <button
             type="button"
             onClick={nextMonth}
             className="w-6 h-6 rounded-lg flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
             title="Tháng sau"
+          >
+            <SFChevronRight size={11} />
+          </button>
+        </div>
+
+        {/* Year Navigator Capsule with dedicated Left / Right navigation */}
+        <div className="flex items-center bg-black/[0.03] dark:bg-white/[0.05] border border-black/5 dark:border-white/10 rounded-xl p-0.5">
+          <button
+            type="button"
+            onClick={prevYear}
+            className="w-6 h-6 rounded-lg flex items-center justify-center text-[#86868b] hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
+            title="Năm trước"
+          >
+            <SFChevronLeft size={11} />
+          </button>
+
+          <span className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-white tabular-nums px-1.5 select-none">
+            {navYear}
+          </span>
+
+          <button
+            type="button"
+            onClick={nextYear}
+            className="w-6 h-6 rounded-lg flex items-center justify-center text-[#86868b] hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
+            title="Năm sau"
           >
             <SFChevronRight size={11} />
           </button>

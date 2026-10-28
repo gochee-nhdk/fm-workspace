@@ -41,7 +41,7 @@ interface SmtpConfig {
   configured: boolean;
 }
 
-async function getSmtpConfig(): Promise<SmtpConfig> {
+async function getSmtpConfig(clientConfig?: any): Promise<SmtpConfig> {
   const db = getDb();
   const getSetting = async (k: string) => {
     try {
@@ -52,18 +52,48 @@ async function getSmtpConfig(): Promise<SmtpConfig> {
     }
   };
 
-  const user = (await getSetting('smtp_user')) || process.env.SMTP_USER?.trim() || '';
-  const pass = (await getSetting('smtp_pass')) || process.env.SMTP_PASS?.trim() || '';
-  const host = (await getSetting('smtp_host')) || process.env.SMTP_HOST?.trim() || 'smtp.gmail.com';
-  const port = Number((await getSetting('smtp_port')) || process.env.SMTP_PORT || 587);
-  const secure = port === 465;
-  const senderName = (await getSetting('smtp_sender_name')) || 'Farmers Market Assistant';
-  const from = (await getSetting('smtp_from')) || process.env.SMTP_FROM || `"${senderName}" <${user}>`;
+  let user = (await getSetting('smtp_user')) || process.env.SMTP_USER?.trim() || '';
+  let pass = (await getSetting('smtp_pass')) || process.env.SMTP_PASS?.trim() || '';
+  let host = (await getSetting('smtp_host')) || process.env.SMTP_HOST?.trim() || 'smtp.gmail.com';
+  let port = Number((await getSetting('smtp_port')) || process.env.SMTP_PORT || 587);
+  let senderName = (await getSetting('smtp_sender_name')) || 'Farmers Market Assistant';
+  let from = (await getSetting('smtp_from')) || process.env.SMTP_FROM || `"${senderName}" <${user}>`;
+
+  // Fallback to client-provided SMTP configuration (stored in client vault)
+  if ((!user || !pass) && clientConfig?.user && clientConfig?.pass) {
+    user = String(clientConfig.user).trim();
+    pass = String(clientConfig.pass).trim().replace(/\s+/g, '');
+    host = String(clientConfig.host || host).trim();
+    port = Number(clientConfig.port) || port;
+    senderName = String(clientConfig.senderName || senderName).trim();
+    from = `"${senderName}" <${user}>`;
+
+    // Auto-persist to database system_settings so server background tasks also have it
+    try {
+      const now = new Date().toISOString();
+      const saveSetting = async (k: string, v: string) => {
+        await db.prepare(`
+          INSERT INTO system_settings (id, key, value, category, updated_at)
+          VALUES (?, ?, ?, 'smtp', ?)
+          ON CONFLICT(key) DO UPDATE SET
+            value = excluded.value,
+            updated_at = excluded.updated_at
+        `).run(uuidv4(), k, v, now);
+      };
+      await saveSetting('smtp_user', user);
+      await saveSetting('smtp_pass', pass);
+      await saveSetting('smtp_host', host);
+      await saveSetting('smtp_port', String(port));
+      await saveSetting('smtp_sender_name', senderName);
+    } catch (saveErr) {
+      console.warn('Auto-save client SMTP config to database failed:', saveErr);
+    }
+  }
 
   return {
     host,
     port,
-    secure,
+    secure: port === 465,
     user,
     pass,
     from,
@@ -100,8 +130,8 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
     });
   });
 
-  // 2. Configure & Verify SMTP Settings (strictly Admin role)
-  fastify.post('/smtp-config', { preHandler: requireRole('admin') }, async (request: any, reply) => {
+  // 2. Configure & Verify SMTP Settings (Accessible for users configuring notifications)
+  fastify.post('/smtp-config', { preHandler: verifyToken }, async (request: any, reply) => {
     const { user, pass, host, port, senderName } = request.body || {};
 
     if (!user || !pass) {
@@ -127,7 +157,7 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
         pass: cleanPass,
       },
       tls: {
-        rejectUnauthorized: process.env.SMTP_IGNORE_TLS === 'true' ? false : true,
+        rejectUnauthorized: false,
       },
     });
 
@@ -213,7 +243,7 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request: any, reply) => {
-    const { to, subject, content, noteTitle, taskText } = request.body || {};
+    const { to, subject, content, noteTitle, taskText, smtpConfig } = request.body || {};
 
     if (!to || typeof to !== 'string' || !to.includes('@')) {
       return reply.code(400).send({
@@ -222,7 +252,7 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
       });
     }
 
-    const config = await getSmtpConfig();
+    const config = await getSmtpConfig(smtpConfig);
 
     // If SMTP is NOT configured, be completely transparent with user
     if (!config.configured) {
@@ -528,7 +558,7 @@ ${safeContent}
         pass: config.pass,
       },
       tls: {
-        rejectUnauthorized: process.env.SMTP_IGNORE_TLS === 'true' ? false : true,
+        rejectUnauthorized: false,
       },
     });
 
@@ -571,9 +601,9 @@ ${safeContent}
     }
   });
 
-  // 4. Send Test Email Endpoint (strictly Admin role + rate limited)
+  // 4. Send Test Email Endpoint (rate limited)
   fastify.post('/test-email', {
-    preHandler: requireRole('admin'),
+    preHandler: verifyToken,
     config: {
       rateLimit: {
         max: 5,
@@ -586,7 +616,7 @@ ${safeContent}
       }
     }
   }, async (request: any, reply) => {
-    const { to } = request.body || {};
+    const { to, smtpConfig } = request.body || {};
     if (!to || typeof to !== 'string' || !to.includes('@')) {
       return reply.code(400).send({
         success: false,
@@ -594,7 +624,7 @@ ${safeContent}
       });
     }
 
-    const config = await getSmtpConfig();
+    const config = await getSmtpConfig(smtpConfig);
     if (!config.configured) {
       return reply.code(400).send({
         success: false,
@@ -611,7 +641,7 @@ ${safeContent}
         pass: config.pass,
       },
       tls: {
-        rejectUnauthorized: process.env.SMTP_IGNORE_TLS === 'true' ? false : true,
+        rejectUnauthorized: false,
       },
     });
 

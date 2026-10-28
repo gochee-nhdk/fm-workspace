@@ -60,6 +60,7 @@ import {
   Shield,
   Globe,
   Paperclip,
+  Copy,
 } from 'lucide-react';
 import { useNoteStore } from '@/stores/note-store';
 import { QuickNoteColor, QuickNoteItem, TaskReminder, NoteImageAttachment } from '@/types/workspace';
@@ -1262,6 +1263,19 @@ export const QuickNoteWindow: React.FC = () => {
     openMenuUp: boolean;
     maxMenuHeight?: number;
   } | null>(null);
+  const [selectionBounds, setSelectionBounds] = useState<{
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+    width: number;
+    lineRects: Array<{ top: number; left: number; width: number; height: number }>;
+  } | null>(null);
+  const writingToolAbortControllerRef = useRef<AbortController | null>(null);
+  const writingToolLoadingRef = useRef(false);
+  writingToolLoadingRef.current = writingToolLoading;
+  const aiDraftRef = useRef<any>(null);
+  aiDraftRef.current = aiDraft;
   const [showFloatingAiMenu, setShowFloatingAiMenu] = useState(false);
   const floatingAiPresence = useAnimatedPresence(showFloatingAiMenu, 180);
   const floatingAiContainerRef = useRef<HTMLDivElement>(null);
@@ -1615,7 +1629,21 @@ export const QuickNoteWindow: React.FC = () => {
   };
 
   // ──────── Apple Intelligence Writing Tools (In-place Draft) ────────
+  const handleCancelWritingTool = () => {
+    if (writingToolAbortControllerRef.current) {
+      writingToolAbortControllerRef.current.abort();
+      writingToolAbortControllerRef.current = null;
+    }
+    setWritingToolLoading(false);
+    toast.dismiss('ai-writing');
+    toast('Đã dừng tác vụ AI.', { icon: '⏹️' });
+  };
+
   const handleExecuteWritingTool = async (action: WritingToolAction) => {
+    if (writingToolLoading) {
+      toast('Đang có tác vụ AI đang xử lý. Vui lòng đợi hoặc bấm Hủy.', { icon: '⏳', id: 'writing-busy' });
+      return;
+    }
     setShowWritingToolsMenu(false);
     setShowCompactAiMenu(false);
     let targetText = extractPlainText(localContent);
@@ -1633,10 +1661,14 @@ export const QuickNoteWindow: React.FC = () => {
       return;
     }
 
+    writingToolAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    writingToolAbortControllerRef.current = controller;
+
     setWritingToolLoading(true);
     toast.loading('AI Writing Tool đang tạo bản nháp...', { id: 'ai-writing' });
     try {
-      const result = await runWritingTool(targetText, action);
+      const result = await runWritingTool(targetText, action, controller.signal);
       toast.dismiss('ai-writing');
       playAppleChime();
       const title =
@@ -1667,8 +1699,14 @@ export const QuickNoteWindow: React.FC = () => {
       });
       toast.success('✨ Đã tạo bản nháp AI trực tiếp trong ghi chú!');
     } catch (err: any) {
+      if (err.name === 'AbortError' || err.message?.includes('aborted') || controller.signal.aborted) {
+        return;
+      }
       toast.error(err.message || 'Không thể xử lý văn bản', { id: 'ai-writing' });
     } finally {
+      if (writingToolAbortControllerRef.current === controller) {
+        writingToolAbortControllerRef.current = null;
+      }
       setWritingToolLoading(false);
     }
   };
@@ -1753,6 +1791,7 @@ export const QuickNoteWindow: React.FC = () => {
     setAiDraft(null);
     setAiDraftCopied(false);
     setSelectionState(null);
+    setSelectionBounds(null);
   };
 
   const handleCopyAiDraft = async () => {
@@ -1771,6 +1810,10 @@ export const QuickNoteWindow: React.FC = () => {
   const handleDiscardAiDraft = () => {
     setAiDraft(null);
     setAiDraftCopied(false);
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) {
+      setSelectionBounds(null);
+    }
   };
 
   // Switch between Ghi chú (Notes) and To-do (Reminders) modules - 2 ngăn hoàn toàn độc lập
@@ -1972,6 +2015,9 @@ export const QuickNoteWindow: React.FC = () => {
       setSelectionState(null);
       setToolbarCoords(null);
       setShowFloatingAiMenu(false);
+      if (!writingToolLoadingRef.current && !aiDraftRef.current) {
+        setSelectionBounds(null);
+      }
       return;
     }
     const anchor = sel.anchorNode;
@@ -1980,6 +2026,9 @@ export const QuickNoteWindow: React.FC = () => {
       setSelectionState(null);
       setToolbarCoords(null);
       setShowFloatingAiMenu(false);
+      if (!writingToolLoadingRef.current && !aiDraftRef.current) {
+        setSelectionBounds(null);
+      }
       return;
     }
     const text = sel.toString();
@@ -1987,6 +2036,9 @@ export const QuickNoteWindow: React.FC = () => {
       setSelectionState(null);
       setToolbarCoords(null);
       setShowFloatingAiMenu(false);
+      if (!writingToolLoadingRef.current && !aiDraftRef.current) {
+        setSelectionBounds(null);
+      }
       return;
     }
 
@@ -1997,6 +2049,22 @@ export const QuickNoteWindow: React.FC = () => {
 
       if (selRect.width > 0 || selRect.height > 0) {
         const rects = range.getClientRects();
+        const rawRects = Array.from(rects);
+        const lineRects = rawRects.map((r) => ({
+          top: r.top - canvasRect.top,
+          left: r.left - canvasRect.left,
+          width: r.width,
+          height: r.height,
+        }));
+        setSelectionBounds({
+          top: selRect.top - canvasRect.top,
+          bottom: selRect.bottom - canvasRect.top,
+          left: selRect.left - canvasRect.left,
+          right: selRect.right - canvasRect.left,
+          width: selRect.width,
+          lineRects,
+        });
+
         const firstRect = rects.length > 0 ? rects[0] : selRect;
         const lastRect = rects.length > 0 ? rects[rects.length - 1] : selRect;
 
@@ -2072,6 +2140,9 @@ export const QuickNoteWindow: React.FC = () => {
     setSelectionState(null);
     setToolbarCoords(null);
     setShowFloatingAiMenu(false);
+    if (!writingToolLoadingRef.current && !aiDraftRef.current) {
+      setSelectionBounds(null);
+    }
   }, []);
 
   // Listen to document selectionchange for real-time tracking
@@ -2178,13 +2249,22 @@ export const QuickNoteWindow: React.FC = () => {
   };
 
   const handleExecuteSelectedWritingTool = async (action: WritingToolAction) => {
+    if (writingToolLoading) {
+      toast('Đang có tác vụ AI đang xử lý. Vui lòng đợi hoặc bấm Hủy.', { icon: '⏳', id: 'writing-busy' });
+      return;
+    }
     if (!selectionState || !selectionState.text.trim()) return;
     const targetText = selectionState.text.trim();
+
+    writingToolAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    writingToolAbortControllerRef.current = controller;
+
     setWritingToolLoading(true);
     setShowFloatingAiMenu(false);
     toast.loading('AI Writing Tool đang tạo bản nháp...', { id: 'ai-writing' });
     try {
-      const result = await runWritingTool(targetText, action);
+      const result = await runWritingTool(targetText, action, controller.signal);
       playAppleChime();
       const title =
         action === 'summarize'
@@ -2215,8 +2295,14 @@ export const QuickNoteWindow: React.FC = () => {
       toast.dismiss('ai-writing');
       toast.success('✨ Đã tạo bản nháp AI trực tiếp trong ghi chú!');
     } catch (err: any) {
+      if (err.name === 'AbortError' || err.message?.includes('aborted') || controller.signal.aborted) {
+        return;
+      }
       toast.error(err.message || 'Không thể xử lý văn bản', { id: 'ai-writing' });
     } finally {
+      if (writingToolAbortControllerRef.current === controller) {
+        writingToolAbortControllerRef.current = null;
+      }
       setWritingToolLoading(false);
     }
   };
@@ -4766,64 +4852,6 @@ export const QuickNoteWindow: React.FC = () => {
               </div>
               )} {/* end !isCompactWindow metadata row */}
 
-              {/* ──────────────── IN-LINE AI WRITING DRAFT PREVIEW (Apple Liquid Glass Diff Card) ──────────────── */}
-              {aiDraft && (
-                <div className="mb-3 p-3.5 rounded-2xl bg-white/95 dark:bg-[#1e1e28]/95 backdrop-blur-3xl border border-black/[0.08] dark:border-white/12 shadow-[0_12px_32px_rgba(0,0,0,0.08)] dark:shadow-[0_16px_40px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] flex flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-200 shrink-0 select-none">
-                  {/* Card Header with Apple Intelligence Glow */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white flex items-center justify-center shadow-xs">
-                        <SFWandAndSparkles size={11} className="text-white" />
-                      </div>
-                      <span className="text-[12px] font-semibold tracking-tight bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] bg-clip-text text-transparent">
-                        Bản nháp Writing Tools
-                      </span>
-                    </div>
-                    {/* Action buttons pill */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleApplyAiDraft('replace')}
-                        className="px-2.5 py-1 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
-                        title="Thay thế nội dung đã chọn"
-                      >
-                        <SFCheckmark size={11} className="stroke-[3]" />
-                        <span>Thay thế</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleApplyAiDraft('append')}
-                        className="px-2.5 py-1 rounded-full bg-black/[0.05] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium flex items-center gap-1 transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95"
-                        title="Thêm vào cuối ghi chú"
-                      >
-                        <SFPlus size={11} />
-                        <span>Thêm cuối</span>
-                      </button>
-                      <CloseButton
-                        onClick={handleDiscardAiDraft}
-                        size="sm"
-                        label="Hủy bỏ"
-                        title="Hủy bỏ bản nháp"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Diff Comparison Body */}
-                  <div className="space-y-1.5 text-[13px] leading-relaxed select-text max-h-[140px] overflow-y-auto scrollbar-thin pr-1">
-                    {aiDraft.originalText && aiDraft.originalText !== aiDraft.result && (
-                      <div className="flex items-start gap-1.5 text-[#86868b] dark:text-[#76767b]">
-                        <span className="text-[10.5px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-black/[0.04] dark:bg-white/[0.06] shrink-0 mt-0.5">Gốc</span>
-                        <p className="line-through line-clamp-2 text-[12px] opacity-80 whitespace-pre-wrap">{aiDraft.originalText}</p>
-                      </div>
-                    )}
-                    <div className="flex items-start gap-1.5 text-emerald-800 dark:text-emerald-300">
-                      <span className="text-[10.5px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold shrink-0 mt-0.5">Gợi ý</span>
-                      <p className="font-medium whitespace-pre-wrap flex-1">{aiDraft.result}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* In-place Quick Formatting & Tools Strip — ẨN trong compact mode HOẶC khi đang ở chế độ To-do */}
               {!isCompactWindow && editorMode !== 'checklist' && (
               <div className="flex items-center justify-between gap-1.5 pb-2 mb-2 border-b border-black/[0.06] dark:border-white/10 shrink-0 select-none relative">
@@ -4962,7 +4990,13 @@ export const QuickNoteWindow: React.FC = () => {
                 <div ref={compactAiMenuRef} className="relative shrink-0">
                   <button
                     type="button"
-                    onClick={() => setShowCompactAiMenu(!showCompactAiMenu)}
+                    onClick={() => {
+                      if (writingToolLoading) {
+                        toast('Đang có tác vụ AI đang xử lý. Vui lòng đợi hoặc bấm Hủy.', { icon: '⏳', id: 'writing-busy' });
+                        return;
+                      }
+                      setShowCompactAiMenu(!showCompactAiMenu);
+                    }}
                     className={`h-7 px-2.5 rounded-full flex items-center gap-1.5 text-[11px] font-semibold transition-all cursor-pointer active:scale-95 shadow-2xs ${
                       showCompactAiMenu
                         ? 'bg-[#0071e3] text-white shadow-xs'
@@ -5284,8 +5318,122 @@ export const QuickNoteWindow: React.FC = () => {
               ) : (
                 /* Seamless Flowing Writing Canvas */
                 <div ref={canvasRef} className="flex-1 flex flex-col min-h-0 relative">
+                  {/* Apple AI Sweeping Scanning Beam over selected text lines */}
+                  {writingToolLoading && selectionBounds?.lineRects && selectionBounds.lineRects.length > 0 && (
+                    <div className="pointer-events-none select-none z-20">
+                      {selectionBounds.lineRects.map((r, i) => (
+                        <div
+                          key={`scanning-line-${i}`}
+                          className="absolute apple-ai-scanning-overlay overflow-hidden rounded-md pointer-events-none"
+                          style={{
+                            top: `${r.top}px`,
+                            left: `${r.left}px`,
+                            width: `${r.width}px`,
+                            height: `${r.height}px`,
+                          }}
+                        >
+                          <div className="apple-ai-scanning-beam" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Floating AI Progress & Cancel Pill */}
+                  {writingToolLoading && (
+                    <div
+                      className="absolute z-35 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-3xl border border-purple-500/30 dark:border-purple-400/40 shadow-[0_12px_32px_rgba(147,51,234,0.18)] select-none apple-floating-toolbar-enter"
+                      style={{
+                        top: `${Math.max(6, Math.min((canvasRef.current?.clientHeight || 400) - 44, (selectionBounds?.bottom || 80) + 8))}px`,
+                        left: `${Math.max(12, Math.min((canvasRef.current?.clientWidth || 500) - 220, selectionBounds ? selectionBounds.left : 20))}px`,
+                      }}
+                    >
+                      <div className="w-3.5 h-3.5 rounded-full border-2 border-[#a855f7] border-t-transparent animate-spin shrink-0" />
+                      <span className="text-[12px] font-semibold bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] bg-clip-text text-transparent select-none whitespace-nowrap">
+                        Đang quét & xử lý AI...
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleCancelWritingTool}
+                        className="ml-1 px-2 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white text-[11px] font-semibold transition-all duration-150 cursor-pointer active:scale-95 flex items-center gap-1 shadow-2xs"
+                        title="Dừng xử lý AI ngay lập tức"
+                      >
+                        <span>✕ Hủy</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Minimalist Apple Liquid Glass Draft Card Floating Below Selection */}
+                  {aiDraft && (
+                    <div
+                      className="absolute z-35 w-[calc(100%-24px)] max-w-[500px] p-3 rounded-2xl bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-3xl border border-purple-500/25 dark:border-purple-400/30 shadow-[0_20px_50px_rgba(0,0,0,0.22),0_4px_16px_rgba(147,51,234,0.1)] select-none animate-in fade-in zoom-in-95 duration-200 flex flex-col gap-2.5"
+                      style={{
+                        top: `${Math.max(8, Math.min((canvasRef.current?.clientHeight || 500) - 190, (selectionBounds?.bottom || 80) + 8))}px`,
+                        left: `${Math.max(12, Math.min((canvasRef.current?.clientWidth || 600) - 520, selectionBounds ? selectionBounds.left : 12))}px`,
+                      }}
+                    >
+                      {/* Header */}
+                      <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-black/[0.06] dark:border-white/10">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white flex items-center justify-center shadow-xs shrink-0">
+                            <SFWandAndSparkles size={11} className="text-white" />
+                          </div>
+                          <span className="text-[12px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white truncate">
+                            {aiDraft.title || 'Bản nháp Writing Tools'}
+                          </span>
+                          {aiDraft.usedGemini && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
+                              Gemini
+                            </span>
+                          )}
+                        </div>
+                        <CloseButton
+                          onClick={handleDiscardAiDraft}
+                          size="sm"
+                          label="Đóng"
+                          title="Hủy bản nháp"
+                        />
+                      </div>
+
+                      {/* Content Preview */}
+                      <div className="text-[13px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[160px] overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal">
+                        {aiDraft.result}
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-black/[0.06] dark:border-white/10">
+                        <button
+                          type="button"
+                          onClick={handleCopyAiDraft}
+                          className="px-2.5 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1"
+                          title="Sao chép kết quả"
+                        >
+                          <Copy size={11} />
+                          <span>{aiDraftCopied ? 'Đã sao chép' : 'Sao chép'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleApplyAiDraft('append')}
+                          className="px-2.5 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1"
+                          title="Chèn tiếp vào dưới ghi chú"
+                        >
+                          <SFPlus size={11} />
+                          <span>Chèn dưới</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleApplyAiDraft('replace')}
+                          className="px-3 py-1 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
+                          title="Thay thế văn bản đã chọn"
+                        >
+                          <SFCheckmark size={11} className="stroke-[3]" />
+                          <span>Thay thế</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* ──────────────── Apple Liquid Glass Floating Selection Toolbar (Follows Highlighted Text) ──────────────── */}
-                  {selectionState && toolbarCoords && (
+                  {selectionState && toolbarCoords && !writingToolLoading && !aiDraft && (
                     <div
                       onMouseDown={(e) => e.preventDefault()}
                       style={{
@@ -5448,6 +5596,10 @@ export const QuickNoteWindow: React.FC = () => {
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
+                            if (writingToolLoading) {
+                              toast('Đang có tác vụ AI đang xử lý. Vui lòng đợi hoặc bấm Hủy.', { icon: '⏳', id: 'writing-busy' });
+                              return;
+                            }
                             setShowFloatingAiMenu((prev) => !prev);
                           }}
                           className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-90 relative overflow-hidden group ${
