@@ -30,28 +30,47 @@ const SEEDED_KEY = 'fm_workspace_seeded';
 
 class DataService {
   private initialized = false;
+  private initPromise: Promise<void> | null = null;
 
   private async ensureInitialized(): Promise<void> {
     if (this.initialized) return;
+    if (this.initPromise) return this.initPromise;
 
-    try {
-      const isSeeded = localStorage.getItem(SEEDED_KEY);
-      const existingLinks = await idbGetAll<LinkItem>(STORES.LINKS);
-      const existingAccounts = await idbGetAll<AccountItem>(STORES.ACCOUNTS);
-      const existingStores = await idbGetAll<StoreItem>(STORES.STORES);
+    this.initPromise = (async () => {
+      try {
+        const isSeeded = typeof localStorage !== 'undefined' ? localStorage.getItem(SEEDED_KEY) : null;
+        if (isSeeded === 'true') {
+          this.initialized = true;
+          return;
+        }
 
-      // Only seed on the VERY FIRST EVER installation if user hasn't explicitly cleared
-      if (!isSeeded && existingLinks.length === 0 && existingAccounts.length === 0 && existingStores.length === 0) {
-        if (initialLinks.length > 0) await idbBulkPut(STORES.LINKS, initialLinks);
-        if (initialAccounts.length > 0) await idbBulkPut(STORES.ACCOUNTS, initialAccounts);
-        if (initialStores.length > 0) await idbBulkPut(STORES.STORES, initialStores);
-        localStorage.setItem(SEEDED_KEY, 'true');
+        const [existingLinks, existingAccounts, existingStores] = await Promise.all([
+          idbGetAll<LinkItem>(STORES.LINKS),
+          idbGetAll<AccountItem>(STORES.ACCOUNTS),
+          idbGetAll<StoreItem>(STORES.STORES),
+        ]);
+
+        // Only seed on the VERY FIRST EVER installation if user hasn't explicitly cleared
+        if (!isSeeded && existingLinks.length === 0 && existingAccounts.length === 0 && existingStores.length === 0) {
+          await Promise.all([
+            initialLinks.length > 0 ? idbBulkPut(STORES.LINKS, initialLinks) : Promise.resolve(),
+            initialAccounts.length > 0 ? idbBulkPut(STORES.ACCOUNTS, initialAccounts) : Promise.resolve(),
+            initialStores.length > 0 ? idbBulkPut(STORES.STORES, initialStores) : Promise.resolve(),
+          ]);
+        }
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(SEEDED_KEY, 'true');
+        }
+
+        this.initialized = true;
+      } catch (err) {
+        console.error('Failed to initialize local workspace storage:', err);
+      } finally {
+        this.initPromise = null;
       }
+    })();
 
-      this.initialized = true;
-    } catch (err) {
-      console.error('Failed to initialize local workspace storage:', err);
-    }
+    return this.initPromise;
   }
 
   // ==================== ACTIVITY LOG ====================

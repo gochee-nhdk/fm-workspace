@@ -31,6 +31,9 @@ interface NoteStoreState {
   setSearchQuery: (query: string) => void;
 }
 
+const NOTES_MIGRATED_KEY = 'fm_notes_migrated_v2';
+let loadNotesPromise: Promise<void> | null = null;
+
 export const useNoteStore = create<NoteStoreState>((set, get) => ({
   isOpen: false,
   isMinimized: false,
@@ -43,142 +46,158 @@ export const useNoteStore = create<NoteStoreState>((set, get) => ({
   searchQuery: '',
 
   loadNotes: async () => {
-    set({ loading: true });
-    try {
-      const rawNotes = await noteService.getAllNotes();
+    if (loadNotesPromise) return loadNotesPromise;
 
-      // --- Self-Healing Data Decoupling Migration (2-Compartment Notebook Model) ---
-      // Phân tách triệt để 100%: Ngăn Ghi chú và Ngăn To-do là 2 thực thể hoàn toàn độc lập,
-      // không chia sẻ id, không để lẫn nội dung của nhau.
-      let notes = [...rawNotes];
-      let migrated = false;
+    loadNotesPromise = (async () => {
+      set({ loading: true });
+      try {
+        const rawNotes = await noteService.getAllNotes();
 
-      for (const n of rawNotes) {
-        // 1. Nếu một note có noteType === 'checklist':
-        //    Tách mọi dòng văn bản thường (không có [ ] hoặc [x]) sang 1 ghi chú văn bản thuần túy.
-        //    Ngăn to-do CHỈ giữ lại các dòng việc cần làm hợp lệ.
-        if (n.noteType === 'checklist') {
-          const rawChecklist = n.checklistContent || '';
-          const rawContent = n.content || '';
-          const combined = `${rawChecklist}\n${rawContent}`.replace(/<[^>]+>/g, '\n').replace(/&nbsp;/g, ' ');
-          const allLines = combined.split('\n').map((l) => l.trim()).filter(Boolean);
+        let notes = [...rawNotes];
+        const isMigrated = typeof localStorage !== 'undefined' && localStorage.getItem(NOTES_MIGRATED_KEY) === 'true';
 
-          const todoLines: string[] = [];
-          const textLines: string[] = [];
+        if (!isMigrated) {
+          // --- Self-Healing Data Decoupling Migration (2-Compartment Notebook Model) ---
+          // Phân tách triệt để 100%: Ngăn Ghi chú và Ngăn To-do là 2 thực thể hoàn toàn độc lập,
+          // không chia sẻ id, không để lẫn nội dung của nhau.
+          let migrated = false;
 
-          allLines.forEach((line) => {
-            if (/^(?:-\s*)?\[([ xX])\]/.test(line)) {
-              todoLines.push(line);
-            } else if (line !== '<p><br></p>' && line !== '<br>') {
-              textLines.push(line);
+          for (const n of rawNotes) {
+            // 1. Nếu một note có noteType === 'checklist':
+            //    Tách mọi dòng văn bản thường (không có [ ] hoặc [x]) sang 1 ghi chú văn bản thuần túy.
+            //    Ngăn to-do CHỈ giữ lại các dòng việc cần làm hợp lệ.
+            if (n.noteType === 'checklist') {
+              const rawChecklist = n.checklistContent || '';
+              const rawContent = n.content || '';
+              const combined = `${rawChecklist}\n${rawContent}`.replace(/<[^>]+>/g, '\n').replace(/&nbsp;/g, ' ');
+              const allLines = combined.split('\n').map((l) => l.trim()).filter(Boolean);
+
+              const todoLines: string[] = [];
+              const textLines: string[] = [];
+
+              allLines.forEach((line) => {
+                if (/^(?:-\s*)?\[([ xX])\]/.test(line)) {
+                  todoLines.push(line);
+                } else if (line !== '<p><br></p>' && line !== '<br>') {
+                  textLines.push(line);
+                }
+              });
+
+              // Nếu note to-do này đang chứa lẫn các dòng văn bản ghi chú (như danh sách nhà cung cấp...)
+              if (textLines.length > 0) {
+                migrated = true;
+                // Tạo 1 bản ghi Ghi chú riêng cho phần văn bản đó
+                const textHtml = textLines.map((l) => `<p>${l}</p>`).join('');
+                const cleanTitle = (n.title || '').replace(/\s*\((?:Ghi chú|To-do)\)/gi, '').trim();
+                await noteService.saveNote({
+                  title: cleanTitle ? `${cleanTitle} (Ghi chú)` : 'Ghi chú',
+                  content: textHtml,
+                  checklistContent: '',
+                  noteType: 'note',
+                  color: 'amber',
+                  pinned: n.pinned,
+                  images: n.images || [],
+                });
+
+                // Làm sạch note to-do hiện tại: CHỈ giữ lại các dòng checklist, đặt title chuẩn To-do
+                await noteService.saveNote({
+                  ...n,
+                  title: cleanTitle ? `${cleanTitle} (To-do)` : 'Danh sách việc cần làm',
+                  noteType: 'checklist',
+                  content: '<p><br></p>',
+                  checklistContent: todoLines.length > 0 ? todoLines.join('\n') : '- [ ] ',
+                  images: [],
+                });
+              } else if (n.content && n.content !== '<p><br></p>') {
+                // Dọn sạch n.content trong note checklist nếu còn dư
+                migrated = true;
+                await noteService.saveNote({
+                  ...n,
+                  content: '<p><br></p>',
+                  images: [],
+                });
+              }
+            } else {
+              // 2. Nếu một note có noteType === 'note' (hoặc chưa gán type):
+              //    Nếu lỡ chứa checklistContent, tách phần checklistContent thành 1 to-do độc lập.
+              const hasText = Boolean(n.content && n.content.trim() && n.content !== '<p><br></p>');
+              const hasChecklist = Boolean(
+                n.checklistContent &&
+                n.checklistContent.trim() &&
+                n.checklistContent !== '- [ ] ' &&
+                /\[([ xX])\]/.test(n.checklistContent)
+              );
+
+              if (hasText && hasChecklist) {
+                migrated = true;
+                // Giữ note hiện tại làm ghi chú văn bản thuần túy
+                await noteService.saveNote({
+                  ...n,
+                  noteType: 'note',
+                  checklistContent: '',
+                });
+                // Tạo to-do riêng biệt
+                await noteService.saveNote({
+                  title: n.title ? `${n.title} (To-do)` : 'Danh sách việc cần làm',
+                  content: '<p><br></p>',
+                  checklistContent: n.checklistContent,
+                  noteType: 'checklist',
+                  color: 'blue',
+                  pinned: n.pinned,
+                  images: [],
+                  taskReminders: n.taskReminders || [],
+                });
+              } else if (n.checklistContent && !hasChecklist) {
+                // Dọn sạch checklistContent rác
+                migrated = true;
+                await noteService.saveNote({
+                  ...n,
+                  noteType: 'note',
+                  checklistContent: '',
+                });
+              }
             }
-          });
-
-          // Nếu note to-do này đang chứa lẫn các dòng văn bản ghi chú (như danh sách nhà cung cấp...)
-          if (textLines.length > 0) {
-            migrated = true;
-            // Tạo 1 bản ghi Ghi chú riêng cho phần văn bản đó
-            const textHtml = textLines.map((l) => `<p>${l}</p>`).join('');
-            const cleanTitle = (n.title || '').replace(/\s*\((?:Ghi chú|To-do)\)/gi, '').trim();
-            await noteService.saveNote({
-              title: cleanTitle ? `${cleanTitle} (Ghi chú)` : 'Ghi chú',
-              content: textHtml,
-              checklistContent: '',
-              noteType: 'note',
-              color: 'amber',
-              pinned: n.pinned,
-              images: n.images || [],
-            });
-
-            // Làm sạch note to-do hiện tại: CHỈ giữ lại các dòng checklist, đặt title chuẩn To-do
-            await noteService.saveNote({
-              ...n,
-              title: cleanTitle ? `${cleanTitle} (To-do)` : 'Danh sách việc cần làm',
-              noteType: 'checklist',
-              content: '<p><br></p>',
-              checklistContent: todoLines.length > 0 ? todoLines.join('\n') : '- [ ] ',
-              images: [],
-            });
-          } else if (n.content && n.content !== '<p><br></p>') {
-            // Dọn sạch n.content trong note checklist nếu còn dư
-            migrated = true;
-            await noteService.saveNote({
-              ...n,
-              content: '<p><br></p>',
-              images: [],
-            });
           }
-        } else {
-          // 2. Nếu một note có noteType === 'note' (hoặc chưa gán type):
-          //    Nếu lỡ chứa checklistContent, tách phần checklistContent thành 1 to-do độc lập.
-          const hasText = Boolean(n.content && n.content.trim() && n.content !== '<p><br></p>');
-          const hasChecklist = Boolean(
-            n.checklistContent &&
-            n.checklistContent.trim() &&
-            n.checklistContent !== '- [ ] ' &&
-            /\[([ xX])\]/.test(n.checklistContent)
-          );
 
-          if (hasText && hasChecklist) {
-            migrated = true;
-            // Giữ note hiện tại làm ghi chú văn bản thuần túy
-            await noteService.saveNote({
-              ...n,
-              noteType: 'note',
-              checklistContent: '',
-            });
-            // Tạo to-do riêng biệt
-            await noteService.saveNote({
-              title: n.title ? `${n.title} (To-do)` : 'Danh sách việc cần làm',
-              content: '<p><br></p>',
-              checklistContent: n.checklistContent,
-              noteType: 'checklist',
-              color: 'blue',
-              pinned: n.pinned,
-              images: [],
-              taskReminders: n.taskReminders || [],
-            });
-          } else if (n.checklistContent && !hasChecklist) {
-            // Dọn sạch checklistContent rác
-            migrated = true;
-            await noteService.saveNote({
-              ...n,
-              noteType: 'note',
-              checklistContent: '',
-            });
+          if (migrated) {
+            notes = await noteService.getAllNotes();
+          }
+
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem(NOTES_MIGRATED_KEY, 'true');
           }
         }
+
+        const textNotes = notes.filter((n) => n.noteType !== 'checklist');
+        const checklistNotes = notes.filter((n) => n.noteType === 'checklist');
+
+        const currentActiveTextId = get().activeTextNoteId;
+        const currentActiveChecklistId = get().activeChecklistId;
+
+        const nextActiveTextId = (currentActiveTextId && textNotes.some((n) => n.id === currentActiveTextId))
+          ? currentActiveTextId
+          : (textNotes[0]?.id || null);
+
+        const nextActiveChecklistId = (currentActiveChecklistId && checklistNotes.some((n) => n.id === currentActiveChecklistId))
+          ? currentActiveChecklistId
+          : (checklistNotes[0]?.id || null);
+
+        set({
+          notes,
+          loading: false,
+          activeTextNoteId: nextActiveTextId,
+          activeChecklistId: nextActiveChecklistId,
+          activeNoteId: get().activeNoteId || nextActiveTextId || nextActiveChecklistId,
+        });
+      } catch (err) {
+        console.error('Failed to load notes:', err);
+        set({ loading: false });
+      } finally {
+        loadNotesPromise = null;
       }
+    })();
 
-      if (migrated) {
-        notes = await noteService.getAllNotes();
-      }
-
-      const textNotes = notes.filter((n) => n.noteType !== 'checklist');
-      const checklistNotes = notes.filter((n) => n.noteType === 'checklist');
-
-      const currentActiveTextId = get().activeTextNoteId;
-      const currentActiveChecklistId = get().activeChecklistId;
-
-      const nextActiveTextId = (currentActiveTextId && textNotes.some((n) => n.id === currentActiveTextId))
-        ? currentActiveTextId
-        : (textNotes[0]?.id || null);
-
-      const nextActiveChecklistId = (currentActiveChecklistId && checklistNotes.some((n) => n.id === currentActiveChecklistId))
-        ? currentActiveChecklistId
-        : (checklistNotes[0]?.id || null);
-
-      set({
-        notes,
-        loading: false,
-        activeTextNoteId: nextActiveTextId,
-        activeChecklistId: nextActiveChecklistId,
-        activeNoteId: get().activeNoteId || nextActiveTextId || nextActiveChecklistId,
-      });
-    } catch (err) {
-      console.error('Failed to load notes:', err);
-      set({ loading: false });
-    }
+    return loadNotesPromise;
   },
 
   openNote: (id?: string) => {

@@ -84,11 +84,13 @@ function WorkspaceDataBootstrap() {
   const loadNotes = useNoteStore((s) => s.loadNotes);
 
   useEffect(() => {
-    checkAuth().finally(() => {
-      autoRestore().finally(() => {
-        loadNotes().catch(() => {});
-      });
-    });
+    // Load local IndexedDB notes immediately in parallel without waiting for network/auth
+    loadNotes().catch(() => {});
+
+    // Check remote auth and auto-restore in background
+    checkAuth()
+      .then(() => autoRestore())
+      .catch(() => {});
   }, [checkAuth, autoRestore, loadNotes]);
 
   return null;

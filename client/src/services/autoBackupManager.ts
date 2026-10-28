@@ -48,10 +48,16 @@ class AutoBackupManager {
       await persistentStorage.requestPersistence();
     } catch (_) {}
 
-    // 2. Perform initial background sync 3 seconds after app loads
-    setTimeout(() => {
-      this.triggerSync('auto').catch(() => {});
-    }, 3000);
+    // 2. Perform initial background sync during idle time after app startup (defer to avoid contention)
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      window.requestIdleCallback(() => {
+        this.triggerSync('auto').catch(() => {});
+      }, { timeout: 15000 });
+    } else {
+      setTimeout(() => {
+        this.triggerSync('auto').catch(() => {});
+      }, 10000);
+    }
 
     // 3. Periodic snapshot every 3 minutes (continuous background heartbeat)
     this.intervalTimer = setInterval(() => {

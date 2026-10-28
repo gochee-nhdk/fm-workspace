@@ -26,10 +26,11 @@ import { useNoteStore } from '@/stores/note-store';
 import { Button } from '@/components/ui/button';
 import { CloseButton } from '@/components/ui/close-button';
 import { reminderService } from '@/services/reminderService';
-import { useScrollInterpolation, useTabIndicator, useAppleTabSpring } from '@/lib/motion';
+import { useTabIndicator, useAppleTabSpring } from '@/lib/motion';
 import { useSecurityStore } from '@/stores/security-store';
 import { LocalLockScreen } from '@/components/security/LocalLockScreen';
 import { Lock } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const navItems = [
   { to: '/', label: 'Bàn làm việc chính', icon: <SFSquareGrid2x2 size={16} /> },
@@ -60,11 +61,12 @@ export const AppShell: React.FC = () => {
   const theme = useUiStore((state) => state.theme);
   const setTheme = useUiStore((state) => state.setTheme);
 
-  const loadNotes = useNoteStore((state) => state.loadNotes);
   const openNote = useNoteStore((state) => state.openNote);
   const toggleNote = useNoteStore((state) => state.toggleNote);
   // Count only text notes (excluding To-do checklists) to stay 100% consistent with QuickNoteFloatingButton badge
-  const notesCount = useNoteStore((state) => state.notes.filter((n) => n.noteType !== 'checklist').length);
+  const notesCount = useNoteStore((state) =>
+    state.notes.reduce((acc, n) => (n.noteType !== 'checklist' ? acc + 1 : acc), 0)
+  );
 
   const isLockEnabled = useSecurityStore((state) => state.isLockEnabled);
   const lockNow = useSecurityStore((state) => state.lockNow);
@@ -74,7 +76,18 @@ export const AppShell: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const mainRef = useRef<HTMLElement>(null);
-  const scrollRatio = useScrollInterpolation(mainRef, 48);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      const scrolled = el.scrollTop > 12;
+      setIsScrolled((prev) => (prev !== scrolled ? scrolled : prev));
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Security: Activity monitor for auto-lock (throttled to save CPU & battery)
   useEffect(() => {
@@ -113,11 +126,6 @@ export const AppShell: React.FC = () => {
     allowDeformation: true,
     orientation: 'vertical',
   });
-
-  // ✅ Initialize notes on app startup
-  useEffect(() => {
-    loadNotes();
-  }, [loadNotes]);
 
   // ✅ Synchronize CSS variable --sidebar-width for exact visual centering of toasts & modals
   useEffect(() => {
@@ -188,10 +196,8 @@ export const AppShell: React.FC = () => {
 
   return (
     <div className="h-screen w-full bg-[#f8f9fc] dark:bg-[#070709] flex flex-col md:flex-row text-[#1d1d1f] dark:text-[#f5f5f7] font-sans antialiased relative overflow-hidden select-none">
-      {/* ─────────────────── Dynamic Chromatic Refraction Canvas (Image 1 & 2) ─────────────────── */}
-      <div className="ambient-glow-azure" />
-      <div className="ambient-glow-sunset" />
-      <div className="ambient-glow-violet" />
+      {/* ─────────────────── Zero-GPU Ambient Canvas Mesh (120fps) ─────────────────── */}
+      <div className="ambient-canvas-mesh" />
 
       {/* ─────────────────── visionOS Desktop Sidebar (Image 2) ─────────────────── */}
       <aside
@@ -332,25 +338,14 @@ export const AppShell: React.FC = () => {
 
       {/* ─────────────────── Main Content Canvas ─────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative z-10 bg-[#f8f9fc] dark:bg-[#121216]">
-        {/* Topbar: Translucent Liquid Glass Bar with continuous scroll-driven interpolation */}
+        {/* Topbar: Hardware-Accelerated Translucent Liquid Glass Bar */}
         <header
-          style={{
-            backgroundColor:
-              resolveTheme(theme) === 'dark'
-                ? `rgba(22, 22, 28, ${0.68 + scrollRatio * 0.28})`
-                : `rgba(255, 255, 255, ${0.72 + scrollRatio * 0.24})`,
-            backdropFilter: `blur(${24 + scrollRatio * 20}px) saturate(${160 + scrollRatio * 35}%)`,
-            WebkitBackdropFilter: `blur(${24 + scrollRatio * 20}px) saturate(${160 + scrollRatio * 35}%)`,
-            borderBottomColor:
-              resolveTheme(theme) === 'dark'
-                ? `rgba(255, 255, 255, ${0.06 + scrollRatio * 0.08})`
-                : `rgba(0, 0, 0, ${0.04 + scrollRatio * 0.06})`,
-            boxShadow:
-              scrollRatio > 0.02
-                ? `0 4px 20px -2px rgba(0, 0, 0, ${resolveTheme(theme) === 'dark' ? 0.28 * scrollRatio : 0.06 * scrollRatio}), inset 0 -0.5px 0 rgba(255, 255, 255, 0.1)`
-                : 'none',
-          }}
-          className="h-16 shrink-0 px-4 sm:px-6 border-b flex items-center justify-between z-20 transition-[background-color,border-color,box-shadow] duration-160 ease-out"
+          className={cn(
+            "h-16 shrink-0 px-4 sm:px-6 border-b flex items-center justify-between z-20 transition-[background-color,border-color,box-shadow] duration-200 ease-out",
+            isScrolled
+              ? "bg-white/85 dark:bg-[#16161c]/85 backdrop-blur-2xl border-black/[0.08] dark:border-white/10 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.06),inset_0_-0.5px_0_rgba(255,255,255,0.1)] dark:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.35),inset_0_-0.5px_0_rgba(255,255,255,0.05)]"
+              : "bg-white/60 dark:bg-[#16161c]/60 backdrop-blur-xl border-black/[0.04] dark:border-white/[0.06]"
+          )}
         >
           <div className="flex items-center gap-3.5">
             {/* Mobile Menu Button */}
