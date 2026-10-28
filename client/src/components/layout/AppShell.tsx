@@ -271,7 +271,7 @@ export const AppShell: React.FC = () => {
             title={isSidebarCollapsed ? 'Mở rộng thanh bên (Ctrl+\\)' : 'Thu gọn thanh bên (Ctrl+\\)'}
             aria-label={isSidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
           >
-            <SFSidebarLeft size={16} className={`transition-transform duration-280 ease-[cubic-bezier(0.16,1,0.3,1)] ${isSidebarCollapsed ? 'rotate-180' : ''}`} />
+            <SFSidebarLeft size={16} className={`transition-transform duration-180 ease-[cubic-bezier(0.16,1,0.3,1)] ${isSidebarCollapsed ? 'rotate-180' : ''}`} />
           </button>
         </div>
 

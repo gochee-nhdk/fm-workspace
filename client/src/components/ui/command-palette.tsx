@@ -765,7 +765,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             {/* Liquid Droplet Sliding Indicator Pill */}
             {catIndicator.ready && catIndicator.width > 0 && (
               <div
-                className="absolute top-1 bottom-1 rounded-full bg-white dark:bg-[#2c2c2e] shadow-[0_1px_4px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/10 transition-[transform,width] duration-220 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[transform,width] pointer-events-none"
+                className="absolute top-1 bottom-1 rounded-full bg-white dark:bg-[#2c2c2e] shadow-[0_1px_4px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/10 transition-[transform,width] duration-160 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[transform,width] pointer-events-none"
                 style={{
                   transform: `translate3d(${catIndicator.left}px, 0, 0)`,
                   width: `${catIndicator.width}px`,
@@ -782,7 +782,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   type="button"
                   onClick={() => setActiveCategory(cat.id)}
                   className={cn(
-                    'relative z-10 shrink-0 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] sm:text-xs transition-colors duration-200 cursor-pointer active:scale-95 select-none whitespace-nowrap',
+                    'relative z-10 shrink-0 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] sm:text-xs transition-colors duration-120 cursor-pointer active:scale-95 select-none whitespace-nowrap',
                     isActive
                       ? 'text-[#1d1d1f] dark:text-white font-semibold'
                       : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium hover:bg-black/[0.02] dark:hover:bg-white/[0.04]'

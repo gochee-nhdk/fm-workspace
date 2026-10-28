@@ -17,15 +17,15 @@ import { useState, useEffect, useRef, useCallback } from 'react';
  */
 export const motionTokens = {
   duration: {
-    press:      60,   // 60ms — tactile press instant feedback
-    micro:      90,   // 90ms — micro-interaction (icon swap, badge)
-    hover:      120,  // 120ms — hover state morphing
+    press:      50,   // 50ms — tactile press instant feedback
+    micro:      80,   // 80ms — micro-interaction (icon swap, badge)
+    hover:      110,  // 110ms — hover state morphing
     tabContent: 100,  // instant 100ms crisp directional content glide
-    popover:    180,  // popover expand from trigger origin
-    exit:       160,  // keep dialog unmount timing aligned with the exit keyframe
-    sidebar:    200,  // sidebar width morph
-    modal:      240,  // modal sheet entrance
-    spatial:    300,  // large spatial transitions (window open)
+    popover:    160,  // popover expand from trigger origin
+    exit:       140,  // keep dialog unmount timing aligned with the exit keyframe
+    sidebar:    180,  // sidebar width morph
+    modal:      190,  // modal sheet entrance
+    spatial:    220,  // large spatial transitions (window open)
   },
   easing: {
     // Apple's signature: immediate acceleration, ultra-smooth overshooting deceleration
@@ -54,7 +54,7 @@ export const motionTokens = {
     press:        0.972,
     activeSubtle: 0.988,
     dragElevation:1.016,
-    modalEntrance:0.96,
+    modalEntrance:0.965,
   },
   elevation: {
     rest:    '0 2px 12px rgba(0, 0, 0, 0.04)',

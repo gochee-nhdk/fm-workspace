@@ -4050,7 +4050,7 @@ export const QuickNoteWindow: React.FC = () => {
                 isCompactWindow ? "rounded-[26px]" : "rounded-tl-[26px] rounded-tr-none rounded-br-none rounded-bl-none",
                 (isDraggingCompact || isResizing)
                   ? "shadow-[0_32px_85px_rgba(0,0,0,0.3)] transition-none select-none pointer-events-auto"
-                  : "shadow-[0_20px_60px_rgba(0,0,0,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85)] transition-[right,bottom,width,height,border-radius,box-shadow] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                  : "shadow-[0_20px_60px_rgba(0,0,0,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85)] transition-[right,bottom,width,height,border-radius,box-shadow] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]"
               ),
           isWindowClosing
             ? (isMobileScreen ? "apple-bottom-sheet-exit pointer-events-none" : "liquid-droplet-exit pointer-events-none")
@@ -4194,14 +4194,14 @@ export const QuickNoteWindow: React.FC = () => {
             <div
               onClick={() => setShowSidebar(false)}
               className={cn(
-                "absolute inset-0 z-20 bg-transparent transition-opacity duration-280",
+                "absolute inset-0 z-20 bg-transparent transition-opacity duration-200",
                 showSidebar ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
               )}
             />
             <div
               aria-hidden={!showSidebar}
               className={cn(
-                "absolute top-0 left-0 bottom-0 w-full max-w-[285px] z-30 border-r border-black/[0.08] dark:border-white/10 flex flex-col bg-white/95 dark:bg-[#181820]/95 backdrop-blur-3xl shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.06)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.35)] transition-transform duration-280 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform",
+                "absolute top-0 left-0 bottom-0 w-full max-w-[285px] z-30 border-r border-black/[0.08] dark:border-white/10 flex flex-col bg-white/95 dark:bg-[#181820]/95 backdrop-blur-3xl shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.06)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.35)] transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform",
                 showSidebar ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none"
               )}
             >
@@ -6949,7 +6949,7 @@ export const QuickNoteWindow: React.FC = () => {
         title={currentFilePreview ? `Xem trước tệp ${currentFilePreview.name}` : 'Xem trước tệp'}
         overlayClassName={isPreviewFullscreen ? "p-0" : "p-3 sm:p-6"}
         contentClassName={cn(
-          "relative bg-white dark:bg-[#1c1c24] flex flex-col overflow-hidden transition-all duration-350 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width,height,transform]",
+          "relative bg-white dark:bg-[#1c1c24] flex flex-col overflow-hidden transition-all duration-220 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width,height,transform]",
           isPreviewFullscreen
             ? "fixed inset-0 w-full h-full max-w-none max-h-none rounded-none shadow-none border-0 z-50"
             : "w-full max-w-4xl h-[85vh] max-h-[850px] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.55)] border border-black/10 dark:border-white/12"
