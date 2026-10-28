@@ -262,7 +262,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
     setActiveTab(tab);
     setSearch('');
     setSelectedCategory('ALL');
-    setSearchParams({ tab });
+    setSearchParams({ tab }, { replace: true });
   };
 
   // 1-Click Copy Helper

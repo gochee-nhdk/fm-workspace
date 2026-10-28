@@ -149,15 +149,15 @@
 @layer base {
   :root {
     /* Always-on liquid motion contract, independent of Windows animation preferences. */
-    --motion-duration-press: 80ms;
-    --motion-duration-micro: 110ms;
-    --motion-duration-hover: 150ms;
-    --motion-duration-tab: 180ms;
-    --motion-duration-popover: 210ms;
-    --motion-duration-exit: 180ms;
-    --motion-duration-sidebar: 240ms;
-    --motion-duration-modal: 260ms;
-    --motion-duration-spatial: 320ms;
+    --motion-duration-press: 60ms;
+    --motion-duration-micro: 90ms;
+    --motion-duration-hover: 120ms;
+    --motion-duration-tab: 100ms;
+    --motion-duration-popover: 180ms;
+    --motion-duration-exit: 150ms;
+    --motion-duration-sidebar: 190ms;
+    --motion-duration-modal: 220ms;
+    --motion-duration-spatial: 280ms;
     --motion-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
     --motion-ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
     --motion-ease-snappy: cubic-bezier(0.18, 0.9, 0.22, 1);
@@ -1443,44 +1443,36 @@
   }
 }
 
-/* Directional tab content glide — Apple Liquid Motion Physics 120fps */
+/* Directional tab content glide — Apple ProMotion 120fps Instant Glide */
 @keyframes liquidTabContentGlide {
   0% {
-    opacity: 0.72;
-    transform: translate3d(14px, 0, 0) scale(0.992);
-  }
-  60% {
-    opacity: 1;
-    transform: translate3d(-1px, 0, 0) scale(1.002);
+    opacity: 0.92;
+    transform: translate3d(5px, 0, 0);
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes liquidTabContentGlideRev {
   0% {
-    opacity: 0.72;
-    transform: translate3d(-14px, 0, 0) scale(0.992);
-  }
-  60% {
-    opacity: 1;
-    transform: translate3d(1px, 0, 0) scale(1.002);
+    opacity: 0.92;
+    transform: translate3d(-5px, 0, 0);
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, 0, 0);
   }
 }
 
 .apple-tab-content-enter {
-  animation: liquidTabContentGlide 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: liquidTabContentGlide 0.11s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
 
 .apple-tab-content-enter-rev {
-  animation: liquidTabContentGlideRev 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: liquidTabContentGlideRev 0.11s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
 

@@ -128,9 +128,9 @@ export const AppShell: React.FC = () => {
   const sidebarPillRef = useRef<HTMLDivElement>(null);
 
   useAppleTabSpring(sidebarTrackRef, sidebarPillRef, activeTabKey, {
-    stiffness: 440,
-    damping: 26,
-    mass: 0.65,
+    stiffness: 640,
+    damping: 38,
+    mass: 0.40,
     allowDeformation: true,
     orientation: 'vertical',
   });

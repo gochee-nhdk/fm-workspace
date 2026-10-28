@@ -28,9 +28,9 @@ export const SegmentedNavigation: React.FC<SegmentedNavigationProps> = ({
   const indicatorRef = useRef<HTMLDivElement>(null);
 
   useAppleTabSpring(trackRef, indicatorRef, activeId, {
-    stiffness: 400,
-    damping: 25,
-    mass: 0.72,
+    stiffness: 640,
+    damping: 38,
+    mass: 0.40,
     allowDeformation: true,
     orientation: 'horizontal',
   });
