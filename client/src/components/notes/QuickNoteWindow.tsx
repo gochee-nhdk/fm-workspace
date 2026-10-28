@@ -4008,6 +4008,17 @@ export const QuickNoteWindow: React.FC = () => {
 
   return createPortal(
     <>
+      {/* Mobile Dimmed Backdrop Overlay */}
+      {isMobileScreen && (
+        <div
+          className={cn(
+            "fixed inset-0 bg-black/40 backdrop-blur-sm z-[9998]",
+            isWindowClosing ? "liquid-backdrop-exit" : "liquid-backdrop-enter"
+          )}
+          onClick={handleCloseNote}
+          aria-hidden="true"
+        />
+      )}
       {/* ─────────────────── Apple Liquid Glass Floating Window (Single Unified Window) ─────────────────── */}
       <div
         ref={windowRef}

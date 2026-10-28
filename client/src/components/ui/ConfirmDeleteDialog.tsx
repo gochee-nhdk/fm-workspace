@@ -41,8 +41,8 @@ export const ConfirmDeleteDialog: React.FC<ConfirmDeleteDialogProps> = ({
       onClose={onClose}
       zIndex={10030}
       title={title}
-      overlayClassName="p-4"
-      contentClassName="relative bg-white dark:bg-[#1c1c22] rounded-[24px] max-w-md w-full p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15"
+      overlayClassName="p-3 sm:p-4"
+      contentClassName="relative bg-white dark:bg-[#1c1c22] rounded-[24px] max-w-md w-full p-4.5 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15"
     >
       <CloseButton
         onClick={onClose}

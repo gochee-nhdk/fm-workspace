@@ -635,7 +635,7 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             <p className="text-[13px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
-              Tất cả dữ liệu được lưu trực tiếp trong IndexedDB của trình duyệt máy tính của bạn. Dữ liệu không bị mất khi bạn bấm F5, refresh trình duyệt hoặc đóng mở lại website.
+              Tất cả dữ liệu được lưu trực tiếp trong IndexedDB của trình duyệt trên thiết bị của bạn. Dữ liệu không bị mất khi bạn bấm F5, refresh trình duyệt hoặc đóng mở lại website.
             </p>
           </div>
 
@@ -846,7 +846,7 @@ export const SettingsPage: React.FC = () => {
               Trung Tâm Dữ Liệu &amp; Sao Lưu Excel
             </h3>
             <p className="text-[13px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
-              Nhập file Excel từ máy tính của bạn, tải template mẫu hoặc xuất toàn bộ dữ liệu (LINK, ACCOUNT, DS CH) ra file Excel (.xlsx) bất kỳ lúc nào.
+              Nhập file Excel từ thiết bị của bạn, tải template mẫu hoặc xuất toàn bộ dữ liệu (LINK, ACCOUNT, DS CH) ra file Excel (.xlsx) bất kỳ lúc nào.
             </p>
             <div className="flex flex-wrap items-center gap-2.5 pt-1">
               <Button
@@ -864,7 +864,7 @@ export const SettingsPage: React.FC = () => {
                 onClick={() => window.dispatchEvent(new CustomEvent('fm:open-import'))}
                 icon={<SFArrowDownDocument size={16} className="text-emerald-600 dark:text-emerald-400" />}
               >
-                Nạp File Excel Vào App
+                Nạp File Excel Vào Workspace
               </Button>
 
               <Button
