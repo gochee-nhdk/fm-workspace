@@ -1725,6 +1725,43 @@
   pointer-events: none;
 }
 
+@keyframes applePickerEnterUp {
+  0% {
+    opacity: 0;
+    transform: scale(0.96) translate3d(0, 6px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes applePickerExitUp {
+  0% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.97) translate3d(0, 3px, 0);
+    filter: blur(1.5px);
+  }
+}
+
+.apple-picker-open-up {
+  transform-origin: bottom center;
+  animation: applePickerEnterUp 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+.apple-picker-close-up {
+  transform-origin: bottom center;
+  animation: applePickerExitUp 0.13s cubic-bezier(0.32, 0, 0.67, 0) both;
+  will-change: transform, opacity, filter;
+  pointer-events: none;
+}
+
 /* Apple Modal & Sheet Spatial Spring Entrances — liquid glass spatial depth 120fps */
 @keyframes appleModalOpen {
   0% {

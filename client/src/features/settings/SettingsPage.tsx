@@ -29,6 +29,7 @@ import { persistentStorage, StorageStatus } from '@/services/storage/persistentS
 import { autoBackupManager } from '@/services/autoBackupManager';
 import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import { AppleLiquidDialog } from '@/components/ui/AppleLiquidDialog';
+import { AppleListbox } from '@/components/ui/AppleListbox';
 import { SegmentedNavigation } from '@/components/ui/SegmentedNavigation';
 import { useUiStore, resolveTheme } from '@/stores/ui-store';
 import { useSecurityStore } from '@/stores/security-store';
@@ -1209,18 +1210,22 @@ export const SettingsPage: React.FC = () => {
 
             <div className="pt-2 flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-3">
-                <span className="text-[12.5px] text-[#555558] dark:text-[#a1a1a6]">Tự động khóa sau:</span>
-                <select
-                  value={autoLockMinutes}
-                  onChange={(e) => setAutoLockMinutes(Number(e.target.value))}
+                <span className="text-[12.5px] text-[#555558] dark:text-[#a1a1a6] shrink-0">Tự động khóa sau:</span>
+                <AppleListbox
+                  compact
+                  headerTitle="Thời gian tự động khóa"
+                  headerCountLabel="MỨC"
                   disabled={!isLockEnabled}
-                  className="px-3 py-1.5 rounded-xl text-[12.5px] bg-black/[0.04] dark:bg-white/10 border border-black/10 dark:border-white/10 text-[#1d1d1f] dark:text-white outline-none focus:border-[#0071e3] disabled:opacity-50 cursor-pointer"
-                >
-                  <option value={0}>Không tự khóa</option>
-                  <option value={5}>5 phút không hoạt động</option>
-                  <option value={15}>15 phút không hoạt động</option>
-                  <option value={30}>30 phút không hoạt động</option>
-                </select>
+                  value={String(autoLockMinutes)}
+                  onChange={(val) => setAutoLockMinutes(Number(val))}
+                  options={[
+                    { value: '0', label: 'Không tự khóa' },
+                    { value: '5', label: '5 phút không hoạt động' },
+                    { value: '15', label: '15 phút không hoạt động' },
+                    { value: '30', label: '30 phút không hoạt động' },
+                  ]}
+                  triggerClassName="py-1.5 px-3 text-[12.5px] min-w-[200px]"
+                />
               </div>
 
               <div className="flex items-center gap-2.5">

@@ -129,7 +129,12 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
   const isUserSelectedPresetRef = useRef<boolean>(false);
 
   // Floating Popover positioning
-  const [popoverCoords, setPopoverCoords] = useState<{ top: number; left: number; placement: 'bottom' | 'top' } | null>(null);
+  const [popoverCoords, setPopoverCoords] = useState<{
+    top?: number;
+    bottom?: number;
+    left: number;
+    placement: 'bottom' | 'top';
+  } | null>(null);
 
   const calculateCoords = useCallback(() => {
     if (!triggerRef.current) return;
@@ -150,17 +155,20 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     const spaceAbove = rect.top;
 
     let placement: 'bottom' | 'top' = 'bottom';
-    let top = rect.bottom + 6;
 
     if (spaceBelow < pickerHeight && spaceAbove > spaceBelow) {
       placement = 'top';
-      top = Math.max(12, rect.top - pickerHeight - 6);
     }
 
     let left = rect.left + (rect.width - pickerWidth) / 2;
     left = Math.max(12, Math.min(viewportW - pickerWidth - 12, left));
 
-    setPopoverCoords({ top, left, placement });
+    setPopoverCoords({
+      top: placement === 'bottom' ? rect.bottom + 6 : undefined,
+      bottom: placement === 'top' ? viewportH - rect.top + 6 : undefined,
+      left,
+      placement,
+    });
   }, []);
 
   useEffect(() => {
@@ -773,14 +781,22 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
                 popoverCoords
                   ? {
                       position: 'fixed',
-                      top: `${popoverCoords.top}px`,
+                      top: popoverCoords.placement === 'bottom' ? `${popoverCoords.top}px` : 'auto',
+                      bottom: popoverCoords.placement === 'top' ? `${popoverCoords.bottom}px` : 'auto',
                       left: `${popoverCoords.left}px`,
+                      transformOrigin: popoverCoords.placement === 'top' ? 'bottom center' : 'top center',
                     }
                   : undefined
               }
               className={cn(
                 'relative z-10',
-                isDropdownExiting ? 'apple-picker-close pointer-events-none' : 'apple-picker-open pointer-events-auto'
+                isDropdownExiting
+                  ? popoverCoords?.placement === 'top'
+                    ? 'apple-picker-close-up pointer-events-none'
+                    : 'apple-picker-close pointer-events-none'
+                  : popoverCoords?.placement === 'top'
+                  ? 'apple-picker-open-up pointer-events-auto'
+                  : 'apple-picker-open pointer-events-auto'
               )}
               onClick={(e) => e.stopPropagation()}
             >

@@ -13,6 +13,7 @@ export interface AppleListboxOption {
 export interface AppleListboxProps {
   label?: string;
   headerTitle?: string;
+  headerCountLabel?: string;
   value: string;
   onChange: (value: string) => void;
   options: (AppleListboxOption | string)[];
@@ -21,6 +22,9 @@ export interface AppleListboxProps {
   onSelectCustom?: () => void;
   placeholder?: string;
   className?: string;
+  triggerClassName?: string;
+  compact?: boolean;
+  disabled?: boolean;
   error?: string;
   usePortal?: boolean;
 }
@@ -28,6 +32,7 @@ export interface AppleListboxProps {
 export const AppleListbox: React.FC<AppleListboxProps> = ({
   label,
   headerTitle = 'Phân loại danh mục',
+  headerCountLabel = 'NHÓM',
   value,
   onChange,
   options,
@@ -36,6 +41,9 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
   onSelectCustom,
   placeholder = 'Chọn phân nhóm...',
   className,
+  triggerClassName,
+  compact = false,
+  disabled = false,
   error,
   usePortal = true,
 }) => {
@@ -46,7 +54,8 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
 
   // Floating coordinates for portaled popover
   const [coords, setCoords] = useState<{
-    top: number;
+    top?: number;
+    bottom?: number;
     left: number;
     width: number;
     placement: 'bottom' | 'top';
@@ -62,26 +71,26 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
     const rect = triggerRef.current.getBoundingClientRect();
     const viewportH = window.innerHeight;
     const viewportW = window.innerWidth;
-    const estimatedH = 260;
+    const estimatedH = 240;
 
     const spaceBelow = viewportH - rect.bottom;
     const spaceAbove = rect.top;
 
     let placement: 'bottom' | 'top' = 'bottom';
-    let top = rect.bottom + 6;
 
+    // If space below is not enough for the listbox and space above is larger, place on top
     if (spaceBelow < estimatedH && spaceAbove > spaceBelow) {
       placement = 'top';
-      top = Math.max(12, rect.top - 6);
     }
 
     setCoords({
-      top,
+      top: placement === 'bottom' ? rect.bottom + 6 : undefined,
+      bottom: placement === 'top' ? viewportH - rect.top + 6 : undefined,
       left: Math.max(8, Math.min(viewportW - rect.width - 8, rect.left)),
-      width: rect.width,
+      width: Math.max(compact ? 180 : 0, rect.width),
       placement,
     });
-  }, []);
+  }, [compact]);
 
   useLayoutEffect(() => {
     if (isOpen) {
@@ -102,7 +111,7 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
     };
   }, [isOpen, updateCoords]);
 
-  // Close on click outside (handling both trigger and portaled popover)
+  // Close on click outside
   useEffect(() => {
     if (!isOpen) return;
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
@@ -161,11 +170,11 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
         usePortal && coords
           ? {
               position: 'fixed',
-              top: `${coords.top}px`,
+              top: coords.placement === 'bottom' ? `${coords.top}px` : 'auto',
+              bottom: coords.placement === 'top' ? `${coords.bottom}px` : 'auto',
               left: `${coords.left}px`,
               width: `${coords.width}px`,
               zIndex: 10050,
-              transform: coords.placement === 'top' ? 'translateY(-100%)' : undefined,
               transformOrigin: coords.placement === 'top' ? 'bottom center' : 'top center',
             }
           : undefined
@@ -173,14 +182,20 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
       className={cn(
         !usePortal && 'absolute left-0 right-0 top-full mt-1.5 z-50',
         'rounded-2xl bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-3xl border border-black/10 dark:border-white/15 p-1.5 shadow-[0_20px_48px_-6px_rgba(0,0,0,0.25),0_6px_16px_rgba(0,0,0,0.08)] select-none text-left',
-        isExiting ? 'apple-picker-close pointer-events-none' : 'apple-picker-open pointer-events-auto'
+        isExiting
+          ? coords?.placement === 'top'
+            ? 'apple-picker-close-up pointer-events-none'
+            : 'apple-picker-close pointer-events-none'
+          : coords?.placement === 'top'
+          ? 'apple-picker-open-up pointer-events-auto'
+          : 'apple-picker-open pointer-events-auto'
       )}
     >
       {/* Header */}
       <div className="px-3 py-2 text-[11px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between">
         <span>{headerTitle}</span>
         <span className="font-mono text-[10px] font-normal text-[#86868b] dark:text-[#a1a1a6]">
-          {normalizedOptions.length} NHÓM
+          {normalizedOptions.length} {headerCountLabel}
         </span>
       </div>
 
@@ -253,7 +268,7 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
   ) : null;
 
   return (
-    <div className={cn('relative w-full select-none font-sans', className)}>
+    <div className={cn('relative w-full select-none font-sans', compact && 'w-auto inline-block', className)}>
       {label && (
         <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
           {label}
@@ -264,16 +279,24 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        disabled={disabled}
+        onClick={() => {
+          if (disabled) return;
+          setIsOpen((prev) => !prev);
+        }}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         className={cn(
-          'w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer text-left',
-          'border bg-white dark:bg-[#1d1d1f] text-[#1d1d1f] dark:text-white shadow-2xs',
-          isOpen
+          'w-full flex items-center justify-between text-sm font-medium transition-all duration-150 text-left',
+          compact ? 'px-3 py-1.5 rounded-xl text-[12.5px]' : 'px-3.5 py-2.5 rounded-xl',
+          disabled
+            ? 'opacity-50 cursor-not-allowed bg-black/[0.02] dark:bg-white/[0.03] border-black/10 dark:border-white/10 text-[#86868b]'
+            : 'cursor-pointer border bg-white dark:bg-[#1d1d1f] text-[#1d1d1f] dark:text-white shadow-2xs',
+          !disabled && isOpen
             ? 'border-[#0071e3] ring-2 ring-[#0071e3]/20 dark:border-[#2997ff]'
-            : 'border-[#e0e0e0] dark:border-white/15 hover:border-black/25 dark:hover:border-white/30',
-          error ? 'border-rose-500 focus:ring-rose-500/20' : ''
+            : !disabled && 'border-[#e0e0e0] dark:border-white/15 hover:border-black/25 dark:hover:border-white/30',
+          error ? 'border-rose-500 focus:ring-rose-500/20' : '',
+          triggerClassName
         )}
       >
         <span className={cn('truncate', !value && !isCustomSelected && 'text-[#86868b] dark:text-[#a1a1a6]')}>
@@ -282,7 +305,7 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
 
         <div className="flex items-center gap-1.5 ml-2 text-[#86868b] dark:text-[#a1a1a6] shrink-0">
           <SFChevronDown
-            size={14}
+            size={compact ? 12 : 14}
             className={cn(
               'transition-transform duration-200',
               isOpen && 'rotate-180 text-[#0071e3] dark:text-[#2997ff]'
