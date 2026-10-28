@@ -424,7 +424,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
   };
 
   return (
-    <div className="w-full pb-12">
+    <div className="w-full pb-[calc(env(safe-area-inset-bottom,0px)+5.5rem)]">
       {/* ─────────────────── Top Bar: Sheet Tabs & Action Bar (Edge-to-edge Sticky Liquid Glass) ─────────────────── */}
       <div className="sticky-liquid-header -mx-4 sm:-mx-5 lg:-mx-6 px-4 sm:px-5 lg:px-6 pt-4 sm:pt-5 lg:pt-6 pb-3.5 transition-all">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">

@@ -88,7 +88,7 @@ export const SegmentedNavigation: React.FC<SegmentedNavigationProps> = ({
             data-tab-id={item.id}
             onClick={() => onChange(item.id)}
             className={cn(
-              'group relative z-10 inline-flex h-[30px] min-w-[108px] items-center justify-center gap-2 whitespace-nowrap rounded-full px-3.5 text-[13px] leading-none select-none cursor-pointer active:scale-[0.975] transition-[color,transform] duration-[var(--motion-duration-tab)] ease-[var(--motion-ease-spring)]',
+              'group relative z-10 inline-flex h-[32px] min-w-0 sm:min-w-[100px] items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-full px-2.5 sm:px-3.5 text-[12px] sm:text-[13px] leading-none select-none cursor-pointer active:scale-[0.975] transition-[color,transform] duration-[var(--motion-duration-tab)] ease-[var(--motion-ease-spring)]',
               isActive
                 ? 'font-semibold text-[#0071e3] dark:text-[#3898ff]'
                 : 'font-medium text-[#6e6e73] hover:text-[#1d1d1f] dark:text-[#a1a1a6] dark:hover:text-white'
