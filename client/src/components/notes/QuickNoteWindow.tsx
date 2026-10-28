@@ -264,40 +264,99 @@ interface ChecklistRow {
 }
 
 /**
- * Merge and sanitize line client rects for high-fidelity text scanning effect
+ * Extract precise client rects of selected text nodes only.
+ * This guarantees ZERO bounding boxes for block elements (<p>, <div>, <ul>, etc.)
+ * and strictly isolates only the characters the user has actually highlighted.
  */
-const mergeLineRects = (
-  rawRects: DOMRectList | DOMRect[],
-  canvasTop: number,
-  canvasLeft: number
+const getStrictSelectionLineRects = (
+  range: Range,
+  canvasRect: DOMRect
 ): Array<{ top: number; left: number; width: number; height: number }> => {
-  const list = Array.from(rawRects)
-    .filter((r) => r.width > 2 && r.height > 2)
-    .map((r) => ({
-      top: r.top - canvasTop,
-      left: r.left - canvasLeft,
-      width: r.width,
-      height: r.height,
-    }));
+  if (range.collapsed) return [];
 
-  if (list.length === 0) return [];
+  const textNodes: Text[] = [];
+  const root = range.commonAncestorContainer;
 
-  // Group / merge rects on the same line (vertical overlap tolerance)
+  if (root.nodeType === Node.TEXT_NODE) {
+    textNodes.push(root as Text);
+  } else {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        try {
+          return range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        } catch {
+          return NodeFilter.FILTER_REJECT;
+        }
+      },
+    });
+
+    let curr = walker.currentNode;
+    if (curr && curr.nodeType === Node.TEXT_NODE) {
+      try {
+        if (range.intersectsNode(curr)) textNodes.push(curr as Text);
+      } catch {}
+    }
+    while (walker.nextNode()) {
+      textNodes.push(walker.currentNode as Text);
+    }
+  }
+
+  const rawRects: DOMRect[] = [];
+
+  for (const node of textNodes) {
+    if (!node.textContent || node.textContent.length === 0) continue;
+
+    const nodeRange = document.createRange();
+    const start = node === range.startContainer ? range.startOffset : 0;
+    const end = node === range.endContainer ? range.endOffset : node.textContent.length;
+
+    if (end > start) {
+      try {
+        nodeRange.setStart(node, start);
+        nodeRange.setEnd(node, end);
+        const clientRects = nodeRange.getClientRects();
+        for (let i = 0; i < clientRects.length; i++) {
+          const r = clientRects[i];
+          if (r.width > 1 && r.height > 1) {
+            rawRects.push(r);
+          }
+        }
+      } catch {}
+    }
+  }
+
+  if (rawRects.length === 0) {
+    const fallbackRects = Array.from(range.getClientRects()).filter(
+      (r) => r.width > 2 && r.height > 2
+    );
+    rawRects.push(...fallbackRects);
+  }
+
+  // Group and merge rects on the same visual line (within 5px vertical tolerance)
   const merged: Array<{ top: number; left: number; width: number; height: number }> = [];
 
-  for (const r of list) {
+  for (const r of rawRects) {
+    const relTop = r.top - canvasRect.top;
+    const relLeft = r.left - canvasRect.left;
+
     const existing = merged.find(
-      (m) => Math.abs(m.top - r.top) < 6 && Math.abs(m.height - r.height) < 10
+      (m) => Math.abs(m.top - relTop) < 5 && Math.abs(m.height - r.height) < 8
     );
+
     if (existing) {
-      const newLeft = Math.min(existing.left, r.left);
-      const newRight = Math.max(existing.left + existing.width, r.left + r.width);
+      const newLeft = Math.min(existing.left, relLeft);
+      const newRight = Math.max(existing.left + existing.width, relLeft + r.width);
       existing.left = newLeft;
       existing.width = newRight - newLeft;
-      existing.top = Math.min(existing.top, r.top);
+      existing.top = Math.min(existing.top, relTop);
       existing.height = Math.max(existing.height, r.height);
     } else {
-      merged.push({ ...r });
+      merged.push({
+        top: relTop,
+        left: relLeft,
+        width: r.width,
+        height: r.height,
+      });
     }
   }
 
@@ -1702,14 +1761,26 @@ export const QuickNoteWindow: React.FC = () => {
           const range = sel.getRangeAt(0);
           const selRect = range.getBoundingClientRect();
           const canvasRect = canvasRef.current.getBoundingClientRect();
-          const lineRects = mergeLineRects(range.getClientRects(), canvasRect.top, canvasRect.left);
+          const lineRects = getStrictSelectionLineRects(range, canvasRect);
+          let minLeft = selRect.left - canvasRect.left;
+          let maxRight = selRect.right - canvasRect.left;
+          let minTop = selRect.top - canvasRect.top;
+          let maxBottom = selRect.bottom - canvasRect.top;
+
+          if (lineRects.length > 0) {
+            minLeft = Math.min(...lineRects.map((r) => r.left));
+            maxRight = Math.max(...lineRects.map((r) => r.left + r.width));
+            minTop = Math.min(...lineRects.map((r) => r.top));
+            maxBottom = Math.max(...lineRects.map((r) => r.top + r.height));
+          }
+
           setSelectionBounds({
-            top: selRect.top - canvasRect.top,
-            bottom: selRect.bottom - canvasRect.top,
-            left: selRect.left - canvasRect.left,
-            right: selRect.right - canvasRect.left,
-            width: selRect.width,
-            height: selRect.height,
+            top: minTop,
+            bottom: maxBottom,
+            left: minLeft,
+            right: maxRight,
+            width: Math.max(20, maxRight - minLeft),
+            height: Math.max(16, maxBottom - minTop),
             lineRects,
           });
         }
@@ -2109,35 +2180,47 @@ export const QuickNoteWindow: React.FC = () => {
       const canvasRect = canvasRef.current.getBoundingClientRect();
 
       if (selRect.width > 0 || selRect.height > 0) {
-        const lineRects = mergeLineRects(range.getClientRects(), canvasRect.top, canvasRect.left);
+        const lineRects = getStrictSelectionLineRects(range, canvasRect);
+
+        let minLeft = selRect.left - canvasRect.left;
+        let maxRight = selRect.right - canvasRect.left;
+        let minTop = selRect.top - canvasRect.top;
+        let maxBottom = selRect.bottom - canvasRect.top;
+
+        if (lineRects.length > 0) {
+          minLeft = Math.min(...lineRects.map((r) => r.left));
+          maxRight = Math.max(...lineRects.map((r) => r.left + r.width));
+          minTop = Math.min(...lineRects.map((r) => r.top));
+          maxBottom = Math.max(...lineRects.map((r) => r.top + r.height));
+        }
+
         setSelectionBounds({
-          top: selRect.top - canvasRect.top,
-          bottom: selRect.bottom - canvasRect.top,
-          left: selRect.left - canvasRect.left,
-          right: selRect.right - canvasRect.left,
-          width: selRect.width,
-          height: selRect.height,
+          top: minTop,
+          bottom: maxBottom,
+          left: minLeft,
+          right: maxRight,
+          width: Math.max(20, maxRight - minLeft),
+          height: Math.max(16, maxBottom - minTop),
           lineRects,
         });
 
-        const rects = range.getClientRects();
-        const firstRect = rects.length > 0 ? rects[0] : selRect;
-        const lastRect = rects.length > 0 ? rects[rects.length - 1] : selRect;
+        const firstRect = lineRects.length > 0 ? lineRects[0] : { top: minTop, left: minLeft, width: maxRight - minLeft, height: 20 };
+        const lastRect = lineRects.length > 0 ? lineRects[lineRects.length - 1] : firstRect;
 
         const toolbarHeight = 40;
         const toolbarHalfWidth = 145;
 
         // Ưu tiên 1: Đặt phía trên dòng đầu tiên của vùng chọn
-        let top = firstRect.top - canvasRect.top - toolbarHeight - 8;
-        let centerX = firstRect.left + firstRect.width / 2 - canvasRect.left;
+        let top = firstRect.top - toolbarHeight - 8;
+        let centerX = firstRect.left + firstRect.width / 2;
 
         // Nếu không đủ chỗ phía trên dòng đầu tiên (sát mép trên của editor)
         if (top < 4) {
           // Thử đặt phía dưới dòng cuối cùng của vùng chọn nếu vừa với khung
-          const belowBottom = lastRect.bottom - canvasRect.top + 8;
+          const belowBottom = lastRect.top + lastRect.height + 8;
           if (belowBottom + toolbarHeight <= canvasRect.height - 4) {
             top = belowBottom;
-            centerX = lastRect.left + lastRect.width / 2 - canvasRect.left;
+            centerX = lastRect.left + lastRect.width / 2;
           } else {
             // Vùng chọn phủ dài từ trên xuống dưới toàn bộ khung: Đặt lơ lửng ngay phía trên canvas để TUYỆT ĐỐI không che chữ đang đọc
             top = -toolbarHeight - 6;
@@ -2313,6 +2396,35 @@ export const QuickNoteWindow: React.FC = () => {
     setAiDraftCopied(false);
     if (!selectionState || !selectionState.text.trim()) return;
     const targetText = selectionState.text.trim();
+
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed && editorRef.current?.contains(sel.anchorNode) && canvasRef.current) {
+      const range = sel.getRangeAt(0);
+      const selRect = range.getBoundingClientRect();
+      const canvasRect = canvasRef.current.getBoundingClientRect();
+      const lineRects = getStrictSelectionLineRects(range, canvasRect);
+      let minLeft = selRect.left - canvasRect.left;
+      let maxRight = selRect.right - canvasRect.left;
+      let minTop = selRect.top - canvasRect.top;
+      let maxBottom = selRect.bottom - canvasRect.top;
+
+      if (lineRects.length > 0) {
+        minLeft = Math.min(...lineRects.map((r) => r.left));
+        maxRight = Math.max(...lineRects.map((r) => r.left + r.width));
+        minTop = Math.min(...lineRects.map((r) => r.top));
+        maxBottom = Math.max(...lineRects.map((r) => r.top + r.height));
+      }
+
+      setSelectionBounds({
+        top: minTop,
+        bottom: maxBottom,
+        left: minLeft,
+        right: maxRight,
+        width: Math.max(20, maxRight - minLeft),
+        height: Math.max(16, maxBottom - minTop),
+        lineRects,
+      });
+    }
 
     writingToolAbortControllerRef.current?.abort();
     const controller = new AbortController();
@@ -5376,49 +5488,33 @@ export const QuickNoteWindow: React.FC = () => {
               ) : (
                 /* Seamless Flowing Writing Canvas */
                 <div ref={canvasRef} className="flex-1 flex flex-col min-h-0 relative">
-                  {/* Apple AI Creative Cascading Scan Effect - Strictly Line-Bound to Selected Text */}
+                  {/* Apple AI Creative Synchronized Text Scan Effect - Strictly Line-Bound to Selected Text */}
                   {writingToolLoading && selectionBounds?.lineRects && selectionBounds.lineRects.length > 0 && (
-                    <>
-                      {selectionBounds.lineRects.map((rect, idx) => {
-                        const totalLines = selectionBounds.lineRects.length;
-                        const duration = Math.min(2.2, Math.max(1.3, totalLines * 0.35));
-                        const delay = (idx / Math.max(1, totalLines)) * (duration * 0.55);
-
-                        return (
+                    <div className="absolute inset-0 pointer-events-none select-none z-20 overflow-hidden">
+                      {selectionBounds.lineRects.map((rect, idx) => (
+                        <div
+                          key={`scan-line-${idx}-${rect.top.toFixed(0)}-${rect.left.toFixed(0)}`}
+                          className="absolute overflow-hidden rounded-[3px]"
+                          style={{
+                            top: `${Math.max(0, rect.top)}px`,
+                            left: `${Math.max(0, rect.left)}px`,
+                            width: `${Math.max(4, rect.width)}px`,
+                            height: `${Math.max(16, rect.height)}px`,
+                          }}
+                        >
+                          {/* Synchronized Global Sweep Track - Anchored to selectionBounds.left */}
                           <div
-                            key={`scan-line-${idx}-${rect.top.toFixed(0)}-${rect.left.toFixed(0)}`}
-                            className="apple-ai-text-line-wrapper"
+                            className="absolute top-0 bottom-0 pointer-events-none"
                             style={{
-                              top: `${Math.max(0, rect.top - 1)}px`,
-                              left: `${Math.max(0, rect.left - 2)}px`,
-                              width: `${Math.max(8, rect.width + 4)}px`,
-                              height: `${Math.max(16, rect.height + 2)}px`,
+                              left: `${selectionBounds.left - rect.left}px`,
+                              width: `${selectionBounds.width}px`,
                             }}
                           >
-                            {/* Ambient Iridescent Underglow strictly on highlighted text */}
-                            <div className="apple-ai-text-line-base" />
-
-                            {/* Cascading Prismatic Laser Sweep with Starlight Spark */}
-                            <div
-                              className="apple-ai-text-line-sweep"
-                              style={{
-                                animation: `appleAiLineSweep ${duration}s cubic-bezier(0.4, 0, 0.2, 1) infinite`,
-                                animationDelay: `${delay}s`,
-                              }}
-                            >
-                              <div className="apple-ai-star-spark">
-                                <svg
-                                  viewBox="0 0 16 16"
-                                  className="w-3.5 h-3.5 text-white fill-white drop-shadow-[0_0_6px_rgba(255,255,255,0.95)]"
-                                >
-                                  <path d="M8 0L9.4 6.6L16 8L9.4 9.4L8 16L6.6 9.4L0 8L6.6 6.6L8 0Z" />
-                                </svg>
-                              </div>
-                            </div>
+                            <div className="apple-ai-unified-sweep-beam" />
                           </div>
-                        );
-                      })}
-                    </>
+                        </div>
+                      ))}
+                    </div>
                   )}
 
                   {/* Placeholder overlay when empty */}

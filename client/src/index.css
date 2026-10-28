@@ -3137,20 +3137,12 @@ tbody td {
 }
 
 /* ==========================================================================
-   Apple Intelligence Creative Text Highlight Scanning Effect (Strictly Line-Bound)
+   Apple Intelligence Creative Synchronized Highlight Scanning Effect
+   (Strictly Line-Bound to Selected Text - 100% Unified Wave)
    ========================================================================== */
-@keyframes appleAiLinePulse {
-  0%, 100% {
-    opacity: 0.75;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-@keyframes appleAiLineSweep {
+@keyframes appleAiUnifiedSweep {
   0% {
-    transform: translateX(-110%) skewX(-14deg);
+    left: -140px;
     opacity: 0;
   }
   12% {
@@ -3160,74 +3152,33 @@ tbody td {
     opacity: 0.95;
   }
   100% {
-    transform: translateX(250%) skewX(-14deg);
+    left: calc(100% + 140px);
     opacity: 0;
   }
 }
 
-@keyframes appleAiStarSparkle {
-  0%, 100% {
-    transform: translateY(-50%) scale(0.85) rotate(0deg);
-    opacity: 0.8;
-  }
-  50% {
-    transform: translateY(-50%) scale(1.15) rotate(90deg);
-    opacity: 1;
-  }
-}
-
-.apple-ai-text-line-wrapper {
-  position: absolute;
-  border-radius: 4px;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 20;
-}
-
-.apple-ai-text-line-base {
-  position: absolute;
-  inset: 0;
-  border-radius: 4px;
-  background: linear-gradient(
-    90deg,
-    rgba(99, 102, 241, 0.12) 0%,
-    rgba(168, 85, 247, 0.18) 50%,
-    rgba(236, 72, 153, 0.14) 100%
-  );
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -1px 0 rgba(168, 85, 247, 0.25);
-  animation: appleAiLinePulse 2s ease-in-out infinite;
-}
-
-.apple-ai-text-line-sweep {
+.apple-ai-unified-sweep-beam {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 55%;
-  min-width: 60px;
-  max-width: 140px;
+  width: 95px;
+  transform: skewX(-16deg);
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(99, 102, 241, 0.25) 20%,
-    rgba(168, 85, 247, 0.7) 45%,
+    rgba(99, 102, 241, 0.15) 15%,
+    rgba(168, 85, 247, 0.6) 42%,
     rgba(255, 255, 255, 0.98) 50%,
-    rgba(236, 72, 153, 0.7) 55%,
-    rgba(56, 189, 248, 0.4) 80%,
+    rgba(236, 72, 153, 0.6) 58%,
+    rgba(56, 189, 248, 0.25) 85%,
     transparent 100%
   );
   box-shadow:
-    0 0 14px rgba(255, 255, 255, 0.95),
-    0 0 22px rgba(168, 85, 247, 0.8),
-    0 0 32px rgba(236, 72, 153, 0.5);
-  filter: drop-shadow(0 0 6px rgba(168, 85, 247, 0.7));
-  pointer-events: none;
-}
-
-.apple-ai-star-spark {
-  position: absolute;
-  right: 18%;
-  top: 50%;
-  animation: appleAiStarSparkle 1.2s ease-in-out infinite;
+    0 0 16px rgba(255, 255, 255, 0.95),
+    0 0 24px rgba(168, 85, 247, 0.75),
+    0 0 36px rgba(236, 72, 153, 0.45);
+  filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.8));
+  animation: appleAiUnifiedSweep 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   pointer-events: none;
 }
 
