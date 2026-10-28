@@ -3251,7 +3251,8 @@ tbody td {
 .smooth-scroll-120 {
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
+  overscroll-behavior-x: auto;
+  overscroll-behavior-y: auto;
 }
 
 .content-auto {

@@ -656,7 +656,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
         <div key={activeTab} className={animationClass}>
           {/* 1. SHEET: QUICK LINKS */}
           {activeTab === 'links' && (
-          <div className="overflow-x-auto scrollbar-thin smooth-scroll-120">
+          <div className="overflow-x-auto scrollbar-thin smooth-scroll-120 overscroll-y-auto">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
               <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-white select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <tr>
@@ -730,7 +730,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
 
         {/* 2. SHEET: ACCOUNT VAULT */}
         {activeTab === 'accounts' && (
-          <div className="overflow-x-auto scrollbar-thin smooth-scroll-120">
+          <div className="overflow-x-auto scrollbar-thin smooth-scroll-120 overscroll-y-auto">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-white">
               <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-white select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <tr>
@@ -805,7 +805,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
 
         {/* 3. SHEET: STORE DIRECTORY */}
         {activeTab === 'stores' && (
-          <div className="overflow-x-auto scrollbar-thin smooth-scroll-120">
+          <div className="overflow-x-auto scrollbar-thin smooth-scroll-120 overscroll-y-auto">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-white">
               <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-white select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <tr>
