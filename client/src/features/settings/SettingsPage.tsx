@@ -32,6 +32,7 @@ import { AppleLiquidDialog } from '@/components/ui/AppleLiquidDialog';
 import { SegmentedNavigation } from '@/components/ui/SegmentedNavigation';
 import { useUiStore, resolveTheme } from '@/stores/ui-store';
 import { useSecurityStore } from '@/stores/security-store';
+import { useNoteStore } from '@/stores/note-store';
 import { Clock, Monitor, Lock, Unlock, Server, ShieldCheck, Database, KeyRound, Bookmark, Info, Zap } from 'lucide-react';
 import { formatBytes } from '@/lib/utils';
 import { useAppleTabSpring, useDirectionalTab } from '@/lib/motion';
@@ -432,7 +433,6 @@ export const SettingsPage: React.FC = () => {
         await loadStats();
         await loadStorageAndSyncStatus();
         try {
-          const { useNoteStore } = await import('@/stores/note-store');
           await useNoteStore.getState().loadNotes();
         } catch (_) {}
       } else {
@@ -492,7 +492,6 @@ export const SettingsPage: React.FC = () => {
         await loadStats();
         await loadStorageAndSyncStatus();
         try {
-          const { useNoteStore } = await import('@/stores/note-store');
           await useNoteStore.getState().loadNotes();
         } catch (_) {}
         setShowPasswordPromptModal(false);

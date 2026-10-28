@@ -53,7 +53,7 @@ async function getSmtpConfig(): Promise<SmtpConfig> {
   const port = Number((await getSetting('smtp_port')) || process.env.SMTP_PORT || 587);
   const secure = port === 465;
   const senderName = (await getSetting('smtp_sender_name')) || 'Farmers Market Assistant';
-  const from = getSetting('smtp_from') || process.env.SMTP_FROM || `"${senderName}" <${user}>`;
+  const from = (await getSetting('smtp_from')) || process.env.SMTP_FROM || `"${senderName}" <${user}>`;
 
   return {
     host,

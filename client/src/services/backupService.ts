@@ -17,6 +17,7 @@ import { STORES, idbGetAll, idbPut, idbClear, getDB } from './storage/indexedDb'
 import { noteService } from './noteService';
 import { cryptoService } from './cryptoService';
 import { api } from '@/lib/api';
+import { useNoteStore } from '@/stores/note-store';
 import {
   LinkItem,
   AccountItem,
@@ -535,7 +536,6 @@ async function importFullBackup(
   try {
     const allNotesFromIdb = await idbGetAll<QuickNoteItem>(STORES.NOTES);
     noteService.saveLocalStorageNotesDirect(allNotesFromIdb);
-    const { useNoteStore } = await import('@/stores/note-store');
     await useNoteStore.getState().loadNotes();
   } catch (err) {
     console.warn('Note store reload error after backup import:', err);

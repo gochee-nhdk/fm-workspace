@@ -198,19 +198,19 @@ export class BetterSqliteAdapter implements IDatabaseAdapter {
 
   async get<T = any>(sql: string, ...args: any[]): Promise<T | undefined> {
     const norm = normalizeArgs(args);
-    const row = this.db.prepare(sql).get(...norm);
+    const row = Array.isArray(norm) ? this.db.prepare(sql).get(...norm) : this.db.prepare(sql).get(norm);
     return (row as unknown as T) || undefined;
   }
 
   async all<T = any>(sql: string, ...args: any[]): Promise<T[]> {
     const norm = normalizeArgs(args);
-    const rows = this.db.prepare(sql).all(...norm);
+    const rows = Array.isArray(norm) ? this.db.prepare(sql).all(...norm) : this.db.prepare(sql).all(norm);
     return rows as unknown as T[];
   }
 
   async run(sql: string, ...args: any[]): Promise<RunResult> {
     const norm = normalizeArgs(args);
-    const info = this.db.prepare(sql).run(...norm);
+    const info = Array.isArray(norm) ? this.db.prepare(sql).run(...norm) : this.db.prepare(sql).run(norm);
     return {
       changes: Number(info.changes || 0),
       lastInsertRowid: Number(info.lastInsertRowid || 0),
@@ -245,7 +245,7 @@ export class BetterSqliteAdapter implements IDatabaseAdapter {
       return this.db.prepare(query).all();
     }
     const norm = normalizeArgs(query.args);
-    return this.db.prepare(query.sql).all(...norm);
+    return Array.isArray(norm) ? this.db.prepare(query.sql).all(...norm) : this.db.prepare(query.sql).all(norm);
   }
 
   async close(): Promise<void> {

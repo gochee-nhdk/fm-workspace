@@ -17,6 +17,7 @@ import {
 import { initialLinks, initialAccounts, initialStores } from '@/data/seedData';
 import { autoBackupManager } from './autoBackupManager';
 import { noteService } from './noteService';
+import { useNoteStore } from '@/stores/note-store';
 
 const generateId = (): string => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -306,7 +307,6 @@ class DataService {
     localStorage.setItem(SEEDED_KEY, 'true');
     this.initialized = true;
     try {
-      const { useNoteStore } = await import('@/stores/note-store');
       await useNoteStore.getState().loadNotes();
     } catch (_) {}
   }
@@ -321,7 +321,6 @@ class DataService {
     localStorage.setItem(SEEDED_KEY, 'true');
     this.initialized = true;
     try {
-      const { useNoteStore } = await import('@/stores/note-store');
       await useNoteStore.getState().loadNotes();
     } catch (_) {}
     await this.logActivity('create', 'ALL', 'seed-restore', 'Đã khôi phục dữ liệu mẫu ban đầu');

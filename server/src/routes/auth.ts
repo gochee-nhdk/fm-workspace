@@ -258,7 +258,7 @@ export default async function authRoutes(fastify: FastifyInstance) {
           googleProfile = {
             sub: decoded.sub,
             email: String(decoded.email).toLowerCase().trim(),
-            name: data.name || String(decoded.email).split('@')[0],
+            name: decoded.name || String(decoded.email).split('@')[0],
             picture: decoded.picture,
           };
         }
