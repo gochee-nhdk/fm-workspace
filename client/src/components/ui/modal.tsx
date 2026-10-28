@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { CloseButton } from '@/components/ui/close-button';
@@ -26,52 +26,62 @@ export const Modal: React.FC<ModalProps> = ({
   const [isMounted, setIsMounted] = useState(isOpen);
   const [isClosing, setIsClosing] = useState(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastChildrenRef = useRef<React.ReactNode | null>(null);
 
-  useEffect(() => {
+  if (isOpen && children) {
+    lastChildrenRef.current = children;
+  }
+
+  useLayoutEffect(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+
     if (isOpen) {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
       setIsMounted(true);
       setIsClosing(false);
       document.body.style.overflow = 'hidden';
-    } else if (isMounted && !isClosing) {
+    } else if (isMounted) {
       setIsClosing(true);
       closeTimerRef.current = setTimeout(() => {
         setIsMounted(false);
         setIsClosing(false);
         document.body.style.overflow = '';
-      }, motionTokens.duration.exit);
+        closeTimerRef.current = null;
+      }, motionTokens.duration.exit + 10);
     }
+  }, [isOpen, isMounted]);
 
-    return () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    };
-  }, [isOpen]);
-
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     if (isClosing) return;
-    setIsClosing(true);
-    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    closeTimerRef.current = setTimeout(() => {
-      onClose();
-      setIsClosing(false);
-      setIsMounted(false);
+    onClose();
+  }, [isClosing, onClose]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
       document.body.style.overflow = '';
-    }, motionTokens.duration.exit);
-  };
+    };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isMounted && !isClosing) {
+        e.preventDefault();
+        e.stopPropagation();
         handleClose();
       }
     };
     if (isMounted) {
-      window.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('keydown', handleKeyDown, true);
     }
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [isMounted, isClosing]);
+  }, [isMounted, isClosing, handleClose]);
 
   if (!isMounted) return null;
 
@@ -84,22 +94,28 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      {/* MacBook Liquid Backdrop Fade */}
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title || 'Cửa sổ thông tin'}
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 overflow-hidden select-none"
+    >
+      {/* Liquid Backdrop Fade */}
       <div
         className={cn(
-          'fixed inset-0 bg-black/45 backdrop-blur-md',
-          isClosing ? 'liquid-backdrop-exit' : 'liquid-backdrop-enter'
+          'fixed inset-0 bg-black/45 backdrop-blur-md will-change-[opacity] [transform:translateZ(0)]',
+          isClosing ? 'liquid-backdrop-exit pointer-events-none' : 'liquid-backdrop-enter pointer-events-auto'
         )}
         onClick={handleClose}
       />
 
-      {/* Fluid Droplet Modal Surface - Apple macOS 27 Window Modal Overlay */}
+      {/* Fluid Droplet Modal Surface */}
       <div
+        onClick={(e) => e.stopPropagation()}
         className={cn(
-          'relative w-full bg-white dark:bg-[#1c1c22] rounded-[24px] shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15 overflow-hidden z-10 max-h-[90vh] flex flex-col font-sans',
+          'relative w-full bg-white dark:bg-[#1c1c22] rounded-[24px] shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15 overflow-hidden z-10 max-h-[90vh] flex flex-col font-sans will-change-[transform,opacity] [transform:translateZ(0)]',
           sizes[size],
-          isClosing ? 'liquid-droplet-exit' : 'liquid-droplet-enter'
+          isClosing ? 'liquid-droplet-exit pointer-events-none' : 'liquid-droplet-enter pointer-events-auto'
         )}
       >
         {(title || showCloseButton) && (
@@ -122,7 +138,9 @@ export const Modal: React.FC<ModalProps> = ({
           </div>
         )}
 
-        <div className="p-6 overflow-y-auto flex-1">{children}</div>
+        <div className="p-6 overflow-y-auto overscroll-contain flex-1">
+          {isClosing && lastChildrenRef.current ? lastChildrenRef.current : children}
+        </div>
       </div>
     </div>,
     document.body

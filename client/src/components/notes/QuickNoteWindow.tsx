@@ -2835,7 +2835,7 @@ export const QuickNoteWindow: React.FC = () => {
       activeNoteIdRef.current = null;
       setIsWindowClosing(false);
       closeNote();
-    }, 180);
+    }, 140);
   }, [closeNote, savePendingDraft]);
 
   // Clean up closing timer on unmount
@@ -4012,7 +4012,7 @@ export const QuickNoteWindow: React.FC = () => {
       {isMobileScreen && (
         <div
           className={cn(
-            "fixed inset-0 bg-black/40 backdrop-blur-sm z-[9998]",
+            "fixed inset-0 bg-black/40 backdrop-blur-sm z-[9998] will-change-[opacity] [transform:translateZ(0)]",
             isWindowClosing ? "liquid-backdrop-exit" : "liquid-backdrop-enter"
           )}
           onClick={handleCloseNote}
@@ -4042,7 +4042,7 @@ export const QuickNoteWindow: React.FC = () => {
               }
         }
         className={cn(
-          "fixed z-[9999] bg-white/95 dark:bg-[#181822]/95 backdrop-blur-3xl border border-white/80 dark:border-white/15 flex flex-col overflow-hidden font-sans select-none",
+          "fixed z-[9999] bg-white/95 dark:bg-[#181822]/95 backdrop-blur-3xl border border-white/80 dark:border-white/15 flex flex-col overflow-hidden font-sans select-none will-change-[transform,opacity] [transform:translateZ(0)]",
           isMobileScreen
             ? "rounded-t-[28px] rounded-b-none border-b-0 max-w-none max-h-none shadow-[0_-12px_40px_rgba(0,0,0,0.22)] pb-[env(safe-area-inset-bottom,0px)]"
             : cn(

@@ -153,11 +153,11 @@
     --motion-duration-micro: 80ms;
     --motion-duration-hover: 110ms;
     --motion-duration-tab: 100ms;
-    --motion-duration-popover: 160ms;
-    --motion-duration-exit: 140ms;
-    --motion-duration-sidebar: 180ms;
-    --motion-duration-modal: 190ms;
-    --motion-duration-spatial: 220ms;
+    --motion-duration-popover: 150ms;
+    --motion-duration-exit: 130ms;
+    --motion-duration-sidebar: 170ms;
+    --motion-duration-modal: 180ms;
+    --motion-duration-spatial: 200ms;
     --motion-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
     --motion-ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
     --motion-ease-snappy: cubic-bezier(0.18, 0.9, 0.22, 1);
@@ -1469,11 +1469,15 @@
 .apple-tab-content-enter {
   animation: liquidTabContentGlide 0.11s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .apple-tab-content-enter-rev {
   animation: liquidTabContentGlideRev 0.11s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 /* Apple Item Materialize (Creation) & Dismiss (Deletion) — with spring overshoot */
@@ -1752,53 +1756,90 @@
 .liquid-droplet-enter {
   animation: appleModalOpen var(--motion-duration-modal) var(--motion-ease-spring) forwards;
   will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .apple-modal-exit,
 .liquid-droplet-exit {
   animation: appleModalClose var(--motion-duration-exit) var(--motion-ease-exit) forwards;
   will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .liquid-backdrop-enter {
   animation: liquidBackdropFadeIn var(--motion-duration-popover) var(--motion-ease-spring) forwards;
+  will-change: opacity;
+  transform: translateZ(0);
 }
 
 .liquid-backdrop-exit {
   animation: liquidBackdropFadeOut var(--motion-duration-exit) var(--motion-ease-exit) forwards;
+  will-change: opacity;
+  transform: translateZ(0);
 }
 
 /* Native Apple iOS Bottom Sheet Motion (Mobile 120 FPS Spring Physics) */
 @keyframes appleBottomSheetSlideIn {
   0% {
-    opacity: 0.85;
     transform: translate3d(0, 100%, 0);
   }
   100% {
-    opacity: 1;
     transform: translate3d(0, 0, 0);
   }
 }
 
 @keyframes appleBottomSheetSlideOut {
   0% {
-    opacity: 1;
     transform: translate3d(0, 0, 0);
   }
   100% {
-    opacity: 0.7;
     transform: translate3d(0, 100%, 0);
   }
 }
 
 .apple-bottom-sheet-enter {
   animation: appleBottomSheetSlideIn var(--motion-duration-modal) var(--motion-ease-spring) forwards;
-  will-change: transform, opacity;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .apple-bottom-sheet-exit {
   animation: appleBottomSheetSlideOut var(--motion-duration-exit) var(--motion-ease-exit) forwards;
-  will-change: transform, opacity;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Responsive Liquid Glass Drawer / Dialog Surface Physics (Mobile: bottom sheet, Desktop: spatial modal) */
+@media (max-width: 639px) {
+  .apple-drawer-surface-enter {
+    animation: appleBottomSheetSlideIn var(--motion-duration-modal) var(--motion-ease-spring) forwards;
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  .apple-drawer-surface-exit {
+    animation: appleBottomSheetSlideOut var(--motion-duration-exit) var(--motion-ease-exit) forwards;
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+}
+
+@media (min-width: 640px) {
+  .apple-drawer-surface-enter {
+    animation: appleModalOpen var(--motion-duration-modal) var(--motion-ease-spring) forwards;
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  .apple-drawer-surface-exit {
+    animation: appleModalClose var(--motion-duration-exit) var(--motion-ease-exit) forwards;
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
 }
 
 /* Native Apple iOS Mobile Drawer Slide Motion (120 FPS Spring Physics) */
@@ -1823,11 +1864,15 @@
 .apple-drawer-enter {
   animation: appleDrawerSlideIn var(--motion-duration-sidebar) var(--motion-ease-spring) forwards;
   will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .apple-drawer-exit {
   animation: appleDrawerSlideOut var(--motion-duration-exit) var(--motion-ease-exit) forwards;
   will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 /* Apple Liquid Glass Image Lightbox Spring Physics (120 FPS, GPU-accelerated) */

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, startTransition } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   SFLink,
@@ -262,7 +262,9 @@ export const UnifiedWorkspacePage: React.FC = () => {
     setActiveTab(tab);
     setSearch('');
     setSelectedCategory('ALL');
-    setSearchParams({ tab }, { replace: true });
+    startTransition(() => {
+      setSearchParams({ tab }, { replace: true });
+    });
   };
 
   // 1-Click Copy Helper
@@ -655,11 +657,11 @@ export const UnifiedWorkspacePage: React.FC = () => {
         <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/80 dark:via-white/20 to-transparent pointer-events-none z-30" />
 
         {/* Spatial Continuity Animated Content Context */}
-        <div key={activeTab} className={animationClass}>
+        <div className="relative">
           {/* 1. SHEET: QUICK LINKS */}
-          {activeTab === 'links' && (
-          <div className="overflow-x-auto scrollbar-thin smooth-scroll-120 overscroll-y-auto">
-            <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
+          <div className={activeTab === 'links' ? `${animationClass} block` : 'hidden'}>
+            <div className="overflow-x-auto scrollbar-thin smooth-scroll-120 overscroll-y-auto">
+              <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
               <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-white select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <tr>
                   <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]" aria-label="Kéo thả sắp xếp" title="Kéo thả sắp xếp">
@@ -728,10 +730,10 @@ export const UnifiedWorkspacePage: React.FC = () => {
               </tbody>
             </table>
           </div>
-        )}
+        </div>
 
         {/* 2. SHEET: ACCOUNT VAULT */}
-        {activeTab === 'accounts' && (
+        <div className={activeTab === 'accounts' ? `${animationClass} block` : 'hidden'}>
           <div className="overflow-x-auto scrollbar-thin smooth-scroll-120 overscroll-y-auto">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-white">
               <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-white select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
@@ -803,10 +805,10 @@ export const UnifiedWorkspacePage: React.FC = () => {
               </tbody>
             </table>
           </div>
-        )}
+        </div>
 
         {/* 3. SHEET: STORE DIRECTORY */}
-        {activeTab === 'stores' && (
+        <div className={activeTab === 'stores' ? `${animationClass} block` : 'hidden'}>
           <div className="overflow-x-auto scrollbar-thin smooth-scroll-120 overscroll-y-auto">
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-white">
               <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-white select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
@@ -876,7 +878,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
               </tbody>
             </table>
           </div>
-        )}
+        </div>
         </div>
       </div>
 

@@ -21,11 +21,11 @@ export const motionTokens = {
     micro:      80,   // 80ms — micro-interaction (icon swap, badge)
     hover:      110,  // 110ms — hover state morphing
     tabContent: 100,  // instant 100ms crisp directional content glide
-    popover:    160,  // popover expand from trigger origin
-    exit:       140,  // keep dialog unmount timing aligned with the exit keyframe
-    sidebar:    180,  // sidebar width morph
-    modal:      190,  // modal sheet entrance
-    spatial:    220,  // large spatial transitions (window open)
+    popover:    150,  // popover expand from trigger origin
+    exit:       130,  // keep dialog unmount timing aligned with the exit keyframe
+    sidebar:    170,  // sidebar width morph
+    modal:      180,  // modal sheet entrance
+    spatial:    200,  // large spatial transitions (window open)
   },
   easing: {
     // Apple's signature: immediate acceleration, ultra-smooth overshooting deceleration

@@ -497,14 +497,14 @@ export const AppShell: React.FC = () => {
           <div className="fixed inset-0 z-[9999] md:hidden">
             <div
               className={cn(
-                "fixed inset-0 bg-black/50 backdrop-blur-md",
+                "fixed inset-0 bg-black/50 backdrop-blur-md will-change-[opacity] [transform:translateZ(0)]",
                 isMobileMenuClosing ? "liquid-backdrop-exit pointer-events-none" : "liquid-backdrop-enter pointer-events-auto"
               )}
               onClick={handleCloseMobileMenu}
             />
             <div
               className={cn(
-                "fixed inset-y-0 left-0 w-[285px] max-w-[85vw] pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] vision-glass-sidebar shadow-2xl flex flex-col z-10 border-r border-black/[0.08] dark:border-white/10 select-none",
+                "fixed inset-y-0 left-0 w-[285px] max-w-[85vw] pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] vision-glass-sidebar shadow-2xl flex flex-col z-10 border-r border-black/[0.08] dark:border-white/10 select-none will-change-[transform] [transform:translateZ(0)]",
                 isMobileMenuClosing ? "apple-drawer-exit pointer-events-none" : "apple-drawer-enter pointer-events-auto"
               )}
             >

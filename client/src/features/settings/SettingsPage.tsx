@@ -585,9 +585,9 @@ export const SettingsPage: React.FC = () => {
 
       <div className="max-w-4xl mx-auto mt-6">
         {/* ── Spatial Animated Settings Tab Content Container ── */}
-        <div key={activeTab} className={animationClass}>
+        <div className="relative">
         {/* ── TAB 1: DỮ LIỆU & SAO LƯU ── */}
-        {activeTab === 'backup' && (
+        <div className={activeTab === 'backup' ? `${animationClass} block` : 'hidden'}>
           <div className="space-y-6">
           {/* Storage Health & Stats */}
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-5">
@@ -961,10 +961,10 @@ export const SettingsPage: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* ── TAB 2: LÁ CHẮN AN TOÀN ── */}
-      {activeTab === 'shield' && (
+      <div className={activeTab === 'shield' ? `${animationClass} block` : 'hidden'}>
         <div className="space-y-6">
           {/* Dual-Persistence Shield */}
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-4 border border-emerald-500/20 bg-emerald-500/[0.02]">
@@ -1272,10 +1272,10 @@ export const SettingsPage: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* ── TAB 3: GỬI MAIL TỰ ĐỘNG (GMAIL SMTP) ── */}
-      {activeTab === 'smtp' && (
+      <div className={activeTab === 'smtp' ? `${animationClass} block` : 'hidden'}>
         <div className="space-y-6">
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-5">
             <div className="flex items-center justify-between pb-3.5 border-b border-[#e0e0e0] dark:border-white/10 flex-wrap gap-2">
@@ -1421,10 +1421,10 @@ export const SettingsPage: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* ── TAB 4: GIAO DIỆN (THEME & APPEARANCE) ── */}
-      {activeTab === 'appearance' && (
+      <div className={activeTab === 'appearance' ? `${animationClass} block` : 'hidden'}>
         <div className="space-y-6">
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
@@ -1460,7 +1460,7 @@ export const SettingsPage: React.FC = () => {
             </p>
           </div>
         </div>
-      )}
+      </div>
       </div>
 
 
