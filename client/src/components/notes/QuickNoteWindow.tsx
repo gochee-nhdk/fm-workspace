@@ -6257,7 +6257,6 @@ export const QuickNoteWindow: React.FC = () => {
                   <span>Chọn ngày & giờ tùy chỉnh:</span>
                 </label>
                 <AppleDateTimePicker
-                  embedded={true}
                   value={todoReminderTarget.reminderAt}
                   onChange={(newVal) =>
                     setTodoReminderTarget((prev) => (prev ? { ...prev, reminderAt: newVal } : null))

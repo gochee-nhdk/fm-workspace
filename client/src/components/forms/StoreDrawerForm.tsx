@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StoreItem } from '@/types/workspace';
 import { SFMappinAndEllipse, SFLocationFill, SFArrowUpRightSquare } from 'sf-symbols-lib';
+import { AppleListbox } from '@/components/ui/AppleListbox';
 import { getMapEmbedUrl } from '@/components/ui/MapPreviewModal';
 import { dataService } from '@/services/dataService';
 import toast from 'react-hot-toast';
@@ -14,6 +15,13 @@ interface StoreDrawerFormProps {
   onSave: (data: Omit<StoreItem, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   initialData?: StoreItem | null;
 }
+
+const STORE_TYPE_OPTIONS = [
+  { value: 'Standard', label: 'Standard (Cửa hàng tiêu chuẩn)' },
+  { value: 'Express', label: 'Express (Cửa hàng tiện lợi / quy mô nhỏ)' },
+  { value: 'Flagship', label: 'Flagship (Cửa hàng trọng điểm)' },
+  { value: 'Hub', label: 'Hub / Kho trung chuyển (DC)' },
+];
 
 export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
   isOpen,
@@ -178,21 +186,13 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
           )}
         </div>
 
-        <div>
-          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
-            Phân loại Cửa Hàng
-          </label>
-          <select
-            className="w-full text-sm rounded-xl border border-[#e0e0e0] dark:border-white/15 bg-white dark:bg-[#1d1d1f] pl-3.5 pr-9 py-2.5 text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] transition-all cursor-pointer"
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-          >
-            <option value="Standard">Standard (Cửa hàng tiêu chuẩn)</option>
-            <option value="Express">Express (Cửa hàng tiện lợi / quy mô nhỏ)</option>
-            <option value="Flagship">Flagship (Cửa hàng trọng điểm)</option>
-            <option value="Hub">Hub / Kho trung chuyển (DC)</option>
-          </select>
-        </div>
+        <AppleListbox
+          label="Phân loại Cửa Hàng"
+          headerTitle="Loại hình cơ sở"
+          value={type}
+          onChange={(newVal) => setType(newVal)}
+          options={STORE_TYPE_OPTIONS}
+        />
 
         <div className="pt-4 border-t border-[#e0e0e0] dark:border-white/10 flex items-center justify-end gap-2.5">
           <Button type="button" variant="glass" size="sm" onClick={onClose} disabled={saving}>

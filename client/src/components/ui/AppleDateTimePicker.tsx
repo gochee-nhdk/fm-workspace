@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import {
   SFClock,
@@ -17,6 +18,37 @@ export interface AppleDateTimePickerProps {
   embedded?: boolean; // When true, renders directly inside card without collapsible trigger
   defaultOpen?: boolean;
 }
+
+export type DatePreset = 'today' | 'tomorrow' | 'plus1h' | 'nextMonday';
+
+export const PRESET_OPTIONS: { id: DatePreset; label: string }[] = [
+  { id: 'today', label: 'Hôm nay' },
+  { id: 'tomorrow', label: 'Ngày mai' },
+  { id: 'plus1h', label: 'Sau 1h' },
+  { id: 'nextMonday', label: 'Thứ 2' },
+];
+
+export const getPresetFromDate = (d: Date): DatePreset | null => {
+  const now = new Date();
+  const isSameDay = (d1: Date, d2: Date) =>
+    d1.getDate() === d2.getDate() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getFullYear() === d2.getFullYear();
+
+  if (isSameDay(d, now)) return 'today';
+
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  if (isSameDay(d, tomorrow)) return 'tomorrow';
+
+  const monday = new Date(now);
+  const day = monday.getDay();
+  const diff = (7 - day + 1) % 7 || 7;
+  monday.setDate(now.getDate() + diff);
+  if (isSameDay(d, monday)) return 'nextMonday';
+
+  return null;
+};
 
 const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 const MONTH_NAMES = [
@@ -89,7 +121,59 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
   const [viewMode, setViewMode] = useState<'calendar' | 'monthYearPicker'>('calendar');
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const currentDate = useMemo(() => parseDatetimeLocal(value), [value]);
+
+  // Active quick preset tracking ('today' | 'tomorrow' | 'plus1h' | 'nextMonday')
+  const [activePreset, setActivePreset] = useState<DatePreset | null>(() => getPresetFromDate(currentDate));
+  const isUserSelectedPresetRef = useRef<boolean>(false);
+
+  // Floating Popover positioning
+  const [popoverCoords, setPopoverCoords] = useState<{ top: number; left: number; placement: 'bottom' | 'top' } | null>(null);
+
+  const calculateCoords = useCallback(() => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const pickerWidth = 320;
+    const pickerHeight = 440;
+    const viewportH = window.innerHeight;
+    const viewportW = window.innerWidth;
+
+    // Check if on compact mobile viewport
+    const isMobileViewport = viewportW < 480 || viewportH < 560;
+    if (isMobileViewport) {
+      setPopoverCoords(null); // Centered modal pop-up
+      return;
+    }
+
+    const spaceBelow = viewportH - rect.bottom;
+    const spaceAbove = rect.top;
+
+    let placement: 'bottom' | 'top' = 'bottom';
+    let top = rect.bottom + 6;
+
+    if (spaceBelow < pickerHeight && spaceAbove > spaceBelow) {
+      placement = 'top';
+      top = Math.max(12, rect.top - pickerHeight - 6);
+    }
+
+    let left = rect.left + (rect.width - pickerWidth) / 2;
+    left = Math.max(12, Math.min(viewportW - pickerWidth - 12, left));
+
+    setPopoverCoords({ top, left, placement });
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && !embedded) {
+      calculateCoords();
+      window.addEventListener('resize', calculateCoords);
+      window.addEventListener('scroll', calculateCoords, true);
+      return () => {
+        window.removeEventListener('resize', calculateCoords);
+        window.removeEventListener('scroll', calculateCoords, true);
+      };
+    }
+  }, [isOpen, embedded, calculateCoords]);
 
   // Calendar navigation state (month & year)
   const [navYear, setNavYear] = useState(currentDate.getFullYear());
@@ -103,24 +187,6 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
   const [hourInputStr, setHourInputStr] = useState(pad(currentDate.getHours()));
   const [minInputStr, setMinInputStr] = useState(pad(currentDate.getMinutes()));
 
-  // Click outside listener to dismiss floating popover
-  useEffect(() => {
-    if (!isOpen || embedded) return;
-
-    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-    };
-  }, [isOpen, embedded]);
-
   // Sync internal state when external value changes
   useEffect(() => {
     const d = parseDatetimeLocal(value);
@@ -130,6 +196,11 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     setMinutes(d.getMinutes());
     setHourInputStr(pad(d.getHours()));
     setMinInputStr(pad(d.getMinutes()));
+    if (isUserSelectedPresetRef.current) {
+      isUserSelectedPresetRef.current = false;
+    } else {
+      setActivePreset(getPresetFromDate(d));
+    }
   }, [value]);
 
   // Calendar day calculation
@@ -178,6 +249,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
       setNavMonth(newDate.getMonth());
       setNavYear(newDate.getFullYear());
     }
+    setActivePreset(getPresetFromDate(newDate));
     onChange(toDatetimeLocalString(newDate));
   };
 
@@ -216,6 +288,8 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
 
   // Quick Date Presets
   const handleApplyToday = () => {
+    isUserSelectedPresetRef.current = true;
+    setActivePreset('today');
     const d = new Date();
     d.setHours(hours, minutes, 0, 0);
     setNavMonth(d.getMonth());
@@ -225,6 +299,8 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
   };
 
   const handleApplyTomorrow = () => {
+    isUserSelectedPresetRef.current = true;
+    setActivePreset('tomorrow');
     const d = new Date();
     d.setDate(d.getDate() + 1);
     d.setHours(hours, minutes, 0, 0);
@@ -235,9 +311,13 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
   };
 
   const handleApplyPlus1Hour = () => {
+    isUserSelectedPresetRef.current = true;
+    setActivePreset('plus1h');
     const d = new Date(Date.now() + 60 * 60 * 1000);
     setHours(d.getHours());
     setMinutes(d.getMinutes());
+    setHourInputStr(pad(d.getHours()));
+    setMinInputStr(pad(d.getMinutes()));
     setNavMonth(d.getMonth());
     setNavYear(d.getFullYear());
     onChange(toDatetimeLocalString(d));
@@ -245,6 +325,8 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
   };
 
   const handleApplyNextMonday = () => {
+    isUserSelectedPresetRef.current = true;
+    setActivePreset('nextMonday');
     const target = new Date();
     const day = target.getDay();
     const diff = (7 - day + 1) % 7 || 7;
@@ -294,44 +376,51 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
   // Render the petite, ultra-compact Apple picker panel
   const renderPickerBody = () => (
     <div className="w-[316px] mx-auto p-3.5 rounded-2xl bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-2xl border border-black/[0.08] dark:border-white/[0.12] shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.65)] space-y-3 select-none font-sans text-left">
-      {/* 1. Quick Date Segmented Chips */}
-      <div className="grid grid-cols-4 gap-1 p-0.5 rounded-xl bg-black/[0.04] dark:bg-white/[0.06]">
-        <button
-          type="button"
-          onClick={handleApplyToday}
-          className={cn(
-            'py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer text-center truncate',
-            isToday(currentDate)
-              ? 'bg-white dark:bg-[#2c2c36] text-[#0071e3] dark:text-[#2997ff] font-semibold shadow-2xs'
-              : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white'
-          )}
-        >
-          Hôm nay
-        </button>
+      {/* 1. Quick Date Segmented Chips with Liquid Spring Sliding Pill */}
+      <div className="relative p-0.5 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] flex items-center select-none">
+        {/* Animated Sliding Pill */}
+        {activePreset && (
+          <div
+            aria-hidden="true"
+            className="absolute top-0.5 bottom-0.5 left-0.5 rounded-lg bg-white dark:bg-[#2c2c36] shadow-2xs transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none will-change-transform"
+            style={{
+              width: 'calc((100% - 4px) / 4)',
+              transform: `translate3d(${
+                activePreset === 'today'
+                  ? '0%'
+                  : activePreset === 'tomorrow'
+                  ? '100%'
+                  : activePreset === 'plus1h'
+                  ? '200%'
+                  : '300%'
+              }, 0, 0)`,
+            }}
+          />
+        )}
 
-        <button
-          type="button"
-          onClick={handleApplyTomorrow}
-          className="py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer text-center truncate text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 active:scale-95"
-        >
-          Ngày mai
-        </button>
-
-        <button
-          type="button"
-          onClick={handleApplyPlus1Hour}
-          className="py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer text-center truncate text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 active:scale-95"
-        >
-          Sau 1h
-        </button>
-
-        <button
-          type="button"
-          onClick={handleApplyNextMonday}
-          className="py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer text-center truncate text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 active:scale-95"
-        >
-          Thứ 2
-        </button>
+        {PRESET_OPTIONS.map((opt) => {
+          const isSelected = activePreset === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => {
+                if (opt.id === 'today') handleApplyToday();
+                else if (opt.id === 'tomorrow') handleApplyTomorrow();
+                else if (opt.id === 'plus1h') handleApplyPlus1Hour();
+                else if (opt.id === 'nextMonday') handleApplyNextMonday();
+              }}
+              className={cn(
+                'relative z-10 flex-1 py-1 rounded-lg text-[11px] font-medium transition-colors duration-150 cursor-pointer text-center truncate select-none active:scale-95',
+                isSelected
+                  ? 'text-[#0071e3] dark:text-[#2997ff] font-semibold'
+                  : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white'
+              )}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* 2. Month & Year Navigation Header */}
@@ -620,8 +709,12 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     <div ref={containerRef} className={cn('relative w-full select-none font-sans', className)}>
       {/* ─────────────────── Apple Liquid Glass Trigger Capsule ─────────────────── */}
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          calculateCoords();
+          setIsOpen(!isOpen);
+        }}
         className={cn(
           'w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-[12.5px] font-medium transition-all cursor-pointer shadow-2xs',
           'bg-black/[0.02] dark:bg-white/[0.04] border border-black/15 dark:border-white/20',
@@ -652,17 +745,50 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
         />
       </button>
 
-      {/* ─────────────────── Floating Apple Spring Popover with 120 FPS Keyframe Animation ─────────────────── */}
-      {shouldRenderDropdown && (
-        <div
-          className={cn(
-            'absolute top-full left-0 right-0 z-50 mt-2 flex justify-center pointer-events-auto',
-            isDropdownExiting ? 'apple-picker-close' : 'apple-picker-open'
-          )}
-        >
-          {renderPickerBody()}
-        </div>
-      )}
+      {/* ─────────────────── Floating Apple Spring Popover with 120 FPS Keyframe Animation (Portal-based) ─────────────────── */}
+      {shouldRenderDropdown &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Chọn thời gian nhắc việc"
+            className={cn(
+              'fixed inset-0 z-[10030] pointer-events-auto select-none',
+              popoverCoords
+                ? 'overflow-visible'
+                : 'flex items-center justify-center p-4 bg-black/25 dark:bg-black/50 backdrop-blur-xs'
+            )}
+            onClick={() => setIsOpen(false)}
+          >
+            {/* Click-outside backdrop in anchored mode */}
+            {popoverCoords && (
+              <div
+                className="fixed inset-0 bg-transparent pointer-events-auto"
+                onClick={() => setIsOpen(false)}
+              />
+            )}
+
+            <div
+              style={
+                popoverCoords
+                  ? {
+                      position: 'fixed',
+                      top: `${popoverCoords.top}px`,
+                      left: `${popoverCoords.left}px`,
+                    }
+                  : undefined
+              }
+              className={cn(
+                'relative z-10',
+                isDropdownExiting ? 'apple-picker-close pointer-events-none' : 'apple-picker-open pointer-events-auto'
+              )}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {renderPickerBody()}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
