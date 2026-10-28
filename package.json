@@ -22,6 +22,7 @@
     "db:seed": "cd server && npm run db:seed"
   },
   "devDependencies": {
+    "@vercel/node": "^28.0.0",
     "concurrently": "^9.1.0",
     "cross-env": "^10.1.0",
     "typescript": "^5.3.3"

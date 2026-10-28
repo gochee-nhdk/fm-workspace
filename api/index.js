@@ -4,7 +4,7 @@ const nodemailer = require('nodemailer');
 let globalSmtpConfig = null;
 let latestBackupData = null;
 
-module.exports = async function handler(req, res) {
+module.exports = async function handler(req, res, forcedPath) {
   // CORS Headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
@@ -19,9 +19,19 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  // Parse path from URL
-  const rawUrl = req.url || '';
-  const pathname = rawUrl.split('?')[0].replace(/^\/api/, '');
+  // Parse path from forcedPath, URL or catch-all query slug
+  let pathname = forcedPath || '';
+  if (!pathname) {
+    if (req.query && req.query.slug) {
+      pathname = Array.isArray(req.query.slug) ? '/' + req.query.slug.join('/') : '/' + req.query.slug;
+    } else {
+      const rawUrl = req.url || '';
+      pathname = rawUrl.split('?')[0].replace(/^\/api/, '');
+    }
+  }
+  if (!pathname.startsWith('/')) {
+    pathname = '/' + pathname;
+  }
 
   try {
     // 1. Health Check
