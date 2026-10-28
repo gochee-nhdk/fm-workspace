@@ -1381,8 +1381,6 @@ export const QuickNoteWindow: React.FC = () => {
     originalText: string;
   } | null>(null);
   const [aiDraftCopied, setAiDraftCopied] = useState(false);
-  const [draftViewMode, setDraftViewMode] = useState<'split' | 'draft' | 'original'>('split');
-  const [draftCardPlacement, setDraftCardPlacement] = useState<'auto' | 'top' | 'bottom'>('auto');
   const savedSelectionRangeRef = useRef<Range | null>(null);
   const [selectionState, setSelectionState] = useState<{
     text: string;
@@ -1863,7 +1861,6 @@ export const QuickNoteWindow: React.FC = () => {
         isSelectionOnly: isSelection,
         originalText: targetText,
       });
-      setDraftCardPlacement('auto');
       toast.success('✨ Đã tạo bản nháp AI trực tiếp trong ghi chú!');
     } catch (err: any) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || controller.signal.aborted) {
@@ -2543,7 +2540,6 @@ export const QuickNoteWindow: React.FC = () => {
         isSelectionOnly: true,
         originalText: targetText,
       });
-      setDraftCardPlacement('auto');
       toast.dismiss('ai-writing');
       toast.success('✨ Đã tạo bản nháp AI trực tiếp trong ghi chú!');
     } catch (err: any) {
@@ -5642,67 +5638,53 @@ export const QuickNoteWindow: React.FC = () => {
                     }}
                   />
 
-                  {/* Floating AI Progress & Cancel Pill */}
+                  {/* Floating AI Progress & Cancel Pill (Strictly Non-Overlapping) */}
                   {writingToolLoading && (() => {
                     const canvasW = canvasRef.current?.clientWidth || 500;
                     const canvasH = canvasRef.current?.clientHeight || 400;
                     const pillWidth = 220;
                     const pillHeight = 34;
+                    const verticalGap = 12;
 
-                    const lastLine =
-                      selectionBounds?.lineRects && selectionBounds.lineRects.length > 0
-                        ? selectionBounds.lineRects[selectionBounds.lineRects.length - 1]
-                        : null;
-
-                    let pillLeft: number;
                     let pillTopStyle: string | undefined = undefined;
                     let pillBottomStyle: string | undefined = undefined;
-                    let transform = 'none';
 
-                    if (lastLine) {
-                      const textEndX = lastLine.left + lastLine.width;
-                      const fitsOnSameLine = textEndX + 8 + pillWidth <= canvasW - 12;
+                    // Strictly place above or below the selection bounds with a clear 12px gap
+                    if (selectionBounds) {
+                      const fitsBelow = selectionBounds.bottom + verticalGap + pillHeight <= canvasH - 8;
+                      const fitsAbove = selectionBounds.top - verticalGap - pillHeight >= 8;
 
-                      if (fitsOnSameLine) {
-                        // Immediately follow the last character on the same line
-                        pillLeft = textEndX + 8;
-                        const targetTop = lastLine.top + (lastLine.height - pillHeight) / 2;
-                        pillTopStyle = `${Math.max(6, Math.min(canvasH - pillHeight - 6, targetTop))}px`;
+                      if (fitsBelow) {
+                        pillTopStyle = `${selectionBounds.bottom + verticalGap}px`;
+                      } else if (fitsAbove) {
+                        pillTopStyle = `${selectionBounds.top - verticalGap - pillHeight}px`;
                       } else {
-                        // Place directly underneath the last word
-                        pillLeft = Math.max(12, Math.min(canvasW - pillWidth - 12, lastLine.left));
-                        if (lastLine.top + lastLine.height + 8 + pillHeight <= canvasH) {
-                          pillTopStyle = `${lastLine.top + lastLine.height + 8}px`;
-                        } else if (lastLine.top - pillHeight - 8 >= 6) {
-                          pillTopStyle = `${lastLine.top - pillHeight - 8}px`;
-                        } else {
-                          pillBottomStyle = '12px';
-                        }
+                        pillBottomStyle = '10px';
                       }
                     } else {
-                      pillLeft = canvasW / 2;
-                      transform = 'translateX(-50%)';
-                      pillBottomStyle = '12px';
+                      pillBottomStyle = '10px';
                     }
+
+                    const pillLeft = canvasW / 2;
 
                     return (
                       <div
-                        className="absolute z-50 flex items-center gap-2 px-3 py-1 rounded-full bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-2xl border border-purple-500/30 dark:border-purple-400/40 shadow-[0_8px_24px_rgba(0,0,0,0.12),0_2px_8px_rgba(168,85,247,0.15)] select-none animate-in fade-in zoom-in-95 duration-150"
+                        className="absolute z-50 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-2xl border border-purple-500/30 dark:border-purple-400/40 shadow-[0_8px_24px_rgba(0,0,0,0.12),0_2px_8px_rgba(168,85,247,0.15)] select-none animate-in fade-in zoom-in-95 duration-150 pointer-events-auto"
                         style={{
                           top: pillTopStyle,
                           bottom: pillBottomStyle,
                           left: `${pillLeft}px`,
-                          transform,
+                          transform: 'translateX(-50%)',
                         }}
                       >
-                        <div className="w-3 h-3 rounded-full border-2 border-[#a855f7] border-t-transparent animate-spin shrink-0" />
-                        <span className="text-[11.5px] font-semibold bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] bg-clip-text text-transparent select-none whitespace-nowrap">
+                        <div className="w-3.5 h-3.5 rounded-full border-2 border-[#a855f7] border-t-transparent animate-spin shrink-0" />
+                        <span className="text-[12px] font-semibold bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] bg-clip-text text-transparent select-none whitespace-nowrap">
                           Đang xử lý AI...
                         </span>
                         <button
                           type="button"
                           onClick={handleCancelWritingTool}
-                          className="ml-1 px-2 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white text-[10.5px] font-semibold transition-all duration-150 cursor-pointer active:scale-95 flex items-center gap-0.5 shadow-2xs"
+                          className="ml-1 px-2.5 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white text-[11px] font-semibold transition-all duration-150 cursor-pointer active:scale-95 flex items-center gap-0.5 shadow-2xs"
                           title="Dừng xử lý AI ngay lập tức"
                         >
                           <span>✕ Hủy</span>
@@ -5711,201 +5693,96 @@ export const QuickNoteWindow: React.FC = () => {
                     );
                   })()}
 
-                  {/* Minimalist Apple Liquid Glass Draft Card with Smart Non-Blocking Placement & Side-by-Side Comparison */}
+                  {/* Classic Apple Liquid Glass Clean Draft Card (Compact, Non-overlapping, No bulky comparison) */}
                   {aiDraft && (() => {
                     const canvasW = canvasRef.current?.clientWidth || 500;
                     const canvasH = canvasRef.current?.clientHeight || 450;
-                    const cardWidth = Math.min(680, Math.max(340, canvasW - 24));
-                    const isWide = cardWidth >= 520;
+                    const cardWidth = Math.min(460, Math.max(300, canvasW - 24));
+                    const cardEstHeight = 185;
+                    const verticalGap = 12;
 
-                    // Smart non-blocking placement:
-                    // If selection exists, place card away from the selection so it never obscures the selected text!
-                    let effectivePlacement: 'top' | 'bottom' = 'bottom';
-                    if (draftCardPlacement === 'top') {
-                      effectivePlacement = 'top';
-                    } else if (draftCardPlacement === 'bottom') {
-                      effectivePlacement = 'bottom';
-                    } else {
-                      // Auto mode:
-                      if (selectionBounds && selectionBounds.top > canvasH * 0.42) {
-                        // Selection is in the lower half -> dock card at the top
-                        effectivePlacement = 'top';
+                    let topStyle: string | undefined = undefined;
+                    let bottomStyle: string | undefined = undefined;
+
+                    if (selectionBounds) {
+                      const fitsBelow = selectionBounds.bottom + verticalGap + cardEstHeight <= canvasH - 8;
+                      const fitsAbove = selectionBounds.top - verticalGap - cardEstHeight >= 8;
+
+                      if (fitsBelow) {
+                        topStyle = `${selectionBounds.bottom + verticalGap}px`;
+                      } else if (fitsAbove) {
+                        topStyle = `${selectionBounds.top - verticalGap - cardEstHeight}px`;
                       } else {
-                        // Selection is in the upper half -> dock card at the bottom
-                        effectivePlacement = 'bottom';
+                        bottomStyle = '10px';
                       }
+                    } else {
+                      bottomStyle = '10px';
                     }
-
-                    const topStyle = effectivePlacement === 'top' ? '12px' : undefined;
-                    const bottomStyle = effectivePlacement === 'bottom' ? '12px' : undefined;
 
                     return (
                       <div
-                        className="absolute z-50 p-3.5 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-black/10 dark:border-white/15 shadow-[0_24px_64px_-10px_rgba(0,0,0,0.28),0_4px_16px_rgba(168,85,247,0.12),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none animate-in fade-in zoom-in-95 duration-180 flex flex-col gap-2.5 max-w-[calc(100%-24px)]"
+                        className="absolute z-50 p-3 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-black/10 dark:border-white/15 shadow-[0_20px_50px_rgba(0,0,0,0.22),0_4px_16px_rgba(168,85,247,0.12),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none animate-in fade-in zoom-in-95 duration-180 flex flex-col gap-2 max-w-[calc(100%-24px)]"
                         style={{
                           top: topStyle,
                           bottom: bottomStyle,
                           left: '50%',
                           width: `${cardWidth}px`,
-                          maxHeight: `${Math.min(canvasH - 24, 340)}px`,
+                          maxHeight: `${Math.min(canvasH - 20, 260)}px`,
                           transform: 'translateX(-50%)',
                         }}
                       >
                         {/* Header */}
-                        <div className="flex items-center justify-between gap-2 pb-2 border-b border-black/[0.06] dark:border-white/10 shrink-0">
+                        <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-black/[0.06] dark:border-white/10 shrink-0">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white flex items-center justify-center shadow-xs shrink-0">
                               <SFWandAndSparkles size={11} className="text-white" />
                             </div>
-                            <span className="text-[12.5px] font-bold tracking-tight text-[#1d1d1f] dark:text-white truncate">
+                            <span className="text-[12px] font-bold tracking-tight text-[#1d1d1f] dark:text-white truncate">
                               {aiDraft.title || 'Bản nháp Writing Tools'}
                             </span>
                           </div>
-
-                          {/* Center / Right controls: Comparison view switch & placement flip */}
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {/* Segmented Control for Comparison */}
-                            <div className="flex items-center p-0.5 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] border border-black/5 dark:border-white/10 text-[11px]">
-                              {isWide && (
-                                <button
-                                  type="button"
-                                  onClick={() => setDraftViewMode('split')}
-                                  className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${
-                                    draftViewMode === 'split'
-                                      ? 'bg-white dark:bg-[#2c2c36] text-[#0071e3] dark:text-[#2997ff] shadow-xs'
-                                      : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white'
-                                  }`}
-                                  title="So sánh song song bản gốc và bản mới"
-                                >
-                                  So sánh
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => setDraftViewMode('draft')}
-                                className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${
-                                  draftViewMode === 'draft' || (!isWide && draftViewMode === 'split')
-                                    ? 'bg-white dark:bg-[#2c2c36] text-[#0071e3] dark:text-[#2997ff] shadow-xs'
-                                    : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white'
-                                }`}
-                                title="Xem riêng bản thảo AI đề xuất"
-                              >
-                                Bản mới
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setDraftViewMode('original')}
-                                className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${
-                                  draftViewMode === 'original'
-                                    ? 'bg-white dark:bg-[#2c2c36] text-[#0071e3] dark:text-[#2997ff] shadow-xs'
-                                    : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white'
-                                }`}
-                                title="Xem lại đoạn văn bản gốc ban đầu"
-                              >
-                                Bản gốc
-                              </button>
-                            </div>
-
-                            {/* Flip position button */}
-                            <button
-                              type="button"
-                              onClick={() => setDraftCardPlacement(effectivePlacement === 'top' ? 'bottom' : 'top')}
-                              className="p-1 rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-                              title={effectivePlacement === 'top' ? 'Chuyển khung xuống dưới đáy' : 'Chuyển khung lên đỉnh'}
-                            >
-                              {effectivePlacement === 'top' ? <ArrowDown size={13} /> : <ArrowUp size={13} />}
-                            </button>
-
-                            <CloseButton
-                              onClick={handleDiscardAiDraft}
-                              size="sm"
-                              label="Đóng"
-                              title="Hủy bản nháp"
-                            />
-                          </div>
+                          <CloseButton
+                            onClick={handleDiscardAiDraft}
+                            size="sm"
+                            label="Đóng"
+                            title="Hủy bản nháp"
+                          />
                         </div>
 
-                        {/* Content Area: Split View or Single View */}
-                        {isWide && draftViewMode === 'split' ? (
-                          <div className="grid grid-cols-2 gap-2.5 flex-1 min-h-0 select-text">
-                            {/* Left column: Original Text */}
-                            <div className="flex flex-col min-h-0">
-                              <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 pb-1 flex items-center gap-1 shrink-0">
-                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                                <span>Văn bản gốc:</span>
-                              </div>
-                              <div className="text-[12.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[145px] overflow-y-auto scrollbar-thin whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1">
-                                {aiDraft.originalText || '(Trống)'}
-                              </div>
-                            </div>
-
-                            {/* Right column: New AI Draft */}
-                            <div className="flex flex-col min-h-0">
-                              <div className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 pb-1 flex items-center gap-1 shrink-0">
-                                <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                                <span>Đề xuất mới (AI):</span>
-                              </div>
-                              <div className="text-[12.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[145px] overflow-y-auto scrollbar-thin whitespace-pre-wrap font-normal bg-purple-500/[0.04] dark:bg-purple-500/[0.08] p-2.5 rounded-xl border border-purple-500/20 dark:border-purple-400/25 flex-1">
-                                {aiDraft.result}
-                              </div>
-                            </div>
-                          </div>
-                        ) : draftViewMode === 'original' ? (
-                          <div className="flex flex-col min-h-0 select-text">
-                            <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 pb-1 flex items-center gap-1 shrink-0">
-                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                              <span>Văn bản gốc ban đầu:</span>
-                            </div>
-                            <div className="text-[13px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[145px] overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1">
-                              {aiDraft.originalText || '(Trống)'}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col min-h-0 select-text">
-                            <div className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 pb-1 flex items-center gap-1 shrink-0">
-                              <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                              <span>Đề xuất mới (AI):</span>
-                            </div>
-                            <div className="text-[13px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[145px] overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal bg-purple-500/[0.04] dark:bg-purple-500/[0.08] p-2.5 rounded-xl border border-purple-500/20 dark:border-purple-400/25 flex-1">
-                              {aiDraft.result}
-                            </div>
-                          </div>
-                        )}
+                        {/* Content Preview inside clean inset glass box */}
+                        <div className="text-[13px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[125px] overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1">
+                          {aiDraft.result}
+                        </div>
 
                         {/* Action buttons */}
-                        <div className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-black/[0.04] dark:border-white/[0.06] shrink-0">
-                          <span className="text-[10.5px] text-slate-400 dark:text-slate-500 hidden sm:inline">
-                            Giữ nguyên cấu trúc từng đoạn
-                          </span>
-                          <div className="flex items-center gap-1.5 ml-auto">
-                            <button
-                              type="button"
-                              onClick={handleCopyAiDraft}
-                              className="px-2.5 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1 shadow-2xs"
-                              title="Sao chép kết quả"
-                            >
-                              <Copy size={11} />
-                              <span>{aiDraftCopied ? 'Đã chép' : 'Sao chép'}</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleApplyAiDraft('append')}
-                              className="px-3 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1 shadow-2xs"
-                              title="Chèn nguyên vẹn từng đoạn xuống dưới phần chọn"
-                            >
-                              <SFPlus size={11} />
-                              <span>Chèn dưới</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleApplyAiDraft('replace')}
-                              className="px-3.5 py-1.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
-                              title="Thay thế đoạn văn bản đã chọn"
-                            >
-                              <SFCheckmark size={11.5} className="stroke-[3]" />
-                              <span>Thay thế</span>
-                            </button>
-                          </div>
+                        <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-black/[0.04] dark:border-white/[0.06] shrink-0">
+                          <button
+                            type="button"
+                            onClick={handleCopyAiDraft}
+                            className="px-2.5 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1 shadow-2xs"
+                            title="Sao chép kết quả"
+                          >
+                            <Copy size={11} />
+                            <span>{aiDraftCopied ? 'Đã chép' : 'Sao chép'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyAiDraft('append')}
+                            className="px-3 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1 shadow-2xs"
+                            title="Chèn nguyên vẹn từng đoạn xuống dưới phần chọn"
+                          >
+                            <SFPlus size={11} />
+                            <span>Chèn dưới</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyAiDraft('replace')}
+                            className="px-3.5 py-1.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
+                            title="Thay thế đoạn văn bản đã chọn"
+                          >
+                            <SFCheckmark size={11.5} className="stroke-[3]" />
+                            <span>Thay thế</span>
+                          </button>
                         </div>
                       </div>
                     );
