@@ -788,7 +788,7 @@ ${safeContent}
               <table class="apple-note-box" role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #F8F8FA; border: 1px solid #E5E5EA; border-radius: 12px; margin-bottom: 28px; overflow: hidden;">
                 <tr>
                   <td class="apple-note-text" style="padding: 14px 16px; font-size: 13.5px; line-height: 1.6; color: #424245;">
-                    Cấu hình máy chủ gửi mail Google Gmail SMTP đã hoàn tất. Giao diện email theo chuẩn tối giản cao cấp của Apple đã được kích hoạt, tự động tối ưu hiển thị trên cả Giao diện Sáng (Light Mode) và Giao diện Tối (Dark Mode).
+                    Cấu hình máy chủ gửi mail Google Gmail SMTP đã hoàn tất. Giao diện email theo chuẩn tối giản hiện đại đã được kích hoạt, tự động tối ưu hiển thị trên cả Giao diện Sáng (Light Mode) và Giao diện Tối (Dark Mode).
                   </td>
                 </tr>
               </table>

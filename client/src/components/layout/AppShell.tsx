@@ -405,12 +405,12 @@ export const AppShell: React.FC = () => {
             {/* Global Search Capsule (Spotlight pill - Icon on mobile, capsule on desktop) */}
             <button
               onClick={() => setCommandPaletteOpen(true)}
-              className="liquid-lens-pill group relative flex items-center justify-center sm:justify-start gap-2 w-9 h-9 sm:w-44 md:w-52 lg:w-64 sm:h-9 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white text-[13px] active:scale-[0.98] cursor-pointer"
+              className="liquid-lens-pill group relative flex items-center justify-center sm:justify-start gap-2.5 w-9 h-9 sm:w-44 md:w-52 lg:w-64 sm:h-9 sm:pl-3 sm:pr-2.5 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white text-[13px] active:scale-[0.98] cursor-pointer"
               aria-label="Tìm kiếm nhanh (Ctrl+K)"
               title="Tìm kiếm nhanh (Ctrl+K)"
             >
               <div className="w-5 h-5 rounded-full bg-[#0088FF]/15 dark:bg-[#0091FF]/20 flex items-center justify-center text-[#0088FF] dark:text-[#0091FF] group-hover:scale-110 transition-transform shrink-0">
-                <SFMagnifyingglass size={14} />
+                <SFMagnifyingglass size={13} />
               </div>
               <span className="hidden sm:inline-block flex-1 text-left truncate font-normal text-[12.5px] opacity-90 group-hover:opacity-100">
                 Tìm nhanh link, CH...

@@ -565,9 +565,6 @@ export const SettingsPage: React.FC = () => {
             <SFGearshapeFill size={24} className="text-[#0066cc] dark:text-[#2997ff]" />
             Cài đặt &amp; Dữ liệu
           </h1>
-          <p className="text-[13px] sm:text-[14px] text-[#86868b] dark:text-[#a1a1a6] mt-1">
-            Quản lý dung lượng lưu trữ đám mây, lá chắn sao lưu kép, gửi thư tự động và tùy biến giao diện Apple.
-          </p>
         </div>
 
         {/* Shared segmented navigation keeps visual and spring behavior aligned with Workspace. */}

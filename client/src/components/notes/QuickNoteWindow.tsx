@@ -5455,8 +5455,8 @@ export const QuickNoteWindow: React.FC = () => {
                               ? 'bg-[#0071e3] text-white shadow-xs scale-105'
                               : 'bg-black/[0.05] dark:bg-white/[0.1] hover:bg-black/10 dark:hover:bg-white/15 text-[#1d1d1f] dark:text-white border border-black/[0.08] dark:border-white/[0.12] shadow-2xs hover:scale-105'
                           }`}
-                          title={showFloatingAiMenu ? 'Đóng Writing Tools' : 'Công cụ soạn thảo Apple'}
-                          aria-label="Công cụ soạn thảo Apple"
+                          title={showFloatingAiMenu ? 'Đóng Writing Tools' : 'Công cụ soạn thảo AI'}
+                          aria-label="Công cụ soạn thảo AI"
                         >
                           <SFWandAndSparkles size={13.5} />
                         </button>
@@ -5787,7 +5787,7 @@ export const QuickNoteWindow: React.FC = () => {
                 Gemini API Key
               </h4>
               <p className="text-[11.5px] text-[#86868b] dark:text-[#a1a1a6] mt-0.5">
-                Cung cấp trí tuệ cho Apple Writing Tools
+                Cung cấp trí tuệ cho Writing Tools
               </p>
             </div>
           </div>

@@ -15,7 +15,7 @@ Cảm ơn bạn đã quan tâm và đóng góp cho dự án **FM Workspace (Farm
    npm --prefix client run lint
    ```
 4. Thực hiện thay đổi, tuân thủ nguyên tắc:
-   - Thiết kế giao diện tuân theo ngôn ngữ **Apple Liquid Glass (Glassmorphism)**.
+   - Thiết kế giao diện tuân theo ngôn ngữ **Liquid Glass (Glassmorphism)**.
    - Luôn sử dụng Parameterized Queries khi truy vấn cơ sở dữ liệu.
    - Không commit thông tin nhạy cảm (API Keys, email cá nhân, mật khẩu).
 5. Tạo commit với thông điệp rõ ràng theo chuẩn Conventional Commits:
