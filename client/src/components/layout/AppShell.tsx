@@ -126,18 +126,8 @@ export const AppShell: React.FC = () => {
   const activeTabKey = location.pathname.startsWith('/settings') ? '/settings' : '/';
   const sidebarTrackRef = useRef<HTMLDivElement>(null);
   const sidebarPillRef = useRef<HTMLDivElement>(null);
-  const mobileTrackRef = useRef<HTMLDivElement>(null);
-  const mobilePillRef = useRef<HTMLDivElement>(null);
 
   useAppleTabSpring(sidebarTrackRef, sidebarPillRef, activeTabKey, {
-    stiffness: 440,
-    damping: 26,
-    mass: 0.65,
-    allowDeformation: true,
-    orientation: 'vertical',
-  });
-
-  useAppleTabSpring(mobileTrackRef, mobilePillRef, activeTabKey, {
     stiffness: 440,
     damping: 26,
     mass: 0.65,
@@ -555,16 +545,7 @@ export const AppShell: React.FC = () => {
                   Không gian làm việc
                 </div>
 
-                <div ref={mobileTrackRef} className="relative flex flex-col gap-1.5">
-                  {/* Fluid Apple Spring Sliding Indicator */}
-                  <div
-                    ref={mobilePillRef}
-                    data-layout-id="active-mobile-sidebar-pill"
-                    aria-hidden="true"
-                    className="absolute top-0 inset-x-0 mx-auto fm-primary-pill-surface rounded-full pointer-events-none z-0 will-change-transform w-full"
-                    style={{ opacity: 0 }}
-                  />
-
+                <div className="flex flex-col gap-1.5">
                   {navItems.map((item) => (
                     <NavLink
                       key={item.to}
@@ -573,9 +554,9 @@ export const AppShell: React.FC = () => {
                       data-tab-id={item.to}
                       onClick={handleCloseMobileMenu}
                       className={({ isActive }) =>
-                        `relative z-10 flex items-center gap-3 px-3.5 h-11 rounded-full text-[13.5px] transition-colors duration-120 active:scale-[0.98] select-none ${
+                        `relative flex items-center gap-3 px-3.5 h-11 rounded-full text-[13.5px] transition-all duration-150 active:scale-[0.98] select-none ${
                           isActive
-                            ? 'text-white font-semibold'
+                            ? 'fm-primary-pill-surface text-white font-semibold shadow-[0_4px_16px_rgba(0,136,255,0.35)]'
                             : 'text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium'
                         }`
                       }

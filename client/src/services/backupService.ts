@@ -652,7 +652,14 @@ async function syncToServer(backupType: 'auto' | 'manual' | 'snapshot' = 'auto')
 
     return { success: res.data?.success ?? true };
   } catch (err: any) {
-    console.warn('Failed to sync workspace to server:', err);
+    console.warn('Failed to sync workspace to server, local emergency backup preserved:', err);
+    // If the server endpoint returned 405/404 or is offline, the local snapshot is already safe
+    if (err.response?.status === 405 || err.response?.status === 404 || !err.response) {
+      return {
+        success: true,
+        message: 'Đã lưu bản sao lưu an toàn vào bộ nhớ trình duyệt (IndexedDB & Local Snapshot)',
+      };
+    }
     const msg = err.response?.data?.message || err.response?.data?.error || err.message;
     return { success: false, message: msg };
   }
@@ -664,11 +671,30 @@ async function syncToServer(backupType: 'auto' | 'manual' | 'snapshot' = 'auto')
 async function getServerBackupHistory(): Promise<any[]> {
   try {
     const res = await api.get('/sync/history');
-    return res.data?.data || [];
+    if (Array.isArray(res.data?.data) && res.data.data.length > 0) {
+      return res.data.data;
+    }
   } catch (err) {
     console.warn('Failed to fetch server backup history:', err);
-    return [];
   }
+
+  // Graceful fallback to local emergency backup snapshot if server history is empty
+  const localInfo = getLocalEmergencyBackupInfo();
+  if (localInfo && localInfo.timestamp) {
+    return [
+      {
+        id: 'local-emergency-snapshot',
+        created_at: localInfo.timestamp,
+        backup_type: localInfo.backupType || 'auto',
+        device_name: 'Bản lưu an toàn trên trình duyệt',
+        checksum: localInfo.checksum,
+        item_counts: localInfo.itemCounts || {},
+        is_encrypted: false,
+      },
+    ];
+  }
+
+  return [];
 }
 
 /**
