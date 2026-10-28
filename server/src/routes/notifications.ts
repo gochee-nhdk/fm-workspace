@@ -25,6 +25,11 @@ function getLogoPath(): string | null {
   return null;
 }
 
+function getClientAppUrl(): string {
+  const url = process.env.CLIENT_URL || 'https://fm-workspace.vercel.app';
+  return url.trim().replace(/\/+$/, '');
+}
+
 interface SmtpConfig {
   host: string;
   port: number;
@@ -453,7 +458,7 @@ ${safeContent}
               <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 8px;">
                 <tr>
                   <td align="center">
-                    <a href="http://localhost:5173" target="_blank" class="apple-cta-btn" style="display: inline-block; padding: 11px 28px; background-color: #0071E3; color: #FFFFFF; font-size: 14px; font-weight: 500; text-decoration: none; border-radius: 980px; letter-spacing: -0.01em; box-shadow: 0 2px 10px rgba(0, 113, 227, 0.25);">
+                    <a href="${getClientAppUrl()}" target="_blank" class="apple-cta-btn" style="display: inline-block; padding: 11px 28px; background-color: #0071E3; color: #FFFFFF; font-size: 14px; font-weight: 500; text-decoration: none; border-radius: 980px; letter-spacing: -0.01em; box-shadow: 0 2px 10px rgba(0, 113, 227, 0.25);">
                       Mở trong FM Workspace &rarr;
                     </a>
                   </td>
@@ -466,7 +471,7 @@ ${safeContent}
                   Farmers Market &bull; Trợ Lý Thu Mua Thông Minh
                 </p>
                 <p class="apple-footer-subtext" style="margin: 4px 0 0 0; font-size: 11px; line-height: 1.4; color: #A1A1A6;">
-                  Email thông báo tự động từ hệ thống Workspace cục bộ &bull; Bảo mật Local-First
+                  Email thông báo tự động từ hệ thống FM Workspace &bull; Cloud Web App
                 </p>
               </div>
             </td>
@@ -792,7 +797,7 @@ ${safeContent}
               <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 8px;">
                 <tr>
                   <td align="center">
-                    <a href="http://localhost:5173" target="_blank" class="apple-cta-btn" style="display: inline-block; padding: 11px 28px; background-color: #0071E3; color: #FFFFFF; font-size: 14px; font-weight: 500; text-decoration: none; border-radius: 980px; letter-spacing: -0.01em; box-shadow: 0 2px 10px rgba(0, 113, 227, 0.25);">
+                    <a href="${getClientAppUrl()}" target="_blank" class="apple-cta-btn" style="display: inline-block; padding: 11px 28px; background-color: #0071E3; color: #FFFFFF; font-size: 14px; font-weight: 500; text-decoration: none; border-radius: 980px; letter-spacing: -0.01em; box-shadow: 0 2px 10px rgba(0, 113, 227, 0.25);">
                       Mở FM Workspace &rarr;
                     </a>
                   </td>
@@ -805,7 +810,7 @@ ${safeContent}
                   Farmers Market &bull; Trợ Lý Thu Mua Thông Minh
                 </p>
                 <p class="apple-footer-subtext" style="margin: 4px 0 0 0; font-size: 11px; line-height: 1.4; color: #A1A1A6;">
-                  Email thử nghiệm từ hệ thống Workspace cục bộ &bull; Bảo mật Local-First
+                  Email thử nghiệm từ hệ thống FM Workspace &bull; Cloud Web App
                 </p>
               </div>
             </td>

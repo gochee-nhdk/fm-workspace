@@ -4,10 +4,10 @@
   "author": "Farmers Market Vietnam",
   "license": "UNLICENSED",
   "private": true,
-  "description": "FM Workspace - Personal Procurement & Merchandising Assistant (Local Web App)",
+  "description": "FM Workspace - Personal Work OS & Procurement Assistant (Cloud Web App)",
   "main": "server/dist/index.js",
   "scripts": {
-    "setup": "npm install && npm --prefix server install && npm --prefix client install --legacy-peer-deps && npm --prefix server run db:init && npm run build:all && node scripts/create_shortcut.cjs",
+    "setup": "npm install && npm --prefix server install && npm --prefix client install --legacy-peer-deps && npm run build:all",
     "install:all": "npm --prefix server install && npm --prefix client install --legacy-peer-deps",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "cd server && npm run dev",
@@ -18,7 +18,6 @@
     "build:client": "npm --prefix client run build",
     "start": "node server/dist/index.js",
     "test": "npm --prefix server test",
-    "shortcut": "node scripts/create_shortcut.cjs",
     "db:init": "cd server && npm run db:init",
     "db:seed": "cd server && npm run db:seed"
   },

@@ -8,17 +8,11 @@ import { motionGuardian } from './services/motionGuardian'
 // Kích hoạt Motion Guardian Agent để bảo vệ 100% animation Apple Liquid Glass
 motionGuardian.enforceMotion();
 
-// Normalize origin: Always ensure browser runs under 'localhost' so IndexedDB data is never split or lost
-if (typeof window !== 'undefined' && window.location.hostname === '127.0.0.1') {
-  const url = new URL(window.location.href);
-  url.hostname = 'localhost';
-  window.location.replace(url.href);
-} else {
-  autoBackupManager.init().catch(console.warn);
+// Khởi chạy hệ thống tự động sao lưu dự phòng ngầm
+autoBackupManager.init().catch(console.warn);
 
-  ReactDOM.createRoot(document.getElementById('root')!).render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>,
-  );
-}
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+);

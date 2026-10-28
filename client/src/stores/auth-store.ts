@@ -17,7 +17,7 @@ export interface User {
 const DEFAULT_USER: User = {
   id: 'c437ea5f-ca2b-46c8-91f1-d6904f67929b',
   email: 'admin@farmersmarket.vn',
-  full_name: 'Quản Trị Viên Không Gian Cục Bộ',
+  full_name: 'Quản Trị Viên FM Workspace',
   role: 'admin',
 };
 
@@ -38,7 +38,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: DEFAULT_USER,
-  token: (typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null) || 'local-offline-session',
+  token: (typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null) || 'cloud-web-session',
   isAuthenticated: true,
   isLoading: false,
 
@@ -160,7 +160,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: async () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    set({ token: 'local-offline-session', user: DEFAULT_USER, isAuthenticated: true });
+    set({ token: 'cloud-web-session', user: DEFAULT_USER, isAuthenticated: true });
     if (typeof window !== 'undefined') {
       window.location.reload();
     }
@@ -168,16 +168,18 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   checkAuth: async () => {
     try {
-      const res = await api.post('/auth/local-token').catch(() => null);
-      if (res?.data?.token) {
-        localStorage.setItem('token', res.data.token);
-        localStorage.setItem('user', JSON.stringify(res.data.user || DEFAULT_USER));
-        set({ token: res.data.token, user: res.data.user || DEFAULT_USER, isAuthenticated: true, isLoading: false });
-      } else {
-        set({ token: 'local-offline-session', user: DEFAULT_USER, isAuthenticated: true, isLoading: false });
+      const storedUser = typeof localStorage !== 'undefined' ? localStorage.getItem('user') : null;
+      const storedToken = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+      if (storedToken && storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          set({ token: storedToken, user: parsedUser, isAuthenticated: true, isLoading: false });
+          return;
+        } catch (_) {}
       }
+      set({ token: storedToken || 'cloud-web-session', user: DEFAULT_USER, isAuthenticated: true, isLoading: false });
     } catch {
-      set({ token: 'local-offline-session', user: DEFAULT_USER, isAuthenticated: true, isLoading: false });
+      set({ token: 'cloud-web-session', user: DEFAULT_USER, isAuthenticated: true, isLoading: false });
     }
   }
 }));

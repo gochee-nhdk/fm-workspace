@@ -328,9 +328,9 @@ export const AppShell: React.FC = () => {
               isSidebarCollapsed ? 'justify-center' : 'justify-between'
             } text-[11px] text-[#7a7a7a]`}
           >
-            <div className="flex items-center gap-1.5" title="IndexedDB Local - Dữ liệu bảo mật trên máy">
+            <div className="flex items-center gap-1.5" title="Đã kết nối trực tuyến qua https://fm-workspace.vercel.app">
               <span className="w-2 rounded-full aspect-square bg-emerald-500 shadow-xs shadow-emerald-500/60 animate-pulse" />
-              {!isSidebarCollapsed && <span className="text-[11px] font-medium text-[#7a7a7a]">Dữ liệu cục bộ (Offline)</span>}
+              {!isSidebarCollapsed && <span className="text-[11px] font-medium text-[#7a7a7a]">Trực tuyến (Cloud / Sync)</span>}
             </div>
           </div>
         </div>
