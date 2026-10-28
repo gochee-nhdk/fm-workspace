@@ -264,6 +264,47 @@ interface ChecklistRow {
 }
 
 /**
+ * Merge and sanitize line client rects for high-fidelity text scanning effect
+ */
+const mergeLineRects = (
+  rawRects: DOMRectList | DOMRect[],
+  canvasTop: number,
+  canvasLeft: number
+): Array<{ top: number; left: number; width: number; height: number }> => {
+  const list = Array.from(rawRects)
+    .filter((r) => r.width > 2 && r.height > 2)
+    .map((r) => ({
+      top: r.top - canvasTop,
+      left: r.left - canvasLeft,
+      width: r.width,
+      height: r.height,
+    }));
+
+  if (list.length === 0) return [];
+
+  // Group / merge rects on the same line (vertical overlap tolerance)
+  const merged: Array<{ top: number; left: number; width: number; height: number }> = [];
+
+  for (const r of list) {
+    const existing = merged.find(
+      (m) => Math.abs(m.top - r.top) < 6 && Math.abs(m.height - r.height) < 10
+    );
+    if (existing) {
+      const newLeft = Math.min(existing.left, r.left);
+      const newRight = Math.max(existing.left + existing.width, r.left + r.width);
+      existing.left = newLeft;
+      existing.width = newRight - newLeft;
+      existing.top = Math.min(existing.top, r.top);
+      existing.height = Math.max(existing.height, r.height);
+    } else {
+      merged.push({ ...r });
+    }
+  }
+
+  return merged.sort((a, b) => a.top - b.top || a.left - b.left);
+};
+
+/**
  * Ensure note content is well-formed & strictly sanitized HTML for rich text editing
  */
 const ensureHtml = (content: string): string => {
@@ -1657,7 +1698,24 @@ export const QuickNoteWindow: React.FC = () => {
       if (selectedStr) {
         targetText = selectedStr;
         isSelection = true;
+        if (canvasRef.current) {
+          const range = sel.getRangeAt(0);
+          const selRect = range.getBoundingClientRect();
+          const canvasRect = canvasRef.current.getBoundingClientRect();
+          const lineRects = mergeLineRects(range.getClientRects(), canvasRect.top, canvasRect.left);
+          setSelectionBounds({
+            top: selRect.top - canvasRect.top,
+            bottom: selRect.bottom - canvasRect.top,
+            left: selRect.left - canvasRect.left,
+            right: selRect.right - canvasRect.left,
+            width: selRect.width,
+            height: selRect.height,
+            lineRects,
+          });
+        }
       }
+    } else {
+      setSelectionBounds(null);
     }
     if (!targetText.trim()) {
       toast.error('Ghi chú chưa có nội dung để AI xử lý!');
@@ -2051,14 +2109,7 @@ export const QuickNoteWindow: React.FC = () => {
       const canvasRect = canvasRef.current.getBoundingClientRect();
 
       if (selRect.width > 0 || selRect.height > 0) {
-        const rects = range.getClientRects();
-        const rawRects = Array.from(rects);
-        const lineRects = rawRects.map((r) => ({
-          top: r.top - canvasRect.top,
-          left: r.left - canvasRect.left,
-          width: r.width,
-          height: r.height,
-        }));
+        const lineRects = mergeLineRects(range.getClientRects(), canvasRect.top, canvasRect.left);
         setSelectionBounds({
           top: selRect.top - canvasRect.top,
           bottom: selRect.bottom - canvasRect.top,
@@ -2069,6 +2120,7 @@ export const QuickNoteWindow: React.FC = () => {
           lineRects,
         });
 
+        const rects = range.getClientRects();
         const firstRect = rects.length > 0 ? rects[0] : selRect;
         const lastRect = rects.length > 0 ? rects[rects.length - 1] : selRect;
 
@@ -5324,19 +5376,49 @@ export const QuickNoteWindow: React.FC = () => {
               ) : (
                 /* Seamless Flowing Writing Canvas */
                 <div ref={canvasRef} className="flex-1 flex flex-col min-h-0 relative">
-                  {/* Apple AI Sweeping Scanning Beam across selected text - NO FRAME / NO BORDER */}
-                  {writingToolLoading && selectionBounds && (
-                    <div
-                      className="absolute pointer-events-none select-none z-20 overflow-hidden"
-                      style={{
-                        top: `${Math.max(0, selectionBounds.top)}px`,
-                        left: `${Math.max(0, selectionBounds.left)}px`,
-                        width: `${Math.max(20, selectionBounds.width)}px`,
-                        height: `${Math.max(16, (selectionBounds.height || selectionBounds.bottom - selectionBounds.top))}px`,
-                      }}
-                    >
-                      <div className="apple-ai-scanning-beam" />
-                    </div>
+                  {/* Apple AI Creative Cascading Scan Effect - Strictly Line-Bound to Selected Text */}
+                  {writingToolLoading && selectionBounds?.lineRects && selectionBounds.lineRects.length > 0 && (
+                    <>
+                      {selectionBounds.lineRects.map((rect, idx) => {
+                        const totalLines = selectionBounds.lineRects.length;
+                        const duration = Math.min(2.2, Math.max(1.3, totalLines * 0.35));
+                        const delay = (idx / Math.max(1, totalLines)) * (duration * 0.55);
+
+                        return (
+                          <div
+                            key={`scan-line-${idx}-${rect.top.toFixed(0)}-${rect.left.toFixed(0)}`}
+                            className="apple-ai-text-line-wrapper"
+                            style={{
+                              top: `${Math.max(0, rect.top - 1)}px`,
+                              left: `${Math.max(0, rect.left - 2)}px`,
+                              width: `${Math.max(8, rect.width + 4)}px`,
+                              height: `${Math.max(16, rect.height + 2)}px`,
+                            }}
+                          >
+                            {/* Ambient Iridescent Underglow strictly on highlighted text */}
+                            <div className="apple-ai-text-line-base" />
+
+                            {/* Cascading Prismatic Laser Sweep with Starlight Spark */}
+                            <div
+                              className="apple-ai-text-line-sweep"
+                              style={{
+                                animation: `appleAiLineSweep ${duration}s cubic-bezier(0.4, 0, 0.2, 1) infinite`,
+                                animationDelay: `${delay}s`,
+                              }}
+                            >
+                              <div className="apple-ai-star-spark">
+                                <svg
+                                  viewBox="0 0 16 16"
+                                  className="w-3.5 h-3.5 text-white fill-white drop-shadow-[0_0_6px_rgba(255,255,255,0.95)]"
+                                >
+                                  <path d="M8 0L9.4 6.6L16 8L9.4 9.4L8 16L6.6 9.4L0 8L6.6 6.6L8 0Z" />
+                                </svg>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </>
                   )}
 
                   {/* Placeholder overlay when empty */}
