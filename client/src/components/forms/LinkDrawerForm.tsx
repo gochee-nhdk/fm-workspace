@@ -177,7 +177,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
               Phân nhóm

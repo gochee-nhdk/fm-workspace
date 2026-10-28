@@ -159,8 +159,8 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
       onClose={handleClose}
       zIndex={10010}
       title="Import Dữ Liệu Excel"
-      overlayClassName="p-4"
-      contentClassName="relative bg-white dark:bg-[#1c1c22] rounded-[24px] max-w-2xl w-full p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15 flex flex-col max-h-[90vh]"
+      overlayClassName="p-2 sm:p-4"
+      contentClassName="relative bg-white dark:bg-[#1c1c22] rounded-[24px] max-w-2xl w-full p-4 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15 flex flex-col max-h-[92vh] sm:max-h-[90vh]"
     >
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-black/[0.06] dark:border-white/10 shrink-0">
@@ -222,7 +222,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                   loading={loading}
                   icon={<SFTablecells size={16} />}
                 >
-                  Chọn file từ máy tính
+                  Chọn file từ thiết bị
                 </Button>
               </div>
 
@@ -388,7 +388,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="pt-4 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-between shrink-0">
+        <div className="pt-4 border-t border-black/[0.06] dark:border-white/10 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5 shrink-0">
           {step === 'preview' ? (
             <Button
               type="button"
@@ -396,6 +396,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
               size="sm"
               onClick={handleReset}
               disabled={loading}
+              className="w-full sm:w-auto"
             >
               Chọn file khác
             </Button>
@@ -405,13 +406,14 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
             </span>
           )}
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2 w-full sm:w-auto">
             <Button
               type="button"
               variant="glass"
               size="sm"
               onClick={handleClose}
               disabled={loading}
+              className="flex-1 sm:flex-initial"
             >
               Hủy
             </Button>
@@ -424,8 +426,10 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
                 onClick={handleConfirmImport}
                 loading={loading}
                 icon={<SFCheckmarkCircleFill size={16} />}
+                className="flex-1 sm:flex-initial"
               >
-                Xác nhận Import vào Workspace
+                <span className="hidden sm:inline">Xác nhận Import vào Workspace</span>
+                <span className="sm:hidden">Import vào Workspace</span>
               </Button>
             )}
           </div>
