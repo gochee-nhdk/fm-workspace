@@ -5324,15 +5324,15 @@ export const QuickNoteWindow: React.FC = () => {
               ) : (
                 /* Seamless Flowing Writing Canvas */
                 <div ref={canvasRef} className="flex-1 flex flex-col min-h-0 relative">
-                  {/* Apple Intelligence Unified Scanning Aura & Laser Beam across the selected text */}
+                  {/* Apple AI Sweeping Scanning Beam across selected text - NO FRAME / NO BORDER */}
                   {writingToolLoading && selectionBounds && (
                     <div
-                      className="absolute pointer-events-none select-none z-20 overflow-hidden apple-ai-unified-aura"
+                      className="absolute pointer-events-none select-none z-20 overflow-hidden"
                       style={{
-                        top: `${Math.max(0, selectionBounds.top - 3)}px`,
-                        left: `${Math.max(0, selectionBounds.left - 4)}px`,
-                        width: `${Math.max(30, selectionBounds.width + 8)}px`,
-                        height: `${Math.max(22, (selectionBounds.height || selectionBounds.bottom - selectionBounds.top) + 6)}px`,
+                        top: `${Math.max(0, selectionBounds.top)}px`,
+                        left: `${Math.max(0, selectionBounds.left)}px`,
+                        width: `${Math.max(20, selectionBounds.width)}px`,
+                        height: `${Math.max(16, (selectionBounds.height || selectionBounds.bottom - selectionBounds.top))}px`,
                       }}
                     >
                       <div className="apple-ai-scanning-beam" />
@@ -5384,20 +5384,25 @@ export const QuickNoteWindow: React.FC = () => {
                     let pillLeft = selectionBounds
                       ? selectionBounds.left + selectionBounds.width / 2
                       : canvasW / 2;
-                    pillLeft = Math.max(pillWidth / 2 + 16, Math.min(canvasW - pillWidth / 2 - 16, pillLeft));
+                    pillLeft = Math.max(pillWidth / 2 + 12, Math.min(canvasW - pillWidth / 2 - 12, pillLeft));
 
-                    let pillTop = (selectionBounds?.bottom || 60) + 10;
-                    if (pillTop + 44 > canvasH && selectionBounds && selectionBounds.top > 50) {
-                      pillTop = Math.max(10, selectionBounds.top - 44 - 10);
+                    let pillTopStyle: string | undefined = undefined;
+                    let pillBottomStyle: string | undefined = undefined;
+
+                    if (selectionBounds && selectionBounds.bottom + 10 + 44 <= canvasH) {
+                      pillTopStyle = `${selectionBounds.bottom + 8}px`;
+                    } else if (selectionBounds && selectionBounds.top - 10 - 44 >= 10) {
+                      pillTopStyle = `${Math.max(10, selectionBounds.top - 44 - 8)}px`;
                     } else {
-                      pillTop = Math.min(canvasH - 48, Math.max(10, pillTop));
+                      pillBottomStyle = '12px';
                     }
 
                     return (
                       <div
-                        className="absolute z-50 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white dark:bg-[#1c1c24] border border-purple-500/40 dark:border-purple-400/50 shadow-[0_14px_36px_rgba(0,0,0,0.22),0_2px_8px_rgba(168,85,247,0.18)] select-none animate-in fade-in zoom-in-95 duration-150"
+                        className="absolute z-50 flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-white dark:bg-[#1c1c24] border border-purple-500/40 dark:border-purple-400/50 shadow-[0_14px_36px_rgba(0,0,0,0.22),0_2px_10px_rgba(168,85,247,0.18)] select-none animate-in fade-in zoom-in-95 duration-150"
                         style={{
-                          top: `${pillTop}px`,
+                          top: pillTopStyle,
+                          bottom: pillBottomStyle,
                           left: `${pillLeft}px`,
                           transform: 'translateX(-50%)',
                         }}
@@ -5421,41 +5426,51 @@ export const QuickNoteWindow: React.FC = () => {
                   {/* Minimalist Apple Liquid Glass Draft Card Floating Below/Above Selection */}
                   {aiDraft && (() => {
                     const canvasW = canvasRef.current?.clientWidth || 500;
-                    const canvasH = canvasRef.current?.clientHeight || 500;
-                    const cardWidth = Math.min(460, Math.max(320, canvasW - 32));
+                    const canvasH = canvasRef.current?.clientHeight || 450;
+                    const cardWidth = Math.min(460, Math.max(320, canvasW - 24));
                     let cardLeft = selectionBounds
                       ? selectionBounds.left + selectionBounds.width / 2
                       : canvasW / 2;
-                    cardLeft = Math.max(cardWidth / 2 + 16, Math.min(canvasW - cardWidth / 2 - 16, cardLeft));
+                    cardLeft = Math.max(cardWidth / 2 + 12, Math.min(canvasW - cardWidth / 2 - 12, cardLeft));
 
-                    let cardTop = (selectionBounds?.bottom || 60) + 10;
-                    if (cardTop + 210 > canvasH && selectionBounds && selectionBounds.top > 210) {
-                      cardTop = Math.max(10, selectionBounds.top - 210 - 10);
+                    const cardEstHeight = 250;
+                    const fitsBelow = selectionBounds && (selectionBounds.bottom + 10 + cardEstHeight <= canvasH);
+                    const fitsAbove = selectionBounds && (selectionBounds.top - 10 - cardEstHeight >= 10);
+
+                    let topStyle: string | undefined = undefined;
+                    let bottomStyle: string | undefined = undefined;
+
+                    if (fitsBelow) {
+                      topStyle = `${selectionBounds.bottom + 8}px`;
+                    } else if (fitsAbove) {
+                      topStyle = `${Math.max(10, selectionBounds.top - cardEstHeight - 8)}px`;
                     } else {
-                      cardTop = Math.min(canvasH - 190, Math.max(10, cardTop));
+                      bottomStyle = '12px';
                     }
 
                     return (
                       <div
-                        className="absolute z-50 p-3.5 rounded-2xl bg-white dark:bg-[#1e1e26] border border-black/10 dark:border-white/15 shadow-[0_24px_64px_-10px_rgba(0,0,0,0.28),0_4px_16px_rgba(168,85,247,0.12),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none animate-in fade-in zoom-in-95 duration-180 flex flex-col gap-2.5"
+                        className="absolute z-50 p-3 rounded-2xl bg-white dark:bg-[#1e1e26] border border-black/10 dark:border-white/15 shadow-[0_24px_64px_-10px_rgba(0,0,0,0.28),0_4px_16px_rgba(168,85,247,0.12),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none animate-in fade-in zoom-in-95 duration-180 flex flex-col gap-2"
                         style={{
-                          top: `${cardTop}px`,
+                          top: topStyle,
+                          bottom: bottomStyle,
                           left: `${cardLeft}px`,
                           width: `${cardWidth}px`,
+                          maxHeight: `${Math.min(canvasH - 24, 290)}px`,
                           transform: 'translateX(-50%)',
                         }}
                       >
                         {/* Header */}
-                        <div className="flex items-center justify-between gap-2 pb-2 border-b border-black/[0.06] dark:border-white/10">
+                        <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-black/[0.06] dark:border-white/10 shrink-0">
                           <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-5.5 h-5.5 rounded-lg bg-gradient-to-tr from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white flex items-center justify-center shadow-xs shrink-0">
-                              <SFWandAndSparkles size={11.5} className="text-white" />
+                            <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white flex items-center justify-center shadow-xs shrink-0">
+                              <SFWandAndSparkles size={11} className="text-white" />
                             </div>
-                            <span className="text-[12.5px] font-bold tracking-tight text-[#1d1d1f] dark:text-white truncate">
+                            <span className="text-[12px] font-bold tracking-tight text-[#1d1d1f] dark:text-white truncate">
                               {aiDraft.title || 'Bản nháp Writing Tools'}
                             </span>
                             {aiDraft.usedGemini && (
-                              <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
                                 Gemini
                               </span>
                             )}
@@ -5468,13 +5483,13 @@ export const QuickNoteWindow: React.FC = () => {
                           />
                         </div>
 
-                        {/* Content Preview */}
-                        <div className="text-[13.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[180px] overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06]">
+                        {/* Content Preview inside clean inset glass box */}
+                        <div className="text-[13px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[130px] overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1">
                           {aiDraft.result}
                         </div>
 
                         {/* Action buttons */}
-                        <div className="flex items-center justify-end gap-1.5 pt-1">
+                        <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-black/[0.04] dark:border-white/[0.06] shrink-0">
                           <button
                             type="button"
                             onClick={handleCopyAiDraft}
@@ -5496,7 +5511,7 @@ export const QuickNoteWindow: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleApplyAiDraft('replace')}
-                            className="px-3.5 py-1.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11.5px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
+                            className="px-3.5 py-1.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
                             title="Thay thế văn bản đã chọn"
                           >
                             <SFCheckmark size={11.5} className="stroke-[3]" />

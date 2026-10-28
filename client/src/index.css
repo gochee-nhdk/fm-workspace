@@ -3137,40 +3137,11 @@ tbody td {
 }
 
 /* ==========================================================================
-   Apple Intelligence Unified Selection Scanning Aura & Laser Beam
+   Apple Intelligence Fluid Laser Scanning Beam (No Box / No Border)
    ========================================================================== */
-@keyframes appleAiAuraPulse {
-  0% {
-    box-shadow: 0 0 16px rgba(168, 85, 247, 0.25), 0 0 35px rgba(99, 102, 241, 0.12), inset 0 0 12px rgba(236, 72, 153, 0.08);
-    border-color: rgba(168, 85, 247, 0.45);
-  }
-  50% {
-    box-shadow: 0 0 24px rgba(236, 72, 153, 0.35), 0 0 45px rgba(168, 85, 247, 0.2), inset 0 0 20px rgba(99, 102, 241, 0.12);
-    border-color: rgba(236, 72, 153, 0.55);
-  }
-  100% {
-    box-shadow: 0 0 18px rgba(99, 102, 241, 0.3), 0 0 38px rgba(236, 72, 153, 0.15), inset 0 0 14px rgba(168, 85, 247, 0.1);
-    border-color: rgba(99, 102, 241, 0.45);
-  }
-}
-
-.apple-ai-unified-aura {
-  border-radius: 12px;
-  border: 1.5px solid rgba(168, 85, 247, 0.45);
-  background: linear-gradient(
-    135deg,
-    rgba(99, 102, 241, 0.07) 0%,
-    rgba(168, 85, 247, 0.12) 50%,
-    rgba(236, 72, 153, 0.08) 100%
-  );
-  animation: appleAiAuraPulse 2.4s ease-in-out infinite alternate;
-  pointer-events: none;
-  transition: all 0.2s ease-out;
-}
-
 @keyframes appleAiScanningBeam {
   0% {
-    left: -80px;
+    left: -120px;
     opacity: 0;
   }
   15% {
@@ -3180,7 +3151,7 @@ tbody td {
     opacity: 0.95;
   }
   100% {
-    left: calc(100% + 80px);
+    left: calc(100% + 120px);
     opacity: 0;
   }
 }
@@ -3189,17 +3160,17 @@ tbody td {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 60px;
+  width: 70px;
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.6) 45%,
-    rgba(255, 255, 255, 0.95) 50%,
-    rgba(255, 255, 255, 0.6) 55%,
+    rgba(255, 255, 255, 0.3) 25%,
+    rgba(255, 255, 255, 0.9) 50%,
+    rgba(168, 85, 247, 0.6) 75%,
     transparent 100%
   );
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.95), 0 0 12px rgba(168, 85, 247, 0.8);
-  animation: appleAiScanningBeam 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.95), 0 0 12px rgba(168, 85, 247, 0.7);
+  animation: appleAiScanningBeam 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   pointer-events: none;
 }
 
