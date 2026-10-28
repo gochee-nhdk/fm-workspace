@@ -409,7 +409,7 @@ export const SettingsPage: React.FC = () => {
     try {
       const res = await backupService.syncToServer('manual');
       if (res.success) {
-        toast.success('☁️ Đã sao lưu dự phòng tức thời lên máy chủ thành công!');
+        toast.success(res.message || '☁️ Đã sao lưu dự phòng tức thời lên máy chủ thành công!');
         await loadStorageAndSyncStatus();
       } else {
         toast.error('Lỗi khi sao lưu lên máy chủ: ' + (res.message || 'Kiểm tra kết nối'));

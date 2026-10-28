@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
 
   try {
     // 1. Health Check
-    if (pathname === '/health' || pathname === '') {
+    if (pathname === '/health' || pathname === '' || pathname === '/') {
       return res.status(200).json({
         status: 'ok',
         service: 'FM Workspace Vercel Cloud Serverless API',
