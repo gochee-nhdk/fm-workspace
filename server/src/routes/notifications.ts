@@ -132,6 +132,14 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
 
   // 2. Configure & Verify SMTP Settings (Accessible for users configuring notifications)
   fastify.post('/smtp-config', { preHandler: verifyToken }, async (request: any, reply) => {
+    // SECURITY GUARD: Only admins are authorized to configure global system SMTP settings
+    if (request.user?.role !== 'admin') {
+      return reply.code(403).send({
+        success: false,
+        message: 'Bạn không có quyền cấu hình SMTP hệ thống (Yêu cầu quyền Admin).',
+      });
+    }
+
     const { user, pass, host, port, senderName } = request.body || {};
 
     if (!user || !pass) {

@@ -51,6 +51,9 @@ import {
   Maximize2,
   Minimize2,
   ChevronDown,
+  ChevronUp,
+  ArrowUp,
+  ArrowDown,
   Mail,
   Send,
   Check,
@@ -255,6 +258,24 @@ const normalizeChecklistDraft = (raw?: string | null): string => {
   return lines.length > 0 ? lines.map((line) => `- [ ] ${line}`).join('\n') : '- [ ] ';
 };
 
+/**
+ * Convert multiline plain text (from AI draft) into cleanly formatted note paragraph blocks,
+ * preserving line breaks and paragraph structure exactly without collapsing lines into one run-on paragraph.
+ */
+const convertTextToNoteBlocks = (text: string): HTMLElement[] => {
+  if (!text) return [];
+  const lines = text.split(/\r?\n/);
+  return lines.map((line) => {
+    const p = document.createElement('p');
+    if (!line.trim()) {
+      p.appendChild(document.createElement('br'));
+    } else {
+      p.textContent = line;
+    }
+    return p;
+  });
+};
+
 interface ChecklistRow {
   lineIndex: number;
   taskId: string;
@@ -278,11 +299,16 @@ const getStrictSelectionLineRects = (
   const root = range.commonAncestorContainer;
 
   if (root.nodeType === Node.TEXT_NODE) {
-    textNodes.push(root as Text);
+    if (root.textContent && root.textContent.trim().length > 0) {
+      textNodes.push(root as Text);
+    }
   } else {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode(node) {
         try {
+          if (!node.textContent || node.textContent.trim().length === 0) {
+            return NodeFilter.FILTER_REJECT;
+          }
           return range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
         } catch {
           return NodeFilter.FILTER_REJECT;
@@ -291,7 +317,7 @@ const getStrictSelectionLineRects = (
     });
 
     let curr = walker.currentNode;
-    if (curr && curr.nodeType === Node.TEXT_NODE) {
+    if (curr && curr.nodeType === Node.TEXT_NODE && curr.textContent && curr.textContent.trim().length > 0) {
       try {
         if (range.intersectsNode(curr)) textNodes.push(curr as Text);
       } catch {}
@@ -304,33 +330,33 @@ const getStrictSelectionLineRects = (
   const rawRects: DOMRect[] = [];
 
   for (const node of textNodes) {
-    if (!node.textContent || node.textContent.length === 0) continue;
+    const text = node.textContent;
+    if (!text || text.trim().length === 0) continue;
+
+    let start = node === range.startContainer ? range.startOffset : 0;
+    let end = node === range.endContainer ? range.endOffset : text.length;
+
+    // Skip leading & trailing whitespace characters so the rect hugs only the visible text
+    while (start < end && /\s/.test(text[start])) start++;
+    while (end > start && /\s/.test(text[end - 1])) end--;
+
+    if (end <= start) continue;
 
     const nodeRange = document.createRange();
-    const start = node === range.startContainer ? range.startOffset : 0;
-    const end = node === range.endContainer ? range.endOffset : node.textContent.length;
-
-    if (end > start) {
-      try {
-        nodeRange.setStart(node, start);
-        nodeRange.setEnd(node, end);
-        const clientRects = nodeRange.getClientRects();
-        for (let i = 0; i < clientRects.length; i++) {
-          const r = clientRects[i];
-          if (r.width > 1 && r.height > 1) {
-            rawRects.push(r);
-          }
+    try {
+      nodeRange.setStart(node, start);
+      nodeRange.setEnd(node, end);
+      const clientRects = nodeRange.getClientRects();
+      for (let i = 0; i < clientRects.length; i++) {
+        const r = clientRects[i];
+        if (r.width > 2 && r.height > 2) {
+          rawRects.push(r);
         }
-      } catch {}
-    }
+      }
+    } catch {}
   }
 
-  if (rawRects.length === 0) {
-    const fallbackRects = Array.from(range.getClientRects()).filter(
-      (r) => r.width > 2 && r.height > 2
-    );
-    rawRects.push(...fallbackRects);
-  }
+  if (rawRects.length === 0) return [];
 
   // Group and merge rects on the same visual line (within 5px vertical tolerance)
   const merged: Array<{ top: number; left: number; width: number; height: number }> = [];
@@ -340,7 +366,7 @@ const getStrictSelectionLineRects = (
     const relLeft = r.left - canvasRect.left;
 
     const existing = merged.find(
-      (m) => Math.abs(m.top - relTop) < 5 && Math.abs(m.height - r.height) < 8
+      (m) => Math.abs(m.top - relTop) < 6 && Math.abs(m.height - r.height) < 8
     );
 
     if (existing) {
@@ -360,7 +386,10 @@ const getStrictSelectionLineRects = (
     }
   }
 
-  return merged.sort((a, b) => a.top - b.top || a.left - b.left);
+  // Filter out any empty lines/whitespace gaps
+  return merged
+    .filter((m) => m.width > 4 && m.height > 4)
+    .sort((a, b) => a.top - b.top || a.left - b.left);
 };
 
 /**
@@ -1352,6 +1381,9 @@ export const QuickNoteWindow: React.FC = () => {
     originalText: string;
   } | null>(null);
   const [aiDraftCopied, setAiDraftCopied] = useState(false);
+  const [draftViewMode, setDraftViewMode] = useState<'split' | 'draft' | 'original'>('split');
+  const [draftCardPlacement, setDraftCardPlacement] = useState<'auto' | 'top' | 'bottom'>('auto');
+  const savedSelectionRangeRef = useRef<Range | null>(null);
   const [selectionState, setSelectionState] = useState<{
     text: string;
     start: number;
@@ -1757,6 +1789,7 @@ export const QuickNoteWindow: React.FC = () => {
       if (selectedStr) {
         targetText = selectedStr;
         isSelection = true;
+        savedSelectionRangeRef.current = sel.getRangeAt(0).cloneRange();
         if (canvasRef.current) {
           const range = sel.getRangeAt(0);
           const selRect = range.getBoundingClientRect();
@@ -1786,6 +1819,7 @@ export const QuickNoteWindow: React.FC = () => {
         }
       }
     } else {
+      savedSelectionRangeRef.current = null;
       setSelectionBounds(null);
     }
     if (!targetText.trim()) {
@@ -1829,6 +1863,7 @@ export const QuickNoteWindow: React.FC = () => {
         isSelectionOnly: isSelection,
         originalText: targetText,
       });
+      setDraftCardPlacement('auto');
       toast.success('✨ Đã tạo bản nháp AI trực tiếp trong ghi chú!');
     } catch (err: any) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || controller.signal.aborted) {
@@ -1846,8 +1881,8 @@ export const QuickNoteWindow: React.FC = () => {
   const handleApplyAiDraft = (mode: 'replace' | 'append') => {
     if (!aiDraft) return;
 
-    if (mode === 'replace') {
-      if (editorMode === 'checklist') {
+    if (editorMode === 'checklist') {
+      if (mode === 'replace') {
         const newChecklist = normalizeChecklistDraft(aiDraft.result);
         setLocalChecklist(newChecklist);
         localChecklistRef.current = newChecklist;
@@ -1859,36 +1894,6 @@ export const QuickNoteWindow: React.FC = () => {
           });
         }
       } else {
-        const targetEl = editorRef.current;
-        if (targetEl) {
-          targetEl.focus();
-          if (aiDraft.isSelectionOnly && aiDraft.originalText) {
-            const sel = window.getSelection();
-            if (sel && sel.rangeCount > 0 && !sel.isCollapsed && targetEl.contains(sel.anchorNode)) {
-              document.execCommand('insertText', false, aiDraft.result);
-            } else {
-              const currentHtml = targetEl.innerHTML;
-              const safeDraftResult = sanitizeNoteHTML(aiDraft.result);
-              if (currentHtml.includes(aiDraft.originalText)) {
-                targetEl.innerHTML = currentHtml.replace(aiDraft.originalText, safeDraftResult);
-              } else {
-                targetEl.innerHTML = ensureHtml(safeDraftResult);
-              }
-            }
-          } else {
-            targetEl.innerHTML = ensureHtml(aiDraft.result);
-          }
-          const updated = targetEl.innerHTML;
-          setLocalContent(updated);
-          localContentRef.current = updated;
-          if (activeNoteIdRef.current) {
-            updateNote(activeNoteIdRef.current, { content: updated });
-          }
-        }
-      }
-    } else {
-      // Append mode
-      if (editorMode === 'checklist') {
         const draftChecklist = normalizeChecklistDraft(aiDraft.result);
         const baseChecklist = localChecklist.trim() && localChecklist.trim() !== '- [ ] '
           ? localChecklist.trim()
@@ -1905,11 +1910,84 @@ export const QuickNoteWindow: React.FC = () => {
             images: [],
           });
         }
-      } else if (editorRef.current) {
-        const p = document.createElement('p');
-        p.textContent = aiDraft.result;
-        editorRef.current.appendChild(p);
-        const updated = editorRef.current.innerHTML;
+      }
+    } else {
+      const editor = editorRef.current;
+      if (editor) {
+        editor.focus();
+        const savedRange = savedSelectionRangeRef.current;
+
+        if (mode === 'replace') {
+          if (aiDraft.isSelectionOnly && savedRange && editor.contains(savedRange.commonAncestorContainer)) {
+            let startBlock: Node | null = savedRange.startContainer;
+            while (startBlock && startBlock.parentNode !== editor) {
+              startBlock = startBlock.parentNode;
+            }
+            let endBlock: Node | null = savedRange.endContainer;
+            while (endBlock && endBlock.parentNode !== editor) {
+              endBlock = endBlock.parentNode;
+            }
+
+            const newBlocks = convertTextToNoteBlocks(aiDraft.result);
+            const frag = document.createDocumentFragment();
+            for (const b of newBlocks) {
+              frag.appendChild(b);
+            }
+
+            if (startBlock && endBlock && startBlock.parentNode === editor && endBlock.parentNode === editor) {
+              const blocksToRemove: Node[] = [];
+              let curr: Node | null = startBlock;
+              while (curr) {
+                blocksToRemove.push(curr);
+                if (curr === endBlock) break;
+                curr = curr.nextSibling;
+              }
+              editor.insertBefore(frag, startBlock);
+              for (const b of blocksToRemove) {
+                b.parentNode?.removeChild(b);
+              }
+            } else {
+              savedRange.deleteContents();
+              savedRange.insertNode(frag);
+            }
+          } else {
+            editor.innerHTML = ensureHtml(aiDraft.result);
+          }
+        } else {
+          // 'append' mode (Chèn dưới):
+          // Preserve multi-line paragraph structure exactly without collapsing lines
+          const newBlocks = convertTextToNoteBlocks(aiDraft.result);
+          const frag = document.createDocumentFragment();
+
+          // Spacing separator before inserted content if editor already has text
+          if (editor.textContent?.trim().length) {
+            const sep = document.createElement('p');
+            sep.appendChild(document.createElement('br'));
+            frag.appendChild(sep);
+          }
+          for (const b of newBlocks) {
+            frag.appendChild(b);
+          }
+
+          let targetBlock: HTMLElement | null = null;
+          if (savedRange && editor.contains(savedRange.endContainer)) {
+            let curr: Node | null = savedRange.endContainer;
+            while (curr && curr.parentNode !== editor) {
+              curr = curr.parentNode;
+            }
+            if (curr && curr.parentNode === editor) {
+              targetBlock = curr as HTMLElement;
+            }
+          }
+
+          if (targetBlock && targetBlock.parentNode === editor) {
+            targetBlock.after(frag);
+          } else {
+            editor.appendChild(frag);
+          }
+        }
+
+        const updated = editor.innerHTML;
         setLocalContent(updated);
         localContentRef.current = updated;
         if (activeNoteIdRef.current) {
@@ -1924,6 +2002,7 @@ export const QuickNoteWindow: React.FC = () => {
     setAiDraftCopied(false);
     setSelectionState(null);
     setSelectionBounds(null);
+    savedSelectionRangeRef.current = null;
   };
 
   const handleCopyAiDraft = async () => {
@@ -1942,6 +2021,7 @@ export const QuickNoteWindow: React.FC = () => {
   const handleDiscardAiDraft = () => {
     setAiDraft(null);
     setAiDraftCopied(false);
+    savedSelectionRangeRef.current = null;
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed) {
       setSelectionBounds(null);
@@ -2400,6 +2480,7 @@ export const QuickNoteWindow: React.FC = () => {
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0 && !sel.isCollapsed && editorRef.current?.contains(sel.anchorNode) && canvasRef.current) {
       const range = sel.getRangeAt(0);
+      savedSelectionRangeRef.current = range.cloneRange();
       const selRect = range.getBoundingClientRect();
       const canvasRect = canvasRef.current.getBoundingClientRect();
       const lineRects = getStrictSelectionLineRects(range, canvasRect);
@@ -2462,6 +2543,7 @@ export const QuickNoteWindow: React.FC = () => {
         isSelectionOnly: true,
         originalText: targetText,
       });
+      setDraftCardPlacement('auto');
       toast.dismiss('ai-writing');
       toast.success('✨ Đã tạo bản nháp AI trực tiếp trong ghi chú!');
     } catch (err: any) {
@@ -2484,6 +2566,7 @@ export const QuickNoteWindow: React.FC = () => {
       if (e.key === 'Escape') {
         setAiDraft(null);
         setAiDraftCopied(false);
+        savedSelectionRangeRef.current = null;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -5551,48 +5634,75 @@ export const QuickNoteWindow: React.FC = () => {
                     onPaste={handleEditorPaste}
                     onClick={handleEditorClick}
                     className="flex-1 w-full bg-transparent border-0 outline-none shadow-none ring-0 focus:ring-0 focus:outline-none focus:border-none font-sans text-[14.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] p-0 pr-1 selection:bg-purple-500/25 selection:text-[#1d1d1f] dark:selection:text-white overflow-y-auto min-h-0 [&_h1]:text-2xl [&_h1]:font-bold [&_h1_*]:font-bold [&_h1]:text-[#1d1d1f] dark:[&_h1]:text-white [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:leading-tight [&_h2]:text-xl [&_h2]:font-bold [&_h2_*]:font-bold [&_h2]:text-[#1d1d1f] dark:[&_h2]:text-white [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[17px] [&_h3]:font-semibold [&_h3_*]:font-semibold [&_h3]:text-[#1d1d1f] dark:[&_h3]:text-white [&_h3]:mt-2 [&_h3]:mb-0.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline [&_s]:line-through [&_img]:!max-w-[320px] [&_img]:!max-h-[220px] [&_img]:!w-auto [&_img]:!h-auto [&_img]:object-contain [&_img]:rounded-xl [&_img]:cursor-zoom-in [&_.apple-img-wrapper]:my-2 [&_.apple-img-wrapper_img]:!m-0 [&_.apple-img-wrapper_img]:!p-0 [&_.apple-img-wrapper_img]:!border-0 [&_.apple-img-wrapper_img]:!shadow-none [&_.apple-img-wrapper_img]:!block [&_.apple-file-attachment]:transition-all hover:[&_.apple-file-attachment]:bg-black/[0.07] dark:hover:[&_.apple-file-attachment]:bg-white/[0.08] cursor-text scrollbar-thin [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-black/30"
-                    style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
+                    style={{
+                      border: 'none',
+                      outline: 'none',
+                      boxShadow: 'none',
+                      paddingBottom: aiDraft ? '260px' : undefined,
+                    }}
                   />
 
                   {/* Floating AI Progress & Cancel Pill */}
                   {writingToolLoading && (() => {
                     const canvasW = canvasRef.current?.clientWidth || 500;
                     const canvasH = canvasRef.current?.clientHeight || 400;
-                    const pillWidth = 240;
-                    let pillLeft = selectionBounds
-                      ? selectionBounds.left + selectionBounds.width / 2
-                      : canvasW / 2;
-                    pillLeft = Math.max(pillWidth / 2 + 12, Math.min(canvasW - pillWidth / 2 - 12, pillLeft));
+                    const pillWidth = 220;
+                    const pillHeight = 34;
 
+                    const lastLine =
+                      selectionBounds?.lineRects && selectionBounds.lineRects.length > 0
+                        ? selectionBounds.lineRects[selectionBounds.lineRects.length - 1]
+                        : null;
+
+                    let pillLeft: number;
                     let pillTopStyle: string | undefined = undefined;
                     let pillBottomStyle: string | undefined = undefined;
+                    let transform = 'none';
 
-                    if (selectionBounds && selectionBounds.bottom + 10 + 44 <= canvasH) {
-                      pillTopStyle = `${selectionBounds.bottom + 8}px`;
-                    } else if (selectionBounds && selectionBounds.top - 10 - 44 >= 10) {
-                      pillTopStyle = `${Math.max(10, selectionBounds.top - 44 - 8)}px`;
+                    if (lastLine) {
+                      const textEndX = lastLine.left + lastLine.width;
+                      const fitsOnSameLine = textEndX + 8 + pillWidth <= canvasW - 12;
+
+                      if (fitsOnSameLine) {
+                        // Immediately follow the last character on the same line
+                        pillLeft = textEndX + 8;
+                        const targetTop = lastLine.top + (lastLine.height - pillHeight) / 2;
+                        pillTopStyle = `${Math.max(6, Math.min(canvasH - pillHeight - 6, targetTop))}px`;
+                      } else {
+                        // Place directly underneath the last word
+                        pillLeft = Math.max(12, Math.min(canvasW - pillWidth - 12, lastLine.left));
+                        if (lastLine.top + lastLine.height + 8 + pillHeight <= canvasH) {
+                          pillTopStyle = `${lastLine.top + lastLine.height + 8}px`;
+                        } else if (lastLine.top - pillHeight - 8 >= 6) {
+                          pillTopStyle = `${lastLine.top - pillHeight - 8}px`;
+                        } else {
+                          pillBottomStyle = '12px';
+                        }
+                      }
                     } else {
+                      pillLeft = canvasW / 2;
+                      transform = 'translateX(-50%)';
                       pillBottomStyle = '12px';
                     }
 
                     return (
                       <div
-                        className="absolute z-50 flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-white dark:bg-[#1c1c24] border border-purple-500/40 dark:border-purple-400/50 shadow-[0_14px_36px_rgba(0,0,0,0.22),0_2px_10px_rgba(168,85,247,0.18)] select-none animate-in fade-in zoom-in-95 duration-150"
+                        className="absolute z-50 flex items-center gap-2 px-3 py-1 rounded-full bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-2xl border border-purple-500/30 dark:border-purple-400/40 shadow-[0_8px_24px_rgba(0,0,0,0.12),0_2px_8px_rgba(168,85,247,0.15)] select-none animate-in fade-in zoom-in-95 duration-150"
                         style={{
                           top: pillTopStyle,
                           bottom: pillBottomStyle,
                           left: `${pillLeft}px`,
-                          transform: 'translateX(-50%)',
+                          transform,
                         }}
                       >
-                        <div className="w-3.5 h-3.5 rounded-full border-2 border-[#a855f7] border-t-transparent animate-spin shrink-0" />
-                        <span className="text-[12px] font-semibold bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] bg-clip-text text-transparent select-none whitespace-nowrap">
-                          Đang quét & xử lý AI...
+                        <div className="w-3 h-3 rounded-full border-2 border-[#a855f7] border-t-transparent animate-spin shrink-0" />
+                        <span className="text-[11.5px] font-semibold bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] bg-clip-text text-transparent select-none whitespace-nowrap">
+                          Đang xử lý AI...
                         </span>
                         <button
                           type="button"
                           onClick={handleCancelWritingTool}
-                          className="ml-1 px-2.5 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white text-[11px] font-semibold transition-all duration-150 cursor-pointer active:scale-95 flex items-center gap-1 shadow-2xs"
+                          className="ml-1 px-2 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white text-[10.5px] font-semibold transition-all duration-150 cursor-pointer active:scale-95 flex items-center gap-0.5 shadow-2xs"
                           title="Dừng xử lý AI ngay lập tức"
                         >
                           <span>✕ Hủy</span>
@@ -5601,100 +5711,201 @@ export const QuickNoteWindow: React.FC = () => {
                     );
                   })()}
 
-                  {/* Minimalist Apple Liquid Glass Draft Card Floating Below/Above Selection */}
+                  {/* Minimalist Apple Liquid Glass Draft Card with Smart Non-Blocking Placement & Side-by-Side Comparison */}
                   {aiDraft && (() => {
                     const canvasW = canvasRef.current?.clientWidth || 500;
                     const canvasH = canvasRef.current?.clientHeight || 450;
-                    const cardWidth = Math.min(460, Math.max(320, canvasW - 24));
-                    let cardLeft = selectionBounds
-                      ? selectionBounds.left + selectionBounds.width / 2
-                      : canvasW / 2;
-                    cardLeft = Math.max(cardWidth / 2 + 12, Math.min(canvasW - cardWidth / 2 - 12, cardLeft));
+                    const cardWidth = Math.min(680, Math.max(340, canvasW - 24));
+                    const isWide = cardWidth >= 520;
 
-                    const cardEstHeight = 250;
-                    const fitsBelow = selectionBounds && (selectionBounds.bottom + 10 + cardEstHeight <= canvasH);
-                    const fitsAbove = selectionBounds && (selectionBounds.top - 10 - cardEstHeight >= 10);
-
-                    let topStyle: string | undefined = undefined;
-                    let bottomStyle: string | undefined = undefined;
-
-                    if (fitsBelow) {
-                      topStyle = `${selectionBounds.bottom + 8}px`;
-                    } else if (fitsAbove) {
-                      topStyle = `${Math.max(10, selectionBounds.top - cardEstHeight - 8)}px`;
+                    // Smart non-blocking placement:
+                    // If selection exists, place card away from the selection so it never obscures the selected text!
+                    let effectivePlacement: 'top' | 'bottom' = 'bottom';
+                    if (draftCardPlacement === 'top') {
+                      effectivePlacement = 'top';
+                    } else if (draftCardPlacement === 'bottom') {
+                      effectivePlacement = 'bottom';
                     } else {
-                      bottomStyle = '12px';
+                      // Auto mode:
+                      if (selectionBounds && selectionBounds.top > canvasH * 0.42) {
+                        // Selection is in the lower half -> dock card at the top
+                        effectivePlacement = 'top';
+                      } else {
+                        // Selection is in the upper half -> dock card at the bottom
+                        effectivePlacement = 'bottom';
+                      }
                     }
+
+                    const topStyle = effectivePlacement === 'top' ? '12px' : undefined;
+                    const bottomStyle = effectivePlacement === 'bottom' ? '12px' : undefined;
 
                     return (
                       <div
-                        className="absolute z-50 p-3 rounded-2xl bg-white dark:bg-[#1e1e26] border border-black/10 dark:border-white/15 shadow-[0_24px_64px_-10px_rgba(0,0,0,0.28),0_4px_16px_rgba(168,85,247,0.12),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none animate-in fade-in zoom-in-95 duration-180 flex flex-col gap-2"
+                        className="absolute z-50 p-3.5 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-black/10 dark:border-white/15 shadow-[0_24px_64px_-10px_rgba(0,0,0,0.28),0_4px_16px_rgba(168,85,247,0.12),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none animate-in fade-in zoom-in-95 duration-180 flex flex-col gap-2.5 max-w-[calc(100%-24px)]"
                         style={{
                           top: topStyle,
                           bottom: bottomStyle,
-                          left: `${cardLeft}px`,
+                          left: '50%',
                           width: `${cardWidth}px`,
-                          maxHeight: `${Math.min(canvasH - 24, 290)}px`,
+                          maxHeight: `${Math.min(canvasH - 24, 340)}px`,
                           transform: 'translateX(-50%)',
                         }}
                       >
                         {/* Header */}
-                        <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-black/[0.06] dark:border-white/10 shrink-0">
+                        <div className="flex items-center justify-between gap-2 pb-2 border-b border-black/[0.06] dark:border-white/10 shrink-0">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white flex items-center justify-center shadow-xs shrink-0">
                               <SFWandAndSparkles size={11} className="text-white" />
                             </div>
-                            <span className="text-[12px] font-bold tracking-tight text-[#1d1d1f] dark:text-white truncate">
+                            <span className="text-[12.5px] font-bold tracking-tight text-[#1d1d1f] dark:text-white truncate">
                               {aiDraft.title || 'Bản nháp Writing Tools'}
                             </span>
-                            {aiDraft.usedGemini && (
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
-                                Gemini
-                              </span>
-                            )}
                           </div>
-                          <CloseButton
-                            onClick={handleDiscardAiDraft}
-                            size="sm"
-                            label="Đóng"
-                            title="Hủy bản nháp"
-                          />
+
+                          {/* Center / Right controls: Comparison view switch & placement flip */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {/* Segmented Control for Comparison */}
+                            <div className="flex items-center p-0.5 rounded-lg bg-black/[0.04] dark:bg-white/[0.06] border border-black/5 dark:border-white/10 text-[11px]">
+                              {isWide && (
+                                <button
+                                  type="button"
+                                  onClick={() => setDraftViewMode('split')}
+                                  className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${
+                                    draftViewMode === 'split'
+                                      ? 'bg-white dark:bg-[#2c2c36] text-[#0071e3] dark:text-[#2997ff] shadow-xs'
+                                      : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white'
+                                  }`}
+                                  title="So sánh song song bản gốc và bản mới"
+                                >
+                                  So sánh
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setDraftViewMode('draft')}
+                                className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${
+                                  draftViewMode === 'draft' || (!isWide && draftViewMode === 'split')
+                                    ? 'bg-white dark:bg-[#2c2c36] text-[#0071e3] dark:text-[#2997ff] shadow-xs'
+                                    : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white'
+                                }`}
+                                title="Xem riêng bản thảo AI đề xuất"
+                              >
+                                Bản mới
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDraftViewMode('original')}
+                                className={`px-2 py-0.5 rounded-md font-semibold transition-all cursor-pointer ${
+                                  draftViewMode === 'original'
+                                    ? 'bg-white dark:bg-[#2c2c36] text-[#0071e3] dark:text-[#2997ff] shadow-xs'
+                                    : 'text-slate-500 dark:text-slate-400 hover:text-black dark:hover:text-white'
+                                }`}
+                                title="Xem lại đoạn văn bản gốc ban đầu"
+                              >
+                                Bản gốc
+                              </button>
+                            </div>
+
+                            {/* Flip position button */}
+                            <button
+                              type="button"
+                              onClick={() => setDraftCardPlacement(effectivePlacement === 'top' ? 'bottom' : 'top')}
+                              className="p-1 rounded-lg text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                              title={effectivePlacement === 'top' ? 'Chuyển khung xuống dưới đáy' : 'Chuyển khung lên đỉnh'}
+                            >
+                              {effectivePlacement === 'top' ? <ArrowDown size={13} /> : <ArrowUp size={13} />}
+                            </button>
+
+                            <CloseButton
+                              onClick={handleDiscardAiDraft}
+                              size="sm"
+                              label="Đóng"
+                              title="Hủy bản nháp"
+                            />
+                          </div>
                         </div>
 
-                        {/* Content Preview inside clean inset glass box */}
-                        <div className="text-[13px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[130px] overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1">
-                          {aiDraft.result}
-                        </div>
+                        {/* Content Area: Split View or Single View */}
+                        {isWide && draftViewMode === 'split' ? (
+                          <div className="grid grid-cols-2 gap-2.5 flex-1 min-h-0 select-text">
+                            {/* Left column: Original Text */}
+                            <div className="flex flex-col min-h-0">
+                              <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 pb-1 flex items-center gap-1 shrink-0">
+                                <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                                <span>Văn bản gốc:</span>
+                              </div>
+                              <div className="text-[12.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[145px] overflow-y-auto scrollbar-thin whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1">
+                                {aiDraft.originalText || '(Trống)'}
+                              </div>
+                            </div>
+
+                            {/* Right column: New AI Draft */}
+                            <div className="flex flex-col min-h-0">
+                              <div className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 pb-1 flex items-center gap-1 shrink-0">
+                                <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                <span>Đề xuất mới (AI):</span>
+                              </div>
+                              <div className="text-[12.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[145px] overflow-y-auto scrollbar-thin whitespace-pre-wrap font-normal bg-purple-500/[0.04] dark:bg-purple-500/[0.08] p-2.5 rounded-xl border border-purple-500/20 dark:border-purple-400/25 flex-1">
+                                {aiDraft.result}
+                              </div>
+                            </div>
+                          </div>
+                        ) : draftViewMode === 'original' ? (
+                          <div className="flex flex-col min-h-0 select-text">
+                            <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 pb-1 flex items-center gap-1 shrink-0">
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                              <span>Văn bản gốc ban đầu:</span>
+                            </div>
+                            <div className="text-[13px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[145px] overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1">
+                              {aiDraft.originalText || '(Trống)'}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col min-h-0 select-text">
+                            <div className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 pb-1 flex items-center gap-1 shrink-0">
+                              <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                              <span>Đề xuất mới (AI):</span>
+                            </div>
+                            <div className="text-[13px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text max-h-[145px] overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal bg-purple-500/[0.04] dark:bg-purple-500/[0.08] p-2.5 rounded-xl border border-purple-500/20 dark:border-purple-400/25 flex-1">
+                              {aiDraft.result}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Action buttons */}
-                        <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-black/[0.04] dark:border-white/[0.06] shrink-0">
-                          <button
-                            type="button"
-                            onClick={handleCopyAiDraft}
-                            className="px-2.5 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1 shadow-2xs"
-                            title="Sao chép kết quả"
-                          >
-                            <Copy size={11} />
-                            <span>{aiDraftCopied ? 'Đã chép' : 'Sao chép'}</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleApplyAiDraft('append')}
-                            className="px-3 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1 shadow-2xs"
-                            title="Chèn tiếp vào dưới ghi chú"
-                          >
-                            <SFPlus size={11} />
-                            <span>Chèn dưới</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleApplyAiDraft('replace')}
-                            className="px-3.5 py-1.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
-                            title="Thay thế văn bản đã chọn"
-                          >
-                            <SFCheckmark size={11.5} className="stroke-[3]" />
-                            <span>Thay thế</span>
-                          </button>
+                        <div className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-black/[0.04] dark:border-white/[0.06] shrink-0">
+                          <span className="text-[10.5px] text-slate-400 dark:text-slate-500 hidden sm:inline">
+                            Giữ nguyên cấu trúc từng đoạn
+                          </span>
+                          <div className="flex items-center gap-1.5 ml-auto">
+                            <button
+                              type="button"
+                              onClick={handleCopyAiDraft}
+                              className="px-2.5 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1 shadow-2xs"
+                              title="Sao chép kết quả"
+                            >
+                              <Copy size={11} />
+                              <span>{aiDraftCopied ? 'Đã chép' : 'Sao chép'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleApplyAiDraft('append')}
+                              className="px-3 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1 shadow-2xs"
+                              title="Chèn nguyên vẹn từng đoạn xuống dưới phần chọn"
+                            >
+                              <SFPlus size={11} />
+                              <span>Chèn dưới</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleApplyAiDraft('replace')}
+                              className="px-3.5 py-1.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
+                              title="Thay thế đoạn văn bản đã chọn"
+                            >
+                              <SFCheckmark size={11.5} className="stroke-[3]" />
+                              <span>Thay thế</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );

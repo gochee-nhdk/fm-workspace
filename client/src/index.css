@@ -3137,19 +3137,21 @@ tbody td {
 }
 
 /* ==========================================================================
-   Apple Intelligence Creative Synchronized Highlight Scanning Effect
-   (Strictly Line-Bound to Selected Text - 100% Unified Wave)
+   Apple Intelligence Gentle Silk Wave Scanning Effect (Soft & Non-Straining)
    ========================================================================== */
-@keyframes appleAiUnifiedSweep {
+@keyframes appleAiSilkSweep {
   0% {
     left: -140px;
     opacity: 0;
   }
-  12% {
-    opacity: 0.95;
+  15% {
+    opacity: 0.65;
   }
-  88% {
-    opacity: 0.95;
+  50% {
+    opacity: 0.75;
+  }
+  85% {
+    opacity: 0.65;
   }
   100% {
     left: calc(100% + 140px);
@@ -3161,24 +3163,20 @@ tbody td {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 95px;
-  transform: skewX(-16deg);
+  width: 110px;
+  transform: skewX(-12deg);
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(99, 102, 241, 0.15) 15%,
-    rgba(168, 85, 247, 0.6) 42%,
-    rgba(255, 255, 255, 0.98) 50%,
-    rgba(236, 72, 153, 0.6) 58%,
-    rgba(56, 189, 248, 0.25) 85%,
+    rgba(147, 51, 234, 0.06) 20%,
+    rgba(168, 85, 247, 0.22) 40%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(99, 102, 241, 0.22) 60%,
+    rgba(59, 130, 246, 0.06) 80%,
     transparent 100%
   );
-  box-shadow:
-    0 0 16px rgba(255, 255, 255, 0.95),
-    0 0 24px rgba(168, 85, 247, 0.75),
-    0 0 36px rgba(236, 72, 153, 0.45);
-  filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.8));
-  animation: appleAiUnifiedSweep 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.3), 0 0 20px rgba(255, 255, 255, 0.4);
+  animation: appleAiSilkSweep 2.2s cubic-bezier(0.35, 0, 0.25, 1) infinite;
   pointer-events: none;
 }
 
