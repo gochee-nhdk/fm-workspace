@@ -1,18 +1,101 @@
 const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 
-// In-memory runtime cache for serverless environment
+// In-memory runtime cache for serverless environment (isolated per user)
 let globalSmtpConfig = null;
-let latestBackupData = null;
+const userBackups = new Map(); // userId -> { latest: backupData, history: [backupData] }
+
+/**
+ * Timing-safe JWT token verification (zero-dependency for Vercel Serverless)
+ */
+function base64UrlDecode(str) {
+  let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (base64.length % 4) {
+    base64 += '=';
+  }
+  return Buffer.from(base64, 'base64').toString('utf8');
+}
+
+function verifyAuthToken(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { valid: false, error: 'Thiếu Authorization Bearer token' };
+  }
+  const token = authHeader.slice(7).trim();
+  const parts = token.split('.');
+  if (parts.length !== 3) {
+    return { valid: false, error: 'Cấu trúc JWT token không hợp lệ' };
+  }
+  const [headerB64, payloadB64, signatureB64] = parts;
+  const secret = process.env.JWT_SECRET || 'dev_secret_farmers_market_local_development_only_2026';
+
+  const expectedSig = crypto
+    .createHmac('sha256', secret)
+    .update(`${headerB64}.${payloadB64}`)
+    .digest('base64url');
+
+  const sigBuf = Buffer.from(signatureB64);
+  const expBuf = Buffer.from(expectedSig);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    return { valid: false, error: 'Chữ ký JWT không hợp lệ hoặc đã bị can thiệp' };
+  }
+
+  try {
+    const payload = JSON.parse(base64UrlDecode(payloadB64));
+    if (payload.exp && Date.now() >= payload.exp * 1000) {
+      return { valid: false, error: 'Phiên đăng nhập đã hết hạn' };
+    }
+    return { valid: true, user: payload };
+  } catch (err) {
+    return { valid: false, error: 'Nội dung payload token không hợp lệ' };
+  }
+}
 
 module.exports = async function handler(req, res, forcedPath) {
-  // CORS Headers
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  // CORS Origin Validation & Defense-in-Depth
+  const origin = req.headers.origin;
+  const clientUrl = process.env.CLIENT_URL || '';
+  const allowedOriginsEnv = process.env.ALLOWED_ORIGINS || '';
+  const envOrigins = allowedOriginsEnv
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+
+  if (clientUrl) {
+    envOrigins.push(clientUrl.trim().replace(/\/+$/, ''));
+  }
+
+  let isAllowedOrigin = false;
+  if (!origin) {
+    isAllowedOrigin = true; // Same-origin, curl, server-to-server
+  } else {
+    const normalizedOrigin = origin.replace(/\/+$/, '');
+    if (
+      envOrigins.includes(normalizedOrigin) ||
+      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(normalizedOrigin) ||
+      /^https:\/\/fm-workspace[a-z0-9-]*\.vercel\.app$/.test(normalizedOrigin)
+    ) {
+      isAllowedOrigin = true;
+    }
+  }
+
+  if (isAllowedOrigin && origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
     'Access-Control-Allow-Headers',
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
   );
+
+  // Hardened Security Headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
   if (req.method === 'OPTIONS') {
     res.status(200).end();
@@ -283,15 +366,26 @@ module.exports = async function handler(req, res, forcedPath) {
       });
     }
 
-    // 6. Sync Workspace Backup
+    // 6. Sync Workspace Backup (Requires Authentication)
     if (pathname === '/sync/backup' && req.method === 'POST') {
+      const auth = verifyAuthToken(req);
+      if (!auth.valid) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+          message: auth.error || 'Yêu cầu đăng nhập để đồng bộ dữ liệu lên máy chủ đám mây.'
+        });
+      }
+
+      const userId = auth.user?.id || auth.user?.email || 'default_user';
       const body = req.body || {};
       const { backupType = 'auto', deviceName, checksum, itemCounts, payload, isEncrypted } = body;
       const now = new Date().toISOString();
       const id = `backup-${Date.now()}`;
 
-      latestBackupData = {
+      const backupRecord = {
         id,
+        user_id: userId,
         created_at: now,
         backup_type: backupType,
         device_name: deviceName || 'Web Client',
@@ -300,6 +394,14 @@ module.exports = async function handler(req, res, forcedPath) {
         payload: payload || null,
         is_encrypted: Boolean(isEncrypted)
       };
+
+      const userStore = userBackups.get(userId) || { latest: null, history: [] };
+      userStore.latest = backupRecord;
+      userStore.history.unshift(backupRecord);
+      if (userStore.history.length > 20) {
+        userStore.history.length = 20;
+      }
+      userBackups.set(userId, userStore);
 
       return res.status(200).json({
         success: true,
@@ -312,9 +414,22 @@ module.exports = async function handler(req, res, forcedPath) {
       });
     }
 
-    // 7. Get Latest Backup
+    // 7. Get Latest Backup (Requires Authentication & User Isolation)
     if (pathname === '/sync/latest') {
-      if (!latestBackupData) {
+      const auth = verifyAuthToken(req);
+      if (!auth.valid) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+          message: auth.error || 'Yêu cầu đăng nhập để truy cập dữ liệu sao lưu.'
+        });
+      }
+
+      const userId = auth.user?.id || auth.user?.email || 'default_user';
+      const userStore = userBackups.get(userId);
+      const userLatest = userStore?.latest;
+
+      if (!userLatest) {
         return res.status(200).json({
           success: true,
           data: null,
@@ -324,15 +439,44 @@ module.exports = async function handler(req, res, forcedPath) {
 
       return res.status(200).json({
         success: true,
-        data: latestBackupData
+        data: userLatest
       });
     }
 
-    // 8. Get Backup History & Download
+    // 8. Get Backup History & Download (Requires Authentication & User Isolation)
     if (pathname === '/sync/history' || pathname.startsWith('/sync/download')) {
+      const auth = verifyAuthToken(req);
+      if (!auth.valid) {
+        return res.status(401).json({
+          success: false,
+          error: 'Unauthorized',
+          message: auth.error || 'Yêu cầu đăng nhập để tải lịch sử sao lưu.'
+        });
+      }
+
+      const userId = auth.user?.id || auth.user?.email || 'default_user';
+      const userStore = userBackups.get(userId);
+      const history = userStore?.history || [];
+
+      if (pathname.startsWith('/sync/download/')) {
+        const downloadId = pathname.replace('/sync/download/', '');
+        const target = history.find((b) => b.id === downloadId);
+        if (!target) {
+          return res.status(404).json({
+            success: false,
+            error: 'NotFound',
+            message: 'Không tìm thấy bản sao lưu được yêu cầu'
+          });
+        }
+        return res.status(200).json({
+          success: true,
+          data: target
+        });
+      }
+
       return res.status(200).json({
         success: true,
-        data: latestBackupData ? [latestBackupData] : []
+        data: history
       });
     }
 

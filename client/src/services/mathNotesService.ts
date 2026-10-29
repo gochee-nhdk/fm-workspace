@@ -130,8 +130,229 @@ export const preprocessMathExpression = (
   return s;
 };
 
+// ──────────────────────────────────────────────
+// ZERO-EVAL MATHEMATICAL RECURSIVE DESCENT EVALUATOR
+// Fully satisfies CSP & Cloudflare security standards: eliminates new Function / eval sinks
+// ──────────────────────────────────────────────
+
+interface MathToken {
+  type: 'NUMBER' | 'OP' | 'IDENT' | 'LPAREN' | 'RPAREN' | 'COMMA';
+  value: string;
+}
+
+function tokenizeMathExpression(input: string): MathToken[] | null {
+  const tokens: MathToken[] = [];
+  let i = 0;
+  const s = input.trim();
+
+  while (i < s.length) {
+    const ch = s[i];
+
+    if (/\s/.test(ch)) {
+      i++;
+      continue;
+    }
+
+    if (/[0-9]/.test(ch) || (ch === '.' && i + 1 < s.length && /[0-9]/.test(s[i + 1]))) {
+      let numStr = '';
+      let hasDot = false;
+      while (i < s.length && (/[0-9]/.test(s[i]) || (s[i] === '.' && !hasDot))) {
+        if (s[i] === '.') hasDot = true;
+        numStr += s[i];
+        i++;
+      }
+      tokens.push({ type: 'NUMBER', value: numStr });
+      continue;
+    }
+
+    if (ch === '(') {
+      tokens.push({ type: 'LPAREN', value: '(' });
+      i++;
+      continue;
+    }
+
+    if (ch === ')') {
+      tokens.push({ type: 'RPAREN', value: ')' });
+      i++;
+      continue;
+    }
+
+    if (ch === ',') {
+      tokens.push({ type: 'COMMA', value: ',' });
+      i++;
+      continue;
+    }
+
+    if (ch === '*' && s[i + 1] === '*') {
+      tokens.push({ type: 'OP', value: '**' });
+      i += 2;
+      continue;
+    }
+
+    if (ch === '+' || ch === '-' || ch === '*' || ch === '/' || ch === '%' || ch === '^') {
+      tokens.push({ type: 'OP', value: ch === '^' ? '**' : ch });
+      i++;
+      continue;
+    }
+
+    if (/[a-zA-Z_]/.test(ch)) {
+      let ident = '';
+      while (i < s.length && /[a-zA-Z0-9_.]/.test(s[i])) {
+        ident += s[i];
+        i++;
+      }
+      tokens.push({ type: 'IDENT', value: ident });
+      continue;
+    }
+
+    return null;
+  }
+
+  return tokens;
+}
+
+class SafeMathAstParser {
+  private tokens: MathToken[];
+  private pos = 0;
+
+  constructor(tokens: MathToken[]) {
+    this.tokens = tokens;
+  }
+
+  private peek(): MathToken | undefined {
+    return this.tokens[this.pos];
+  }
+
+  private consume(): MathToken {
+    return this.tokens[this.pos++];
+  }
+
+  parse(): number {
+    const result = this.parseExpression();
+    if (this.pos < this.tokens.length) {
+      throw new Error('Unexpected extra tokens');
+    }
+    return result;
+  }
+
+  private parseExpression(): number {
+    let left = this.parseTerm();
+    while (this.peek() && this.peek()!.type === 'OP' && (this.peek()!.value === '+' || this.peek()!.value === '-')) {
+      const op = this.consume().value;
+      const right = this.parseTerm();
+      if (op === '+') left = left + right;
+      else left = left - right;
+    }
+    return left;
+  }
+
+  private parseTerm(): number {
+    let left = this.parseExponent();
+    while (
+      this.peek() &&
+      this.peek()!.type === 'OP' &&
+      (this.peek()!.value === '*' || this.peek()!.value === '/' || this.peek()!.value === '%')
+    ) {
+      const op = this.consume().value;
+      const right = this.parseExponent();
+      if (op === '*') left = left * right;
+      else if (op === '/') {
+        if (right === 0) throw new Error('Division by zero');
+        left = left / right;
+      } else if (op === '%') {
+        left = left % right;
+      }
+    }
+    return left;
+  }
+
+  private parseExponent(): number {
+    let left = this.parseUnary();
+    if (this.peek() && this.peek()!.type === 'OP' && this.peek()!.value === '**') {
+      this.consume();
+      const right = this.parseExponent();
+      return Math.pow(left, right);
+    }
+    return left;
+  }
+
+  private parseUnary(): number {
+    if (this.peek() && this.peek()!.type === 'OP' && (this.peek()!.value === '+' || this.peek()!.value === '-')) {
+      const op = this.consume().value;
+      const factor = this.parseUnary();
+      return op === '-' ? -factor : factor;
+    }
+    return this.parsePrimary();
+  }
+
+  private parsePrimary(): number {
+    const tok = this.peek();
+    if (!tok) throw new Error('Unexpected end of expression');
+
+    if (tok.type === 'NUMBER') {
+      this.consume();
+      const val = parseFloat(tok.value);
+      if (isNaN(val)) throw new Error('Invalid number');
+      return val;
+    }
+
+    if (tok.type === 'LPAREN') {
+      this.consume();
+      const expr = this.parseExpression();
+      if (!this.peek() || this.peek()!.type !== 'RPAREN') {
+        throw new Error('Missing closing parenthesis');
+      }
+      this.consume();
+      return expr;
+    }
+
+    if (tok.type === 'IDENT') {
+      const fnName = this.consume().value.replace(/^Math\./i, '').toLowerCase();
+      if (!this.peek() || this.peek()!.type !== 'LPAREN') {
+        throw new Error(`Expected ( after function name ${fnName}`);
+      }
+      this.consume();
+      const args: number[] = [];
+      if (this.peek() && this.peek()!.type !== 'RPAREN') {
+        args.push(this.parseExpression());
+        while (this.peek() && this.peek()!.type === 'COMMA') {
+          this.consume();
+          args.push(this.parseExpression());
+        }
+      }
+      if (!this.peek() || this.peek()!.type !== 'RPAREN') {
+        throw new Error(`Missing ) for function ${fnName}`);
+      }
+      this.consume();
+
+      switch (fnName) {
+        case 'sqrt':
+        case 'can':
+          if (args.length !== 1) throw new Error('sqrt takes 1 argument');
+          return Math.sqrt(args[0]);
+        case 'min':
+          if (args.length === 0) throw new Error('min takes at least 1 argument');
+          return Math.min(...args);
+        case 'max':
+          if (args.length === 0) throw new Error('max takes at least 1 argument');
+          return Math.max(...args);
+        case 'abs':
+          if (args.length !== 1) throw new Error('abs takes 1 argument');
+          return Math.abs(args[0]);
+        case 'round':
+          if (args.length !== 1) throw new Error('round takes 1 argument');
+          return Math.round(args[0]);
+        default:
+          throw new Error(`Unknown function: ${fnName}`);
+      }
+    }
+
+    throw new Error(`Unexpected token: ${tok.value}`);
+  }
+}
+
 /**
- * Safely evaluates a math expression string
+ * Safely evaluates a math expression string using zero-eval deterministic parsing
  */
 export const safeEvaluateMath = (
   expression: string,
@@ -140,8 +361,8 @@ export const safeEvaluateMath = (
   try {
     const sanitized = preprocessMathExpression(expression, variables);
 
-    // Whitelist check: only allowed mathematical characters
-    if (!/^[0-9+\-*/%().\s*Math,sqrtinaxbe]+$/.test(sanitized)) {
+    // Whitelist check: only allowed mathematical symbols and letters
+    if (!/^[0-9+\-*/%().,\s*a-zA-Z_]+$/.test(sanitized)) {
       return null;
     }
 
@@ -159,9 +380,11 @@ export const safeEvaluateMath = (
       return null;
     }
 
-    // Safe compute via Function constructor with strict scope
-    const compute = new Function(`'use strict'; return (${sanitized});`);
-    const result = compute();
+    const tokens = tokenizeMathExpression(sanitized);
+    if (!tokens || tokens.length === 0) return null;
+
+    const parser = new SafeMathAstParser(tokens);
+    const result = parser.parse();
 
     if (typeof result === 'number' && !isNaN(result) && isFinite(result)) {
       return result;

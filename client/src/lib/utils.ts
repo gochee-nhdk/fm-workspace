@@ -67,29 +67,54 @@ export function truncate(str: string, maxLength: number): string {
 }
 
 /**
- * Sanitize external URLs to prevent javascript:, vbscript:, or malicious data: URI execution.
+ * Sanitize external URLs to prevent javascript:, vbscript:, data:, file:, blob:, or malicious protocol execution.
  * Only allows http:, https:, mailto:, and tel: protocols.
+ * Defends against whitespace evasion, control character insertion, HTML entity encoding, and malformed schemes.
  */
 export function sanitizeUrl(url: string | null | undefined): string {
-  if (!url) return '';
-  const trimmed = url.trim();
-  if (!trimmed) return '';
+  if (!url || typeof url !== 'string') return '';
 
-  // Prevent dangerous protocols
-  const lower = trimmed.toLowerCase();
+  // Strip invisible ASCII control characters, null bytes, backspaces, and zero-width spaces
+  const clean = url
+    .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200D\uFEFF]/g, '')
+    .trim();
+
+  if (!clean) return '';
+
+  // Decode common URL encoded entities in the scheme portion to prevent bypasses like java%0ascript: or &#x6a;avascript:
+  const normalized = clean.replace(/&#[xX]?([0-9a-fA-F]+);?/g, (_, hexOrDec) => {
+    try {
+      const code = hexOrDec.startsWith('x') || hexOrDec.startsWith('X')
+        ? parseInt(hexOrDec.slice(1), 16)
+        : parseInt(hexOrDec, 10);
+      return String.fromCharCode(code);
+    } catch {
+      return '';
+    }
+  });
+
+  const lower = normalized.toLowerCase().replace(/\s+/g, '');
+
+  // Explicitly block dangerous schemes
   if (
     lower.startsWith('javascript:') ||
     lower.startsWith('vbscript:') ||
-    lower.startsWith('data:text/html') ||
-    lower.startsWith('data:application/javascript')
+    lower.startsWith('data:') ||
+    lower.startsWith('blob:') ||
+    lower.startsWith('file:')
   ) {
     return '';
   }
 
-  // Auto-prefix protocol if missing
-  if (/^https?:\/\//i.test(trimmed) || /^mailto:/i.test(trimmed) || /^tel:/i.test(trimmed)) {
-    return trimmed;
+  // Safe explicitly allowed protocols
+  if (/^https?:\/\//i.test(clean) || /^mailto:/i.test(clean) || /^tel:/i.test(clean)) {
+    return clean;
   }
 
-  return `https://${trimmed}`;
+  // If protocol-relative url starts with //, ensure https:
+  if (clean.startsWith('//')) {
+    return `https:${clean}`;
+  }
+
+  return `https://${clean}`;
 }
