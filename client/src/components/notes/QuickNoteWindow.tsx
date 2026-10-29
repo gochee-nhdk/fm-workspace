@@ -1369,6 +1369,7 @@ export const QuickNoteWindow: React.FC = () => {
     originalText: string;
   } | null>(null);
   const [aiDraftCopied, setAiDraftCopied] = useState(false);
+  const [isDraftExpanded, setIsDraftExpanded] = useState(false);
   const savedSelectionRangeRef = useRef<Range | null>(null);
   const [selectionState, setSelectionState] = useState<{
     text: string;
@@ -1985,6 +1986,7 @@ export const QuickNoteWindow: React.FC = () => {
     toast.success('Đã áp dụng bản nháp AI vào ghi chú!');
     setAiDraft(null);
     setAiDraftCopied(false);
+    setIsDraftExpanded(false);
     setSelectionState(null);
     setSelectionBounds(null);
     savedSelectionRangeRef.current = null;
@@ -2006,6 +2008,7 @@ export const QuickNoteWindow: React.FC = () => {
   const handleDiscardAiDraft = () => {
     setAiDraft(null);
     setAiDraftCopied(false);
+    setIsDraftExpanded(false);
     savedSelectionRangeRef.current = null;
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed) {
@@ -5690,70 +5693,108 @@ export const QuickNoteWindow: React.FC = () => {
                     );
                   })()}
 
-                  {/* Classic Apple Liquid Glass Clean Draft Card (Always 100% Fully Visible, Action Buttons Never Cut Off) */}
+                  {/* Classic Apple Liquid Glass Clean Draft Card (Spacious, Fully Readable & Expandable) */}
                   {aiDraft && (() => {
                     const canvasW = canvasRef.current?.clientWidth || 500;
-                    const canvasH = canvasRef.current?.clientHeight || 400;
-                    const cardWidth = Math.min(460, Math.max(300, canvasW - 24));
-                    const cardHeight = 185;
+                    const canvasH = canvasRef.current?.clientHeight || 420;
+                    // Mở rộng bề ngang card để đọc văn bản thoải mái, không bị bóp nghẽn dòng
+                    const cardWidth = Math.min(560, Math.max(340, canvasW - 24));
+                    // Chiều cao mục tiêu tối ưu theo không gian thực tế của canvas
+                    const targetCardHeight = Math.min(270, Math.max(185, canvasH - 28));
 
                     let top = 8;
                     if (selectionBounds) {
                       const spaceBelow = canvasH - selectionBounds.bottom;
                       // Ưu tiên 1: Đặt ngay bên dưới vùng chọn để người dùng đối chiếu trực tiếp văn bản gốc và bản dịch
-                      if (spaceBelow >= cardHeight + 10) {
+                      if (spaceBelow >= targetCardHeight + 10) {
                         top = selectionBounds.bottom + 8;
-                      } else if (selectionBounds.top >= cardHeight + 10) {
+                      } else if (selectionBounds.top >= targetCardHeight + 10) {
                         // Nếu bên dưới không đủ chỗ: Đặt ngay phía trên vùng chọn
-                        top = selectionBounds.top - cardHeight - 8;
+                        top = selectionBounds.top - targetCardHeight - 8;
                       } else {
-                        // Vùng chọn phủ dài: Ghim an toàn cách đáy canvas để nút chức năng luôn hiển thị 100%
-                        top = Math.max(6, canvasH - cardHeight - 8);
+                        // Vùng chọn phủ dài: Ghim an toàn trong canvas để nút chức năng luôn hiển thị 100%
+                        top = Math.max(6, canvasH - targetCardHeight - 8);
                       }
                     } else {
-                      top = Math.max(6, canvasH - cardHeight - 8);
+                      top = Math.max(6, canvasH - targetCardHeight - 8);
                     }
 
                     // Khóa an toàn 2 đầu tuyệt đối: Không bao giờ vượt quá đỉnh và không bao giờ tràn đáy
-                    top = Math.max(6, Math.min(canvasH - cardHeight - 8, top));
-                    const calculatedMaxHeight = Math.min(cardHeight, Math.max(150, canvasH - top - 8));
+                    top = Math.max(6, Math.min(canvasH - targetCardHeight - 8, top));
+                    const calculatedMaxHeight = Math.min(targetCardHeight, Math.max(160, canvasH - top - 8));
+                    const contentMaxHeight = Math.max(95, calculatedMaxHeight - 88);
 
                     return (
                       <div
-                        className="absolute z-50 p-2.5 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-purple-500/25 dark:border-purple-400/35 shadow-[0_20px_50px_rgba(0,0,0,0.22),0_4px_24px_rgba(168,85,247,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none animate-in fade-in zoom-in-95 duration-180 flex flex-col gap-1.5 max-w-[calc(100%-24px)]"
-                        style={{
-                          top: `${top}px`,
-                          left: '50%',
-                          width: `${cardWidth}px`,
-                          maxHeight: `${calculatedMaxHeight}px`,
-                          transform: 'translateX(-50%)',
-                        }}
+                        className={cn(
+                          "absolute z-50 p-3 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-purple-500/25 dark:border-purple-400/35 shadow-[0_20px_50px_rgba(0,0,0,0.22),0_4px_24px_rgba(168,85,247,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none animate-in fade-in zoom-in-95 duration-180 flex flex-col gap-2 transition-[all] duration-200",
+                          isDraftExpanded ? "inset-2 z-50 max-w-none" : "max-w-[calc(100%-24px)]"
+                        )}
+                        style={
+                          isDraftExpanded
+                            ? {
+                                top: '8px',
+                                bottom: '8px',
+                                left: '8px',
+                                right: '8px',
+                                width: 'auto',
+                                maxHeight: 'none',
+                                transform: 'none',
+                              }
+                            : {
+                                top: `${top}px`,
+                                left: '50%',
+                                width: `${cardWidth}px`,
+                                maxHeight: `${calculatedMaxHeight}px`,
+                                transform: 'translateX(-50%)',
+                              }
+                        }
                       >
                         {/* Header (shrink-0) */}
-                        <div className="flex items-center justify-between gap-2 pb-1 border-b border-black/[0.06] dark:border-white/10 shrink-0">
+                        <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-black/[0.06] dark:border-white/10 shrink-0">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white flex items-center justify-center shadow-xs shrink-0">
                               <SFWandAndSparkles size={11} className="text-white" />
                             </div>
-                            <span className="text-[12px] font-bold tracking-tight text-[#1d1d1f] dark:text-white truncate">
+                            <span className="text-[12.5px] font-bold tracking-tight text-[#1d1d1f] dark:text-white truncate">
                               {aiDraft.title || 'Bản nháp Writing Tools'}
                             </span>
                           </div>
-                          <CloseButton
-                            onClick={handleDiscardAiDraft}
-                            size="sm"
-                            label="Đóng"
-                            title="Hủy bản nháp"
-                          />
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setIsDraftExpanded((prev) => !prev)}
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all cursor-pointer active:scale-90"
+                              title={isDraftExpanded ? "Thu nhỏ về dạng hộp nổi" : "Phóng to toàn khung để kiểm tra văn bản dễ nhất"}
+                              aria-label={isDraftExpanded ? "Thu nhỏ" : "Phóng to"}
+                            >
+                              {isDraftExpanded ? (
+                                <SFArrowDownRightAndArrowUpLeft size={11.5} />
+                              ) : (
+                                <SFArrowUpLeftAndArrowDownRight size={11.5} />
+                              )}
+                            </button>
+                            <CloseButton
+                              onClick={handleDiscardAiDraft}
+                              size="sm"
+                              label="Đóng"
+                              title="Hủy bản nháp"
+                            />
+                          </div>
                         </div>
 
-                        {/* Content Preview inside clean inset glass box (flex-1 overflow-y-auto min-h-0 max-h-[85px]) */}
-                        <div className="text-[13px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-2 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1 min-h-0 max-h-[85px]">
+                        {/* Content Preview inside clean inset glass box (flex-1 overflow-y-auto min-h-0) */}
+                        <div
+                          style={{
+                            maxHeight: isDraftExpanded ? undefined : `${contentMaxHeight}px`,
+                          }}
+                          className="text-[13.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text overflow-y-auto scrollbar-thin pr-1.5 whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1 min-h-[90px]"
+                        >
                           {aiDraft.result}
                         </div>
 
                         {/* Action buttons bar (ALWAYS shrink-0 so it is NEVER cut off) */}
-                        <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-black/[0.04] dark:border-white/[0.06] shrink-0">
+                        <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-black/[0.04] dark:border-white/[0.06] shrink-0">
                           <button
                             type="button"
                             onClick={handleCopyAiDraft}
