@@ -254,7 +254,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
 
               {/* Sheets Breakdown List */}
               <div className="space-y-2.5">
-                <h4 className="text-xs font-semibold text-[#86868b] dark:text-[#a1a1a6] uppercase tracking-wider">
+                <h4 className="text-xs font-semibold text-[#1d1d1f] dark:text-white uppercase tracking-wider">
                   Kết quả phân tích & Mapping Sheets
                 </h4>
 

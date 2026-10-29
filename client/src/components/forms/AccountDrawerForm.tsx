@@ -3,7 +3,7 @@ import { Drawer } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AccountItem } from '@/types/workspace';
-import { SFEye, SFEyeSlash, SFCheckmarkShieldFill, SFLockFill, SFGlobe } from 'sf-symbols-lib';
+import { SFEye, SFEyeSlash, SFLockFill, SFGlobe } from 'sf-symbols-lib';
 import toast from 'react-hot-toast';
 
 interface AccountDrawerFormProps {
@@ -100,16 +100,8 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
       width="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Subtle security notice */}
-        <div className="p-3.5 bg-[#f5f5f7] dark:bg-white/5 rounded-[14px] border border-[#e0e0e0] dark:border-white/10 flex items-start gap-2.5">
-          <SFCheckmarkShieldFill size={16} className="text-[#0066cc] dark:text-[#2997ff] shrink-0 mt-0.5" />
-          <p className="text-[12px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
-            <span className="font-semibold text-[#1d1d1f] dark:text-white">Private Vault:</span> Thông tin được lưu trữ nội bộ trong trình duyệt này. Không gửi ra ngoài hoặc lưu vào máy chủ công cộng.
-          </p>
-        </div>
-
         <div>
-          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
+          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
             Phần mềm / Hệ thống <span className="text-[#ff3b30] font-bold ml-0.5">*</span>
           </label>
           <Input
@@ -125,7 +117,7 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
+          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
             Tên đăng nhập / Email / ID <span className="text-[#ff3b30] font-bold ml-0.5">*</span>
           </label>
           <Input
@@ -140,7 +132,7 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
+          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
             Mật khẩu
           </label>
           <div className="relative flex items-center">
@@ -164,7 +156,7 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
+          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
             Đường dẫn đăng nhập (URL)
           </label>
           <Input
@@ -179,7 +171,7 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
+          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
             Thứ tự (STT)
           </label>
           <Input
@@ -191,7 +183,7 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
+          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
             Ghi chú
           </label>
           <textarea

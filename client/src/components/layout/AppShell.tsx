@@ -23,6 +23,7 @@ const QuickNoteWindow = React.lazy(() =>
   import('@/components/notes/QuickNoteWindow').then((m) => ({ default: m.QuickNoteWindow }))
 );
 import { useUiStore, resolveTheme } from '@/stores/ui-store';
+import { toggleThemeWithIris } from '@/lib/themeTransition';
 import { useNoteStore } from '@/stores/note-store';
 import { Button } from '@/components/ui/button';
 import { CloseButton } from '@/components/ui/close-button';
@@ -458,12 +459,9 @@ export const AppShell: React.FC = () => {
               )}
             </button>
 
-            {/* Theme Toggle — 3D Liquid Lens Circle Button (Clean light/dark toggle) */}
+            {/* Theme Toggle — 3D Liquid Lens Circle Button with Expanding Circular Iris Transition */}
             <button
-              onClick={() => {
-                const currentResolved = resolveTheme(theme);
-                setTheme(currentResolved === 'dark' ? 'light' : 'dark');
-              }}
+              onClick={(e) => toggleThemeWithIris(undefined, e)}
               className="liquid-lens-circle w-9 h-9 sm:w-10 sm:h-10 group cursor-pointer"
               title={
                 resolveTheme(theme) === 'dark'

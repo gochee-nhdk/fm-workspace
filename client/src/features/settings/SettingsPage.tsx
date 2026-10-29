@@ -42,6 +42,7 @@ import { AppleLiquidDialog } from '@/components/ui/AppleLiquidDialog';
 import { AppleListbox } from '@/components/ui/AppleListbox';
 import { SegmentedNavigation } from '@/components/ui/SegmentedNavigation';
 import { useUiStore, resolveTheme } from '@/stores/ui-store';
+import { toggleThemeWithIris } from '@/lib/themeTransition';
 import { useSecurityStore } from '@/stores/security-store';
 import { useNoteStore } from '@/stores/note-store';
 import { formatBytes } from '@/lib/utils';
@@ -82,7 +83,7 @@ export const ThemeSegmentedControl: React.FC = () => {
         role="tab"
         aria-selected={theme === 'light'}
         data-tab-id="light"
-        onClick={() => setTheme('light')}
+        onClick={(e) => toggleThemeWithIris('light', e)}
         className={`relative z-10 py-2 sm:py-2.5 px-1 sm:px-3 rounded-xl transition-colors duration-160 cursor-pointer flex items-center justify-center gap-1 sm:gap-2 active:scale-[0.98] select-none ${
           theme === 'light'
             ? 'text-amber-600 dark:text-amber-400 font-semibold drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.8)] dark:drop-shadow-none'
@@ -99,7 +100,7 @@ export const ThemeSegmentedControl: React.FC = () => {
         role="tab"
         aria-selected={theme === 'dark'}
         data-tab-id="dark"
-        onClick={() => setTheme('dark')}
+        onClick={(e) => toggleThemeWithIris('dark', e)}
         className={`relative z-10 py-2 sm:py-2.5 px-1 sm:px-3 rounded-xl transition-colors duration-160 cursor-pointer flex items-center justify-center gap-1 sm:gap-2 active:scale-[0.98] select-none ${
           theme === 'dark'
             ? 'text-[#0071e3] dark:text-[#2997ff] font-semibold drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.8)] dark:drop-shadow-none'
@@ -780,7 +781,7 @@ export const SettingsPage: React.FC = () => {
                   </button>
                 ))}
               </div>
-              <label className="flex items-center gap-2 cursor-pointer select-none text-[12.5px] text-[#555558] dark:text-[#a1a1a6]">
+              <label className="flex items-center gap-2 cursor-pointer select-none text-[12.5px] text-[#1d1d1f] dark:text-white font-medium">
                 <input
                   type="checkbox"
                   checked={restoreSettingsOnImport}
@@ -1514,7 +1515,7 @@ export const SettingsPage: React.FC = () => {
             <SFLock size={18} />
           </div>
           <div>
-            <h3 className="font-semibold text-[15px]">Mở Khóa Tệp Sao Lưu</h3>
+            <h3 className="font-semibold text-[15px] text-[#1d1d1f] dark:text-white">Mở Khóa Tệp Sao Lưu</h3>
             <p className="text-xs text-[#86868b] dark:text-[#a1a1a6]">Tệp này được mã hoá bằng AES-GCM 256-bit</p>
           </div>
         </div>
@@ -1582,7 +1583,7 @@ export const SettingsPage: React.FC = () => {
             <SFBookmark size={20} />
           </div>
           <div>
-            <h3 className="font-semibold text-[16px]">Kích Hoạt Khóa Lưu Trữ Vĩnh Viễn</h3>
+            <h3 className="font-semibold text-[16px] text-[#1d1d1f] dark:text-white">Kích Hoạt Khóa Lưu Trữ Vĩnh Viễn</h3>
             <p className="text-xs text-[#86868b] dark:text-[#a1a1a6]">Chính sách bảo mật trình duyệt Chrome / Edge / Safari</p>
           </div>
         </div>

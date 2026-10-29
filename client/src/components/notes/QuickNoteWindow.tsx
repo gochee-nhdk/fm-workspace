@@ -6761,7 +6761,7 @@ export const QuickNoteWindow: React.FC = () => {
 
               {/* Date & Time Picker */}
               <div className="space-y-1.5 pt-1">
-                <label className="text-[12px] font-semibold text-[#86868b] dark:text-[#a1a1a6] flex items-center gap-1.5">
+                <label className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-white flex items-center gap-1.5">
                   <SFClock size={12} className="text-[#0071e3]" />
                   <span>Chọn ngày & giờ tùy chỉnh:</span>
                 </label>

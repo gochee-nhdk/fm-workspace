@@ -270,7 +270,7 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
   return (
     <div className={cn('relative w-full select-none font-sans', compact && 'w-auto inline-block', className)}>
       {label && (
-        <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
+        <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
           {label}
         </label>
       )}

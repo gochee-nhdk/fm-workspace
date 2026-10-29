@@ -113,7 +113,7 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
+          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
             Mã Cửa Hàng <span className="text-[#ff3b30] font-bold ml-0.5">*</span>
           </label>
           <Input
@@ -129,7 +129,7 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
+          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
             Địa chỉ chi tiết <span className="text-[#ff3b30] font-bold ml-0.5">*</span>
           </label>
           <textarea
@@ -146,7 +146,7 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] mb-1.5">
+          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
             Link Google Maps
           </label>
           <Input

@@ -739,19 +739,19 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           </div>
         </div>
 
-        {/* Category Filter Segmented Control Bar (Apple Liquid Segmented Capsule - Balanced & Numberless) */}
+        {/* Category Filter Segmented Control Bar (Apple Liquid Segmented Capsule - Balanced, Compact & Centered) */}
         <div
           onMouseEnter={resetSelectionImmediate}
-          className="px-3 sm:px-4 py-2 border-b border-black/[0.05] dark:border-white/8 bg-black/[0.015] dark:bg-white/[0.02]"
+          className="px-3 sm:px-4 py-1.5 border-b border-black/[0.05] dark:border-white/8 bg-black/[0.015] dark:bg-white/[0.02]"
         >
           <div
             ref={categoryBarRef}
-            className="relative w-full flex items-center p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/10 backdrop-blur-md select-none"
+            className="relative w-full max-w-[530px] mx-auto flex items-center p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/10 backdrop-blur-md select-none"
           >
             {/* Liquid Droplet Sliding Indicator Pill */}
             {catIndicator.ready && catIndicator.width > 0 && (
               <div
-                className="absolute top-1 bottom-1 rounded-full bg-white dark:bg-[#2c2c2e] shadow-[0_1.5px_5px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/10 transition-[transform,width] duration-180 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[transform,width] pointer-events-none"
+                className="absolute top-1 bottom-1 rounded-full bg-white dark:bg-[#2c2c2e] shadow-[0_1.5px_5px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/10 transition-[transform,width] duration-220 ease-[cubic-bezier(0.2,0.9,0.2,1)] will-change-[transform,width] pointer-events-none"
                 style={{
                   transform: `translate3d(${catIndicator.left}px, 0, 0)`,
                   width: `${catIndicator.width}px`,
@@ -768,16 +768,18 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   type="button"
                   onClick={() => setActiveCategory(cat.id)}
                   className={cn(
-                    'relative z-10 flex-1 h-8 px-2 rounded-full inline-flex items-center justify-center gap-1.5 text-[12.5px] transition-colors duration-150 cursor-pointer active:scale-95 select-none whitespace-nowrap',
+                    'relative z-10 flex-1 h-7 rounded-full inline-flex items-center justify-center text-[12px] transition-colors duration-160 cursor-pointer active:scale-95 select-none whitespace-nowrap px-1',
                     isActive
                       ? 'text-[#1d1d1f] dark:text-white font-semibold'
                       : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium hover:bg-black/[0.02] dark:hover:bg-white/[0.04]'
                   )}
                 >
-                  <span className={cn('shrink-0 flex items-center justify-center transition-colors', isActive ? cat.activeColor : 'text-[#86868b] dark:text-[#a1a1a6]')}>
-                    {cat.icon}
-                  </span>
-                  <span className="leading-none">{cat.label}</span>
+                  <div className="flex items-center justify-center gap-1.5 shrink-0">
+                    <span className={cn('shrink-0 flex items-center justify-center transition-colors', isActive ? cat.activeColor : 'text-[#86868b] dark:text-[#a1a1a6]')}>
+                      {cat.icon}
+                    </span>
+                    <span className="leading-none tracking-tight">{cat.label}</span>
+                  </div>
                 </button>
               );
             })}
