@@ -111,7 +111,7 @@ export default function App() {
         <Analytics />
         <Toaster
           position="top-right"
-          gutter={12}
+          gutter={6}
           containerClassName="apple-toaster-container"
           containerStyle={{
             top: 76,

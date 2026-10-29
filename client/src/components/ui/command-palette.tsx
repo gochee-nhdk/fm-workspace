@@ -670,15 +670,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
               {/* Recent Searches */}
               {recentSearches.length > 0 && (
                 <div>
-                  <div className="flex items-center justify-between text-[11px] font-semibold text-[#86868b] uppercase tracking-wider mb-2">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-[#1d1d1f] dark:text-white uppercase tracking-wider mb-2">
                     <span className="flex items-center gap-1.5">
-                      <SFClock size={12} />
+                      <SFClock size={12} className="text-[#0071e3] dark:text-[#2997ff]" />
                       Tìm kiếm gần đây
                     </span>
                     <button
                       type="button"
                       onClick={clearRecentSearches}
-                      className="text-[10px] text-[#0066cc] dark:text-[#2997ff] hover:underline normal-case font-normal"
+                      className="text-[10px] text-[#0066cc] dark:text-[#2997ff] hover:underline normal-case font-medium cursor-pointer"
                     >
                       Xoá lịch sử
                     </button>
@@ -689,7 +689,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                         key={term}
                         type="button"
                         onClick={() => setQuery(term)}
-                        className="px-2.5 py-1 text-xs rounded-full bg-black/[0.04] dark:bg-white/[0.06] hover:bg-[#0071e3]/10 dark:hover:bg-[#2997ff]/15 hover:text-[#0066cc] dark:hover:text-[#2997ff] text-[#1d1d1f] dark:text-white transition-colors border border-black/[0.04] dark:border-white/5 cursor-pointer font-medium"
+                        className="px-2.5 py-1 text-xs rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-[#0071e3]/10 dark:hover:bg-[#2997ff]/15 hover:text-[#0066cc] dark:hover:text-[#2997ff] text-[#1d1d1f] dark:text-white transition-colors border border-black/[0.06] dark:border-white/10 cursor-pointer font-medium"
                       >
                         {term}
                       </button>
@@ -700,7 +700,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
               {/* Popular Tags */}
               <div>
-                <div className="text-[11px] font-semibold text-[#86868b] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <div className="text-[11px] font-bold text-[#1d1d1f] dark:text-white uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <SFSparkles size={12} className="text-amber-500" />
                   Gợi ý tra cứu nhanh
                 </div>
@@ -710,7 +710,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                       key={tag}
                       type="button"
                       onClick={() => setQuery(tag)}
-                      className="px-2.5 py-1 text-xs rounded-full bg-black/[0.03] dark:bg-white/[0.05] hover:bg-black/[0.07] dark:hover:bg-white/[0.1] text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white transition-colors border border-black/[0.04] dark:border-white/5 cursor-pointer font-medium"
+                      className="px-2.5 py-1 text-xs rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-white transition-colors border border-black/[0.06] dark:border-white/10 cursor-pointer font-medium"
                     >
                       {tag}
                     </button>
@@ -718,7 +718,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                 </div>
               </div>
 
-              <div className="border-t border-black/[0.04] dark:border-white/5 pt-2 text-[11px] font-semibold text-[#86868b] uppercase tracking-wider">
+              <div className="border-t border-black/[0.06] dark:border-white/10 pt-2.5 text-[11px] font-bold text-[#1d1d1f] dark:text-white uppercase tracking-wider">
                 Lối tắt & Tác vụ được đề xuất
               </div>
             </div>
@@ -728,7 +728,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           {query && (
             <div
               onMouseEnter={resetSelectionImmediate}
-              className="px-2 pt-1 pb-1 text-[11px] font-semibold text-[#86868b] uppercase tracking-wider flex items-center justify-between"
+              className="px-2 pt-1 pb-1 text-[11px] font-bold text-[#1d1d1f] dark:text-white uppercase tracking-wider flex items-center justify-between"
             >
               <span>
                 Kết quả tìm kiếm cho "{query}" ({results.length})

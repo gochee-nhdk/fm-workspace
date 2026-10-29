@@ -5265,7 +5265,7 @@ export const QuickNoteWindow: React.FC = () => {
                           : 'apple-popover-tr'
                       }`}
                     >
-                      <div className="px-2.5 py-1 text-[10.5px] font-bold text-[#86868b] dark:text-[#a1a1a6] border-b border-black/[0.06] dark:border-white/10 mb-1 flex items-center justify-between">
+                      <div className="px-2.5 py-1 text-[10.5px] font-bold text-[#1d1d1f] dark:text-white border-b border-black/[0.06] dark:border-white/10 mb-1 flex items-center justify-between">
                         <span>Writing Tools</span>
                         <span className="text-[9.5px] bg-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff] px-1.5 py-0.5 rounded-full font-semibold">Intelligence</span>
                       </div>
@@ -6545,7 +6545,7 @@ export const QuickNoteWindow: React.FC = () => {
                   </div>
 
                   {/* SMTP status indicator & inline configuration */}
-                  <div className="flex items-center justify-between text-[11px] px-1 text-[#86868b]">
+                  <div className="flex items-center justify-between text-[11px] px-1 text-[#1d1d1f] dark:text-white font-medium">
                     <span className="flex items-center gap-1">
                       <span className={`w-1.5 h-1.5 rounded-full ${smtpStatus?.configured ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                       <span>
@@ -6689,7 +6689,7 @@ export const QuickNoteWindow: React.FC = () => {
 
               {/* Quick Preset Buttons (Apple Reminders 1-tap presets) */}
               <div className="space-y-1.5">
-                <div className="text-[11.5px] font-semibold text-[#86868b] dark:text-[#a1a1a6]">
+                <div className="text-[11.5px] font-bold text-[#1d1d1f] dark:text-white">
                   Gợi ý nhanh
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">

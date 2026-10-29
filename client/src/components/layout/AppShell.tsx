@@ -278,7 +278,7 @@ export const AppShell: React.FC = () => {
         {/* Navigation Items - Native macOS Sidebar Styling with fluid sliding active indicator */}
         <nav className="p-3 space-y-2 flex-1 overflow-y-auto select-none">
           {!isSidebarCollapsed && (
-            <div className="px-3.5 py-1 text-[11px] font-bold uppercase tracking-tight text-[#86868b] dark:text-[#a1a1a6]">
+            <div className="px-3.5 py-1 text-[11px] font-bold uppercase tracking-tight text-[#1d1d1f] dark:text-white">
               Không gian làm việc
             </div>
           )}
@@ -539,7 +539,7 @@ export const AppShell: React.FC = () => {
 
               {/* Navigation Items - Exact 1:1 Desktop macOS Sidebar with Apple Spring Sliding Pill */}
               <nav className="p-3 space-y-2 flex-1 overflow-y-auto select-none scrollbar-none">
-                <div className="px-3.5 py-1 text-[11px] font-bold uppercase tracking-tight text-[#86868b] dark:text-[#a1a1a6]">
+                <div className="px-3.5 py-1 text-[11px] font-bold uppercase tracking-tight text-[#1d1d1f] dark:text-white">
                   Không gian làm việc
                 </div>
 
