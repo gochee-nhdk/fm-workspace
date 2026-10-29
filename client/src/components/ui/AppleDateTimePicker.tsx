@@ -3,8 +3,6 @@ import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import {
   SFClock,
-  SFChevronLeft,
-  SFChevronRight,
   SFCheckmark,
   SFCalendar,
   SFChevronDown,
@@ -37,6 +35,8 @@ const MONTH_NAMES = [
   'Tháng 11',
   'Tháng 12',
 ];
+
+const YEAR_LIST = Array.from({ length: 130 }, (_, i) => 1970 + i);
 
 const pad = (n: number) => n.toString().padStart(2, '0');
 
@@ -158,7 +158,6 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
   // Calendar navigation state (month & year)
   const [navYear, setNavYear] = useState(currentDate.getFullYear());
   const [navMonth, setNavMonth] = useState(currentDate.getMonth());
-  const [yearPageBase, setYearPageBase] = useState(() => Math.floor(currentDate.getFullYear() / 12) * 12);
 
   // Close sub-picker if main popover closes
   useEffect(() => {
@@ -167,9 +166,26 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     }
   }, [isOpen]);
 
+  const yearListContainerRef = useRef<HTMLDivElement>(null);
+  const activeYearRef = useRef<HTMLButtonElement>(null);
+
+  // Auto-scroll to center current year when year picker opens
   useEffect(() => {
-    setYearPageBase(Math.floor(navYear / 12) * 12);
-  }, [navYear]);
+    if (activeSubPicker === 'year') {
+      const timer = setTimeout(() => {
+        if (activeYearRef.current && yearListContainerRef.current) {
+          const container = yearListContainerRef.current;
+          const target = activeYearRef.current;
+          const offsetTop = target.offsetTop - container.offsetTop;
+          container.scrollTo({
+            top: Math.max(0, offsetTop - container.clientHeight / 2 + target.clientHeight / 2),
+            behavior: 'auto',
+          });
+        }
+      }, 40);
+      return () => clearTimeout(timer);
+    }
+  }, [activeSubPicker, navYear]);
 
   // Local hours & minutes
   const [hours, setHours] = useState(currentDate.getHours());
@@ -298,6 +314,32 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     setNavYear((y) => Math.min(9999, y + 1));
   };
 
+  const lastMonthWheelTimeRef = useRef<number>(0);
+  const handleMonthWheel = (e: React.WheelEvent) => {
+    e.stopPropagation();
+    const now = Date.now();
+    if (now - lastMonthWheelTimeRef.current < 180) return;
+    lastMonthWheelTimeRef.current = now;
+    if (e.deltaY < 0) {
+      prevMonth();
+    } else if (e.deltaY > 0) {
+      nextMonth();
+    }
+  };
+
+  const lastYearWheelTimeRef = useRef<number>(0);
+  const handleYearWheel = (e: React.WheelEvent) => {
+    e.stopPropagation();
+    const now = Date.now();
+    if (now - lastYearWheelTimeRef.current < 180) return;
+    lastYearWheelTimeRef.current = now;
+    if (e.deltaY < 0) {
+      prevYear();
+    } else if (e.deltaY > 0) {
+      nextYear();
+    }
+  };
+
   const isToday = (d: Date) => {
     const now = new Date();
     return (
@@ -319,74 +361,63 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
   const renderPickerBody = () => (
     <div className="relative w-[288px] mx-auto p-3.5 rounded-2xl bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-2xl border border-black/[0.08] dark:border-white/[0.12] shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.65)] space-y-2.5 select-none font-sans text-left overflow-hidden">
       {/* ─────────────────── LAYER 2: Main Calendar & Time Controls ─────────────────── */}
-      {/* 1. Month & Year Navigation Header: Separated Month & Year controls */}
-      <div className="flex items-center justify-between gap-1.5 px-0.5">
-        {/* Month Selector Capsule */}
-        <div className="flex items-center bg-black/[0.03] dark:bg-white/[0.05] border border-black/5 dark:border-white/10 rounded-xl p-0.5">
-          <button
-            type="button"
-            onClick={prevMonth}
-            className="w-6 h-6 rounded-lg flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
-            title="Tháng trước"
-          >
-            <SFChevronLeft size={11} />
-          </button>
+      {/* 1. Month & Year Navigation Header: Clean Apple Pills (Wheel Scrollable) */}
+      <div className="flex items-center justify-between gap-2 px-0.5">
+        {/* Month Selector Pill */}
+        <button
+          type="button"
+          onClick={() => setActiveSubPicker(activeSubPicker === 'month' ? null : 'month')}
+          onWheel={handleMonthWheel}
+          className={cn(
+            'flex-1 flex items-center justify-between px-3 py-1.5 rounded-xl',
+            'bg-black/[0.03] dark:bg-white/[0.05] hover:bg-[#0071e3]/10 dark:hover:bg-[#0071e3]/20',
+            'border border-black/5 dark:border-white/10 transition-all cursor-pointer active:scale-95 group'
+          )}
+          title="Cuộn chuột để đổi tháng, hoặc nhấp để mở bảng chọn tháng"
+        >
+          <span className="text-[13px] font-semibold text-[#0071e3] dark:text-[#2997ff]">
+            {MONTH_NAMES[navMonth]}
+          </span>
+          <SFChevronDown
+            size={11}
+            className={cn(
+              'text-[#0071e3]/70 group-hover:text-[#0071e3] transition-transform duration-200',
+              activeSubPicker === 'month' && 'rotate-180'
+            )}
+          />
+        </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveSubPicker(activeSubPicker === 'month' ? null : 'month')}
-            className="px-2 py-0.5 text-[12.5px] font-semibold text-[#0071e3] dark:text-[#2997ff] hover:opacity-80 active:scale-95 transition-opacity cursor-pointer select-none"
-            title="Nhấp để mở bảng chọn tháng"
-          >
-            <span>{MONTH_NAMES[navMonth]}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={nextMonth}
-            className="w-6 h-6 rounded-lg flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
-            title="Tháng sau"
-          >
-            <SFChevronRight size={11} />
-          </button>
-        </div>
-
-        {/* Year Navigator Capsule with dedicated Left / Right navigation & interactive Click */}
-        <div className="flex items-center bg-black/[0.03] dark:bg-white/[0.05] border border-black/5 dark:border-white/10 rounded-xl p-0.5">
-          <button
-            type="button"
-            onClick={prevYear}
-            className="w-6 h-6 rounded-lg flex items-center justify-center text-[#86868b] hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
-            title="Năm trước"
-          >
-            <SFChevronLeft size={11} />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setYearPageBase(Math.floor(navYear / 12) * 12);
-              setActiveSubPicker(activeSubPicker === 'year' ? null : 'year');
-            }}
-            className="px-2 py-0.5 text-[12.5px] font-semibold text-[#0071e3] dark:text-[#2997ff] hover:opacity-80 active:scale-95 transition-opacity cursor-pointer select-none tabular-nums"
-            title="Nhấp để mở bảng chọn năm"
-          >
-            <span>{navYear}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={nextYear}
-            className="w-6 h-6 rounded-lg flex items-center justify-center text-[#86868b] hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
-            title="Năm sau"
-          >
-            <SFChevronRight size={11} />
-          </button>
-        </div>
+        {/* Year Selector Pill */}
+        <button
+          type="button"
+          onClick={() => setActiveSubPicker(activeSubPicker === 'year' ? null : 'year')}
+          onWheel={handleYearWheel}
+          className={cn(
+            'flex-1 flex items-center justify-between px-3 py-1.5 rounded-xl',
+            'bg-black/[0.03] dark:bg-white/[0.05] hover:bg-[#0071e3]/10 dark:hover:bg-[#0071e3]/20',
+            'border border-black/5 dark:border-white/10 transition-all cursor-pointer active:scale-95 group'
+          )}
+          title="Cuộn chuột để đổi năm, hoặc nhấp để mở bảng chọn năm"
+        >
+          <span className="text-[13px] font-semibold text-[#0071e3] dark:text-[#2997ff] tabular-nums">
+            {navYear}
+          </span>
+          <SFChevronDown
+            size={11}
+            className={cn(
+              'text-[#0071e3]/70 group-hover:text-[#0071e3] transition-transform duration-200',
+              activeSubPicker === 'year' && 'rotate-180'
+            )}
+          />
+        </button>
       </div>
 
-      {/* 2. Calendar Days Grid (ALWAYS intact in Layer 2) */}
-      <div className="space-y-1 animate-in fade-in duration-150 ease-out">
+      {/* 2. Calendar Days Grid (Cuộn chuột để chuyển tháng nhanh chóng) */}
+      <div
+        onWheel={handleMonthWheel}
+        className="space-y-1 animate-in fade-in duration-150 ease-out"
+        title="Cuộn chuột để chuyển tháng"
+      >
         {/* Weekday Row */}
         <div className="grid grid-cols-7 gap-1 text-center py-0.5">
           {WEEKDAYS.map((wd) => (
@@ -546,35 +577,11 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
                 : 'scale-100 opacity-100 animate-in fade-in zoom-in-95 duration-200'
             )}
           >
-            {/* Header: Title / Navigation + Close Button */}
+            {/* Header: Clean Title + Close Button (Không mũi tên trái phải) */}
             <div className="flex items-center justify-between pb-1.5 border-b border-black/5 dark:border-white/10">
-              {activeSubPicker === 'month' ? (
-                <span className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-white px-1">
-                  Chọn tháng
-                </span>
-              ) : (
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setYearPageBase((p) => Math.max(0, p - 12))}
-                    className="w-6 h-6 rounded-lg flex items-center justify-center text-[#86868b] hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
-                    title="12 năm trước"
-                  >
-                    <SFChevronLeft size={11} />
-                  </button>
-                  <span className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-white px-1 tabular-nums">
-                    Chọn năm
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setYearPageBase((p) => Math.min(9988, p + 12))}
-                    className="w-6 h-6 rounded-lg flex items-center justify-center text-[#86868b] hover:text-[#0071e3] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
-                    title="12 năm sau"
-                  >
-                    <SFChevronRight size={11} />
-                  </button>
-                </div>
-              )}
+              <span className="text-[13px] font-semibold text-[#1d1d1f] dark:text-white px-1">
+                {activeSubPicker === 'month' ? 'Chọn tháng' : 'Chọn năm'}
+              </span>
 
               <button
                 type="button"
@@ -586,9 +593,9 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
               </button>
             </div>
 
-            {/* Body Grid: 12 options in 4 rows of 3 cols */}
+            {/* Body: Month Grid or Scrollable Year Grid (Cuộn chuột lên xuống mượt mà) */}
             {activeSubPicker === 'month' ? (
-              <div className="grid grid-cols-3 gap-1.5 py-0.5">
+              <div className="grid grid-cols-3 gap-1.5 py-1">
                 {MONTH_NAMES.map((mName, mIdx) => {
                   const isCurrMonth = mIdx === navMonth;
                   return (
@@ -604,7 +611,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
                         setActiveSubPicker(null);
                       }}
                       className={cn(
-                        'py-2 rounded-xl text-[11.5px] font-medium transition-all cursor-pointer',
+                        'py-2 rounded-xl text-[11.5px] font-medium transition-all cursor-pointer text-center',
                         isCurrMonth
                           ? 'bg-[#0071e3] text-white font-semibold shadow-2xs'
                           : 'hover:bg-black/5 dark:hover:bg-white/10 text-[#1d1d1f] dark:text-[#f5f5f7]'
@@ -616,34 +623,36 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
                 })}
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-1.5 py-0.5">
-                {Array.from({ length: 12 }, (_, i) => yearPageBase + i)
-                  .filter((y) => y <= 9999)
-                  .map((y) => {
-                    const isCurrYear = y === navYear;
-                    return (
-                      <button
-                        key={y}
-                        type="button"
-                        onClick={() => {
-                          setNavYear(y);
-                          const newD = new Date(currentDate);
-                          newD.setFullYear(y);
-                          newD.setMonth(navMonth);
-                          onChange(toDatetimeLocalString(newD));
-                          setActiveSubPicker(null);
-                        }}
-                        className={cn(
-                          'py-2 rounded-xl text-[12px] font-medium transition-all cursor-pointer tabular-nums',
-                          isCurrYear
-                            ? 'bg-[#0071e3] text-white font-semibold shadow-2xs'
-                            : 'hover:bg-black/5 dark:hover:bg-white/10 text-[#1d1d1f] dark:text-[#f5f5f7]'
-                        )}
-                      >
-                        {y}
-                      </button>
-                    );
-                  })}
+              <div
+                ref={yearListContainerRef}
+                className="grid grid-cols-3 gap-1.5 py-1 max-h-[195px] overflow-y-auto scrollbar-thin pr-1 select-none"
+              >
+                {YEAR_LIST.map((y) => {
+                  const isCurrYear = y === navYear;
+                  return (
+                    <button
+                      key={y}
+                      ref={isCurrYear ? activeYearRef : undefined}
+                      type="button"
+                      onClick={() => {
+                        setNavYear(y);
+                        const newD = new Date(currentDate);
+                        newD.setFullYear(y);
+                        newD.setMonth(navMonth);
+                        onChange(toDatetimeLocalString(newD));
+                        setActiveSubPicker(null);
+                      }}
+                      className={cn(
+                        'py-2 rounded-xl text-[12px] font-medium transition-all cursor-pointer tabular-nums text-center',
+                        isCurrYear
+                          ? 'bg-[#0071e3] text-white font-semibold shadow-2xs'
+                          : 'hover:bg-black/5 dark:hover:bg-white/10 text-[#1d1d1f] dark:text-[#f5f5f7]'
+                      )}
+                    >
+                      {y}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
