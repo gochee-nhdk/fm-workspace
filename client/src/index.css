@@ -3137,79 +3137,90 @@ tbody td {
 }
 
 /* ==========================================================================
-   Apple Intelligence Fluid Text Scan Highlight & Crystal Beam (GPU-Accelerated)
-   Pure Apple aesthetic: luminous soft violet/blue wash, zero border artifacts.
+   Apple Intelligence Organic Text Rearrange & Defocus Shimmer
+   Creates an ethereal, living blur effect over highlighted text lines:
+   the words and characters gently soften, blur, and ripple in subtle iridescent
+   aurora light as if letters are actively rearranging to form new text.
    ========================================================================== */
-@keyframes appleAiCleanSweep {
-  0% {
-    transform: translate3d(-120px, 0, 0);
-    opacity: 0.1;
-  }
-  20% {
-    opacity: 0.85;
-  }
-  48% {
-    transform: translate3d(calc(100% + 30px), 0, 0);
+@keyframes appleAiMorphingBlur {
+  0%, 100% {
+    backdrop-filter: blur(1.5px) saturate(130%);
+    -webkit-backdrop-filter: blur(1.5px) saturate(130%);
+    background: linear-gradient(
+      120deg,
+      rgba(168, 85, 247, 0.08) 0%,
+      rgba(99, 102, 241, 0.06) 45%,
+      rgba(236, 72, 153, 0.06) 100%
+    );
     opacity: 0.85;
   }
   50% {
-    transform: translate3d(calc(100% + 30px), 0, 0);
-    opacity: 0.2;
+    backdrop-filter: blur(3.5px) saturate(180%);
+    -webkit-backdrop-filter: blur(3.5px) saturate(180%);
+    background: linear-gradient(
+      120deg,
+      rgba(99, 102, 241, 0.16) 0%,
+      rgba(168, 85, 247, 0.18) 50%,
+      rgba(236, 72, 153, 0.14) 100%
+    );
+    opacity: 0.98;
   }
-  52% {
-    opacity: 0.2;
+}
+
+@keyframes appleAiGlyphRearrange {
+  0% {
+    background-position: 0% 50%;
+    transform: scaleX(0.99) scaleY(0.98);
+    filter: blur(0.5px);
   }
-  70% {
-    opacity: 0.85;
-  }
-  98% {
-    transform: translate3d(-120px, 0, 0);
-    opacity: 0.85;
+  50% {
+    background-position: 100% 50%;
+    transform: scaleX(1.01) scaleY(1.02);
+    filter: blur(1.5px);
   }
   100% {
-    transform: translate3d(-120px, 0, 0);
-    opacity: 0.1;
+    background-position: 0% 50%;
+    transform: scaleX(0.99) scaleY(0.98);
+    filter: blur(0.5px);
   }
 }
 
-@keyframes appleAiAuraPulse {
+@keyframes appleAiSoftGlowPulse {
   0%, 100% {
-    background-color: rgba(168, 85, 247, 0.12);
+    box-shadow: 0 0 8px rgba(168, 85, 247, 0.08), inset 0 0 6px rgba(255, 255, 255, 0.2);
   }
   50% {
-    background-color: rgba(168, 85, 247, 0.18);
+    box-shadow: 0 0 16px rgba(168, 85, 247, 0.2), inset 0 0 10px rgba(255, 255, 255, 0.45);
   }
 }
 
-.apple-ai-line-aura {
-  animation: appleAiAuraPulse 2.8s ease-in-out infinite;
-  border-radius: 4px;
-  border: none !important;
-  box-shadow: none !important;
-  outline: none !important;
+.apple-ai-text-morphing-pill {
+  animation: appleAiMorphingBlur 2.4s ease-in-out infinite, appleAiSoftGlowPulse 2.4s ease-in-out infinite;
+  border-radius: 6px;
   contain: paint layout;
+  will-change: backdrop-filter, opacity, box-shadow;
+  pointer-events: none;
+  transform: translateZ(0);
 }
 
-.apple-ai-unified-sweep-beam {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 140px;
+.apple-ai-character-rearrange-aura {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(168, 85, 247, 0.15) 20%,
-    rgba(255, 255, 255, 0.7) 50%,
-    rgba(99, 102, 241, 0.22) 80%,
+    rgba(168, 85, 247, 0.12) 20%,
+    rgba(236, 72, 153, 0.14) 50%,
+    rgba(99, 102, 241, 0.15) 80%,
     transparent 100%
   );
-  filter: blur(2px);
-  mix-blend-mode: hard-light;
-  animation: appleAiCleanSweep 3s cubic-bezier(0.42, 0, 0.58, 1) infinite;
-  will-change: transform, opacity;
+  background-size: 200% 100%;
+  animation: appleAiGlyphRearrange 3s ease-in-out infinite;
+  mix-blend-mode: overlay;
   pointer-events: none;
-  transform: translateZ(0);
+  border-radius: 6px;
+}
+
+.dark .apple-ai-text-morphing-pill {
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.16), inset 0 0 8px rgba(255, 255, 255, 0.15);
 }
 
 /* ==========================================================================

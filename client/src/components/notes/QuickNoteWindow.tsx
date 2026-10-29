@@ -5565,30 +5565,28 @@ export const QuickNoteWindow: React.FC = () => {
               ) : (
                 /* Seamless Flowing Writing Canvas */
                 <div ref={canvasRef} className="flex-1 flex flex-col min-h-0 relative">
-                  {/* Apple AI Creative Synchronized Text Scan Effect - Strictly Line-Bound to Selected Text */}
+                  {/* Apple AI Creative Text Transformation Effect - Ethereal Rearrange & Defocus Shimmer */}
                   {writingToolLoading && selectionBounds?.lineRects && selectionBounds.lineRects.length > 0 && (
                     <div className="absolute inset-0 pointer-events-none select-none z-20 overflow-hidden">
                       {selectionBounds.lineRects.map((rect, idx) => (
                         <div
-                          key={`scan-line-${idx}-${rect.top.toFixed(0)}-${rect.left.toFixed(0)}`}
-                          className="absolute overflow-hidden apple-ai-line-aura"
+                          key={`morph-line-${idx}-${rect.top.toFixed(0)}-${rect.left.toFixed(0)}`}
+                          className="absolute overflow-hidden apple-ai-text-morphing-pill"
                           style={{
                             top: `${Math.max(0, rect.top - 1)}px`,
                             left: `${Math.max(0, rect.left - 2)}px`,
                             width: `${Math.max(6, rect.width + 4)}px`,
                             height: `${Math.max(18, rect.height + 2)}px`,
+                            animationDelay: `${idx * 0.12}s`,
                           }}
                         >
-                          {/* Synchronized Global Sweep Track - Anchored to selectionBounds.left */}
+                          {/* Inner undulating glyph rearrangement aura */}
                           <div
-                            className="absolute top-0 bottom-0 pointer-events-none"
+                            className="absolute inset-0 apple-ai-character-rearrange-aura"
                             style={{
-                              left: `${selectionBounds.left - rect.left}px`,
-                              width: `${selectionBounds.width}px`,
+                              animationDelay: `${idx * 0.16}s`,
                             }}
-                          >
-                            <div className="apple-ai-unified-sweep-beam" />
-                          </div>
+                          />
                         </div>
                       ))}
                     </div>
