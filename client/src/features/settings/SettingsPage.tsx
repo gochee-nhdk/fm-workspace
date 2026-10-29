@@ -1579,7 +1579,7 @@ export const SettingsPage: React.FC = () => {
       >
         <div className="flex items-center gap-3 text-[#1d1d1f] dark:text-white">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-b from-[#0071e3]/15 to-[#0071e3]/5 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center border border-[#0071e3]/20 shadow-xs">
-            <Bookmark size={20} />
+            <SFBookmark size={20} />
           </div>
           <div>
             <h3 className="font-semibold text-[16px]">Kích Hoạt Khóa Lưu Trữ Vĩnh Viễn</h3>
@@ -1679,7 +1679,7 @@ export const SettingsPage: React.FC = () => {
           {/* Header Icon */}
           <div className="space-y-1.5 pointer-events-none">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-b from-[#0071e3]/15 to-[#0071e3]/5 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center border border-[#0071e3]/20 shadow-xs mx-auto mb-2">
-              <KeyRound size={22} />
+              <SFKey size={22} />
             </div>
             <h3 className="font-semibold text-[16px] text-[#1d1d1f] dark:text-white leading-tight">
               {isLockEnabled ? 'Đổi mã PIN bảo vệ' : 'Cài mã PIN bảo vệ'}
@@ -1833,7 +1833,7 @@ export const SettingsPage: React.FC = () => {
           {/* Header Icon */}
           <div className="space-y-1.5 pointer-events-none">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-b from-rose-500/15 to-rose-500/5 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/20 shadow-xs mx-auto mb-2">
-              <Unlock size={22} />
+              <SFLockOpen size={22} />
             </div>
             <h3 className="font-semibold text-[16px] text-[#1d1d1f] dark:text-white leading-tight">
               Xác nhận gỡ mã PIN

@@ -24,47 +24,35 @@ import {
   SFArrowDownToLine,
   SFChevronLeft,
   SFChevronRight,
+  SFChevronDown,
+  SFChevronUp,
   SFWandAndSparkles,
   SFKey,
   SFKeyFill,
   SFChecklist,
   SFListBullet,
+  SFListNumber,
   SFTextQuote,
   SFCheckmarkCircle,
   SFBriefcase,
   SFDocumentOnDocument,
   SFGlobe,
+  SFLock,
+  SFLockOpen,
+  SFPaperclip,
+  SFArrowClockwise,
+  SFEnvelope,
+  SFPaperplaneFill,
+  SFGearshape,
+  SFArrowUpLeftAndArrowDownRight,
+  SFArrowDownRightAndArrowUpLeft,
+  SFUnderline,
+  SFStrikethrough,
+  SFScissors,
+  SFEye,
+  SFEyeSlash,
   AppleNotesBadge,
 } from '@/components/ui/AppleIcon';
-import {
-  Scissors,
-  Calculator,
-  Tag,
-  Bold,
-  Italic,
-  Underline,
-  Strikethrough,
-  List,
-  ListOrdered,
-  Heading,
-  Settings,
-  Eye,
-  EyeOff,
-  Maximize2,
-  Minimize2,
-  ChevronDown,
-  ChevronUp,
-  ArrowUp,
-  ArrowDown,
-  Mail,
-  Send,
-  Check,
-  Loader2,
-  Lock,
-  Unlock,
-  Shield,
-  Paperclip,
-} from 'lucide-react';
 import { useNoteStore } from '@/stores/note-store';
 import { QuickNoteColor, QuickNoteItem, TaskReminder, NoteImageAttachment } from '@/types/workspace';
 import { reminderService, playAppleChime } from '@/services/reminderService';
@@ -4650,7 +4638,7 @@ export const QuickNoteWindow: React.FC = () => {
                             }`}
                             title={unlockedNoteIds.includes(note.id) ? 'Đang mở khóa — Nhấp để khóa lại' : 'Đang khóa — Nhấp để nhập mã PIN mở khóa'}
                           >
-                            {unlockedNoteIds.includes(note.id) ? <Unlock size={13} /> : <Lock size={13} />}
+                            {unlockedNoteIds.includes(note.id) ? <SFLockOpen size={13} /> : <SFLock size={13} />}
                           </button>
                         )}
 
@@ -4684,7 +4672,7 @@ export const QuickNoteWindow: React.FC = () => {
                           <span className={`w-2 h-2 rounded-full shrink-0 ${dotColor}`} />
                           {note.isLocked && (
                             <span title={isLockedAndHidden ? 'Ghi chú đã khóa mật khẩu' : 'Ghi chú được bảo vệ'}>
-                              <Lock size={11} className="text-[#0071e3] dark:text-[#2997ff] shrink-0" />
+                              <SFLock size={11} className="text-[#0071e3] dark:text-[#2997ff] shrink-0" />
                             </span>
                           )}
                           <h5 className={`text-[12.5px] font-semibold truncate leading-snug ${
@@ -4697,7 +4685,7 @@ export const QuickNoteWindow: React.FC = () => {
                         {/* Snippet / Progress */}
                         {isLockedAndHidden ? (
                           <p className="text-[11px] text-[#86868b] dark:text-[#76767b] italic flex items-center gap-1">
-                            <Lock size={10} /> Đã khóa
+                            <SFLock size={10} /> Đã khóa
                           </p>
                         ) : isChecklistNote ? (
                           <div className="space-y-1">
@@ -4891,12 +4879,12 @@ export const QuickNoteWindow: React.FC = () => {
                   >
                     {activeNote.isLocked ? (
                       unlockedNoteIds.includes(activeNote.id) ? (
-                        <Unlock size={14} />
+                        <SFLockOpen size={14} />
                       ) : (
-                        <Lock size={14} />
+                        <SFLock size={14} />
                       )
                     ) : (
-                      <Lock size={14} />
+                      <SFLock size={14} />
                     )}
                   </button>
 
@@ -4908,7 +4896,7 @@ export const QuickNoteWindow: React.FC = () => {
                       className="w-7 h-7 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
                       title="Quản lý mật khẩu ghi chú (Đổi hoặc gỡ mã PIN)"
                     >
-                      <Settings size={13} />
+                      <SFGearshape size={13} />
                     </button>
                   )}
                 </div>
@@ -4922,7 +4910,7 @@ export const QuickNoteWindow: React.FC = () => {
                 title={isCompactWindow ? 'Phóng to thành tab chính cố định (Góc dưới phải)' : 'Thu nhỏ thành cửa sổ nhỏ linh động di chuyển'}
                 aria-label={isCompactWindow ? 'Phóng to tab chính' : 'Thu nhỏ cửa sổ'}
               >
-                {isCompactWindow ? <Maximize2 size={13.5} /> : <Minimize2 size={13.5} />}
+                {isCompactWindow ? <SFArrowUpLeftAndArrowDownRight size={13.5} /> : <SFArrowDownRightAndArrowUpLeft size={13.5} />}
               </button>
 
               {/* 3. Close window — nút đóng ngoài cùng bên phải */}
@@ -4949,7 +4937,7 @@ export const QuickNoteWindow: React.FC = () => {
                   unlockShake && "apple-shake"
                 )}>
                   <div className="w-14 h-14 rounded-2xl bg-gradient-to-b from-[#0071e3]/20 to-[#0071e3]/5 border border-[#0071e3]/25 flex items-center justify-center text-[#0071e3] dark:text-[#2997ff] shadow-md shadow-[#0071e3]/20 mb-3">
-                    <Lock size={26} />
+                    <SFLock size={26} />
                   </div>
                   <h3 className="text-[16px] font-bold text-[#1d1d1f] dark:text-white tracking-tight">
                     Ghi chú đã được khóa
@@ -5225,7 +5213,7 @@ export const QuickNoteWindow: React.FC = () => {
                     }`}
                     title="Danh sách gạch đầu dòng"
                   >
-                    <List size={13.5} />
+                    <SFListBullet size={13.5} />
                   </button>
                   <button
                     type="button"
@@ -5238,7 +5226,7 @@ export const QuickNoteWindow: React.FC = () => {
                     }`}
                     title="Danh sách số"
                   >
-                    <ListOrdered size={13.5} />
+                    <SFListNumber size={13.5} />
                   </button>
                 </div>
 
@@ -5262,7 +5250,7 @@ export const QuickNoteWindow: React.FC = () => {
                   >
                     <SFWandAndSparkles size={11.5} className="text-[#0071e3] dark:text-[#2997ff]" />
                     <span>Writing Tools</span>
-                    <ChevronDown size={10} className={`transition-transform duration-150 ${showCompactAiMenu ? 'rotate-180' : ''}`} />
+                    <SFChevronDown size={10} className={`transition-transform duration-150 ${showCompactAiMenu ? 'rotate-180' : ''}`} />
                   </button>
 
                   {compactAiPresence.shouldRender && (
@@ -5857,7 +5845,7 @@ export const QuickNoteWindow: React.FC = () => {
                           title="Gạch chân (Underline)"
                           aria-label="Gạch chân"
                         >
-                          <Underline size={13} />
+                          <SFUnderline size={13} />
                         </button>
 
                         <button
@@ -5872,7 +5860,7 @@ export const QuickNoteWindow: React.FC = () => {
                           title="Gạch ngang (Strikethrough)"
                           aria-label="Gạch ngang"
                         >
-                          <Strikethrough size={13} />
+                          <SFStrikethrough size={13} />
                         </button>
                       </div>
 
@@ -5890,7 +5878,7 @@ export const QuickNoteWindow: React.FC = () => {
                           title="Danh sách dấu đầu dòng"
                           aria-label="Danh sách gạch đầu dòng"
                         >
-                          <List size={14} />
+                          <SFListBullet size={14} />
                         </button>
 
                         <button
@@ -5905,7 +5893,7 @@ export const QuickNoteWindow: React.FC = () => {
                           title="Danh sách đánh số"
                           aria-label="Danh sách số"
                         >
-                          <ListOrdered size={14} />
+                          <SFListNumber size={14} />
                         </button>
 
                         <button
@@ -6174,7 +6162,7 @@ export const QuickNoteWindow: React.FC = () => {
                       title="Cắt màn hình nhanh và chèn thẳng vào văn bản (Snipping Tool)"
                       aria-label="Cắt màn hình"
                     >
-                      <Scissors size={15.5} />
+                      <SFScissors size={15.5} />
                     </button>
 
                     {/* 3. Nút Đính kèm tệp tin đa dạng (Sáng button khi hover, không đổi viền) */}
@@ -6185,7 +6173,7 @@ export const QuickNoteWindow: React.FC = () => {
                       title="Đính kèm tệp tin đa dạng (PDF, Word, Excel, ZIP, Text... vào văn bản)"
                       aria-label="Đính kèm tệp tin"
                     >
-                      <Paperclip size={15.5} />
+                      <SFPaperclip size={15.5} />
                     </button>
                   </div>
                 )}
@@ -6304,7 +6292,7 @@ export const QuickNoteWindow: React.FC = () => {
               className="absolute right-2.5 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white cursor-pointer p-1"
               title={showApiKeyPassword ? 'Ẩn khóa' : 'Hiện khóa'}
             >
-              {showApiKeyPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+              {showApiKeyPassword ? <SFEyeSlash size={14} /> : <SFEye size={14} />}
             </button>
           </div>
 
@@ -6361,7 +6349,7 @@ export const QuickNoteWindow: React.FC = () => {
             >
               {isTestingApiKey ? (
                 <>
-                  <Loader2 size={12.5} className="animate-spin" />
+                  <SFArrowClockwise size={12.5} className="animate-spin" />
                   <span>Đang xác thực...</span>
                 </>
               ) : (
@@ -6493,7 +6481,7 @@ export const QuickNoteWindow: React.FC = () => {
               <label className="flex items-center justify-between cursor-pointer">
                 <div className="flex items-center gap-2.5">
                   <div className="w-7 h-7 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                    <Mail size={14} />
+                    <SFEnvelope size={14} />
                   </div>
                   <div>
                     <div className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-white">
@@ -6529,7 +6517,7 @@ export const QuickNoteWindow: React.FC = () => {
                       className="px-3 py-2 rounded-xl text-[11.5px] font-medium bg-[#0071e3]/10 hover:bg-[#0071e3]/20 text-[#0071e3] dark:text-[#2997ff] border border-[#0071e3]/20 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 shrink-0"
                       title="Gửi thử một email mẫu để kiểm tra hòm thư"
                     >
-                      {isSendingTestEmail ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                      {isSendingTestEmail ? <SFArrowClockwise size={12} className="animate-spin" /> : <SFPaperplaneFill size={12} />}
                       <span>Gửi thử</span>
                     </button>
                   </div>
@@ -6827,7 +6815,7 @@ export const QuickNoteWindow: React.FC = () => {
           {/* Header */}
           <div className="space-y-1.5 pointer-events-none">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-b from-[#0071e3]/15 to-[#0071e3]/5 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center border border-[#0071e3]/20 shadow-xs mx-auto mb-2">
-              <Lock size={22} />
+              <SFLock size={22} />
             </div>
             <h3 className="font-semibold text-[16px] text-[#1d1d1f] dark:text-white leading-tight">
               {activeNote?.isLocked ? 'Đổi mã PIN bảo vệ' : 'Cài mã PIN bảo vệ'}
@@ -7058,7 +7046,7 @@ export const QuickNoteWindow: React.FC = () => {
           {/* Header Icon */}
           <div className="space-y-1.5 pointer-events-none">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-b from-rose-500/15 to-rose-500/5 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/20 shadow-xs mx-auto mb-2">
-              <Unlock size={22} />
+              <SFLockOpen size={22} />
             </div>
             <h3 className="font-semibold text-[16px] text-[#1d1d1f] dark:text-white leading-tight">
               Xác nhận gỡ mã PIN
@@ -7497,7 +7485,7 @@ export const QuickNoteWindow: React.FC = () => {
                     className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs shrink-0"
                     title={isPreviewFullscreen ? 'Thu nhỏ cửa sổ' : 'Phóng to toàn màn hình'}
                   >
-                    {isPreviewFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                    {isPreviewFullscreen ? <SFArrowDownRightAndArrowUpLeft size={14} /> : <SFArrowUpLeftAndArrowDownRight size={14} />}
                   </button>
 
                   {/* 4. Nút Đóng */}
@@ -7524,7 +7512,7 @@ export const QuickNoteWindow: React.FC = () => {
               >
                 {isPreviewLoading ? (
                   <div className="flex flex-col items-center justify-center p-8 text-[#86868b] space-y-3">
-                    <Loader2 className="w-8 h-8 animate-spin text-[#0071e3]" />
+                    <SFArrowClockwise className="w-8 h-8 animate-spin text-[#0071e3]" />
                     <span className="text-[13px] font-medium">Đang giải nạp và chuẩn bị xem trước tệp...</span>
                   </div>
                 ) : currentFilePreview.ext.toLowerCase() === 'pdf' ? (

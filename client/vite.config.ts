@@ -43,7 +43,7 @@ export default defineConfig({
           'vendor-excel': ['xlsx'],
           'vendor-excel-style': ['xlsx-js-style'],
           'vendor-charts': ['recharts'],
-          'vendor-icons': ['lucide-react', 'sf-symbols-lib'],
+          'vendor-icons': ['sf-symbols-lib'],
           'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
           'vendor-utils': ['date-fns', 'clsx', 'tailwind-merge', 'zustand', 'axios'],
         }
