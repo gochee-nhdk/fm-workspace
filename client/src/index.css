@@ -350,7 +350,7 @@
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
   body {
-    @apply bg-[var(--background)] text-[var(--foreground)] antialiased transition-colors duration-200 relative selection:bg-[#0066cc]/20 selection:text-[#0066cc];
+    @apply bg-[var(--background)] text-[var(--foreground)] antialiased relative selection:bg-[#0066cc]/20 selection:text-[#0066cc];
     letter-spacing: -0.011em;
   }
 
@@ -365,44 +365,18 @@
   }
 
   /* ==========================================================================
-     Apple Iris Circular Theme Transition (Expand from / Collapse into Button)
-     120 FPS Hardware-Accelerated Compositing & Thread Isolation
+     Apple Iris Circular Theme Transition — 120 FPS Hardware-Accelerated Compositing
      ========================================================================== */
-  ::view-transition-group(root) {
-    animation: none !important;
-  }
-
-  ::view-transition-image-pair(root) {
-    isolation: isolate;
-  }
-
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
-    animation: none !important;
-    mix-blend-mode: normal !important;
-  }
-
-  /* Light -> Dark: new dark layer is on top, blossoming outward */
-  html[data-theme-transition="to-dark"]::view-transition-old(root) {
-    z-index: 1 !important;
-  }
-  html[data-theme-transition="to-dark"]::view-transition-new(root) {
-    z-index: 999999 !important;
-  }
-
-  /* Dark -> Light: old dark layer is on top, shrinking back into the button */
-  html[data-theme-transition="to-light"]::view-transition-old(root) {
-    z-index: 999999 !important;
-  }
-  html[data-theme-transition="to-light"]::view-transition-new(root) {
-    z-index: 1 !important;
-  }
-
-  /* Freeze competing CSS transitions during Iris animation to guarantee 120fps */
-  html[data-theme-transition] *,
-  html[data-theme-transition] *::before,
-  html[data-theme-transition] *::after {
-    transition: none !important;
+  #theme-iris-orb {
+    position: fixed;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 99999999;
+    background-color: #0f0f13;
+    will-change: transform;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    overflow: hidden;
   }
 
   button, input, select, textarea {

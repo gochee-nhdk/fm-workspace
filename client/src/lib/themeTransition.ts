@@ -4,14 +4,14 @@ import { resolveTheme, useUiStore, Theme } from '@/stores/ui-store';
 let isTransitioning = false;
 
 /**
- * Executes a hardware-accelerated circular iris theme transition originating
- * directly from the clicked button coordinates, locked at 120 FPS.
+ * Executes a true 120 FPS hardware-accelerated circular iris theme transition
+ * originating directly from the clicked button coordinates.
  *
- * - Sáng -> Tối: Vùng tối nở to từ nút bấm lan ra toàn màn hình (circle(0px) -> circle(maxRadius)).
- * - Tối -> Sáng: Bóng tối thu nhỏ dần về lại nút bấm để lộ giao diện sáng (circle(maxRadius) -> circle(0px)).
+ * - Sáng -> Tối: Vùng tối (#0f0f13) nở to từ nút bấm lan ra toàn màn hình (scale(0) -> scale(1)).
+ * - Tối -> Sáng: Bóng tối (#0f0f13) thu nhỏ dần về lại nút bấm để lộ giao diện sáng (scale(1) -> scale(0)).
  *
- * Uses native View Transitions API with synchronous React DOM flush (zero frame drops),
- * GPU layer promotion (transform: translateZ(0)), and CSS transition freezing during animation.
+ * 100% GPU Compositor Thread execution via transform: scale() with ZERO clip-path re-rasterization
+ * and ZERO View Transitions stutter on Windows / Edge / Chrome.
  */
 export const toggleThemeWithIris = (
   targetTheme?: Theme,
@@ -29,6 +29,25 @@ export const toggleThemeWithIris = (
     return;
   }
 
+  const root = document.documentElement;
+  const isGoingDark = nextResolved === 'dark';
+
+  // Check user prefers-reduced-motion
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (prefersReducedMotion) {
+    if (isGoingDark) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    setTheme(nextTarget);
+    return;
+  }
+
   // Determine button origin coordinates (x, y)
   let x = window.innerWidth - 60;
   let y = 30;
@@ -37,8 +56,10 @@ export const toggleThemeWithIris = (
     const currentTarget = (event.currentTarget || event.target) as HTMLElement | null;
     if (currentTarget && typeof currentTarget.getBoundingClientRect === 'function') {
       const rect = currentTarget.getBoundingClientRect();
-      x = rect.left + rect.width / 2;
-      y = rect.top + rect.height / 2;
+      if (rect.width > 0 && rect.height > 0) {
+        x = rect.left + rect.width / 2;
+        y = rect.top + rect.height / 2;
+      }
     } else if ('clientX' in event && typeof event.clientX === 'number' && event.clientX > 0) {
       x = event.clientX;
       y = event.clientY;
@@ -47,177 +68,114 @@ export const toggleThemeWithIris = (
     // Try to find the active header theme toggle button in the DOM
     const btn =
       document.querySelector('[data-theme-toggle]') ||
-      document.querySelector('button[aria-label*="Sáng / Tối"]');
+      document.querySelector('button[aria-label*="Sáng / Tối"]') ||
+      document.querySelector('button[aria-label*="Chủ đề"]');
     if (btn) {
       const rect = btn.getBoundingClientRect();
-      x = rect.left + rect.width / 2;
-      y = rect.top + rect.height / 2;
+      if (rect.width > 0 && rect.height > 0) {
+        x = rect.left + rect.width / 2;
+        y = rect.top + rect.height / 2;
+      }
     }
   }
 
-  // Calculate distance from (x, y) to the farthest corner of the viewport (+ 6px subpixel pad)
+  // Calculate distance from (x, y) to the farthest corner of the viewport (+ 24px safety pad)
   const endRadius =
     Math.hypot(
       Math.max(x, window.innerWidth - x),
       Math.max(y, window.innerHeight - y)
-    ) + 6;
+    ) + 24;
 
-  const isGoingDark = nextResolved === 'dark';
-  const doc = document as any;
+  const diameter = Math.ceil(endRadius * 2);
 
-  // Check if browser natively supports document.startViewTransition
-  if (typeof doc.startViewTransition === 'function') {
-    runViewTransition(doc, x, y, endRadius, isGoingDark, nextTarget);
-  } else {
-    runGpuOverlayFallback(x, y, endRadius, isGoingDark, nextTarget);
-  }
-};
-
-/**
- * 120 FPS View Transitions implementation with synchronous React DOM flush
- */
-function runViewTransition(
-  doc: any,
-  x: number,
-  y: number,
-  endRadius: number,
-  isGoingDark: boolean,
-  nextTarget: Theme
-) {
   isTransitioning = true;
-  const root = document.documentElement;
-
-  // Signal CSS whether this transition is to-dark or to-light for proper z-index layering
   root.dataset.themeTransition = isGoingDark ? 'to-dark' : 'to-light';
 
-  const cleanup = () => {
+  // Clean up any lingering previous orb
+  const oldOrb = document.getElementById('theme-iris-orb');
+  if (oldOrb) oldOrb.remove();
+
+  const orb = document.createElement('div');
+  orb.id = 'theme-iris-orb';
+  orb.style.position = 'fixed';
+  orb.style.left = `${Math.round(x - endRadius)}px`;
+  orb.style.top = `${Math.round(y - endRadius)}px`;
+  orb.style.width = `${diameter}px`;
+  orb.style.height = `${diameter}px`;
+  orb.style.borderRadius = '50%';
+  orb.style.backgroundColor = '#0f0f13';
+  orb.style.pointerEvents = 'none';
+  orb.style.zIndex = '99999999';
+  orb.style.willChange = 'transform';
+  orb.style.transformOrigin = '50% 50%';
+
+  let safetyTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  const finishTransition = () => {
+    if (safetyTimeout) clearTimeout(safetyTimeout);
+    orb.remove();
     delete root.dataset.themeTransition;
     isTransitioning = false;
   };
-  // Absolute fail-safe guard to ensure transition state clears even on edge-case tab switches
-  setTimeout(cleanup, 450);
 
-  try {
-    const transition = doc.startViewTransition(() => {
-      if (isGoingDark) {
-        root.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
-      }
-      useUiStore.getState().setTheme(nextTarget);
-    });
-
-    transition.ready
-      .then(() => {
-        const clipPath = [
-          `circle(0px at ${x.toFixed(1)}px ${y.toFixed(1)}px)`,
-          `circle(${endRadius.toFixed(1)}px at ${x.toFixed(1)}px ${y.toFixed(1)}px)`,
-        ];
-
-        const animation = document.documentElement.animate(
-          {
-            clipPath: isGoingDark ? clipPath : [clipPath[1], clipPath[0]],
-          },
-          {
-            duration: 300,
-            easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
-            pseudoElement: isGoingDark
-              ? '::view-transition-new(root)'
-              : '::view-transition-old(root)',
-            fill: 'forwards',
-          }
-        );
-
-        animation.addEventListener('finish', cleanup, { once: true });
-        animation.addEventListener('cancel', cleanup, { once: true });
-      })
-      .catch(() => {
-        cleanup();
-      });
-
-    transition.finished.finally(cleanup);
-  } catch (err) {
-    cleanup();
-    runGpuOverlayFallback(x, y, endRadius, isGoingDark, nextTarget);
-  }
-}
-
-/**
- * Bulletproof GPU-accelerated Iris Overlay fallback for environments without View Transitions
- */
-function runGpuOverlayFallback(
-  x: number,
-  y: number,
-  endRadius: number,
-  isGoingDark: boolean,
-  nextTarget: Theme
-) {
-  isTransitioning = true;
-  const root = document.documentElement;
-
-  const overlay = document.createElement('div');
-  overlay.id = 'theme-iris-overlay';
-  overlay.style.position = 'fixed';
-  overlay.style.inset = '0';
-  overlay.style.zIndex = '9999999';
-  overlay.style.pointerEvents = 'none';
-  overlay.style.backgroundColor = '#0b0b0e';
-  overlay.style.transform = 'translateZ(0)';
-  overlay.style.willChange = 'clip-path';
-
-  const clipPath = [
-    `circle(0px at ${x.toFixed(1)}px ${y.toFixed(1)}px)`,
-    `circle(${endRadius.toFixed(1)}px at ${x.toFixed(1)}px ${y.toFixed(1)}px)`,
-  ];
+  // Fail-safe timeout to prevent state lock under any circumstances
+  safetyTimeout = setTimeout(finishTransition, 500);
 
   if (isGoingDark) {
-    // Sáng -> Tối: Dark overlay starts at 0px and blossoms outward across screen
-    overlay.style.clipPath = clipPath[0];
-    document.body.appendChild(overlay);
+    // Sáng -> Tối: Orb starts at scale(0) and blossoms outward across the screen
+    orb.style.transform = 'scale(0)';
+    document.body.appendChild(orb);
 
-    const anim = overlay.animate(
-      { clipPath: clipPath },
+    const anim = orb.animate(
+      [
+        { transform: 'scale(0)' },
+        { transform: 'scale(1)' }
+      ],
       {
-        duration: 340,
-        easing: 'cubic-bezier(0.2, 0, 0, 1)',
-        fill: 'forwards',
+        duration: 300,
+        easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        fill: 'forwards'
       }
     );
 
-    anim.onfinish = () => {
+    const onComplete = () => {
       root.classList.add('dark');
       useUiStore.getState().setTheme(nextTarget);
-      overlay.remove();
-      isTransitioning = false;
-    };
-    anim.oncancel = () => {
-      overlay.remove();
-      isTransitioning = false;
-    };
-  } else {
-    // Tối -> Sáng: Dark overlay covers screen, app switches underneath, then dark shrinks into button
-    overlay.style.clipPath = clipPath[1];
-    document.body.appendChild(overlay);
 
+      // Double rAF ensures the dark DOM paint has committed behind the orb
+      requestAnimationFrame(() => {
+        requestAnimationFrame(finishTransition);
+      });
+    };
+
+    anim.addEventListener('finish', onComplete, { once: true });
+    anim.addEventListener('cancel', finishTransition, { once: true });
+  } else {
+    // Tối -> Sáng: Orb starts at scale(1) covering the screen.
+    // DOM switches immediately underneath, then orb collapses back into button.
+    orb.style.transform = 'scale(1)';
+    document.body.appendChild(orb);
+
+    // Switch DOM immediately underneath the opaque dark orb
     root.classList.remove('dark');
     useUiStore.getState().setTheme(nextTarget);
 
-    const anim = overlay.animate(
-      { clipPath: [clipPath[1], clipPath[0]] },
-      {
-        duration: 340,
-        easing: 'cubic-bezier(0.2, 0, 0, 1)',
-        fill: 'forwards',
-      }
-    );
+    // Give 1 frame for the light DOM paint to register underneath the dark orb
+    requestAnimationFrame(() => {
+      const anim = orb.animate(
+        [
+          { transform: 'scale(1)' },
+          { transform: 'scale(0)' }
+        ],
+        {
+          duration: 300,
+          easing: 'cubic-bezier(0.2, 0, 0, 1)',
+          fill: 'forwards'
+        }
+      );
 
-    anim.onfinish = () => {
-      overlay.remove();
-      isTransitioning = false;
-    };
-    anim.oncancel = () => {
-      overlay.remove();
-      isTransitioning = false;
-    };
+      anim.addEventListener('finish', finishTransition, { once: true });
+      anim.addEventListener('cancel', finishTransition, { once: true });
+    });
   }
-}
+};
