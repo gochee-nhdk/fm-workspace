@@ -30,12 +30,6 @@ export const toggleThemeWithIris = (
     return;
   }
 
-  // If user explicitly prefers reduced motion, switch instantly with zero lag
-  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    setTheme(nextTarget);
-    return;
-  }
-
   // Determine button origin coordinates (x, y)
   let x = window.innerWidth - 60;
   let y = 30;
@@ -101,6 +95,8 @@ function runViewTransition(
     delete root.dataset.themeTransition;
     isTransitioning = false;
   };
+  // Absolute fail-safe guard to ensure transition state clears even on edge-case tab switches
+  setTimeout(cleanup, 450);
 
   try {
     const transition = doc.startViewTransition(() => {

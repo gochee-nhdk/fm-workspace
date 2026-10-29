@@ -3168,7 +3168,7 @@ export const QuickNoteWindow: React.FC = () => {
       activeNoteIdRef.current = null;
       setIsWindowClosing(false);
       closeNote();
-    }, 140);
+    }, 200);
   }, [closeNote, savePendingDraft]);
 
   // Clean up closing timer on unmount
@@ -5724,14 +5724,14 @@ export const QuickNoteWindow: React.FC = () => {
 
                     return (
                       <div
-                        className="absolute z-50 p-3 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-purple-500/25 dark:border-purple-400/35 shadow-[0_20px_50px_rgba(0,0,0,0.22),0_4px_24px_rgba(168,85,247,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none flex flex-col gap-2 will-change-[top,width,height]"
+                        className="absolute z-50 p-3 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-purple-500/25 dark:border-purple-400/35 shadow-[0_20px_50px_rgba(0,0,0,0.22),0_4px_24px_rgba(168,85,247,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none flex flex-col gap-2 will-change-[top,width,height] apple-quicklook-morph-expand"
                         style={{
                           top: isDraftExpanded ? '8px' : `${top}px`,
                           left: '50%',
                           transform: 'translateX(-50%)',
                           width: `${isDraftExpanded ? Math.max(340, canvasW - 16) : cardWidth}px`,
                           height: `${isDraftExpanded ? Math.max(200, canvasH - 16) : calculatedMaxHeight}px`,
-                          transition: 'top 280ms cubic-bezier(0.16, 1, 0.3, 1), width 280ms cubic-bezier(0.16, 1, 0.3, 1), height 280ms cubic-bezier(0.16, 1, 0.3, 1)',
+                          transition: 'top 300ms cubic-bezier(0.16, 1, 0.3, 1), width 300ms cubic-bezier(0.16, 1, 0.3, 1), height 300ms cubic-bezier(0.16, 1, 0.3, 1)',
                         }}
                       >
                         {/* Header (shrink-0) */}

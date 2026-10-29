@@ -156,7 +156,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       closeTimerRef.current = setTimeout(() => {
         setIsMounted(false);
         setIsClosing(false);
-      }, 160);
+      }, 200);
     }
 
     return () => {
@@ -172,7 +172,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       onClose();
       setIsClosing(false);
       setIsMounted(false);
-    }, 160);
+    }, 200);
   };
 
   // Reset scroll and selection whenever query or category changes

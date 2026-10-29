@@ -149,15 +149,15 @@
 @layer base {
   :root {
     /* Always-on liquid motion contract, independent of Windows animation preferences. */
-    --motion-duration-press: 50ms;
-    --motion-duration-micro: 80ms;
-    --motion-duration-hover: 110ms;
-    --motion-duration-tab: 100ms;
-    --motion-duration-popover: 150ms;
-    --motion-duration-exit: 130ms;
-    --motion-duration-sidebar: 170ms;
-    --motion-duration-modal: 180ms;
-    --motion-duration-spatial: 200ms;
+    --motion-duration-press: 120ms;
+    --motion-duration-micro: 140ms;
+    --motion-duration-hover: 180ms;
+    --motion-duration-tab: 140ms;
+    --motion-duration-popover: 220ms;
+    --motion-duration-exit: 200ms;
+    --motion-duration-sidebar: 260ms;
+    --motion-duration-modal: 280ms;
+    --motion-duration-spatial: 300ms;
     --motion-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
     --motion-ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
     --motion-ease-snappy: cubic-bezier(0.18, 0.9, 0.22, 1);
@@ -406,10 +406,12 @@
     z-index: 1 !important;
   }
 
-  /* Freeze competing CSS transitions and style mutations during Iris animation for locked 120fps */
-  html[data-theme-transition] *,
-  html[data-theme-transition] *::before,
-  html[data-theme-transition] *::after {
+  /* Freeze competing container CSS transitions during Iris animation */
+  html[data-theme-transition] body,
+  html[data-theme-transition] header,
+  html[data-theme-transition] aside,
+  html[data-theme-transition] main,
+  html[data-theme-transition] table {
     transition: none !important;
   }
 
@@ -1808,11 +1810,11 @@
 @keyframes appleModalOpen {
   0% {
     opacity: 0;
-    transform: scale(0.965) translate3d(0, 8px, 0);
+    transform: scale(0.92) translate3d(0, 12px, 0);
   }
-  60% {
+  65% {
     opacity: 1;
-    transform: scale(1.004) translate3d(0, -0.6px, 0);
+    transform: scale(1.008) translate3d(0, -1px, 0);
   }
   100% {
     opacity: 1;
@@ -1827,7 +1829,7 @@
   }
   100% {
     opacity: 0;
-    transform: scale(0.97) translate3d(0, 6px, 0);
+    transform: scale(0.94) translate3d(0, 8px, 0);
   }
 }
 
@@ -2919,16 +2921,13 @@ tbody td {
 @keyframes macosMorphOpen {
   0% {
     opacity: 0;
-    transform: scale(0.28) translate3d(88px, 88px, 0);
-    filter: blur(3px);
+    transform: scale(0.32) translate3d(70px, 70px, 0);
+    filter: blur(4px);
   }
-  50% {
+  60% {
     opacity: 1;
-    transform: scale(1.02) translate3d(-2px, -2px, 0);
+    transform: scale(1.018) translate3d(-2px, -2px, 0);
     filter: blur(0px);
-  }
-  72% {
-    transform: scale(0.994) translate3d(0.5px, 0.5px, 0);
   }
   100% {
     opacity: 1;
@@ -2946,8 +2945,8 @@ tbody td {
   }
   100% {
     opacity: 0;
-    transform: scale(0.28) translate3d(88px, 88px, 0);
-    filter: blur(2px);
+    transform: scale(0.32) translate3d(70px, 70px, 0);
+    filter: blur(3px);
   }
 }
 
@@ -2955,21 +2954,15 @@ tbody td {
 @keyframes macosExpandModal {
   0% {
     opacity: 0;
-    transform: scale(0.65) translate3d(64px, 64px, 0);
-    filter: blur(2px);
+    transform: scale(0.85) translate3d(24px, 24px, 0);
   }
-  55% {
+  60% {
     opacity: 1;
-    transform: scale(1.016) translate3d(-1.5px, -1.5px, 0);
-    filter: blur(0px);
-  }
-  78% {
-    transform: scale(0.997) translate3d(0.5px, 0.5px, 0);
+    transform: scale(1.012) translate3d(-1px, -1px, 0);
   }
   100% {
     opacity: 1;
     transform: scale(1) translate3d(0, 0, 0);
-    filter: blur(0px);
   }
 }
 
@@ -3416,12 +3409,12 @@ tbody td {
    ========================================================================== */
 @keyframes appleQuickLookExpand {
   0% {
-    transform: scale(0.965);
-    opacity: 0.85;
-    filter: blur(1.5px);
+    transform: scale(0.92);
+    opacity: 0;
+    filter: blur(2px);
   }
-  50% {
-    transform: scale(1.004);
+  65% {
+    transform: scale(1.01);
     opacity: 1;
     filter: blur(0px);
   }
@@ -3434,27 +3427,25 @@ tbody td {
 
 @keyframes appleQuickLookShrink {
   0% {
-    transform: scale(1.02);
-    opacity: 0.9;
-  }
-  55% {
-    transform: scale(0.995);
+    transform: scale(1);
     opacity: 1;
   }
   100% {
-    transform: scale(1);
-    opacity: 1;
+    transform: scale(0.93);
+    opacity: 0;
   }
 }
 
 .apple-quicklook-morph-expand {
-  animation: appleQuickLookExpand 0.20s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: appleQuickLookExpand 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity, filter;
+  transform: translateZ(0);
 }
 
 .apple-quicklook-morph-shrink {
-  animation: appleQuickLookShrink 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: appleQuickLookShrink 0.20s cubic-bezier(0.3, 0, 0.8, 0.15) both;
   will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
 /* ==========================================================================
@@ -3472,21 +3463,23 @@ tbody td {
 
 @keyframes liquidBorderPulse {
   0%, 100% {
-    opacity: 0.9;
+    border-color: rgba(16, 185, 129, 0.45);
+    box-shadow: 0 0 14px rgba(16, 185, 129, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.8);
     transform: translateZ(0) scale(1);
   }
   50% {
-    opacity: 1;
-    transform: translateZ(0) scale(1.008);
+    border-color: rgba(16, 185, 129, 0.9);
+    box-shadow: 0 0 24px rgba(16, 185, 129, 0.5), inset 0 1.5px 2px rgba(255, 255, 255, 1);
+    transform: translateZ(0) scale(1.015);
   }
 }
 
 @keyframes liquidBtnAmbientGlow {
   0%, 100% {
-    opacity: 0.92;
+    box-shadow: 0 8px 24px -4px rgba(16, 185, 129, 0.45), 0 2px 8px rgba(0, 0, 0, 0.08), inset 0 1px 1.5px rgba(255, 255, 255, 0.6);
   }
   50% {
-    opacity: 1;
+    box-shadow: 0 12px 34px -2px rgba(16, 185, 129, 0.75), 0 4px 14px rgba(16, 185, 129, 0.35), inset 0 1.5px 2.5px rgba(255, 255, 255, 0.95);
   }
 }
 
@@ -3577,15 +3570,26 @@ tbody td {
   min-width: 44px;
 }
 
-/* Thermal, Battery & Accessibility Optimization — Zero CPU/GPU burn on reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+/* ==========================================================================
+   Universal Apple Tactile Button Motion — 120 FPS Composited Spring Physics
+   Guaranteed tactile squash and release feedback across all interactive buttons
+   ========================================================================== */
+button:not(:disabled):not([data-no-motion]),
+[role="button"]:not([aria-disabled="true"]):not([data-no-motion]) {
+  transition: transform var(--motion-duration-micro) var(--motion-ease-spring),
+              box-shadow var(--motion-duration-hover) var(--motion-ease-spring),
+              background-color var(--motion-duration-hover) var(--motion-ease-spring),
+              border-color var(--motion-duration-hover) var(--motion-ease-spring),
+              opacity var(--motion-duration-micro) var(--motion-ease-spring);
+  transform: translateZ(0);
 }
+
+button:not(:disabled):not([data-no-motion]):active,
+[role="button"]:not([aria-disabled="true"]):not([data-no-motion]):active {
+  transform: scale(0.97) translateZ(0);
+  transition-duration: var(--motion-duration-press);
+}
+
 
 
 
