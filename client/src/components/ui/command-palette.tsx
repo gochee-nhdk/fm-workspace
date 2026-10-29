@@ -30,6 +30,7 @@ import { useUiStore } from '@/stores/ui-store';
 import { useNoteStore } from '@/stores/note-store';
 import { cn } from '@/lib/utils';
 import { CloseButton } from '@/components/ui/close-button';
+import { toggleThemeWithIris } from '@/lib/themeTransition';
 
 export interface CommandPaletteProps {
   isOpen: boolean;
@@ -325,8 +326,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         iconBg: 'bg-violet-500/12 dark:bg-violet-500/20',
         iconColor: 'text-violet-600 dark:text-violet-400',
         action: () => {
-          setTheme(theme === 'dark' ? 'light' : 'dark');
           handleClose();
+          toggleThemeWithIris(theme === 'dark' ? 'light' : 'dark');
         },
       },
       {

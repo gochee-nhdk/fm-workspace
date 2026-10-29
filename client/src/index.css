@@ -354,21 +354,14 @@
     letter-spacing: -0.011em;
   }
 
-  /* Smooth Apple crossfade for light/dark theme transition without flashing or snapping */
+  /* Smooth Apple crossfade for light/dark theme transition when OS theme changes passively */
   html.theme-transition body,
   html.theme-transition header,
   html.theme-transition aside,
-  html.theme-transition main,
-  html.theme-transition .glass-container,
-  html.theme-transition .vision-glass-sidebar,
-  html.theme-transition table,
-  html.theme-transition tr,
-  html.theme-transition td,
-  html.theme-transition th {
-    transition: background-color var(--motion-duration-modal) var(--motion-ease-spring),
-                border-color var(--motion-duration-modal) var(--motion-ease-spring),
-                color var(--motion-duration-popover) var(--motion-ease-spring),
-                box-shadow var(--motion-duration-modal) var(--motion-ease-spring);
+  html.theme-transition main {
+    transition: background-color 200ms ease-out,
+                border-color 200ms ease-out,
+                color 200ms ease-out;
   }
 
   /* ==========================================================================
@@ -381,18 +374,18 @@
   }
 
   /* Light -> Dark: new dark layer is on top, blossoming outward */
-  ::view-transition-old(root) {
+  html[data-theme-transition="to-dark"]::view-transition-old(root) {
     z-index: 1;
   }
-  ::view-transition-new(root) {
+  html[data-theme-transition="to-dark"]::view-transition-new(root) {
     z-index: 999999;
   }
 
   /* Dark -> Light: old dark layer is on top, shrinking back into the button */
-  .dark::view-transition-old(root) {
+  html[data-theme-transition="to-light"]::view-transition-old(root) {
     z-index: 999999;
   }
-  .dark::view-transition-new(root) {
+  html[data-theme-transition="to-light"]::view-transition-new(root) {
     z-index: 1;
   }
 

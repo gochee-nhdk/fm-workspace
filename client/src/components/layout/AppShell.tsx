@@ -461,6 +461,7 @@ export const AppShell: React.FC = () => {
 
             {/* Theme Toggle — 3D Liquid Lens Circle Button with Expanding Circular Iris Transition */}
             <button
+              data-theme-toggle="true"
               onClick={(e) => toggleThemeWithIris(undefined, e)}
               className="liquid-lens-circle w-9 h-9 sm:w-10 sm:h-10 group cursor-pointer"
               title={

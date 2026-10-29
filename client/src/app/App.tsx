@@ -48,17 +48,19 @@ function ThemeSync() {
         return;
       }
 
-      // Smooth Apple crossfade when switching modes
+      // Passive theme switch (e.g. system preference or auto-time change)
       if (isCurrentlyDark !== willBeDark) {
-        root.classList.add('theme-transition');
+        if (!root.dataset.themeTransition) {
+          root.classList.add('theme-transition');
+          window.setTimeout(() => {
+            root.classList.remove('theme-transition');
+          }, 240);
+        }
         if (willBeDark) {
           root.classList.add('dark');
         } else {
           root.classList.remove('dark');
         }
-        window.setTimeout(() => {
-          root.classList.remove('theme-transition');
-        }, 320);
       }
     };
 
