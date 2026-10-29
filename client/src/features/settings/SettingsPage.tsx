@@ -19,6 +19,16 @@ import {
   SFArrowUpDocument,
   SFEye,
   SFEyeSlash,
+  SFClock,
+  SFDesktopcomputer,
+  SFLock,
+  SFLockOpen,
+  SFServerRack,
+  SFCheckmarkShieldFill,
+  SFCylinderSplit1x2,
+  SFKey,
+  SFBookmark,
+  SFBolt,
 } from 'sf-symbols-lib';
 import { Button } from '@/components/ui/button';
 import { dataService } from '@/services/dataService';
@@ -34,7 +44,6 @@ import { SegmentedNavigation } from '@/components/ui/SegmentedNavigation';
 import { useUiStore, resolveTheme } from '@/stores/ui-store';
 import { useSecurityStore } from '@/stores/security-store';
 import { useNoteStore } from '@/stores/note-store';
-import { Clock, Monitor, Lock, Unlock, Server, ShieldCheck, Database, KeyRound, Bookmark, Info, Zap } from 'lucide-react';
 import { formatBytes } from '@/lib/utils';
 import { useAppleTabSpring, useDirectionalTab } from '@/lib/motion';
 import toast from 'react-hot-toast';
@@ -114,7 +123,7 @@ export const ThemeSegmentedControl: React.FC = () => {
             : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
         }`}
       >
-        <Clock size={14} className={`transition-colors duration-160 shrink-0 ${theme === 'auto_time' ? 'text-purple-600 dark:text-purple-400' : ''}`} />
+        <SFClock size={14} className={`transition-colors duration-160 shrink-0 ${theme === 'auto_time' ? 'text-purple-600 dark:text-purple-400' : ''}`} />
         <span className="text-[12px] sm:text-[13px] whitespace-nowrap">Theo giờ</span>
       </button>
 
@@ -131,7 +140,7 @@ export const ThemeSegmentedControl: React.FC = () => {
             : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
         }`}
       >
-        <Monitor size={14} className={`transition-colors duration-160 shrink-0 ${theme === 'system' ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
+        <SFDesktopcomputer size={14} className={`transition-colors duration-160 shrink-0 ${theme === 'system' ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
         <span className="text-[12px] sm:text-[13px] whitespace-nowrap">Hệ thống</span>
       </button>
     </div>
@@ -661,7 +670,7 @@ export const SettingsPage: React.FC = () => {
                 </h3>
               </div>
               <div className="apple-badge-base apple-badge-success">
-                <Lock size={12} className="shrink-0" />
+                <SFLock size={12} className="shrink-0" />
                 <span>Mã Hoá AES-GCM-256</span>
               </div>
             </div>
@@ -677,7 +686,7 @@ export const SettingsPage: React.FC = () => {
             <div className="p-3.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/5 dark:border-white/5 space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-[12px] font-semibold text-[#1d1d1f] dark:text-white flex items-center gap-1.5">
-                  <Lock size={13} className="text-[#0071e3]" />
+                  <SFLock size={13} className="text-[#0071e3]" />
                   Mật khẩu bảo vệ file sao lưu (Tùy chọn mã hoá AES-GCM-256):
                 </label>
                 {exportPassword && (
@@ -971,13 +980,13 @@ export const SettingsPage: React.FC = () => {
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-4 border border-emerald-500/20 bg-emerald-500/[0.02]">
             <div className="flex items-center justify-between pb-3 border-b border-[#e0e0e0] dark:border-white/10 flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <Server size={18} className="text-emerald-600 dark:text-emerald-400" />
+                <SFServerRack size={18} className="text-emerald-600 dark:text-emerald-400" />
                 <h3 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-white">
                   Đồng Bộ Kép Đám Mây &amp; Phục Hồi Thảm Họa (Dual-Persistence Shield)
                 </h3>
               </div>
               <div className="apple-badge-base apple-badge-success">
-                <ShieldCheck size={14} className="shrink-0" />
+                <SFCheckmarkShieldFill size={14} className="shrink-0" />
                 <span>Bảo vệ chống mất dữ liệu đám mây</span>
               </div>
             </div>
@@ -1009,16 +1018,16 @@ export const SettingsPage: React.FC = () => {
                 </div>
 
                 <div className="apple-badge-base apple-badge-success text-[11px] font-medium py-1 px-2.5">
-                  <ShieldCheck size={12} className="shrink-0" />
+                  <SFCheckmarkShieldFill size={12} className="shrink-0" />
                   <span>4 Lớp Bảo Vệ Active</span>
                 </div>
               </div>
 
               {/* 4 Protection Pillars (Apple Micro-Card Grid) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
-                <div className="p-2.5 sm:p-3 rounded-xl bg-black/[0.025] dark:bg-white/[0.035] border border-black/[0.04] dark:border-white/[0.06] flex items-start gap-2.5">
+                <div className="p-2.5 sm:p-3 rounded-xl bg-black/[0.025] dark:bg-white/[0.035] border border-black/0.04] dark:border-white/[0.06] flex items-start gap-2.5">
                   <div className="w-7 h-7 rounded-lg bg-emerald-500/12 text-emerald-600 dark:bg-emerald-400/20 dark:text-emerald-300 flex items-center justify-center shrink-0 mt-0.5">
-                    <Zap size={14} />
+                    <SFBolt size={14} />
                   </div>
                   <div className="min-w-0">
                     <div className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
@@ -1032,7 +1041,7 @@ export const SettingsPage: React.FC = () => {
 
                 <div className="p-2.5 sm:p-3 rounded-xl bg-black/[0.025] dark:bg-white/[0.035] border border-black/[0.04] dark:border-white/[0.06] flex items-start gap-2.5">
                   <div className="w-7 h-7 rounded-lg bg-blue-500/12 text-blue-600 dark:bg-blue-400/20 dark:text-blue-300 flex items-center justify-center shrink-0 mt-0.5">
-                    <Clock size={14} />
+                    <SFClock size={14} />
                   </div>
                   <div className="min-w-0">
                     <div className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
@@ -1046,7 +1055,7 @@ export const SettingsPage: React.FC = () => {
 
                 <div className="p-2.5 sm:p-3 rounded-xl bg-black/[0.025] dark:bg-white/[0.035] border border-black/[0.04] dark:border-white/[0.06] flex items-start gap-2.5">
                   <div className="w-7 h-7 rounded-lg bg-purple-500/12 text-purple-600 dark:bg-purple-400/20 dark:text-purple-300 flex items-center justify-center shrink-0 mt-0.5">
-                    <Monitor size={14} />
+                    <SFDesktopcomputer size={14} />
                   </div>
                   <div className="min-w-0">
                     <div className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
@@ -1060,7 +1069,7 @@ export const SettingsPage: React.FC = () => {
 
                 <div className="p-2.5 sm:p-3 rounded-xl bg-black/[0.025] dark:bg-white/[0.035] border border-black/[0.04] dark:border-white/[0.06] flex items-start gap-2.5">
                   <div className="w-7 h-7 rounded-lg bg-indigo-500/12 text-indigo-600 dark:bg-indigo-400/20 dark:text-indigo-300 flex items-center justify-center shrink-0 mt-0.5">
-                    <Database size={14} />
+                    <SFCylinderSplit1x2 size={14} />
                   </div>
                   <div className="min-w-0">
                     <div className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
@@ -1080,7 +1089,7 @@ export const SettingsPage: React.FC = () => {
                 size="sm"
                 onClick={() => handleRestoreLatestServerBackup()}
                 disabled={isRestoringServer || serverHistory.length === 0}
-                icon={isRestoringServer ? <SFArrowClockwise size={16} className="animate-spin" /> : <Database size={16} />}
+                icon={isRestoringServer ? <SFArrowClockwise size={16} className="animate-spin" /> : <SFCylinderSplit1x2 size={16} />}
                 className="rounded-full px-4"
               >
                 {isRestoringServer ? 'Đang khôi phục...' : '⚡ Khôi Phục Từ Bản Sao Lưu Máy Chủ Gần Nhất'}
@@ -1091,7 +1100,7 @@ export const SettingsPage: React.FC = () => {
                 size="sm"
                 onClick={handleManualServerSync}
                 disabled={isSyncingServer}
-                icon={isSyncingServer ? <SFArrowClockwise size={16} className="animate-spin" /> : <Server size={16} className="text-emerald-600 dark:text-emerald-400" />}
+                icon={isSyncingServer ? <SFArrowClockwise size={16} className="animate-spin" /> : <SFServerRack size={16} className="text-emerald-600 dark:text-emerald-400" />}
                 className="rounded-full px-4"
               >
                 {isSyncingServer ? 'Đang sao lưu...' : 'Sao Lưu Ngay Lên Máy Chủ'}
@@ -1148,7 +1157,7 @@ export const SettingsPage: React.FC = () => {
                   ? 'apple-badge-success'
                   : 'apple-badge-warning'
               }`}>
-                {storageStatus.isPersisted ? <SFCheckmarkCircleFill size={12} /> : <Clock size={12} />}
+                {storageStatus.isPersisted ? <SFCheckmarkCircleFill size={12} /> : <SFClock size={12} />}
                 <span>{storageStatus.isPersisted ? 'Đã kích hoạt bảo vệ' : 'Chưa bật bảo vệ'}</span>
               </div>
             </div>
@@ -1189,7 +1198,7 @@ export const SettingsPage: React.FC = () => {
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#e0e0e0] dark:border-white/10 flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <Lock size={18} className="text-[#0071e3] dark:text-[#2997ff]" />
+                <SFLock size={18} className="text-[#0071e3] dark:text-[#2997ff]" />
                 <h3 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-white">
                   Khóa Màn Hình Cục Bộ (Local Privacy Lock / Screen Shield)
                 </h3>
@@ -1199,7 +1208,7 @@ export const SettingsPage: React.FC = () => {
                   ? 'apple-badge-success'
                   : 'apple-badge-neutral'
               }`}>
-                {isLockEnabled ? <SFCheckmarkCircleFill size={12} /> : <Lock size={12} />}
+                {isLockEnabled ? <SFCheckmarkCircleFill size={12} /> : <SFLock size={12} />}
                 <span>{isLockEnabled ? 'Đã bật mã PIN bảo vệ' : 'Chưa cài đặt mã PIN'}</span>
               </div>
             </div>
@@ -1239,7 +1248,7 @@ export const SettingsPage: React.FC = () => {
                         setPinConfirmInput('');
                         setShowPinSetupModal(true);
                       }}
-                      icon={<KeyRound size={14} className="text-[#0071e3] dark:text-[#2997ff]" />}
+                      icon={<SFKey size={14} className="text-[#0071e3] dark:text-[#2997ff]" />}
                       className="rounded-full px-4 text-xs font-medium"
                     >
                       Đổi Mã PIN
@@ -1252,7 +1261,7 @@ export const SettingsPage: React.FC = () => {
                         setPinRemoveMismatch(false);
                         setShowPinRemoveModal(true);
                       }}
-                      icon={<Unlock size={14} />}
+                      icon={<SFLockOpen size={14} />}
                       className="rounded-full px-4 text-xs font-medium shadow-xs"
                     >
                       Gỡ Bỏ Mã PIN
@@ -1267,7 +1276,7 @@ export const SettingsPage: React.FC = () => {
                       setPinConfirmInput('');
                       setShowPinSetupModal(true);
                     }}
-                    icon={<KeyRound size={15} />}
+                    icon={<SFKey size={15} />}
                     className="rounded-full px-5 text-xs font-medium"
                   >
                     Cài Đặt Mã PIN Bảo Vệ
@@ -1502,7 +1511,7 @@ export const SettingsPage: React.FC = () => {
       >
         <div className="flex items-center gap-2.5 text-[#1d1d1f] dark:text-white">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-b from-[#0071e3]/15 to-[#0071e3]/5 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center border border-[#0071e3]/20 shadow-xs">
-            <Lock size={18} />
+            <SFLock size={18} />
           </div>
           <div>
             <h3 className="font-semibold text-[15px]">Mở Khóa Tệp Sao Lưu</h3>
