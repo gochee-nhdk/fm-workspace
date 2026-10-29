@@ -2284,24 +2284,31 @@ export const QuickNoteWindow: React.FC = () => {
         const firstRect = lineRects.length > 0 ? lineRects[0] : { top: minTop, left: minLeft, width: maxRight - minLeft, height: 20 };
         const lastRect = lineRects.length > 0 ? lineRects[lineRects.length - 1] : firstRect;
 
-        const toolbarHeight = 40;
-        const toolbarHalfWidth = 145;
+        const toolbarHeight = 38;
+        const toolbarWidth = 330;
+        const toolbarHalfWidth = toolbarWidth / 2;
 
-        // Ưu tiên 1: Đặt phía trên dòng đầu tiên của vùng chọn
-        let top = firstRect.top - toolbarHeight - 8;
-        let centerX = firstRect.left + firstRect.width / 2;
+        const lastCharX = lastRect.left + lastRect.width;
+        const spaceOnRight = canvasRect.width - (lastCharX + 10);
 
-        // Nếu không đủ chỗ phía trên dòng đầu tiên (sát mép trên của editor)
-        if (top < 4) {
-          // Thử đặt phía dưới dòng cuối cùng của vùng chọn nếu vừa với khung
-          const belowBottom = lastRect.top + lastRect.height + 8;
-          if (belowBottom + toolbarHeight <= canvasRect.height - 4) {
-            top = belowBottom;
-            centerX = lastRect.left + lastRect.width / 2;
+        let top = lastRect.top;
+        let centerX = lastCharX + 10 + toolbarHalfWidth;
+
+        // Ưu tiên cao nhất: Đặt thanh công cụ ngay đằng sau ký tự cuối cùng của vùng chọn trên cùng dòng
+        if (spaceOnRight >= toolbarWidth + 12) {
+          centerX = lastCharX + 10 + toolbarHalfWidth;
+          // Căn top từ lastRect.top trở xuống để TUYỆT ĐỐI không che dòng văn bản phía trên
+          top = Math.max(4, Math.min(canvasRect.height - toolbarHeight - 8, lastRect.top));
+        } else {
+          // Nếu cuối dòng sát mép phải: đặt ngay bên dưới dòng cuối cùng của đoạn bôi đen
+          const belowLastLine = lastRect.top + lastRect.height + 8;
+          if (belowLastLine + toolbarHeight <= canvasRect.height - 8) {
+            top = belowLastLine;
+            centerX = Math.max(toolbarHalfWidth + 12, Math.min(canvasRect.width - toolbarHalfWidth - 12, lastCharX));
           } else {
-            // Vùng chọn phủ dài từ trên xuống dưới toàn bộ khung: Đặt lơ lửng ngay phía trên canvas để TUYỆT ĐỐI không che chữ đang đọc
-            top = -toolbarHeight - 6;
-            centerX = canvasRect.width / 2;
+            // Trường hợp sát đáy canvas: đặt phía trên vùng chọn
+            top = Math.max(4, firstRect.top - toolbarHeight - 8);
+            centerX = Math.max(toolbarHalfWidth + 12, Math.min(canvasRect.width - toolbarHalfWidth - 12, lastCharX));
           }
         }
 
@@ -5695,46 +5702,19 @@ export const QuickNoteWindow: React.FC = () => {
                     );
                   })()}
 
-                  {/* Classic Apple Liquid Glass Clean Draft Card (Smart Clamped, Never Cut Off) */}
+                  {/* Classic Apple Liquid Glass Clean Draft Card (Always 100% Fully Visible, Action Buttons Never Cut Off) */}
                   {aiDraft && (() => {
                     const canvasW = canvasRef.current?.clientWidth || 500;
                     const canvasH = canvasRef.current?.clientHeight || 450;
                     const cardWidth = Math.min(460, Math.max(300, canvasW - 24));
-                    const cardMinHeight = 180;
-                    const verticalGap = 10;
-
-                    let topStyle: string | undefined = undefined;
-                    let bottomStyle: string | undefined = undefined;
-                    let calculatedMaxHeight = Math.min(260, canvasH - 24);
-
-                    if (selectionBounds) {
-                      const spaceBelow = canvasH - selectionBounds.bottom;
-                      const spaceAbove = selectionBounds.top;
-
-                      if (spaceBelow >= cardMinHeight + verticalGap + 10) {
-                        // Fits comfortably below selection
-                        topStyle = `${selectionBounds.bottom + verticalGap}px`;
-                        calculatedMaxHeight = Math.min(260, spaceBelow - verticalGap - 10);
-                      } else if (spaceAbove >= cardMinHeight + verticalGap + 10) {
-                        // Fits comfortably above selection
-                        bottomStyle = `${canvasH - selectionBounds.top + verticalGap}px`;
-                        calculatedMaxHeight = Math.min(260, spaceAbove - verticalGap - 10);
-                      } else {
-                        // Fallback: Pin near bottom of canvas with safe clearance so buttons are always visible
-                        bottomStyle = '12px';
-                        calculatedMaxHeight = Math.min(240, canvasH - 32);
-                      }
-                    } else {
-                      bottomStyle = '12px';
-                      calculatedMaxHeight = Math.min(240, canvasH - 32);
-                    }
+                    // Luôn giới hạn chiều cao tối đa an toàn trong canvas để đảm bảo thanh nút luôn nằm trọn vẹn trong màn hình
+                    const calculatedMaxHeight = Math.min(230, Math.max(160, canvasH - 24));
 
                     return (
                       <div
                         className="absolute z-50 p-3 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-purple-500/25 dark:border-purple-400/35 shadow-[0_20px_50px_rgba(0,0,0,0.22),0_4px_24px_rgba(168,85,247,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none animate-in fade-in zoom-in-95 duration-180 flex flex-col gap-2 max-w-[calc(100%-24px)]"
                         style={{
-                          top: topStyle,
-                          bottom: bottomStyle,
+                          bottom: '10px',
                           left: '50%',
                           width: `${cardWidth}px`,
                           maxHeight: `${calculatedMaxHeight}px`,
@@ -5759,8 +5739,8 @@ export const QuickNoteWindow: React.FC = () => {
                           />
                         </div>
 
-                        {/* Content Preview inside clean inset glass box (flex-1 overflow-y-auto) */}
-                        <div className="text-[13px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1 min-h-[60px]">
+                        {/* Content Preview inside clean inset glass box (flex-1 overflow-y-auto min-h-0 max-h-[110px]) */}
+                        <div className="text-[13px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1 min-h-0 max-h-[110px]">
                           {aiDraft.result}
                         </div>
 

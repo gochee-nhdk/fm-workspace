@@ -525,7 +525,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
         <div
           className={cn(
             'absolute inset-0 z-30 rounded-2xl flex items-center justify-center p-2.5',
-            'bg-black/20 dark:bg-black/45 backdrop-blur-xs',
+            'bg-white/45 dark:bg-black/25 backdrop-blur-[2px]',
             'transition-opacity duration-200 ease-out',
             isSubPickerExiting
               ? 'opacity-0 pointer-events-none'
@@ -536,7 +536,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
           <div
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              'w-full p-3 rounded-2xl bg-white/98 dark:bg-[#252528]/98 backdrop-blur-2xl shadow-[0_16px_40px_rgba(0,0,0,0.3)] border border-black/10 dark:border-white/15 flex flex-col gap-2',
+              'w-full p-3 rounded-2xl bg-white/95 dark:bg-[#252528]/95 backdrop-blur-2xl shadow-[0_12px_32px_rgba(0,0,0,0.12)] border border-black/8 dark:border-white/12 flex flex-col gap-2',
               'transition-all duration-200 ease-out',
               isSubPickerExiting
                 ? 'scale-95 opacity-0'
@@ -707,7 +707,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
               'fixed inset-0 z-[10030] pointer-events-auto select-none',
               popoverCoords
                 ? 'overflow-visible'
-                : 'flex items-center justify-center p-4 bg-black/25 dark:bg-black/50 backdrop-blur-xs'
+                : 'flex items-center justify-center p-4 bg-black/15 dark:bg-black/40 backdrop-blur-xs'
             )}
             onClick={() => setIsOpen(false)}
           >
