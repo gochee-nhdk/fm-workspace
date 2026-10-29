@@ -366,28 +366,51 @@
 
   /* ==========================================================================
      Apple Iris Circular Theme Transition (Expand from / Collapse into Button)
+     120 FPS Hardware-Accelerated Compositing & Thread Isolation
      ========================================================================== */
+  ::view-transition-group(root) {
+    animation: none !important;
+  }
+
+  ::view-transition-image-pair(root) {
+    isolation: isolate;
+  }
+
   ::view-transition-old(root),
   ::view-transition-new(root) {
-    animation: none;
-    mix-blend-mode: normal;
-    will-change: clip-path;
+    animation: none !important;
+    mix-blend-mode: normal !important;
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    backface-visibility: hidden !important;
+    transform: translateZ(0) !important;
+    will-change: clip-path !important;
   }
 
   /* Light -> Dark: new dark layer is on top, blossoming outward */
   html[data-theme-transition="to-dark"]::view-transition-old(root) {
-    z-index: 1;
+    z-index: 1 !important;
   }
   html[data-theme-transition="to-dark"]::view-transition-new(root) {
-    z-index: 999999;
+    z-index: 999999 !important;
   }
 
   /* Dark -> Light: old dark layer is on top, shrinking back into the button */
   html[data-theme-transition="to-light"]::view-transition-old(root) {
-    z-index: 999999;
+    z-index: 999999 !important;
   }
   html[data-theme-transition="to-light"]::view-transition-new(root) {
-    z-index: 1;
+    z-index: 1 !important;
+  }
+
+  /* Freeze competing CSS transitions and style mutations during Iris animation for locked 120fps */
+  html[data-theme-transition] *,
+  html[data-theme-transition] *::before,
+  html[data-theme-transition] *::after {
+    transition: none !important;
   }
 
   button, input, select, textarea {

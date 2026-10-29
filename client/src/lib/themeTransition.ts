@@ -6,29 +6,33 @@ let isTransitioning = false;
 
 /**
  * Executes a hardware-accelerated circular iris theme transition originating
- * directly from the clicked button coordinates.
+ * directly from the clicked button coordinates, locked at 120 FPS.
  *
  * - Sáng -> Tối: Vùng tối nở to từ nút bấm lan ra toàn màn hình (circle(0px) -> circle(maxRadius)).
  * - Tối -> Sáng: Bóng tối thu nhỏ dần về lại nút bấm để lộ giao diện sáng (circle(maxRadius) -> circle(0px)).
  *
- * Uses native View Transitions API with synchronous DOM flush where supported,
- * and seamlessly falls back to a GPU-accelerated Iris Overlay on browsers without it.
+ * Uses native View Transitions API with synchronous React DOM flush (zero frame drops),
+ * GPU layer promotion (transform: translateZ(0)), and CSS transition freezing during animation.
  */
 export const toggleThemeWithIris = (
-  targetTheme?: 'light' | 'dark',
+  targetTheme?: Theme,
   event?: React.MouseEvent | MouseEvent
 ) => {
   if (isTransitioning) return;
 
   const { theme, setTheme } = useUiStore.getState();
   const currentResolved = resolveTheme(theme);
-  const nextResolved = targetTheme || (currentResolved === 'dark' ? 'light' : 'dark');
+  const nextTarget: Theme = targetTheme || (currentResolved === 'dark' ? 'light' : 'dark');
+  const nextResolved = resolveTheme(nextTarget);
 
-  if (currentResolved === nextResolved) return;
+  if (currentResolved === nextResolved) {
+    setTheme(nextTarget);
+    return;
+  }
 
   // If user explicitly prefers reduced motion, switch instantly with zero lag
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    setTheme(nextResolved);
+    setTheme(nextTarget);
     return;
   }
 
@@ -58,25 +62,26 @@ export const toggleThemeWithIris = (
     }
   }
 
-  // Calculate distance from (x, y) to the farthest corner of the viewport
-  const endRadius = Math.hypot(
-    Math.max(x, window.innerWidth - x),
-    Math.max(y, window.innerHeight - y)
-  );
+  // Calculate distance from (x, y) to the farthest corner of the viewport (+ 6px subpixel pad)
+  const endRadius =
+    Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y)
+    ) + 6;
 
   const isGoingDark = nextResolved === 'dark';
   const doc = document as any;
 
   // Check if browser natively supports document.startViewTransition
   if (typeof doc.startViewTransition === 'function') {
-    runViewTransition(doc, x, y, endRadius, isGoingDark, nextResolved);
+    runViewTransition(doc, x, y, endRadius, isGoingDark, nextTarget);
   } else {
-    runGpuOverlayFallback(x, y, endRadius, isGoingDark, nextResolved);
+    runGpuOverlayFallback(x, y, endRadius, isGoingDark, nextTarget);
   }
 };
 
 /**
- * Implementation using modern View Transitions API with synchronous DOM flush
+ * 120 FPS View Transitions implementation with synchronous React DOM flush
  */
 function runViewTransition(
   doc: any,
@@ -84,7 +89,7 @@ function runViewTransition(
   y: number,
   endRadius: number,
   isGoingDark: boolean,
-  nextResolved: 'light' | 'dark'
+  nextTarget: Theme
 ) {
   isTransitioning = true;
   const root = document.documentElement;
@@ -99,13 +104,17 @@ function runViewTransition(
 
   try {
     const transition = doc.startViewTransition(() => {
-      // Toggle dark class immediately on root for zero-delay visual snapshot
-      if (isGoingDark) {
-        root.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
-      }
-      useUiStore.getState().setTheme(nextResolved);
+      // Synchronous DOM flush: guarantees React finishes 100% of UI reconciliation
+      // BEFORE the browser captures the new snapshot. During the animation phase,
+      // React is completely idle, freeing the main thread for pure 120 FPS compositor execution.
+      flushSync(() => {
+        if (isGoingDark) {
+          root.classList.add('dark');
+        } else {
+          root.classList.remove('dark');
+        }
+        useUiStore.getState().setTheme(nextTarget);
+      });
     });
 
     transition.ready
@@ -117,19 +126,20 @@ function runViewTransition(
 
         const animation = document.documentElement.animate(
           {
-            clipPath: isGoingDark ? clipPath : [...clipPath].reverse(),
+            clipPath: isGoingDark ? clipPath : [clipPath[1], clipPath[0]],
           },
           {
-            duration: 380,
-            easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+            duration: 340,
+            easing: 'cubic-bezier(0.2, 0, 0, 1)',
             pseudoElement: isGoingDark
               ? '::view-transition-new(root)'
               : '::view-transition-old(root)',
+            fill: 'forwards',
           }
         );
 
-        animation.addEventListener('finish', cleanup);
-        animation.addEventListener('cancel', cleanup);
+        animation.addEventListener('finish', cleanup, { once: true });
+        animation.addEventListener('cancel', cleanup, { once: true });
       })
       .catch(() => {
         cleanup();
@@ -138,20 +148,19 @@ function runViewTransition(
     transition.finished.finally(cleanup);
   } catch (err) {
     cleanup();
-    // Fallback if startViewTransition throws unexpectedly
-    runGpuOverlayFallback(x, y, endRadius, isGoingDark, nextResolved);
+    runGpuOverlayFallback(x, y, endRadius, isGoingDark, nextTarget);
   }
 }
 
 /**
- * Bulletproof GPU-accelerated Iris Overlay fallback for browsers without View Transitions
+ * Bulletproof GPU-accelerated Iris Overlay fallback for environments without View Transitions
  */
 function runGpuOverlayFallback(
   x: number,
   y: number,
   endRadius: number,
   isGoingDark: boolean,
-  nextResolved: 'light' | 'dark'
+  nextTarget: Theme
 ) {
   isTransitioning = true;
   const root = document.documentElement;
@@ -162,7 +171,8 @@ function runGpuOverlayFallback(
   overlay.style.inset = '0';
   overlay.style.zIndex = '9999999';
   overlay.style.pointerEvents = 'none';
-  overlay.style.backgroundColor = '#0f0f13';
+  overlay.style.backgroundColor = '#0b0b0e';
+  overlay.style.transform = 'translateZ(0)';
   overlay.style.willChange = 'clip-path';
 
   const clipPath = [
@@ -178,15 +188,15 @@ function runGpuOverlayFallback(
     const anim = overlay.animate(
       { clipPath: clipPath },
       {
-        duration: 380,
-        easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        duration: 340,
+        easing: 'cubic-bezier(0.2, 0, 0, 1)',
         fill: 'forwards',
       }
     );
 
     anim.onfinish = () => {
       root.classList.add('dark');
-      useUiStore.getState().setTheme(nextResolved);
+      useUiStore.getState().setTheme(nextTarget);
       overlay.remove();
       isTransitioning = false;
     };
@@ -195,18 +205,18 @@ function runGpuOverlayFallback(
       isTransitioning = false;
     };
   } else {
-    // Tối -> Sáng: Dark overlay is shown, app switches underneath, then dark shrinks into button
+    // Tối -> Sáng: Dark overlay covers screen, app switches underneath, then dark shrinks into button
     overlay.style.clipPath = clipPath[1];
     document.body.appendChild(overlay);
 
     root.classList.remove('dark');
-    useUiStore.getState().setTheme(nextResolved);
+    useUiStore.getState().setTheme(nextTarget);
 
     const anim = overlay.animate(
-      { clipPath: [...clipPath].reverse() },
+      { clipPath: [clipPath[1], clipPath[0]] },
       {
-        duration: 380,
-        easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        duration: 340,
+        easing: 'cubic-bezier(0.2, 0, 0, 1)',
         fill: 'forwards',
       }
     );

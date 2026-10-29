@@ -117,7 +117,7 @@ export const ThemeSegmentedControl: React.FC = () => {
         role="tab"
         aria-selected={theme === 'auto_time'}
         data-tab-id="auto_time"
-        onClick={() => setTheme('auto_time')}
+        onClick={(e) => toggleThemeWithIris('auto_time', e)}
         className={`relative z-10 py-2 sm:py-2.5 px-1 sm:px-3 rounded-xl transition-colors duration-160 cursor-pointer flex items-center justify-center gap-1 sm:gap-2 active:scale-[0.98] select-none ${
           theme === 'auto_time'
             ? 'text-purple-600 dark:text-purple-400 font-semibold drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.8)] dark:drop-shadow-none'
@@ -134,7 +134,7 @@ export const ThemeSegmentedControl: React.FC = () => {
         role="tab"
         aria-selected={theme === 'system'}
         data-tab-id="system"
-        onClick={() => setTheme('system')}
+        onClick={(e) => toggleThemeWithIris('system', e)}
         className={`relative z-10 py-2 sm:py-2.5 px-1 sm:px-3 rounded-xl transition-colors duration-160 cursor-pointer flex items-center justify-center gap-1 sm:gap-2 active:scale-[0.98] select-none ${
           theme === 'system'
             ? 'text-emerald-600 dark:text-emerald-400 font-semibold drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.8)] dark:drop-shadow-none'
