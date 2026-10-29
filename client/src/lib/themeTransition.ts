@@ -1,4 +1,3 @@
-import { flushSync } from 'react-dom';
 import { resolveTheme, useUiStore, Theme } from '@/stores/ui-store';
 
 /** Guard against rapid spam-clicking while animation is in flight */
@@ -100,17 +99,12 @@ function runViewTransition(
 
   try {
     const transition = doc.startViewTransition(() => {
-      // Synchronous DOM flush: guarantees React finishes 100% of UI reconciliation
-      // BEFORE the browser captures the new snapshot. During the animation phase,
-      // React is completely idle, freeing the main thread for pure 120 FPS compositor execution.
-      flushSync(() => {
-        if (isGoingDark) {
-          root.classList.add('dark');
-        } else {
-          root.classList.remove('dark');
-        }
-        useUiStore.getState().setTheme(nextTarget);
-      });
+      if (isGoingDark) {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+      useUiStore.getState().setTheme(nextTarget);
     });
 
     transition.ready
@@ -125,8 +119,8 @@ function runViewTransition(
             clipPath: isGoingDark ? clipPath : [clipPath[1], clipPath[0]],
           },
           {
-            duration: 340,
-            easing: 'cubic-bezier(0.2, 0, 0, 1)',
+            duration: 300,
+            easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
             pseudoElement: isGoingDark
               ? '::view-transition-new(root)'
               : '::view-transition-old(root)',

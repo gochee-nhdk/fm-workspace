@@ -5693,46 +5693,30 @@ export const QuickNoteWindow: React.FC = () => {
 
                   {/* Classic Apple Liquid Glass Clean Draft Card (Spacious, Fully Readable & Expandable) */}
                   {aiDraft && (() => {
-                    const canvasW = canvasRef.current?.clientWidth || 500;
-                    const canvasH = canvasRef.current?.clientHeight || 420;
-                    // Mở rộng bề ngang card để đọc văn bản thoải mái, không bị bóp nghẽn dòng
-                    const cardWidth = Math.min(560, Math.max(340, canvasW - 24));
-                    // Chiều cao mục tiêu tối ưu theo không gian thực tế của canvas
-                    const targetCardHeight = Math.min(270, Math.max(185, canvasH - 28));
-
-                    let top = 8;
-                    if (selectionBounds) {
-                      const spaceBelow = canvasH - selectionBounds.bottom;
-                      // Ưu tiên 1: Đặt ngay bên dưới vùng chọn để người dùng đối chiếu trực tiếp văn bản gốc và bản dịch
-                      if (spaceBelow >= targetCardHeight + 10) {
-                        top = selectionBounds.bottom + 8;
-                      } else if (selectionBounds.top >= targetCardHeight + 10) {
-                        // Nếu bên dưới không đủ chỗ: Đặt ngay phía trên vùng chọn
-                        top = selectionBounds.top - targetCardHeight - 8;
-                      } else {
-                        // Vùng chọn phủ dài: Ghim an toàn trong canvas để nút chức năng luôn hiển thị 100%
-                        top = Math.max(6, canvasH - targetCardHeight - 8);
-                      }
-                    } else {
-                      top = Math.max(6, canvasH - targetCardHeight - 8);
-                    }
-
-                    // Khóa an toàn 2 đầu tuyệt đối: Không bao giờ vượt quá đỉnh và không bao giờ tràn đáy
-                    top = Math.max(6, Math.min(canvasH - targetCardHeight - 8, top));
-                    const calculatedMaxHeight = Math.min(targetCardHeight, Math.max(160, canvasH - top - 8));
-                    const contentMaxHeight = Math.max(95, calculatedMaxHeight - 88);
-
                     return (
                       <div
-                        className="absolute z-50 p-3 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-purple-500/25 dark:border-purple-400/35 shadow-[0_20px_50px_rgba(0,0,0,0.22),0_4px_24px_rgba(168,85,247,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none flex flex-col gap-2 will-change-[top,width,height] apple-quicklook-morph-expand"
-                        style={{
-                          top: isDraftExpanded ? '8px' : `${top}px`,
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          width: `${isDraftExpanded ? Math.max(340, canvasW - 16) : cardWidth}px`,
-                          height: `${isDraftExpanded ? Math.max(200, canvasH - 16) : calculatedMaxHeight}px`,
-                          transition: 'top 300ms cubic-bezier(0.16, 1, 0.3, 1), width 300ms cubic-bezier(0.16, 1, 0.3, 1), height 300ms cubic-bezier(0.16, 1, 0.3, 1)',
-                        }}
+                        className="absolute z-50 p-3.5 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-purple-500/30 dark:border-purple-400/40 shadow-[0_20px_50px_rgba(0,0,0,0.22),0_4px_24px_rgba(168,85,247,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none flex flex-col gap-2.5 transition-[top,bottom,left,right,max-width,max-height,border-radius] duration-280 ease-[cubic-bezier(0.16,1,0.3,1)] apple-draft-card-enter"
+                        style={
+                          isDraftExpanded
+                            ? {
+                                top: '8px',
+                                bottom: '8px',
+                                left: '8px',
+                                right: '8px',
+                                maxWidth: 'none',
+                                maxHeight: 'none',
+                                height: 'auto',
+                              }
+                            : {
+                                bottom: '8px',
+                                left: '12px',
+                                right: '12px',
+                                maxWidth: '560px',
+                                margin: '0 auto',
+                                maxHeight: 'min(310px, calc(100% - 16px))',
+                                height: 'auto',
+                              }
+                        }
                       >
                         {/* Header (shrink-0) */}
                         <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-black/[0.06] dark:border-white/10 shrink-0">
