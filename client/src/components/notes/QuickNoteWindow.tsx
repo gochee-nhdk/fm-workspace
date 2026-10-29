@@ -4747,7 +4747,7 @@ export const QuickNoteWindow: React.FC = () => {
         )}
 
         {/* ───────── Main Editor Column ───────── */}
-        <div className="flex-1 flex flex-col min-w-0 relative">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden relative">
           {/* Apple Window Title Bar */}
           <div
             onMouseDown={handleCompactHeaderMouseDown}
@@ -5006,7 +5006,7 @@ export const QuickNoteWindow: React.FC = () => {
               </div>
             ) : (
             <div className={cn(
-              "flex-1 flex flex-col overflow-hidden apple-note-canvas font-sans bg-transparent dark:bg-[#16161e]",
+              "flex-1 flex flex-col min-h-0 overflow-hidden apple-note-canvas font-sans bg-transparent dark:bg-[#16161e]",
               isCompactWindow ? "pt-3.5 pb-2.5 px-4" : "p-5 sm:p-6"
             )}>
               {/* Title input - Apple macOS 27 Title 1 Typography */}
@@ -5641,7 +5641,7 @@ export const QuickNoteWindow: React.FC = () => {
                       border: 'none',
                       outline: 'none',
                       boxShadow: 'none',
-                      paddingBottom: aiDraft ? '260px' : undefined,
+                      paddingBottom: '24px',
                     }}
                   />
 
@@ -5705,16 +5705,36 @@ export const QuickNoteWindow: React.FC = () => {
                   {/* Classic Apple Liquid Glass Clean Draft Card (Always 100% Fully Visible, Action Buttons Never Cut Off) */}
                   {aiDraft && (() => {
                     const canvasW = canvasRef.current?.clientWidth || 500;
-                    const canvasH = canvasRef.current?.clientHeight || 450;
+                    const canvasH = canvasRef.current?.clientHeight || 400;
                     const cardWidth = Math.min(460, Math.max(300, canvasW - 24));
-                    // Luôn giới hạn chiều cao tối đa an toàn trong canvas để đảm bảo thanh nút luôn nằm trọn vẹn trong màn hình
-                    const calculatedMaxHeight = Math.min(230, Math.max(160, canvasH - 24));
+                    const cardHeight = 185;
+
+                    let top = 8;
+                    if (selectionBounds) {
+                      const spaceBelow = canvasH - selectionBounds.bottom;
+                      // Ưu tiên 1: Đặt ngay bên dưới vùng chọn để người dùng đối chiếu trực tiếp văn bản gốc và bản dịch
+                      if (spaceBelow >= cardHeight + 10) {
+                        top = selectionBounds.bottom + 8;
+                      } else if (selectionBounds.top >= cardHeight + 10) {
+                        // Nếu bên dưới không đủ chỗ: Đặt ngay phía trên vùng chọn
+                        top = selectionBounds.top - cardHeight - 8;
+                      } else {
+                        // Vùng chọn phủ dài: Ghim an toàn cách đáy canvas để nút chức năng luôn hiển thị 100%
+                        top = Math.max(6, canvasH - cardHeight - 8);
+                      }
+                    } else {
+                      top = Math.max(6, canvasH - cardHeight - 8);
+                    }
+
+                    // Khóa an toàn 2 đầu tuyệt đối: Không bao giờ vượt quá đỉnh và không bao giờ tràn đáy
+                    top = Math.max(6, Math.min(canvasH - cardHeight - 8, top));
+                    const calculatedMaxHeight = Math.min(cardHeight, Math.max(150, canvasH - top - 8));
 
                     return (
                       <div
-                        className="absolute z-50 p-3 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-purple-500/25 dark:border-purple-400/35 shadow-[0_20px_50px_rgba(0,0,0,0.22),0_4px_24px_rgba(168,85,247,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none animate-in fade-in zoom-in-95 duration-180 flex flex-col gap-2 max-w-[calc(100%-24px)]"
+                        className="absolute z-50 p-2.5 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-purple-500/25 dark:border-purple-400/35 shadow-[0_20px_50px_rgba(0,0,0,0.22),0_4px_24px_rgba(168,85,247,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none animate-in fade-in zoom-in-95 duration-180 flex flex-col gap-1.5 max-w-[calc(100%-24px)]"
                         style={{
-                          bottom: '10px',
+                          top: `${top}px`,
                           left: '50%',
                           width: `${cardWidth}px`,
                           maxHeight: `${calculatedMaxHeight}px`,
@@ -5722,7 +5742,7 @@ export const QuickNoteWindow: React.FC = () => {
                         }}
                       >
                         {/* Header (shrink-0) */}
-                        <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-black/[0.06] dark:border-white/10 shrink-0">
+                        <div className="flex items-center justify-between gap-2 pb-1 border-b border-black/[0.06] dark:border-white/10 shrink-0">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="w-5 h-5 rounded-lg bg-gradient-to-tr from-[#6366f1] via-[#a855f7] to-[#ec4899] text-white flex items-center justify-center shadow-xs shrink-0">
                               <SFWandAndSparkles size={11} className="text-white" />
@@ -5739,13 +5759,13 @@ export const QuickNoteWindow: React.FC = () => {
                           />
                         </div>
 
-                        {/* Content Preview inside clean inset glass box (flex-1 overflow-y-auto min-h-0 max-h-[110px]) */}
-                        <div className="text-[13px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1 min-h-0 max-h-[110px]">
+                        {/* Content Preview inside clean inset glass box (flex-1 overflow-y-auto min-h-0 max-h-[85px]) */}
+                        <div className="text-[13px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text overflow-y-auto scrollbar-thin pr-1 whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-2 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1 min-h-0 max-h-[85px]">
                           {aiDraft.result}
                         </div>
 
                         {/* Action buttons bar (ALWAYS shrink-0 so it is NEVER cut off) */}
-                        <div className="flex items-center justify-end gap-1.5 pt-1.5 border-t border-black/[0.04] dark:border-white/[0.06] shrink-0">
+                        <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-black/[0.04] dark:border-white/[0.06] shrink-0">
                           <button
                             type="button"
                             onClick={handleCopyAiDraft}
