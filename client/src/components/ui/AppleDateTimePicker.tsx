@@ -6,8 +6,11 @@ import {
   SFChevronLeft,
   SFChevronRight,
   SFCheckmark,
+  SFCalendar,
+  SFChevronDown,
+  SFChevronUp,
+  SFXmark,
 } from '@/components/ui/AppleIcon';
-import { Calendar as CalendarIcon, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
 
 export interface AppleDateTimePickerProps {
@@ -495,7 +498,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
               className="w-3.5 h-2.5 flex items-center justify-center text-[#86868b] hover:text-[#0071e3] transition-colors cursor-pointer"
               title="Tăng 5 phút"
             >
-              <ChevronUp size={10} />
+              <SFChevronUp size={10} />
             </button>
             <button
               type="button"
@@ -503,7 +506,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
               className="w-3.5 h-2.5 flex items-center justify-center text-[#86868b] hover:text-[#0071e3] transition-colors cursor-pointer"
               title="Giảm 5 phút"
             >
-              <ChevronDown size={10} />
+              <SFChevronDown size={10} />
             </button>
           </div>
         </div>
@@ -579,7 +582,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
                 className="w-6 h-6 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer active:scale-90"
                 title="Đóng"
               >
-                <X size={12} />
+                <SFXmark size={12} />
               </button>
             </div>
 
@@ -676,7 +679,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
         )}
       >
         <span className="flex items-center gap-2 truncate">
-          <CalendarIcon size={14} className="text-[#0071e3] dark:text-[#2997ff] shrink-0" />
+          <SFCalendar size={14} className="text-[#0071e3] dark:text-[#2997ff] shrink-0" />
           <span className="truncate font-semibold">
             {formatVietnameseDateDisplay(currentDate)}
           </span>
@@ -687,7 +690,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
           </span>
         </span>
 
-        <ChevronDown
+        <SFChevronDown
           size={14}
           className={cn(
             'text-[#86868b] transition-transform duration-200 shrink-0 ml-2',

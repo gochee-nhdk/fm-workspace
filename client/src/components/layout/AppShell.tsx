@@ -15,7 +15,7 @@ import {
   SFSquareAndPencil,
 } from '@/components/ui/AppleIcon';
 import { CommandPalette } from '@/components/ui/command-palette';
-import { SFLink, SFShieldFill, SFStorefront } from 'sf-symbols-lib';
+import { SFLink, SFShieldFill, SFStorefront, SFLock } from 'sf-symbols-lib';
 import { ExcelImportModal } from '@/components/excel/ExcelImportModal';
 import { QuickNoteFloatingButton } from '@/components/notes/QuickNoteFloatingButton';
 
@@ -30,7 +30,6 @@ import { reminderService } from '@/services/reminderService';
 import { useTabIndicator, useAppleTabSpring, motionTokens } from '@/lib/motion';
 import { useSecurityStore } from '@/stores/security-store';
 import { LocalLockScreen } from '@/components/security/LocalLockScreen';
-import { Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -440,7 +439,7 @@ export const AppShell: React.FC = () => {
                 title="Khóa bảo vệ màn hình ngay"
                 aria-label="Khóa màn hình làm việc"
               >
-                <Lock size={15} className="text-[#0071e3] dark:text-[#2997ff] group-hover:scale-110 transition-transform duration-200" />
+                <SFLock size={15} className="text-[#0071e3] dark:text-[#2997ff] group-hover:scale-110 transition-transform duration-200" />
               </button>
             )}
 

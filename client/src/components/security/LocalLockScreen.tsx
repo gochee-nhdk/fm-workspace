@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSecurityStore } from '@/stores/security-store';
-import { SFShieldFill } from 'sf-symbols-lib';
-import { Lock, Delete, Grid3X3 } from 'lucide-react';
+import { SFShieldFill, SFLock, SFDeleteLeft, SFCircleGrid3x3 } from 'sf-symbols-lib';
 import toast from 'react-hot-toast';
 
 export const LocalLockScreen: React.FC = () => {
@@ -112,7 +111,7 @@ export const LocalLockScreen: React.FC = () => {
         {/* Header Icon */}
         <div className="space-y-1.5 pointer-events-none">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-b from-[#0071e3]/15 to-[#0071e3]/5 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center border border-[#0071e3]/20 shadow-xs mx-auto mb-2">
-            <Lock size={22} />
+            <SFLock size={22} />
           </div>
           <h3 className="font-semibold text-[16px] text-[#1d1d1f] dark:text-white leading-tight">
             FM Workspace Đã Khóa
@@ -237,7 +236,7 @@ export const LocalLockScreen: React.FC = () => {
               onClick={handleBackspace}
               className="h-10 rounded-2xl text-[14px] text-[#86868b] dark:text-[#a1a1a6] bg-black/[0.02] dark:bg-white/[0.04] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] border border-black/5 dark:border-white/10 active:scale-95 transition-all cursor-pointer flex items-center justify-center select-none"
             >
-              <Delete size={16} />
+              <SFDeleteLeft size={16} />
             </button>
           </div>
         )}
@@ -295,7 +294,7 @@ export const LocalLockScreen: React.FC = () => {
             }}
             className="px-3 py-1.5 rounded-full text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] border border-black/5 dark:border-white/10 transition-colors cursor-pointer active:scale-95 flex items-center gap-1.5"
           >
-            <Grid3X3 size={13} className="text-[#0071e3] dark:text-[#2997ff]" />
+            <SFCircleGrid3x3 size={13} className="text-[#0071e3] dark:text-[#2997ff]" />
             <span>{showKeypad ? 'Ẩn phím' : 'Bàn phím số'}</span>
           </button>
 
@@ -308,7 +307,7 @@ export const LocalLockScreen: React.FC = () => {
             disabled={pin.length === 0}
             className="px-3.5 py-1.5 rounded-full text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] border border-black/5 dark:border-white/10 transition-colors cursor-pointer active:scale-95 disabled:opacity-30 disabled:pointer-events-none flex items-center gap-1.5"
           >
-            <Delete size={13} />
+            <SFDeleteLeft size={13} />
             <span>Xóa</span>
           </button>
         </div>
