@@ -99,15 +99,13 @@ function runViewTransition(
 
   try {
     const transition = doc.startViewTransition(() => {
-      // Synchronously flush all React DOM mutations before capturing snapshot
-      flushSync(() => {
-        if (isGoingDark) {
-          root.classList.add('dark');
-        } else {
-          root.classList.remove('dark');
-        }
-        useUiStore.getState().setTheme(nextResolved);
-      });
+      // Toggle dark class immediately on root for zero-delay visual snapshot
+      if (isGoingDark) {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+      useUiStore.getState().setTheme(nextResolved);
     });
 
     transition.ready
@@ -122,8 +120,8 @@ function runViewTransition(
             clipPath: isGoingDark ? clipPath : [...clipPath].reverse(),
           },
           {
-            duration: 420,
-            easing: 'cubic-bezier(0.2, 0.9, 0.2, 1)',
+            duration: 380,
+            easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
             pseudoElement: isGoingDark
               ? '::view-transition-new(root)'
               : '::view-transition-old(root)',
@@ -180,8 +178,8 @@ function runGpuOverlayFallback(
     const anim = overlay.animate(
       { clipPath: clipPath },
       {
-        duration: 400,
-        easing: 'cubic-bezier(0.2, 0.9, 0.2, 1)',
+        duration: 380,
+        easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
         fill: 'forwards',
       }
     );
@@ -207,8 +205,8 @@ function runGpuOverlayFallback(
     const anim = overlay.animate(
       { clipPath: [...clipPath].reverse() },
       {
-        duration: 400,
-        easing: 'cubic-bezier(0.2, 0.9, 0.2, 1)',
+        duration: 380,
+        easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
         fill: 'forwards',
       }
     );

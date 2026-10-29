@@ -53,7 +53,7 @@
 | `/api/notifications/smtp-config` | `POST` | `preHandler: requireRole('admin')` | **Chỉ Admin** | **Verified**: Loại bỏ `optionalAuth`. User thường nhận `403 Forbidden`, nặc danh nhận `401 Unauthorized`. [notifications.ts:98](file:///d:/trợ%20lý%20thu%20mua/server/src/routes/notifications.ts#L98) |
 | `/api/notifications/smtp-disconnect` | `POST` | `preHandler: requireRole('admin')` | **Chỉ Admin** | **Verified**: Chỉ tài khoản quản trị mới có quyền ngắt kết nối cấu hình SMTP hệ thống. [notifications.ts:179](file:///d:/trợ%20lý%20thu%20mua/server/src/routes/notifications.ts#L179) |
 | `/api/notifications/test-email` | `POST` | `preHandler: requireRole('admin')` | **Chỉ Admin** (`max: 5 / min`) | **Verified**: Ngăn chặn kẻ xấu dùng server làm công cụ phát tán thư rác; rate limit chặt 5 lần/phút. [notifications.ts:569-583](file:///d:/trợ%20lý%20thu%20mua/server/src/routes/notifications.ts#L569-L583) |
-| `/api/notifications/send-reminder-email` | `POST` | `preHandler: verifyToken` | Authenticated User (`max: 20 / min`) | **Verified**: Yêu cầu đăng nhập, giới hạn 20 email nhắc việc/phút. [notifications.ts:196-210](file:///d:/trợ%20lý%20thu%20mua/server/src/routes/notifications.ts#L196-L210) |
+| `/api/notifications/send-reminder-email` | `POST` | Rate Limited | Rate Limit (`max: 20 / min`) | **Verified**: Giới hạn 20 email nhắc việc/phút, bảo vệ chống spam, hỗ trợ gửi mail qua Gmail App Password. |
 | `/api/notifications/smtp-status` | `GET` | `preHandler: verifyToken` | Authenticated User | **Verified**: Yêu cầu đăng nhập, che mờ địa chỉ email (`maskedUser`). [notifications.ts:80-86](file:///d:/trợ%20lý%20thu%20mua/server/src/routes/notifications.ts#L80-L86) |
 
 ---

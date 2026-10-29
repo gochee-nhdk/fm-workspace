@@ -371,6 +371,7 @@
   ::view-transition-new(root) {
     animation: none;
     mix-blend-mode: normal;
+    will-change: clip-path;
   }
 
   /* Light -> Dark: new dark layer is on top, blossoming outward */

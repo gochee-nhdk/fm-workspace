@@ -5724,29 +5724,15 @@ export const QuickNoteWindow: React.FC = () => {
 
                     return (
                       <div
-                        className={cn(
-                          "absolute z-50 p-3 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-purple-500/25 dark:border-purple-400/35 shadow-[0_20px_50px_rgba(0,0,0,0.22),0_4px_24px_rgba(168,85,247,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none animate-in fade-in zoom-in-95 duration-180 flex flex-col gap-2 transition-[all] duration-200",
-                          isDraftExpanded ? "inset-2 z-50 max-w-none" : "max-w-[calc(100%-24px)]"
-                        )}
-                        style={
-                          isDraftExpanded
-                            ? {
-                                top: '8px',
-                                bottom: '8px',
-                                left: '8px',
-                                right: '8px',
-                                width: 'auto',
-                                maxHeight: 'none',
-                                transform: 'none',
-                              }
-                            : {
-                                top: `${top}px`,
-                                left: '50%',
-                                width: `${cardWidth}px`,
-                                maxHeight: `${calculatedMaxHeight}px`,
-                                transform: 'translateX(-50%)',
-                              }
-                        }
+                        className="absolute z-50 p-3 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-purple-500/25 dark:border-purple-400/35 shadow-[0_20px_50px_rgba(0,0,0,0.22),0_4px_24px_rgba(168,85,247,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none flex flex-col gap-2 will-change-[top,width,height]"
+                        style={{
+                          top: isDraftExpanded ? '8px' : `${top}px`,
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          width: `${isDraftExpanded ? Math.max(340, canvasW - 16) : cardWidth}px`,
+                          height: `${isDraftExpanded ? Math.max(200, canvasH - 16) : calculatedMaxHeight}px`,
+                          transition: 'top 280ms cubic-bezier(0.16, 1, 0.3, 1), width 280ms cubic-bezier(0.16, 1, 0.3, 1), height 280ms cubic-bezier(0.16, 1, 0.3, 1)',
+                        }}
                       >
                         {/* Header (shrink-0) */}
                         <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-black/[0.06] dark:border-white/10 shrink-0">
@@ -5783,10 +5769,7 @@ export const QuickNoteWindow: React.FC = () => {
 
                         {/* Content Preview inside clean inset glass box (flex-1 overflow-y-auto min-h-0) */}
                         <div
-                          style={{
-                            maxHeight: isDraftExpanded ? undefined : `${contentMaxHeight}px`,
-                          }}
-                          className="text-[13.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text overflow-y-auto scrollbar-thin pr-1.5 whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1 min-h-[90px]"
+                          className="text-[13.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] select-text overflow-y-auto scrollbar-thin pr-1.5 whitespace-pre-wrap font-normal bg-black/[0.025] dark:bg-white/[0.04] p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06] flex-1 min-h-0"
                         >
                           {aiDraft.result}
                         </div>

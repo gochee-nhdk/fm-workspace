@@ -82,15 +82,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   const [stores, setStores] = useState<StoreItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  const [catIndicator, setCatIndicator] = useState<{ left: number; width: number; ready: boolean }>({
-    left: 0,
-    width: 0,
-    ready: false,
-  });
 
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const categoryBarRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<number | null>(null);
   const navigate = useNavigate();
   const { theme, setTheme } = useUiStore();
@@ -496,78 +490,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     return { results: list, counts: countsObj };
   }, [query, activeCategory, links, accounts, stores, systemActions, navItems]);
 
-  const categories: {
-    id: FilterCategory;
-    label: string;
-    icon: React.ReactNode;
-    activeColor: string;
-  }[] = useMemo(
-    () => [
-      {
-        id: 'all',
-        label: 'Tất cả',
-        icon: <SFSquareStack3dUp size={13.5} />,
-        activeColor: 'text-[#0071e3] dark:text-[#2997ff]',
-      },
-      {
-        id: 'link',
-        label: 'Liên kết',
-        icon: <SFLink size={13.5} />,
-        activeColor: 'text-sky-600 dark:text-sky-400',
-      },
-      {
-        id: 'account',
-        label: 'Tài khoản',
-        icon: <SFShieldFill size={13.5} />,
-        activeColor: 'text-emerald-600 dark:text-emerald-400',
-      },
-      {
-        id: 'store',
-        label: 'Cửa hàng',
-        icon: <SFStorefront size={13.5} />,
-        activeColor: 'text-amber-600 dark:text-amber-400',
-      },
-      {
-        id: 'action',
-        label: 'Tác vụ',
-        icon: <SFBoltFill size={13.5} />,
-        activeColor: 'text-purple-600 dark:text-purple-400',
-      },
-      {
-        id: 'nav',
-        label: 'Trang',
-        icon: <SFLocationFill size={13.5} />,
-        activeColor: 'text-indigo-600 dark:text-indigo-400',
-      },
-    ],
-    []
-  );
-
-  // Update sliding liquid indicator when category changes or modal opens
-  useEffect(() => {
-    if (!isOpen || !categoryBarRef.current) return;
-    const updateIndicator = () => {
-      const activeBtn = categoryBarRef.current?.querySelector<HTMLButtonElement>(`[data-cat-id="${activeCategory}"]`);
-      if (activeBtn) {
-        setCatIndicator({
-          left: activeBtn.offsetLeft,
-          width: activeBtn.offsetWidth,
-          ready: true,
-        });
-      }
-    };
-
-    updateIndicator();
-    const t1 = setTimeout(updateIndicator, 40);
-    const t2 = setTimeout(updateIndicator, 150);
-    window.addEventListener('resize', updateIndicator);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      window.removeEventListener('resize', updateIndicator);
-    };
-  }, [activeCategory, categories, isOpen]);
-
   // Popular search suggestions
   const popularTags = ['FM09', 'POS', 'Bravo', 'Kho Hub', 'Google Drive', 'Excel'];
 
@@ -702,11 +624,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={
-              activeCategory === 'all'
-                ? 'Tìm nhanh link, tài khoản, mã CH (FM09), tác vụ... (Tab để lọc)'
-                : `Tìm trong ${categories.find((c) => c.id === activeCategory)?.label}...`
-            }
+            placeholder="Tìm kiếm liên kết, tài khoản, cửa hàng, trang, tác vụ..."
             className="w-full text-[16px] bg-transparent text-[#1d1d1f] dark:text-white placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] border-0 outline-none ring-0 p-0 shadow-none font-normal"
             style={{ outline: 'none', boxShadow: 'none', border: 'none' }}
           />
@@ -740,59 +658,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           </div>
         </div>
 
-        {/* Category Filter Segmented Control Bar (Apple Liquid Segmented Capsule - Balanced, Compact & Centered) */}
+        {/* Content Body */}
         <div
-          onMouseEnter={resetSelectionImmediate}
-          className="px-3 sm:px-4 py-1.5 border-b border-black/[0.05] dark:border-white/8 bg-black/[0.015] dark:bg-white/[0.02]"
-        >
-          <div
-            ref={categoryBarRef}
-            className="relative w-full max-w-[530px] mx-auto flex items-center p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/10 backdrop-blur-md select-none"
-          >
-            {/* Liquid Droplet Sliding Indicator Pill */}
-            {catIndicator.ready && catIndicator.width > 0 && (
-              <div
-                className="absolute top-1 bottom-1 rounded-full bg-white dark:bg-[#2c2c2e] shadow-[0_1.5px_5px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/10 transition-[transform,width] duration-220 ease-[cubic-bezier(0.2,0.9,0.2,1)] will-change-[transform,width] pointer-events-none"
-                style={{
-                  transform: `translate3d(${catIndicator.left}px, 0, 0)`,
-                  width: `${catIndicator.width}px`,
-                }}
-              />
-            )}
-
-            {categories.map((cat) => {
-              const isActive = activeCategory === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  data-cat-id={cat.id}
-                  type="button"
-                  onClick={() => setActiveCategory(cat.id)}
-                  className={cn(
-                    'relative z-10 flex-1 h-7 rounded-full inline-flex items-center justify-center text-[12px] transition-colors duration-160 cursor-pointer active:scale-95 select-none whitespace-nowrap px-1',
-                    isActive
-                      ? 'text-[#1d1d1f] dark:text-white font-semibold'
-                      : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium hover:bg-black/[0.02] dark:hover:bg-white/[0.04]'
-                  )}
-                >
-                  <div className="flex items-center justify-center gap-1.5 shrink-0">
-                    <span className={cn('shrink-0 flex items-center justify-center transition-colors', isActive ? cat.activeColor : 'text-[#86868b] dark:text-[#a1a1a6]')}>
-                      {cat.icon}
-                    </span>
-                    <span className="leading-none tracking-tight">{cat.label}</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Content Body with Fluid Droplet Glide Transition */}
-        <div
-          key={activeCategory}
           ref={listRef}
           onMouseLeave={handleItemMouseLeave}
-          className="max-h-[380px] sm:max-h-[420px] overflow-y-auto p-3 space-y-1 scroll-smooth liquid-tab-enter"
+          className="max-h-[420px] sm:max-h-[460px] overflow-y-auto p-3 space-y-1 scroll-smooth"
         >
           {/* Quick Suggestions & Recent Searches (when query is empty) */}
           {!query && (
@@ -849,7 +719,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
               </div>
 
               <div className="border-t border-black/[0.04] dark:border-white/5 pt-2 text-[11px] font-semibold text-[#86868b] uppercase tracking-wider">
-                {activeCategory === 'all' ? 'Lối tắt & Tác vụ được đề xuất' : `Danh sách ${categories.find((c) => c.id === activeCategory)?.label}`}
+                Lối tắt & Tác vụ được đề xuất
               </div>
             </div>
           )}
@@ -861,9 +731,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
               className="px-2 pt-1 pb-1 text-[11px] font-semibold text-[#86868b] uppercase tracking-wider flex items-center justify-between"
             >
               <span>
-                {activeCategory === 'all'
-                  ? `Kết quả tìm kiếm cho "${query}" (${results.length})`
-                  : `Kết quả trong ${categories.find((c) => c.id === activeCategory)?.label} (${results.length})`}
+                Kết quả tìm kiếm cho "{query}" ({results.length})
               </span>
             </div>
           )}

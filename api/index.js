@@ -84,29 +84,48 @@ module.exports = async function handler(req, res, forcedPath) {
       const cleanUser = String(user).trim();
       const cleanPass = String(pass).trim().replace(/\s+/g, '');
       const smtpHost = host || 'smtp.gmail.com';
-      const smtpPort = Number(port) || 587;
+      const isGmail = smtpHost.includes('gmail') || cleanUser.includes('@gmail.com');
+      const primaryPort = Number(port) || (isGmail ? 465 : 587);
+
+      const createVerifyTransporter = (p, sec) => nodemailer.createTransport({
+        host: smtpHost,
+        port: p,
+        secure: sec,
+        auth: {
+          user: cleanUser,
+          pass: cleanPass
+        },
+        tls: { rejectUnauthorized: false },
+        connectionTimeout: 8000,
+        greetingTimeout: 6000,
+        socketTimeout: 10000,
+      });
+
+      let verifySuccess = false;
+      let lastErr = null;
 
       try {
-        const transporter = nodemailer.createTransport({
-          host: smtpHost,
-          port: smtpPort,
-          secure: smtpPort === 465,
-          auth: {
-            user: cleanUser,
-            pass: cleanPass
-          },
-          tls: {
-            rejectUnauthorized: false
-          }
-        });
-
+        const transporter = createVerifyTransporter(primaryPort, primaryPort === 465);
         await transporter.verify();
+        verifySuccess = true;
+      } catch (err1) {
+        lastErr = err1;
+        const fallbackPort = primaryPort === 465 ? 587 : 465;
+        try {
+          const fallbackTransporter = createVerifyTransporter(fallbackPort, fallbackPort === 465);
+          await fallbackTransporter.verify();
+          verifySuccess = true;
+        } catch (err2) {
+          lastErr = err2;
+        }
+      }
 
+      if (verifySuccess) {
         globalSmtpConfig = {
           user: cleanUser,
           pass: cleanPass,
           host: smtpHost,
-          port: smtpPort,
+          port: primaryPort,
           senderName: senderName || 'Trợ Lý Thu Mua • Farmers Market',
           configured: true
         };
@@ -116,12 +135,14 @@ module.exports = async function handler(req, res, forcedPath) {
           configured: true,
           message: 'Cấu hình SMTP thành công! Đã kết nối máy chủ Google Mail.'
         });
-      } catch (smtpErr) {
-        console.error('SMTP verification failed:', smtpErr);
-        const errMsg = smtpErr.message || '';
+      } else {
+        console.error('SMTP verification failed:', lastErr);
+        const errMsg = lastErr?.message || '';
         let vietnameseMsg = 'Không thể xác thực với máy chủ Google Mail.';
-        if (errMsg.includes('Invalid login') || errMsg.includes('535-5.7.8') || errMsg.includes('Username and Password not accepted')) {
-          vietnameseMsg = 'Google từ chối mật khẩu. Vui lòng tạo "Mật khẩu ứng dụng" (App Password 16 ký tự) trong tài khoản Google để sử dụng.';
+        if (errMsg.includes('Invalid login') || errMsg.includes('535') || errMsg.includes('Username and Password not accepted')) {
+          vietnameseMsg = 'Google từ chối mật khẩu. Vui lòng tạo "Mật khẩu ứng dụng" (App Password 16 ký tự tại myaccount.google.com/apppasswords) thay vì mật khẩu thông thường.';
+        } else if (errMsg.includes('ETIMEDOUT') || errMsg.includes('ECONNREFUSED')) {
+          vietnameseMsg = 'Kết nối tới máy chủ Google Mail bị quá hạn. Vui lòng thử lại sau.';
         }
         return res.status(400).json({
           success: false,
@@ -145,7 +166,15 @@ module.exports = async function handler(req, res, forcedPath) {
       const body = req.body || {};
       const { to, subject, content, noteTitle, taskText, smtpConfig: passedConfig } = body;
 
-      const activeConfig = passedConfig || globalSmtpConfig;
+      const activeConfig = passedConfig || globalSmtpConfig || (process.env.SMTP_USER && process.env.SMTP_PASS ? {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: Number(process.env.SMTP_PORT) || 465,
+        senderName: process.env.SMTP_SENDER_NAME || 'Trợ Lý Thu Mua • Farmers Market',
+        configured: true
+      } : null);
+
       if (!activeConfig || !activeConfig.user || !activeConfig.pass) {
         return res.status(400).json({
           success: false,
@@ -161,15 +190,23 @@ module.exports = async function handler(req, res, forcedPath) {
         });
       }
 
-      const transporter = nodemailer.createTransport({
+      const cleanUser = String(activeConfig.user).trim();
+      const cleanPass = String(activeConfig.pass).trim().replace(/\s+/g, '');
+      const isGmail = (activeConfig.host || '').includes('gmail') || cleanUser.includes('@gmail.com');
+      const primaryPort = Number(activeConfig.port) || (isGmail ? 465 : 587);
+
+      const createTransporter = (p, sec) => nodemailer.createTransport({
         host: activeConfig.host || 'smtp.gmail.com',
-        port: Number(activeConfig.port) || 587,
-        secure: Number(activeConfig.port) === 465,
+        port: p,
+        secure: sec,
         auth: {
-          user: activeConfig.user,
-          pass: String(activeConfig.pass).replace(/\s+/g, '')
+          user: cleanUser,
+          pass: cleanPass
         },
-        tls: { rejectUnauthorized: false }
+        tls: { rejectUnauthorized: false },
+        connectionTimeout: 10000,
+        greetingTimeout: 8000,
+        socketTimeout: 15000,
       });
 
       const mailSubject = subject || `[FM Workspace] Nhắc việc: ${taskText || noteTitle || 'Thông báo từ hệ thống'}`;
@@ -189,17 +226,60 @@ module.exports = async function handler(req, res, forcedPath) {
         </div>
       `;
 
-      await transporter.sendMail({
-        from: `"${activeConfig.senderName || 'Trợ Lý Thu Mua • Farmers Market'}" <${activeConfig.user}>`,
-        to: String(to).trim(),
-        subject: mailSubject,
-        html: mailHtml,
-        text: content || taskText || noteTitle || 'Thông báo từ FM Workspace'
-      });
+      let sendSuccess = false;
+      let lastSendErr = null;
 
-      return res.status(200).json({
-        success: true,
-        message: `Đã gửi email thông báo thành công tới ${to}`
+      try {
+        const transporter = createTransporter(primaryPort, primaryPort === 465);
+        await transporter.sendMail({
+          from: `"${activeConfig.senderName || 'Trợ Lý Thu Mua • Farmers Market'}" <${cleanUser}>`,
+          to: String(to).trim(),
+          subject: mailSubject,
+          html: mailHtml,
+          text: content || taskText || noteTitle || 'Thông báo từ FM Workspace'
+        });
+        sendSuccess = true;
+      } catch (err1) {
+        lastSendErr = err1;
+        console.warn(`Primary SMTP send failed on port ${primaryPort}, retrying fallback:`, err1.message);
+        const fallbackPort = primaryPort === 465 ? 587 : 465;
+        try {
+          const fallbackTransporter = createTransporter(fallbackPort, fallbackPort === 465);
+          await fallbackTransporter.sendMail({
+            from: `"${activeConfig.senderName || 'Trợ Lý Thu Mua • Farmers Market'}" <${cleanUser}>`,
+            to: String(to).trim(),
+            subject: mailSubject,
+            html: mailHtml,
+            text: content || taskText || noteTitle || 'Thông báo từ FM Workspace'
+          });
+          sendSuccess = true;
+        } catch (err2) {
+          lastSendErr = err2;
+          console.error('All SMTP send attempts failed:', err2);
+        }
+      }
+
+      if (sendSuccess) {
+        return res.status(200).json({
+          success: true,
+          message: `Đã gửi email thông báo thành công tới ${to}`
+        });
+      }
+
+      const errMsg = String(lastSendErr?.message || '');
+      let userMsg = 'Không thể gửi email qua máy chủ.';
+      if (errMsg.includes('Invalid login') || errMsg.includes('535') || errMsg.includes('Username and Password not accepted')) {
+        userMsg = 'Google từ chối mật khẩu. Vui lòng kiểm tra lại Email và đảm bảo dùng Mật khẩu ứng dụng (App Password 16 chữ cái tại myaccount.google.com/apppasswords) thay vì mật khẩu thông thường.';
+      } else if (errMsg.includes('ETIMEDOUT') || errMsg.includes('ECONNREFUSED') || errMsg.includes('Greeting never received')) {
+        userMsg = 'Kết nối tới máy chủ Google Mail bị quá thời gian (Timeout). Vui lòng thử lại sau.';
+      } else if (errMsg) {
+        userMsg = `Lỗi gửi thư: ${errMsg}`;
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: userMsg,
+        detail: errMsg
       });
     }
 

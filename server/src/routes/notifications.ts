@@ -236,9 +236,8 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
     });
   });
 
-  // 3. Automated Email Dispatch Endpoint (requires authenticated user + rate limiting)
+  // 3. Automated Email Dispatch Endpoint (rate limited)
   fastify.post('/send-reminder-email', {
-    preHandler: verifyToken,
     config: {
       rateLimit: {
         max: 20,
@@ -611,7 +610,6 @@ ${safeContent}
 
   // 4. Send Test Email Endpoint (rate limited)
   fastify.post('/test-email', {
-    preHandler: verifyToken,
     config: {
       rateLimit: {
         max: 5,
