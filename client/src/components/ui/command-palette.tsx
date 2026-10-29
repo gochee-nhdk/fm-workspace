@@ -499,61 +499,47 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     id: FilterCategory;
     label: string;
     icon: React.ReactNode;
-    count: number;
     activeColor: string;
-    activeBadge: string;
   }[] = useMemo(
     () => [
       {
         id: 'all',
         label: 'Tất cả',
         icon: <SFSquareStack3dUp size={13.5} />,
-        count: counts.all,
         activeColor: 'text-[#0071e3] dark:text-[#2997ff]',
-        activeBadge: 'bg-[#0071e3]/12 text-[#0071e3] dark:bg-[#2997ff]/20 dark:text-[#2997ff]',
       },
       {
         id: 'link',
         label: 'Liên kết',
         icon: <SFLink size={13.5} />,
-        count: counts.link,
         activeColor: 'text-sky-600 dark:text-sky-400',
-        activeBadge: 'bg-sky-500/12 text-sky-600 dark:bg-sky-500/20 dark:text-sky-400',
       },
       {
         id: 'account',
         label: 'Tài khoản',
         icon: <SFShieldFill size={13.5} />,
-        count: counts.account,
         activeColor: 'text-emerald-600 dark:text-emerald-400',
-        activeBadge: 'bg-emerald-500/12 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400',
       },
       {
         id: 'store',
         label: 'Cửa hàng',
         icon: <SFStorefront size={13.5} />,
-        count: counts.store,
         activeColor: 'text-amber-600 dark:text-amber-400',
-        activeBadge: 'bg-amber-500/12 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400',
       },
       {
         id: 'action',
         label: 'Tác vụ',
         icon: <SFBoltFill size={13.5} />,
-        count: counts.action,
         activeColor: 'text-purple-600 dark:text-purple-400',
-        activeBadge: 'bg-purple-500/12 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400',
       },
       {
         id: 'nav',
         label: 'Trang',
         icon: <SFLocationFill size={13.5} />,
-        count: counts.nav,
         activeColor: 'text-indigo-600 dark:text-indigo-400',
-        activeBadge: 'bg-indigo-500/12 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400',
       },
     ],
-    [counts]
+    []
   );
 
   // Update sliding liquid indicator when category changes or modal opens
@@ -753,19 +739,19 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           </div>
         </div>
 
-        {/* Category Filter Segmented Control Bar (Apple Liquid Segmented Capsule) */}
+        {/* Category Filter Segmented Control Bar (Apple Liquid Segmented Capsule - Balanced & Numberless) */}
         <div
           onMouseEnter={resetSelectionImmediate}
-          className="px-3 sm:px-4 py-2 border-b border-black/[0.05] dark:border-white/8 bg-black/[0.015] dark:bg-white/[0.02] overflow-x-auto scrollbar-none touch-pan-x"
+          className="px-3 sm:px-4 py-2 border-b border-black/[0.05] dark:border-white/8 bg-black/[0.015] dark:bg-white/[0.02]"
         >
           <div
             ref={categoryBarRef}
-            className="relative w-max min-w-full sm:w-full flex items-center gap-0.5 p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/10 backdrop-blur-md"
+            className="relative w-full flex items-center p-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.05] dark:border-white/10 backdrop-blur-md select-none"
           >
             {/* Liquid Droplet Sliding Indicator Pill */}
             {catIndicator.ready && catIndicator.width > 0 && (
               <div
-                className="absolute top-1 bottom-1 rounded-full bg-white dark:bg-[#2c2c2e] shadow-[0_1px_4px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/10 transition-[transform,width] duration-160 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[transform,width] pointer-events-none"
+                className="absolute top-1 bottom-1 rounded-full bg-white dark:bg-[#2c2c2e] shadow-[0_1.5px_5px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.06)] border border-black/[0.04] dark:border-white/10 transition-[transform,width] duration-180 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[transform,width] pointer-events-none"
                 style={{
                   transform: `translate3d(${catIndicator.left}px, 0, 0)`,
                   width: `${catIndicator.width}px`,
@@ -782,7 +768,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   type="button"
                   onClick={() => setActiveCategory(cat.id)}
                   className={cn(
-                    'relative z-10 flex-1 sm:flex-initial h-7.5 px-3 rounded-full inline-flex items-center justify-center gap-1.5 text-[12px] transition-colors duration-120 cursor-pointer active:scale-95 select-none whitespace-nowrap',
+                    'relative z-10 flex-1 h-8 px-2 rounded-full inline-flex items-center justify-center gap-1.5 text-[12.5px] transition-colors duration-150 cursor-pointer active:scale-95 select-none whitespace-nowrap',
                     isActive
                       ? 'text-[#1d1d1f] dark:text-white font-semibold'
                       : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white font-medium hover:bg-black/[0.02] dark:hover:bg-white/[0.04]'
@@ -792,18 +778,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                     {cat.icon}
                   </span>
                   <span className="leading-none">{cat.label}</span>
-                  {cat.count > 0 && (
-                    <span
-                      className={cn(
-                        'shrink-0 inline-flex items-center justify-center min-w-[19px] h-4.5 px-1.5 rounded-full text-[10px] font-semibold tabular-nums leading-none transition-colors',
-                        isActive
-                          ? cat.activeBadge
-                          : 'bg-black/5 dark:bg-white/10 text-[#86868b] dark:text-[#a1a1a6]'
-                      )}
-                    >
-                      {cat.count}
-                    </span>
-                  )}
                 </button>
               );
             })}
