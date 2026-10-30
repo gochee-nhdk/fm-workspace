@@ -365,18 +365,28 @@
   }
 
   /* ==========================================================================
-     Apple Iris Circular Theme Transition — 120 FPS Hardware-Accelerated Compositing
+     Apple Iris Circular Theme Transition (120 FPS Native View Transitions)
      ========================================================================== */
-  #theme-iris-orb {
-    position: fixed;
-    border-radius: 50%;
-    pointer-events: none;
-    z-index: 99999999;
-    background-color: #0f0f13;
-    will-change: transform;
-    backface-visibility: hidden;
-    transform: translateZ(0);
-    overflow: hidden;
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+  }
+
+  /* Sáng -> Tối: New dark snapshot expands on top */
+  html[data-theme-transition="to-dark"]::view-transition-old(root) {
+    z-index: 1;
+  }
+  html[data-theme-transition="to-dark"]::view-transition-new(root) {
+    z-index: 10;
+  }
+
+  /* Tối -> Sáng: Old dark snapshot shrinks on top, revealing light state underneath */
+  html[data-theme-transition="to-light"]::view-transition-old(root) {
+    z-index: 10;
+  }
+  html[data-theme-transition="to-light"]::view-transition-new(root) {
+    z-index: 1;
   }
 
   button, input, select, textarea {
