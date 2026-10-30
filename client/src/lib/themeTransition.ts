@@ -1,3 +1,4 @@
+import { flushSync } from 'react-dom';
 import { resolveTheme, useUiStore, Theme } from '@/stores/ui-store';
 
 /** Guard against rapid spam-clicking while animation is in flight */
@@ -10,16 +11,17 @@ let isTransitioning = false;
  * - Sáng -> Tối: Vùng tối nở to từ nút bấm lan ra toàn màn hình (circle(0px) -> circle(maxRadius)).
  * - Tối -> Sáng: Bóng tối thu nhỏ dần về lại nút bấm để lộ giao diện sáng (circle(maxRadius) -> circle(0px)).
  *
- * Built on Native View Transitions API with isolated pseudo-element layering.
- * Completely immune to black screen overlays and frame drops.
+ * Built on Native View Transitions API with synchronous React DOM flush (flushSync)
+ * to guarantee that the old and new snapshots are 100% stable before the animation begins,
+ * preventing any premature jumping to the target theme before the iris completes.
  */
 export const toggleThemeWithIris = (
   targetTheme?: Theme,
   event?: React.MouseEvent | MouseEvent
 ) => {
   // Always clean up any stale overlay if present
-  const staleOrb = document.getElementById('theme-iris-orb');
-  if (staleOrb) staleOrb.remove();
+  const stale = document.querySelectorAll('#theme-iris-overlay, #theme-iris-orb');
+  stale.forEach((el) => el.remove());
 
   if (isTransitioning) return;
 
@@ -94,13 +96,7 @@ export const toggleThemeWithIris = (
   if (typeof doc.startViewTransition === 'function') {
     runViewTransition(doc, x, y, endRadius, isGoingDark, nextTarget);
   } else {
-    // Graceful fallback: instant atomic class toggle (100% reliable)
-    if (isGoingDark) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    setTheme(nextTarget);
+    runGpuOverlayFallback(x, y, endRadius, isGoingDark, nextTarget);
   }
 };
 
@@ -129,17 +125,22 @@ function runViewTransition(
     isTransitioning = false;
   };
 
-  // Fail-safe guard: guaranteed cleanup within 450ms
-  const safetyTimer = setTimeout(cleanup, 450);
+  // Fail-safe guard: guaranteed cleanup within 600ms
+  const safetyTimer = setTimeout(cleanup, 600);
 
   try {
     const transition = doc.startViewTransition(() => {
-      if (isGoingDark) {
-        root.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
-      }
-      useUiStore.getState().setTheme(nextTarget);
+      // Synchronous DOM flush: guarantees React finishes 100% of UI reconciliation
+      // BEFORE the browser captures the new snapshot. During the animation phase,
+      // React is completely idle, freeing the main thread for pure 120 FPS compositor execution.
+      flushSync(() => {
+        if (isGoingDark) {
+          root.classList.add('dark');
+        } else {
+          root.classList.remove('dark');
+        }
+        useUiStore.getState().setTheme(nextTarget);
+      });
     });
 
     transition.ready
@@ -154,8 +155,8 @@ function runViewTransition(
             clipPath: isGoingDark ? clipPath : [clipPath[1], clipPath[0]],
           },
           {
-            duration: 280,
-            easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+            duration: 380,
+            easing: 'cubic-bezier(0.2, 0, 0, 1)',
             pseudoElement: isGoingDark
               ? '::view-transition-new(root)'
               : '::view-transition-old(root)',
@@ -178,18 +179,102 @@ function runViewTransition(
         cleanup();
       });
 
-    transition.finished.finally(() => {
-      clearTimeout(safetyTimer);
-      cleanup();
-    });
+    transition.finished
+      .then(() => {
+        clearTimeout(safetyTimer);
+        cleanup();
+      })
+      .catch(() => {
+        clearTimeout(safetyTimer);
+        cleanup();
+      });
   } catch (err) {
     clearTimeout(safetyTimer);
     cleanup();
-    if (isGoingDark) {
+    runGpuOverlayFallback(x, y, endRadius, isGoingDark, nextTarget);
+  }
+}
+
+/**
+ * Bulletproof GPU-accelerated Iris Overlay fallback for environments without View Transitions
+ */
+function runGpuOverlayFallback(
+  x: number,
+  y: number,
+  endRadius: number,
+  isGoingDark: boolean,
+  nextTarget: Theme
+) {
+  isTransitioning = true;
+  const root = document.documentElement;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'theme-iris-overlay';
+  overlay.style.position = 'fixed';
+  overlay.style.inset = '0';
+  overlay.style.zIndex = '9999999';
+  overlay.style.pointerEvents = 'none';
+  overlay.style.backgroundColor = '#0f0f13';
+  overlay.style.willChange = 'clip-path';
+
+  const clipPath = [
+    `circle(0px at ${x.toFixed(1)}px ${y.toFixed(1)}px)`,
+    `circle(${endRadius.toFixed(1)}px at ${x.toFixed(1)}px ${y.toFixed(1)}px)`,
+  ];
+
+  const removeOverlay = () => {
+    overlay.remove();
+    isTransitioning = false;
+  };
+
+  const fallbackTimer = setTimeout(removeOverlay, 500);
+
+  if (isGoingDark) {
+    overlay.style.clipPath = clipPath[0];
+    document.body.appendChild(overlay);
+
+    const anim = overlay.animate(
+      { clipPath: clipPath },
+      {
+        duration: 360,
+        easing: 'cubic-bezier(0.2, 0, 0, 1)',
+        fill: 'forwards',
+      }
+    );
+
+    anim.onfinish = () => {
+      clearTimeout(fallbackTimer);
       root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
+      useUiStore.getState().setTheme(nextTarget);
+      removeOverlay();
+    };
+    anim.oncancel = () => {
+      clearTimeout(fallbackTimer);
+      removeOverlay();
+    };
+  } else {
+    overlay.style.clipPath = clipPath[1];
+    document.body.appendChild(overlay);
+
+    root.classList.remove('dark');
     useUiStore.getState().setTheme(nextTarget);
+
+    const anim = overlay.animate(
+      { clipPath: [clipPath[1], clipPath[0]] },
+      {
+        duration: 360,
+        easing: 'cubic-bezier(0.2, 0, 0, 1)',
+        fill: 'forwards',
+      }
+    );
+
+    anim.onfinish = () => {
+      clearTimeout(fallbackTimer);
+      removeOverlay();
+    };
+    anim.oncancel = () => {
+      clearTimeout(fallbackTimer);
+      removeOverlay();
+    };
   }
 }
