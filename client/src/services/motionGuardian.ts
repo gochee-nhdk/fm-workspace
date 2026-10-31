@@ -93,6 +93,12 @@ class MotionGuardianAgent {
     styleEl.id = 'motion-guardian-override';
     styleEl.textContent = `
       @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: inherit !important;
+          animation-iteration-count: inherit !important;
+          transition-duration: inherit !important;
+          animation-play-state: running !important;
+        }
         .liquid-auth-btn,
         .liquid-auth-trigger,
         .liquid-motion-forced,
@@ -100,10 +106,18 @@ class MotionGuardianAgent {
         .liquid-lens-pill,
         .liquid-lens-pill-active,
         .animate-liquid-sheen,
-        .animate-liquid-pulse {
+        .animate-liquid-pulse,
+        .apple-modal-enter,
+        .apple-modal-exit,
+        .liquid-droplet-enter,
+        .liquid-droplet-exit,
+        .apple-popover-tr,
+        .apple-popover-tl,
+        .apple-popover-br,
+        .apple-popover-bl,
+        .animate-fade-in,
+        .animate-in {
           animation-play-state: running !important;
-          transition-duration: 0.22s !important;
-          transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1) !important;
         }
       }
     `;

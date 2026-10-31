@@ -3827,7 +3827,7 @@ button:not(:disabled):not([data-no-motion]):active,
 
 /* ==========================================================================
    Mandatory Motion Preservation Rule:
-   Ensure all animations and transitions always execute at 120 FPS
+   Ensure ALL animations and transitions ALWAYS execute with 120 FPS
    regardless of the operating system's prefers-reduced-motion setting.
    ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
@@ -3835,7 +3835,66 @@ button:not(:disabled):not([data-no-motion]):active,
     animation-duration: inherit !important;
     animation-iteration-count: inherit !important;
     transition-duration: inherit !important;
+    animation-play-state: running !important;
   }
+}
+
+/* ==========================================================================
+   Universal Tailwind-Style Micro Animations (Always Available)
+   ========================================================================== */
+@keyframes universalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes universalZoomIn95 {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes universalZoomIn75 {
+  from { opacity: 0; transform: scale(0.75); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes universalSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes universalSlideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in {
+  animation-duration: 180ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
+}
+
+.animate-in.fade-in {
+  animation-name: universalFadeIn;
+}
+
+.animate-in.fade-in.zoom-in-95 {
+  animation-name: universalZoomIn95;
+}
+
+.animate-in.zoom-in-95 {
+  animation-name: universalZoomIn95;
+}
+
+.animate-in.zoom-in-75 {
+  animation-name: universalZoomIn75;
+}
+
+.animate-in.slide-in-from-top-4 {
+  animation-name: universalSlideDown;
+}
+
+.animate-fade-in {
+  animation: universalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 
