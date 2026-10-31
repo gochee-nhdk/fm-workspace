@@ -17,10 +17,10 @@ import {
   SFSquareOnSquare,
   SFTrash,
   SFPhoto,
-  SFPointerArrow,
   SFTextBubble,
   SFBold,
   SFItalic,
+  SFChevronDown,
 } from '@/components/ui/AppleIcon';
 import { downloadImage, copyImageToClipboard, formatFileSize } from '@/services/noteImageService';
 import toast from 'react-hot-toast';
@@ -56,6 +56,7 @@ export interface TextAnnotation extends BaseAnnotation {
   type: 'text';
   x: number;
   y: number;
+  width?: number; // Resizable text bounding box width
   text: string;
   fontSize: number;
   fontFamily: string;
@@ -107,12 +108,14 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   image,
   onSave,
 }) => {
-  // Current active tool (toggling active tool off switches to 'select')
+  // Current active tool (toggling off active tool switches directly to 'select' mode)
   const [activeTool, setActiveTool] = useState<AnnotationTool>('pen');
   const [selectedColor, setSelectedColor] = useState<string>('#EF4444');
   const [selectedStrokeWidth, setSelectedStrokeWidth] = useState<number>(6);
   const [selectedFontSize, setSelectedFontSize] = useState<number>(24);
   const [selectedFontFamily, setSelectedFontFamily] = useState<string>(FONT_FAMILIES[0].value);
+  const [isFontDropdownOpen, setIsFontDropdownOpen] = useState<boolean>(false);
+  const fontDropdownRef = useRef<HTMLDivElement>(null);
   const [isBold, setIsBold] = useState<boolean>(true);
   const [isItalic, setIsItalic] = useState<boolean>(false);
   const [rotation, setRotation] = useState<number>(0); // 0, 90, 180, 270
@@ -122,9 +125,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   const [history, setHistory] = useState<Annotation[][]>([[]]);
   const [historyIndex, setHistoryIndex] = useState<number>(0);
 
-  // Selected annotation for moving / dragging in 'select' mode
+  // Selected annotation for moving / dragging / resizing in 'select' mode
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const [isDraggingSelected, setIsDraggingSelected] = useState<boolean>(false);
+  const [isResizingText, setIsResizingText] = useState<boolean>(false);
   const dragStartPointRef = useRef<Point | null>(null);
   const dragOriginalAnnotationRef = useRef<Annotation | null>(null);
 
@@ -134,14 +138,13 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   const shapeStartRef = useRef<Point | null>(null);
   const activeAnnotationRef = useRef<Annotation | null>(null);
 
-  // Active Text / Note typing box overlay
-  const [activeTextInput, setActiveTextInput] = useState<{
+  // In-image inline direct text editing state
+  const [activeInlineText, setActiveInlineText] = useState<{
     id?: string;
     type: 'text' | 'note';
     canvasX: number;
     canvasY: number;
-    screenX: number;
-    screenY: number;
+    width: number;
     text: string;
   } | null>(null);
 
@@ -153,14 +156,25 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   // Canvas DOM refs
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const textInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const inlineTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Close font dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (fontDropdownRef.current && !fontDropdownRef.current.contains(e.target as Node)) {
+        setIsFontDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Tool toggle handler: clicking the active tool toggles it off and switches back to 'select' mode
   const handleSelectTool = (tool: AnnotationTool) => {
     if (activeTool === tool) {
       setActiveTool('select');
-      toast('Chuyển sang chế độ chọn & di chuyển', { icon: '👆', duration: 1800 });
+      toast('Đã tắt công cụ, về chế độ trỏ chuột di chuyển', { icon: '👆', duration: 1500 });
     } else {
       setActiveTool(tool);
     }
@@ -175,7 +189,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     setHistory([[]]);
     setHistoryIndex(0);
     setRotation(0);
-    setActiveTextInput(null);
+    setActiveInlineText(null);
     setSelectedAnnotationId(null);
     setActiveTool('pen');
 
@@ -192,13 +206,12 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     img.src = image.url;
   }, [isOpen, image.url]);
 
-  // Focus text input when opened
+  // Focus inline textarea when opened
   useEffect(() => {
-    if (activeTextInput && textInputRef.current) {
-      textInputRef.current.focus();
-      textInputRef.current.select();
+    if (activeInlineText && inlineTextareaRef.current) {
+      inlineTextareaRef.current.focus();
     }
-  }, [activeTextInput]);
+  }, [activeInlineText]);
 
   // Handle undo/redo state management
   const pushState = useCallback((newAnnotations: Annotation[]) => {
@@ -366,7 +379,6 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
           const w = Math.abs(shape.endX - shape.startX);
           const h = Math.abs(shape.endY - shape.startY);
 
-          // Subtle tinted fill for high visibility
           ctx.fillStyle = hexToRgba(shape.color, 0.12);
           ctx.beginPath();
           ctx.roundRect(x, y, w, h, 8);
@@ -402,8 +414,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
           const lines = textItem.text.split('\n');
           const lineHeight = fontSize * 1.35;
 
-          // Shadow for readability on complex backgrounds
-          ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+          // Shadow for maximum contrast against any photo background
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
           ctx.shadowBlur = 6;
           ctx.shadowOffsetX = 1;
           ctx.shadowOffsetY = 1;
@@ -440,21 +452,21 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
           const boxW = Math.max(120, maxLineWidth + padX * 2);
           const boxH = totalTextHeight + padY * 2 + 6;
 
-          // Sticky note container (Apple Warm Yellow or Frosted Dark Card with Drop Shadow)
+          // Sticky note shadow
           ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
           ctx.shadowBlur = 16;
           ctx.shadowOffsetX = 0;
           ctx.shadowOffsetY = 6;
 
-          // Background fill
-          ctx.fillStyle = '#FEF3C7'; // Apple classic sticky note amber-100
+          // Background fill (Apple classic sticky note amber-100)
+          ctx.fillStyle = '#FEF3C7';
           ctx.beginPath();
           ctx.roundRect(boxX, boxY, boxW, boxH, 12);
           ctx.fill();
 
-          // Sticky note top accent line
+          // Sticky note top accent strip
           ctx.shadowColor = 'transparent';
-          ctx.fillStyle = '#F59E0B'; // amber-500 top strip
+          ctx.fillStyle = '#F59E0B';
           ctx.beginPath();
           ctx.roundRect(boxX, boxY, boxW, 5, [12, 12, 0, 0]);
           ctx.fill();
@@ -467,7 +479,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
           ctx.stroke();
 
           // Sticky note content text
-          ctx.fillStyle = '#78350F'; // warm dark amber text
+          ctx.fillStyle = '#78350F';
           ctx.textBaseline = 'top';
           lines.forEach((line, index) => {
             ctx.fillText(line, boxX + padX, boxY + padY + 6 + index * lineHeight);
@@ -476,7 +488,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
           ctx.restore();
         }
 
-        // Selection highlight ring when in 'select' mode
+        // Selection highlight ring & Resizing Handle in 'select' mode
         if (selectedAnnotationId === item.id) {
           ctx.save();
           ctx.strokeStyle = '#0071e3';
@@ -492,10 +504,31 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             ctx.strokeRect(x, y, w, h);
           } else if (item.type === 'text') {
             const t = item as TextAnnotation;
-            ctx.strokeRect(t.x - 4, t.y - 4, 150, 40);
+            const lines = t.text.split('\n');
+            ctx.font = `${t.isItalic ? 'italic' : 'normal'} ${t.isBold ? '700' : '500'} ${t.fontSize}px ${t.fontFamily || 'sans-serif'}`;
+            let maxW = 0;
+            lines.forEach((l) => {
+              const w = ctx.measureText(l).width;
+              if (w > maxW) maxW = w;
+            });
+            const textW = Math.max(maxW, t.width || 100);
+            const textH = lines.length * (t.fontSize * 1.35);
+
+            // Bounding box
+            ctx.strokeRect(t.x - 6, t.y - 6, textW + 12, textH + 12);
+
+            // Interactive Resize Handle on Bottom-Right corner
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#0071e3';
+            ctx.beginPath();
+            ctx.arc(t.x + textW + 6, t.y + textH + 6, 7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
           } else if (item.type === 'note') {
             const n = item as NoteAnnotation;
-            ctx.strokeRect(n.x - 4, n.y - 4, 160, 50);
+            ctx.strokeRect(n.x - 6, n.y - 6, 160, 60);
           }
           ctx.restore();
         }
@@ -527,6 +560,19 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     };
   };
 
+  // Convert canvas coords to viewport screen pixels (for inline textarea overlay positioning)
+  const getScreenCoords = (canvasPt: Point): { x: number; y: number } | null => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = rect.width / canvas.width;
+    const scaleY = rect.height / canvas.height;
+    return {
+      x: rect.left + canvasPt.x * scaleX,
+      y: rect.top + canvasPt.y * scaleY,
+    };
+  };
+
   // Distance helper between point and line segment
   const distToSegment = (p: Point, v: Point, w: Point) => {
     const l2 = (w.x - v.x) ** 2 + (w.y - v.y) ** 2;
@@ -534,6 +580,25 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
     t = Math.max(0, Math.min(1, t));
     return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
+  };
+
+  // Check if click hit resize handle of selected text
+  const isHitResizeHandle = (pt: Point, t: TextAnnotation): boolean => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!ctx) return false;
+    ctx.font = `${t.isItalic ? 'italic' : 'normal'} ${t.isBold ? '700' : '500'} ${t.fontSize}px ${t.fontFamily || 'sans-serif'}`;
+    const lines = t.text.split('\n');
+    let maxW = 0;
+    lines.forEach((l) => {
+      const w = ctx.measureText(l).width;
+      if (w > maxW) maxW = w;
+    });
+    const textW = Math.max(maxW, t.width || 100);
+    const textH = lines.length * (t.fontSize * 1.35);
+    const handleX = t.x + textW + 6;
+    const handleY = t.y + textH + 6;
+    return Math.hypot(pt.x - handleX, pt.y - handleY) <= 16;
   };
 
   // Find annotation at coordinate (for Select, Move, Eraser or Text edit)
@@ -567,16 +632,16 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext('2d');
         if (ctx) {
-          ctx.font = `${t.isItalic ? 'italic' : 'normal'} ${t.isBold ? '700' : '500'} ${t.fontSize}px sans-serif`;
+          ctx.font = `${t.isItalic ? 'italic' : 'normal'} ${t.isBold ? '700' : '500'} ${t.fontSize}px ${t.fontFamily || 'sans-serif'}`;
           const lines = t.text.split('\n');
           let maxW = 0;
           lines.forEach((l) => {
             const w = ctx.measureText(l).width;
             if (w > maxW) maxW = w;
           });
-          const boxW = maxW + 20;
+          const boxW = Math.max(maxW, t.width || 100) + 16;
           const boxH = lines.length * (t.fontSize * 1.35) + 16;
-          if (pt.x >= t.x - 10 && pt.x <= t.x + boxW + 10 && pt.y >= t.y - 10 && pt.y <= t.y + boxH + 10) {
+          if (pt.x >= t.x - 8 && pt.x <= t.x + boxW && pt.y >= t.y - 8 && pt.y <= t.y + boxH) {
             return a;
           }
         }
@@ -615,19 +680,30 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     }
   };
 
-  // Pointer Down (Start drawing / Text click / Eraser / Select & Move)
+  // Pointer Down (Start drawing / In-image Text click / Eraser / Select & Move)
   const handlePointerDown = (e: React.MouseEvent | React.TouchEvent) => {
     const pt = getCanvasCoords(e);
     if (!pt) return;
 
-    // Commit any currently open text input before starting a new action
-    if (activeTextInput) {
-      commitActiveText();
+    // Commit any currently open inline text before starting a new action
+    if (activeInlineText) {
+      commitActiveInlineText();
       return;
     }
 
-    // ── SELECT / MOVE MODE ──
+    // ── SELECT / MOVE / RESIZE MODE ──
     if (activeTool === 'select') {
+      // Check if clicking resize handle of an already selected text
+      if (selectedAnnotationId) {
+        const selected = annotations.find((a) => a.id === selectedAnnotationId);
+        if (selected && selected.type === 'text' && isHitResizeHandle(pt, selected as TextAnnotation)) {
+          setIsResizingText(true);
+          dragStartPointRef.current = pt;
+          dragOriginalAnnotationRef.current = JSON.parse(JSON.stringify(selected));
+          return;
+        }
+      }
+
       const hit = findAnnotationAt(pt);
       if (hit) {
         setSelectedAnnotationId(hit.id);
@@ -646,31 +722,28 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
       return;
     }
 
-    // ── TEXT MODE ──
+    // ── DIRECT IN-IMAGE TEXT MODE ──
     if (activeTool === 'text') {
       const hit = findAnnotationAt(pt);
-      const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
 
       if (hit && hit.type === 'text') {
         const t = hit as TextAnnotation;
-        setActiveTextInput({
+        setActiveInlineText({
           id: t.id,
           type: 'text',
           canvasX: t.x,
           canvasY: t.y,
-          screenX: clientX,
-          screenY: clientY,
+          width: t.width || 220,
           text: t.text,
         });
         setAnnotations((prev) => prev.filter((a) => a.id !== t.id));
       } else {
-        setActiveTextInput({
+        // Direct inline in-image text box
+        setActiveInlineText({
           type: 'text',
           canvasX: pt.x,
           canvasY: pt.y,
-          screenX: clientX,
-          screenY: clientY,
+          width: 240,
           text: '',
         });
       }
@@ -680,28 +753,24 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     // ── NOTE (STICKY CALLOUT) MODE ──
     if (activeTool === 'note') {
       const hit = findAnnotationAt(pt);
-      const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
 
       if (hit && hit.type === 'note') {
         const n = hit as NoteAnnotation;
-        setActiveTextInput({
+        setActiveInlineText({
           id: n.id,
           type: 'note',
           canvasX: n.x,
           canvasY: n.y,
-          screenX: clientX,
-          screenY: clientY,
+          width: 220,
           text: n.text,
         });
         setAnnotations((prev) => prev.filter((a) => a.id !== n.id));
       } else {
-        setActiveTextInput({
+        setActiveInlineText({
           type: 'note',
           canvasX: pt.x,
           canvasY: pt.y,
-          screenX: clientX,
-          screenY: clientY,
+          width: 220,
           text: '',
         });
       }
@@ -739,10 +808,32 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     }
   };
 
-  // Pointer Move (Drawing update / Move selected / Continuous Eraser)
+  // Pointer Move (Drawing update / Move selected / Resize Text / Continuous Eraser)
   const handlePointerMove = (e: React.MouseEvent | React.TouchEvent) => {
     const pt = getCanvasCoords(e);
     if (!pt) return;
+
+    // ── RESIZE SELECTED TEXT (Expand box directly on image) ──
+    if (activeTool === 'select' && isResizingText && dragStartPointRef.current && dragOriginalAnnotationRef.current) {
+      const orig = dragOriginalAnnotationRef.current as TextAnnotation;
+      const dx = pt.x - dragStartPointRef.current.x;
+      const dy = pt.y - dragStartPointRef.current.y;
+      const newWidth = Math.max(80, (orig.width || 120) + dx);
+      // Scale font size proportionally if dragging vertically
+      const newFontSize = Math.min(80, Math.max(12, Math.round(orig.fontSize + dy * 0.15)));
+
+      setAnnotations((prev) =>
+        prev.map((item) => {
+          if (item.id !== orig.id) return item;
+          return {
+            ...item,
+            width: newWidth,
+            fontSize: newFontSize,
+          } as TextAnnotation;
+        })
+      );
+      return;
+    }
 
     // ── MOVE SELECTED ANNOTATION ──
     if (activeTool === 'select' && isDraggingSelected && dragStartPointRef.current && dragOriginalAnnotationRef.current) {
@@ -813,8 +904,17 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     }
   };
 
-  // Pointer Up (Commit drawn shape/path or finish dragging)
+  // Pointer Up (Commit drawn shape/path or finish dragging/resizing)
   const handlePointerUp = () => {
+    // ── FINISH RESIZING TEXT ──
+    if (isResizingText) {
+      setIsResizingText(false);
+      dragStartPointRef.current = null;
+      dragOriginalAnnotationRef.current = null;
+      pushState([...annotations]);
+      return;
+    }
+
     // ── FINISH DRAGGING IN SELECT MODE ──
     if (isDraggingSelected) {
       setIsDraggingSelected(false);
@@ -851,18 +951,19 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   };
 
   // Commit typed text or note
-  const commitActiveText = () => {
-    if (!activeTextInput) return;
-    const trimmed = activeTextInput.text.trim();
+  const commitActiveInlineText = () => {
+    if (!activeInlineText) return;
+    const trimmed = activeInlineText.text.trim();
     if (trimmed) {
-      if (activeTextInput.type === 'text') {
+      if (activeInlineText.type === 'text') {
         const textAnn: TextAnnotation = {
-          id: activeTextInput.id || 'ann_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+          id: activeInlineText.id || 'ann_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
           type: 'text',
           color: selectedColor,
           strokeWidth: 2,
-          x: activeTextInput.canvasX,
-          y: activeTextInput.canvasY,
+          x: activeInlineText.canvasX,
+          y: activeInlineText.canvasY,
+          width: activeInlineText.width,
           text: trimmed,
           fontSize: selectedFontSize,
           fontFamily: selectedFontFamily,
@@ -870,21 +971,23 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
           isItalic,
         };
         pushState([...annotations, textAnn]);
+        setSelectedAnnotationId(textAnn.id);
       } else {
         const noteAnn: NoteAnnotation = {
-          id: activeTextInput.id || 'ann_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+          id: activeInlineText.id || 'ann_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
           type: 'note',
           color: '#FEF3C7',
           strokeWidth: 1,
-          x: activeTextInput.canvasX,
-          y: activeTextInput.canvasY,
+          x: activeInlineText.canvasX,
+          y: activeInlineText.canvasY,
           text: trimmed,
           fontSize: Math.min(22, selectedFontSize),
         };
         pushState([...annotations, noteAnn]);
+        setSelectedAnnotationId(noteAnn.id);
       }
     }
-    setActiveTextInput(null);
+    setActiveInlineText(null);
   };
 
   // Keyboard shortcuts
@@ -896,8 +999,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
       if (e.key === 'Escape') {
         e.preventDefault();
-        if (activeTextInput) {
-          commitActiveText();
+        if (activeInlineText) {
+          commitActiveInlineText();
         } else if (activeTool !== 'select') {
           setActiveTool('select');
         } else {
@@ -953,7 +1056,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, activeTextInput, handleUndo, handleRedo, annotations, activeTool, selectedAnnotationId]);
+  }, [isOpen, activeInlineText, handleUndo, handleRedo, annotations, activeTool, selectedAnnotationId]);
 
   // Export full-res dataURL from canvas
   const exportEditedImage = async (): Promise<{ dataUrl: string; size: number } | null> => {
@@ -975,7 +1078,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      commitActiveText();
+      commitActiveInlineText();
 
       const res = await exportEditedImage();
       if (!res) {
@@ -999,7 +1102,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
   // Action: Download
   const handleDownload = async () => {
-    commitActiveText();
+    commitActiveInlineText();
     const res = await exportEditedImage();
     if (!res) return;
     const filename = (image.name ? image.name.replace(/\.[^/.]+$/, '') : 'note-image') + '_markup.png';
@@ -1009,7 +1112,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
   // Action: Copy to clipboard
   const handleCopy = async () => {
-    commitActiveText();
+    commitActiveInlineText();
     const res = await exportEditedImage();
     if (!res) return;
     await copyImageToClipboard(res.dataUrl);
@@ -1018,6 +1121,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Compute screen position of active inline text directly on top of image
+  const inlineScreenPos = activeInlineText ? getScreenCoords({ x: activeInlineText.canvasX, y: activeInlineText.canvasY }) : null;
+  const canvasScale = canvasRef.current && naturalSize.w > 0 ? canvasRef.current.getBoundingClientRect().width / canvasRef.current.width : 1;
+
   return createPortal(
     <div
       role="dialog"
@@ -1025,15 +1132,15 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
       aria-label="Chỉnh sửa hình ảnh Apple Markup"
       className="fixed inset-0 z-[10020] flex flex-col bg-black/85 backdrop-blur-3xl select-none animate-in fade-in duration-200 overflow-hidden"
     >
-      {/* ────────────────── TOP BAR (Header Actions) ────────────────── */}
-      <header className="h-14 sm:h-16 flex items-center justify-between px-4 sm:px-6 border-b border-white/10 shrink-0 z-30">
+      {/* ────────────────── TOP BAR (Header Actions - Perfectly Centered) ────────────────── */}
+      <header className="h-14 sm:h-16 grid grid-cols-3 items-center px-4 sm:px-6 border-b border-white/10 shrink-0 z-30">
         {/* Left: Info & Filename */}
-        <div className="flex items-center gap-2.5 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0 justify-self-start">
           <div className="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center shrink-0">
             <SFPhoto size={16} />
           </div>
           <div className="min-w-0">
-            <h3 className="text-[13.5px] font-semibold text-white truncate max-w-[200px] sm:max-w-xs">
+            <h3 className="text-[13.5px] font-semibold text-white truncate max-w-[180px] sm:max-w-xs">
               Chỉnh sửa: {image.name || 'Hình ảnh'}
             </h3>
             <p className="text-[11px] text-white/60">
@@ -1042,8 +1149,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
           </div>
         </div>
 
-        {/* Center: History (Undo, Redo, Rotate, Delete Selected, Clear All) */}
-        <div className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 rounded-full bg-white/10 border border-white/15 backdrop-blur-xl shadow-xs">
+        {/* Center: History (Undo, Redo, Rotate, Delete Selected, Clear All) - Strictly Centered via Grid */}
+        <div className="justify-self-center flex items-center gap-1 sm:gap-1.5 px-2.5 py-1 rounded-full bg-white/10 border border-white/15 backdrop-blur-xl shadow-xs">
           <button
             type="button"
             onClick={handleUndo}
@@ -1112,7 +1219,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         </div>
 
         {/* Right: Actions (Copy, Download, Cancel, Save) */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 justify-self-end">
           <button
             type="button"
             onClick={handleCopy}
@@ -1160,7 +1267,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         style={{
           cursor:
             activeTool === 'select'
-              ? isDraggingSelected
+              ? isResizingText
+                ? 'nwse-resize'
+                : isDraggingSelected
                 ? 'grabbing'
                 : 'default'
               : activeTool === 'pen'
@@ -1188,70 +1297,69 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             className="max-h-[calc(100vh-190px)] max-w-[90vw] object-contain rounded-xl shadow-[0_20px_70px_rgba(0,0,0,0.85)] border border-white/15 select-none touch-none"
           />
 
-          {/* Floating inline text / note box overlay while typing */}
-          {activeTextInput && (
+          {/* Direct In-Image Inline Textarea Editor (Positioned Directly on the Canvas) */}
+          {activeInlineText && inlineScreenPos && (
             <div
               className={cn(
-                "absolute z-40 backdrop-blur-2xl rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.2)] p-3 flex flex-col gap-2.5 animate-scale-up border",
-                activeTextInput.type === 'note'
-                  ? "bg-[#FEF3C7] border-[#FCD34D] text-[#78350F]"
-                  : "bg-black/75 dark:bg-black/85 border-white/20 text-white"
+                "fixed z-50 rounded-xl p-2 shadow-[0_12px_40px_rgba(0,0,0,0.5)] border transition-shadow",
+                activeInlineText.type === 'note'
+                  ? "bg-[#FEF3C7] border-[#FCD34D]"
+                  : "bg-black/55 backdrop-blur-md border-[#0071e3] ring-2 ring-[#0071e3]/30"
               )}
               style={{
-                left: Math.max(10, Math.min(window.innerWidth - 320, activeTextInput.screenX - 80)),
-                top: Math.max(70, Math.min(window.innerHeight - 170, activeTextInput.screenY - 40)),
+                left: inlineScreenPos.x - 8,
+                top: inlineScreenPos.y - 8,
+                minWidth: Math.max(160, (activeInlineText.width || 220) * canvasScale),
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between text-[11px] font-semibold opacity-70 border-b border-black/10 dark:border-white/10 pb-1">
-                <span>{activeTextInput.type === 'note' ? '📌 Ghi chú Sticky Note' : '🔤 Thêm chữ vào ảnh'}</span>
-                <span>Ctrl+Enter xong</span>
-              </div>
-
               <textarea
-                ref={textInputRef}
-                value={activeTextInput.text}
+                ref={inlineTextareaRef}
+                value={activeInlineText.text}
                 onChange={(e) =>
-                  setActiveTextInput({ ...activeTextInput, text: e.target.value })
+                  setActiveInlineText({ ...activeInlineText, text: e.target.value })
                 }
-                placeholder={activeTextInput.type === 'note' ? 'Nhập nội dung ghi chú callout...' : 'Nhập chữ chèn vào ảnh...'}
-                rows={2}
+                placeholder={activeInlineText.type === 'note' ? 'Nhập ghi chú dán...' : 'Gõ chữ trực tiếp...'}
+                rows={Math.max(2, activeInlineText.text.split('\n').length)}
                 style={{
-                  color: activeTextInput.type === 'note' ? '#78350F' : selectedColor === '#1F2937' ? '#FFFFFF' : selectedColor,
-                  fontSize: `${Math.max(14, selectedFontSize * 0.75)}px`,
-                  fontFamily: activeTextInput.type === 'text' ? selectedFontFamily : 'inherit',
-                  fontWeight: activeTextInput.type === 'text' && isBold ? 700 : 500,
-                  fontStyle: activeTextInput.type === 'text' && isItalic ? 'italic' : 'normal',
+                  color: activeInlineText.type === 'note' ? '#78350F' : selectedColor === '#1F2937' ? '#FFFFFF' : selectedColor,
+                  fontSize: `${Math.max(13, selectedFontSize * canvasScale)}px`,
+                  fontFamily: activeInlineText.type === 'text' ? selectedFontFamily : 'inherit',
+                  fontWeight: activeInlineText.type === 'text' && isBold ? 700 : 500,
+                  fontStyle: activeInlineText.type === 'text' && isItalic ? 'italic' : 'normal',
                 }}
                 className={cn(
-                  "w-72 bg-transparent outline-none resize-none leading-relaxed border-none focus:ring-0 p-1 placeholder-black/30 dark:placeholder-white/40",
-                  activeTextInput.type === 'note' ? "text-[#78350F]" : "text-white"
+                  "w-full bg-transparent outline-none resize-none leading-relaxed border-none focus:ring-0 p-1 placeholder-black/30 dark:placeholder-white/40",
+                  activeInlineText.type === 'note' ? "text-[#78350F]" : "text-white"
                 )}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                     e.preventDefault();
-                    commitActiveText();
+                    commitActiveInlineText();
                   } else if (e.key === 'Escape') {
                     e.preventDefault();
-                    commitActiveText();
+                    commitActiveInlineText();
                   }
                 }}
               />
-              <div className="flex items-center justify-between pt-1 border-t border-black/10 dark:border-white/10">
-                <button
-                  type="button"
-                  onClick={() => setActiveTextInput(null)}
-                  className="px-2.5 py-0.5 rounded-full text-[11px] opacity-70 hover:opacity-100 cursor-pointer"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="button"
-                  onClick={commitActiveText}
-                  className="px-3 py-1 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white font-medium text-[12px] shadow-sm transition-all active:scale-95 cursor-pointer"
-                >
-                  Xong
-                </button>
+              <div className="flex items-center justify-between pt-1 border-t border-black/10 dark:border-white/10 text-[10.5px]">
+                <span className="opacity-60 text-white dark:text-white/60">Ctrl+Enter xong</span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setActiveInlineText(null)}
+                    className="px-2 py-0.5 rounded-md hover:bg-white/10 text-white/70 hover:text-white cursor-pointer"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={commitActiveInlineText}
+                    className="px-2.5 py-0.5 rounded-md bg-[#0071e3] hover:bg-[#0077ed] text-white font-medium shadow-xs cursor-pointer"
+                  >
+                    Xong
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -1261,24 +1369,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
       {/* ────────────────── BOTTOM FLOATING MARKUP TOOLBAR (Apple Liquid Glass Pill) ────────────────── */}
       <footer className="h-20 sm:h-24 flex flex-col items-center justify-center px-4 pb-3 pt-1 shrink-0 z-30 gap-1.5">
         <div className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-full bg-black/65 dark:bg-white/[0.08] backdrop-blur-3xl border border-white/20 shadow-[0_16px_50px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.3)] text-white flex-wrap justify-center">
-          {/* Tool: Chọn & Di chuyển (Pointer / Select) */}
-          <button
-            type="button"
-            onClick={() => setActiveTool('select')}
-            className={cn(
-              "w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 active:scale-90 cursor-pointer",
-              activeTool === 'select'
-                ? "bg-white/30 text-white scale-105 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_2px_8px_rgba(0,0,0,0.3)]"
-                : "text-white/70 hover:text-white hover:bg-white/10"
-            )}
-            title="Trỏ chuột: Chọn & kéo di chuyển đối tượng (Phím V hoặc nhấp lại công cụ đang chọn)"
-          >
-            <SFPointerArrow size={16} />
-          </button>
-
-          <span className="w-[1px] h-5 bg-white/20 mx-0.5" />
-
-          {/* Tool: Bút vẽ (Pen) - Click again to toggle to select */}
+          {/* Tool: Bút vẽ (Pen) - Click again to toggle off directly into pointer/select mode */}
           <button
             type="button"
             onClick={() => handleSelectTool('pen')}
@@ -1288,7 +1379,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 ? "bg-white/25 text-white scale-105 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_2px_8px_rgba(0,0,0,0.3)]"
                 : "text-white/70 hover:text-white hover:bg-white/10"
             )}
-            title="Bút vẽ tự do (Phím P — Nhấp lần nữa để tắt)"
+            title="Bút vẽ tự do (Phím P — Nhấn thêm 1 lần để thoát ra chế độ trỏ chuột)"
           >
             <SFPencil size={16} />
           </button>
@@ -1303,7 +1394,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 ? "bg-white/25 text-white scale-105 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_2px_8px_rgba(0,0,0,0.3)]"
                 : "text-white/70 hover:text-white hover:bg-white/10"
             )}
-            title="Bút dạ quang (Phím H — Nhấp lần nữa để tắt)"
+            title="Bút dạ quang (Phím H — Nhấn thêm 1 lần để thoát ra chế độ trỏ chuột)"
           >
             <SFHighlighter size={16} />
           </button>
@@ -1318,7 +1409,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 ? "bg-white/25 text-white scale-105 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_2px_8px_rgba(0,0,0,0.3)]"
                 : "text-white/70 hover:text-white hover:bg-white/10"
             )}
-            title="Khung chữ nhật (Phím R — Nhấp lần nữa để tắt)"
+            title="Khung chữ nhật (Phím R — Nhấn thêm 1 lần để thoát ra chế độ trỏ chuột)"
           >
             <SFSquare size={16} />
           </button>
@@ -1333,7 +1424,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 ? "bg-white/25 text-white scale-105 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_2px_8px_rgba(0,0,0,0.3)]"
                 : "text-white/70 hover:text-white hover:bg-white/10"
             )}
-            title="Mũi tên chỉ dẫn (Phím A — Nhấp lần nữa để tắt)"
+            title="Mũi tên chỉ dẫn (Phím A — Nhấn thêm 1 lần để thoát ra chế độ trỏ chuột)"
           >
             <SFArrowRight size={16} />
           </button>
@@ -1348,7 +1439,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 ? "bg-white/25 text-white scale-105 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_2px_8px_rgba(0,0,0,0.3)]"
                 : "text-white/70 hover:text-white hover:bg-white/10"
             )}
-            title="Thêm văn bản chữ vào ảnh (Phím T — Tùy chỉnh font, cỡ, đậm/nghiêng)"
+            title="Thêm văn bản chữ vào ảnh (Phím T — Nhấn thêm 1 lần để thoát ra chế độ trỏ chuột)"
           >
             <SFTextformat size={16} />
           </button>
@@ -1363,7 +1454,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 ? "bg-amber-400 text-amber-950 scale-105 shadow-[0_2px_10px_rgba(245,158,11,0.5)] font-bold"
                 : "text-white/70 hover:text-white hover:bg-white/10"
             )}
-            title="Chèn thẻ ghi chú dán (Sticky Note) trên ảnh (Phím N)"
+            title="Chèn thẻ ghi chú dán Sticky Note (Phím N — Nhấn thêm 1 lần để thoát ra chế độ trỏ chuột)"
           >
             <SFTextBubble size={16} />
           </button>
@@ -1378,7 +1469,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 ? "bg-white/25 text-white scale-105 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_2px_8px_rgba(0,0,0,0.3)]"
                 : "text-white/70 hover:text-white hover:bg-white/10"
             )}
-            title="Tẩy xóa nét vẽ / chữ (Phím E — Nhấp lần nữa để tắt)"
+            title="Tẩy xóa nét vẽ / chữ (Phím E — Nhấn thêm 1 lần để thoát ra chế độ trỏ chuột)"
           >
             <SFEraser size={16} />
           </button>
@@ -1441,19 +1532,52 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             </div>
           ) : activeTool === 'text' ? (
             /* Font & Typography Controls for Text Tool */
-            <div className="flex items-center gap-1.5 pl-1">
-              <select
-                value={selectedFontFamily}
-                onChange={(e) => setSelectedFontFamily(e.target.value)}
-                className="bg-black/40 border border-white/20 text-white text-[11px] rounded-lg px-2 py-1 outline-none cursor-pointer"
-                title="Chọn phông chữ"
-              >
-                {FONT_FAMILIES.map((f) => (
-                  <option key={f.value} value={f.value} className="bg-[#1c1c1e] text-white">
-                    {f.label}
-                  </option>
-                ))}
-              </select>
+            <div className="flex items-center gap-2 pl-1">
+              {/* Unified Apple Liquid Popover Listbox for Font Selection */}
+              <div className="relative" ref={fontDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsFontDropdownOpen(!isFontDropdownOpen)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white text-[12px] font-medium transition-all shadow-2xs active:scale-95 cursor-pointer"
+                  title="Chọn phông chữ"
+                >
+                  <span className="truncate max-w-[130px]">
+                    {FONT_FAMILIES.find((f) => f.value === selectedFontFamily)?.label.split('(')[0].trim() || 'Phông chữ'}
+                  </span>
+                  <SFChevronDown size={11} className={cn("transition-transform duration-200 text-white/60", isFontDropdownOpen && "rotate-180")} />
+                </button>
+
+                {isFontDropdownOpen && (
+                  <div className="absolute bottom-full mb-2 left-0 w-52 rounded-2xl bg-[#1c1c24]/95 backdrop-blur-2xl border border-white/15 shadow-[0_16px_40px_rgba(0,0,0,0.6)] py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-3 py-1 text-[10.5px] uppercase tracking-wider font-semibold text-white/40 border-b border-white/10 mb-1">
+                      Phông chữ văn bản
+                    </div>
+                    {FONT_FAMILIES.map((f) => {
+                      const isSelected = selectedFontFamily === f.value;
+                      return (
+                        <button
+                          key={f.value}
+                          type="button"
+                          onClick={() => {
+                            setSelectedFontFamily(f.value);
+                            setIsFontDropdownOpen(false);
+                          }}
+                          className={cn(
+                            "w-full text-left px-3 py-1.5 text-[12px] flex items-center justify-between transition-colors cursor-pointer",
+                            isSelected
+                              ? "bg-[#0071e3] text-white font-medium"
+                              : "text-white/80 hover:bg-white/10 hover:text-white"
+                          )}
+                          style={{ fontFamily: f.value }}
+                        >
+                          <span className="truncate">{f.label}</span>
+                          {isSelected && <SFCheckmark size={12} className="shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
               {/* Bold Toggle */}
               <button
@@ -1481,22 +1605,23 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 <SFItalic size={13} />
               </button>
 
-              {/* Font Size Selector */}
-              <div className="flex items-center gap-1">
-                {[16, 24, 32, 44].map((size) => (
-                  <button
-                    key={size}
-                    type="button"
-                    onClick={() => setSelectedFontSize(size)}
-                    className={cn(
-                      "w-6 h-6 rounded-md flex items-center justify-center text-[10.5px] font-bold transition-all cursor-pointer",
-                      selectedFontSize === size ? "bg-white/25 text-white shadow-xs" : "text-white/60 hover:text-white hover:bg-white/10"
-                    )}
-                    title={`Cỡ chữ: ${size}px`}
-                  >
-                    {size}
-                  </button>
-                ))}
+              <span className="w-[1px] h-4 bg-white/20 mx-0.5" />
+
+              {/* Continuous Custom Font Size Slider (From 10px to 80px) */}
+              <div className="flex items-center gap-2 pl-0.5">
+                <span className="text-[11px] text-white/60 font-medium">Cỡ:</span>
+                <input
+                  type="range"
+                  min={10}
+                  max={80}
+                  value={selectedFontSize}
+                  onChange={(e) => setSelectedFontSize(Number(e.target.value))}
+                  className="w-16 sm:w-20 accent-[#0071e3] cursor-pointer h-1.5 bg-white/20 rounded-lg outline-none"
+                  title={`Tùy chọn kích thước cỡ chữ: ${selectedFontSize}px`}
+                />
+                <span className="text-[11.5px] font-mono text-white/90 min-w-[32px] font-semibold">
+                  {selectedFontSize}px
+                </span>
               </div>
             </div>
           ) : (

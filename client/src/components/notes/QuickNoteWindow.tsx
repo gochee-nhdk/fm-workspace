@@ -7934,85 +7934,79 @@ export const QuickNoteWindow: React.FC = () => {
         />
       )}
 
-      {/* ────────────────── OCR Review Dialog ────────────────── */}
-      {extractedOcrText !== null &&
-        createPortal(
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Nội dung trích xuất từ ảnh"
-            className="fixed inset-0 z-[10010] flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            onClick={(e) => { if (e.target === e.currentTarget) setExtractedOcrText(null); }}
-          >
-            <div
-              className="w-full max-w-lg rounded-3xl bg-white/[0.08] dark:bg-white/[0.06] backdrop-blur-3xl border border-white/20 shadow-[0_32px_80px_rgba(0,0,0,0.7),inset_0_1px_1px_rgba(255,255,255,0.25)] flex flex-col gap-0 overflow-hidden animate-in slide-in-from-bottom-4 duration-300"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-white/10">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-[#2997ff]/20 flex items-center justify-center">
-                    <SFTextBelowPhoto size={15} className="text-[#2997ff]" />
-                  </div>
-                  <div>
-                    <p className="text-[14px] font-semibold text-white leading-tight">Nội dung trích xuất từ ảnh</p>
-                    <p className="text-[11px] text-white/50 leading-tight mt-0.5">Kiểm tra và thêm vào ghi chú nếu chính xác</p>
-                  </div>
+      {/* ────────────────── OCR Review Dialog (Apple Liquid Glass Standard) ────────────────── */}
+      <AppleLiquidDialog
+        isOpen={extractedOcrText !== null}
+        onClose={() => setExtractedOcrText(null)}
+        zIndex={10015}
+        title="Nội dung trích xuất từ ảnh"
+        overlayClassName="p-4"
+        contentClassName="w-full max-w-lg bg-white/90 dark:bg-[#1c1c24]/90 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/12 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] overflow-hidden text-left flex flex-col"
+      >
+        {extractedOcrText !== null && (
+          <>
+            {/* Header */}
+            <div className="p-4 sm:px-5 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between shrink-0 bg-black/[0.01] dark:bg-white/[0.02]">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-b from-[#0071e3]/20 to-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center border border-[#0071e3]/20 shadow-2xs shrink-0">
+                  <SFTextBelowPhoto size={16} />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setExtractedOcrText(null)}
-                  className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition-all active:scale-90 cursor-pointer"
-                  aria-label="Đóng"
-                >
-                  <SFXmark size={12} />
-                </button>
+                <div className="min-w-0">
+                  <h4 className="font-semibold text-[14.5px] text-[#1d1d1f] dark:text-white leading-tight truncate">
+                    Nội Dung Trích Xuất Từ Ảnh
+                  </h4>
+                  <p className="text-[11.5px] text-[#6e6e73] dark:text-[#a1a1a6] truncate mt-0.5">
+                    Kiểm tra và thêm nội dung văn bản vào ghi chú hiện tại
+                  </p>
+                </div>
               </div>
+              <CloseButton
+                onClick={() => setExtractedOcrText(null)}
+                size="sm"
+                title="Đóng (Esc)"
+              />
+            </div>
 
-              {/* Extracted text content */}
-              <div className="px-5 py-4 max-h-72 overflow-y-auto scrollbar-thin">
-                <pre
-                  className="text-[13px] text-white/85 font-mono leading-relaxed whitespace-pre-wrap break-words bg-white/5 rounded-2xl px-4 py-3 border border-white/10"
-                >
-                  {extractedOcrText}
-                </pre>
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex items-center gap-2.5 px-5 pb-5 pt-3 border-t border-white/10">
-                <button
-                  type="button"
-                  onClick={() => handleInsertOcrText(extractedOcrText)}
-                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[13px] font-semibold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
-                >
-                  <SFTextBadgePlus size={13} />
-                  <span>Thêm vào ghi chú</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(extractedOcrText).then(() => {
-                      toast.success('Đã sao chép nội dung vào bộ nhớ tạm!');
-                    });
-                  }}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-[13px] font-medium transition-all active:scale-95 cursor-pointer border border-white/15"
-                >
-                  <SFSquareOnSquare size={13} />
-                  <span>Sao chép</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setExtractedOcrText(null)}
-                  className="inline-flex items-center justify-center px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-[13px] font-medium transition-all active:scale-95 cursor-pointer border border-white/15"
-                >
-                  Hủy
-                </button>
+            {/* Extracted text content box */}
+            <div className="p-4 sm:p-5 max-h-[50vh] overflow-y-auto scrollbar-thin">
+              <div className="rounded-2xl p-4 bg-black/[0.03] dark:bg-white/[0.04] border border-black/[0.08] dark:border-white/10 text-[13px] leading-relaxed font-sans text-[#1d1d1f] dark:text-[#f5f5f7] whitespace-pre-wrap break-words select-text shadow-inner">
+                {extractedOcrText}
               </div>
             </div>
-          </div>,
-          document.body
-        )
-      }
+
+            {/* Action buttons */}
+            <div className="p-4 sm:px-5 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-end gap-2 shrink-0 bg-black/[0.01] dark:bg-white/[0.02]">
+              <button
+                type="button"
+                onClick={() => setExtractedOcrText(null)}
+                className="px-4 py-2 rounded-full text-[12.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] border border-black/5 dark:border-white/10 transition-colors cursor-pointer active:scale-95"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(extractedOcrText).then(() => {
+                    toast.success('Đã sao chép nội dung vào bộ nhớ tạm!');
+                  });
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] border border-black/5 dark:border-white/10 transition-colors cursor-pointer active:scale-95"
+              >
+                <SFSquareOnSquare size={13} />
+                <span>Sao chép</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleInsertOcrText(extractedOcrText)}
+                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-[12.5px] font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-xs transition-all cursor-pointer active:scale-95"
+              >
+                <SFTextBadgePlus size={13} />
+                <span>Thêm vào ghi chú</span>
+              </button>
+            </div>
+          </>
+        )}
+      </AppleLiquidDialog>
     </>,
     document.body
   );
