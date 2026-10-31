@@ -3189,17 +3189,19 @@ tbody td {
 @keyframes appleAiPillGlowPulse {
   0%, 100% {
     box-shadow: 
-      0 0 10px rgba(168, 85, 247, 0.16),
-      0 0 22px rgba(99, 102, 241, 0.10),
-      inset 0 0 8px rgba(255, 255, 255, 0.28);
-    border-color: rgba(168, 85, 247, 0.35);
+      0 0 16px rgba(168, 85, 247, 0.35),
+      0 0 35px rgba(56, 189, 248, 0.25),
+      0 0 50px rgba(236, 72, 153, 0.15),
+      inset 0 0 14px rgba(255, 255, 255, 0.45);
+    border-color: rgba(168, 85, 247, 0.45);
   }
   50% {
     box-shadow: 
-      0 0 18px rgba(168, 85, 247, 0.30),
-      0 0 32px rgba(236, 72, 153, 0.18),
-      inset 0 0 12px rgba(255, 255, 255, 0.50);
-    border-color: rgba(236, 72, 153, 0.50);
+      0 0 26px rgba(168, 85, 247, 0.55),
+      0 0 45px rgba(236, 72, 153, 0.35),
+      0 0 65px rgba(56, 189, 248, 0.30),
+      inset 0 0 18px rgba(255, 255, 255, 0.70);
+    border-color: rgba(236, 72, 153, 0.70);
   }
 }
 
@@ -3226,23 +3228,40 @@ tbody td {
 .apple-ai-scan-pill {
   position: absolute;
   overflow: hidden;
-  border-radius: 7px;
+  border-radius: 9999px;
   contain: paint layout;
   will-change: transform, box-shadow, border-color;
   pointer-events: none;
   transform: translateZ(0);
-  border: 1.2px solid rgba(168, 85, 247, 0.35);
-  backdrop-filter: blur(2px) saturate(180%);
-  -webkit-backdrop-filter: blur(2px) saturate(180%);
-  animation: appleAiPillGlowPulse 2.8s ease-in-out infinite;
+  border: 1.5px solid rgba(168, 85, 247, 0.45);
+  backdrop-filter: blur(12px) saturate(200%);
+  -webkit-backdrop-filter: blur(12px) saturate(200%);
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(168, 85, 247, 0.10) 45%,
+    rgba(56, 189, 248, 0.08) 100%
+  );
+  box-shadow: 
+    0 0 16px rgba(168, 85, 247, 0.35),
+    0 0 35px rgba(56, 189, 248, 0.25),
+    inset 0 0 12px rgba(255, 255, 255, 0.45);
+  animation: appleAiPillGlowPulse 2.4s ease-in-out infinite;
 }
 
 .dark .apple-ai-scan-pill {
-  border-color: rgba(168, 85, 247, 0.48);
+  border-color: rgba(192, 132, 252, 0.65);
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(168, 85, 247, 0.18) 45%,
+    rgba(56, 189, 248, 0.14) 100%
+  );
   box-shadow: 
-    0 0 14px rgba(168, 85, 247, 0.26),
-    0 0 32px rgba(99, 102, 241, 0.20),
-    inset 0 0 10px rgba(255, 255, 255, 0.18);
+    0 0 20px rgba(168, 85, 247, 0.45),
+    0 0 45px rgba(99, 102, 241, 0.30),
+    0 0 60px rgba(236, 72, 153, 0.20),
+    inset 0 0 16px rgba(255, 255, 255, 0.35);
 }
 
 /* 1. Underlying Liquid Aurora Shimmer */
@@ -3805,6 +3824,20 @@ button:not(:disabled):not([data-no-motion]):active,
   animation: appleDraftCardEnter 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
+
+/* ==========================================================================
+   Mandatory Motion Preservation Rule:
+   Ensure all animations and transitions always execute at 120 FPS
+   regardless of the operating system's prefers-reduced-motion setting.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: inherit !important;
+    animation-iteration-count: inherit !important;
+    transition-duration: inherit !important;
+  }
+}
+
 
 
 

@@ -1992,7 +1992,7 @@ export const QuickNoteWindow: React.FC = () => {
               savedRange.insertNode(frag);
             }
           } else {
-            editor.innerHTML = ensureHtml(aiDraft.result);
+            editor.innerHTML = ensureHtml(aiDraft.result, activeNote?.images);
           }
         } else {
           // 'append' mode (Chèn dưới):
@@ -2135,7 +2135,7 @@ export const QuickNoteWindow: React.FC = () => {
       if (clean === activeNote.password) {
         // Pre-hydrate content synchronously before unlocking to prevent any blank renders
         const noteContent = activeNote.content || '';
-        const html = ensureHtml(noteContent);
+        const html = ensureHtml(noteContent, activeNote.images);
         setLocalContent(html);
         localContentRef.current = html;
 
@@ -2163,7 +2163,7 @@ export const QuickNoteWindow: React.FC = () => {
     if (!activeNote || !activeNote.password) return;
     if (unlockPasscode === activeNote.password) {
       const noteContent = activeNote.content || '';
-      const html = ensureHtml(noteContent);
+      const html = ensureHtml(noteContent, activeNote.images);
       setLocalContent(html);
       localContentRef.current = html;
 
@@ -5816,7 +5816,7 @@ export const QuickNoteWindow: React.FC = () => {
                       (editorRef as any).current = el;
                       if (el) {
                         const source = localContentRef.current || activeNote?.content || '';
-                        const html = ensureHtml(source);
+                        const html = ensureHtml(source, activeNote?.images);
                         if (el.innerHTML !== html) {
                           el.innerHTML = html;
                         }
