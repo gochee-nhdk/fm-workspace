@@ -155,12 +155,12 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // Verify Gemini API key endpoint (requires authenticated user + rate limited)
+  // Verify API key endpoint with multi-provider support (Gemini, DeepSeek, OpenAI, Claude)
   fastify.post('/verify-key', {
     preHandler: verifyToken,
     config: {
       rateLimit: {
-        max: 10,
+        max: 20,
         timeWindow: '1 minute',
         errorResponseBuilder: () => ({
           statusCode: 429,
@@ -170,27 +170,178 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request: any, reply) => {
-    const { apiKey } = request.body || {};
+    const { apiKey, provider, model } = request.body || {};
     const key = apiKey || process.env.GEMINI_API_KEY;
-    if (!key) {
+    if (!key || typeof key !== 'string' || !key.trim()) {
       return reply.code(400).send({ success: false, message: 'Vui lòng cung cấp API key để kiểm tra' });
     }
 
+    const cleanKey = key.trim();
+    const cleanProvider = (provider || '').toLowerCase().trim();
+
+    // 1. DeepSeek provider verification
+    if (cleanProvider === 'deepseek' || (!cleanProvider && cleanKey.startsWith('sk-') && !cleanKey.startsWith('sk-proj-'))) {
+      try {
+        const dsModel = model || 'deepseek-chat';
+        const res = await fetch('https://api.deepseek.com/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${cleanKey}`,
+          },
+          body: JSON.stringify({
+            model: dsModel,
+            messages: [{ role: 'user', content: 'Ping' }],
+            max_tokens: 5,
+          }),
+        });
+
+        if (res.ok) {
+          return reply.send({
+            success: true,
+            provider: 'deepseek',
+            model: dsModel,
+            message: `Khóa API DeepSeek hoạt động chính xác! (Model: ${dsModel})`,
+          });
+        }
+
+        if (res.status === 429) {
+          return reply.send({
+            success: false,
+            status: 'quota_exceeded',
+            provider: 'deepseek',
+            model: dsModel,
+            message: 'Hết hạn mức DeepSeek (429) — Sẵn sàng chuyển dự phòng.',
+          });
+        }
+
+        const errJson = await res.json().catch(() => ({}));
+        return reply.code(400).send({
+          success: false,
+          provider: 'deepseek',
+          message: errJson.error?.message || `Xác thực DeepSeek thất bại (Mã lỗi ${res.status})`,
+        });
+      } catch (dsErr: any) {
+        return reply.code(400).send({
+          success: false,
+          provider: 'deepseek',
+          message: `Lỗi kết nối tới máy chủ DeepSeek: ${dsErr.message}`,
+        });
+      }
+    }
+
+    // 2. OpenAI provider verification
+    if (cleanProvider === 'openai' || cleanKey.startsWith('sk-proj-')) {
+      try {
+        const oaiModel = model || 'gpt-4o-mini';
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${cleanKey}`,
+          },
+          body: JSON.stringify({
+            model: oaiModel,
+            messages: [{ role: 'user', content: 'Ping' }],
+            max_tokens: 5,
+          }),
+        });
+
+        if (res.ok) {
+          return reply.send({
+            success: true,
+            provider: 'openai',
+            model: oaiModel,
+            message: `Khóa API OpenAI hoạt động chính xác! (Model: ${oaiModel})`,
+          });
+        }
+
+        if (res.status === 429) {
+          return reply.send({
+            success: false,
+            status: 'quota_exceeded',
+            provider: 'openai',
+            model: oaiModel,
+            message: 'Hết hạn mức OpenAI (429) — Sẵn sàng chuyển dự phòng.',
+          });
+        }
+
+        const errJson = await res.json().catch(() => ({}));
+        return reply.code(400).send({
+          success: false,
+          provider: 'openai',
+          message: errJson.error?.message || `Xác thực OpenAI thất bại (Mã lỗi ${res.status})`,
+        });
+      } catch (oaiErr: any) {
+        return reply.code(400).send({
+          success: false,
+          provider: 'openai',
+          message: `Lỗi kết nối tới máy chủ OpenAI: ${oaiErr.message}`,
+        });
+      }
+    }
+
+    // 3. Claude (Anthropic) provider verification
+    if (cleanProvider === 'claude' || cleanProvider === 'anthropic' || cleanKey.startsWith('sk-ant-')) {
+      try {
+        const claudeModel = model || 'claude-3-5-haiku-latest';
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': cleanKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify({
+            model: claudeModel,
+            max_tokens: 5,
+            messages: [{ role: 'user', content: 'Ping' }],
+          }),
+        });
+
+        if (res.ok) {
+          return reply.send({
+            success: true,
+            provider: 'claude',
+            model: claudeModel,
+            message: `Khóa API Anthropic Claude hoạt động chính xác! (Model: ${claudeModel})`,
+          });
+        }
+
+        const errJson = await res.json().catch(() => ({}));
+        return reply.code(400).send({
+          success: false,
+          provider: 'claude',
+          message: errJson.error?.message || `Xác thực Claude thất bại (Mã lỗi ${res.status})`,
+        });
+      } catch (cErr: any) {
+        return reply.code(400).send({
+          success: false,
+          provider: 'claude',
+          message: `Lỗi kết nối tới máy chủ Anthropic: ${cErr.message}`,
+        });
+      }
+    }
+
+    // 4. Google Gemini provider verification (Default for AIzaSy or gemini)
     try {
-      const ai = new GoogleGenAI({ apiKey: key });
+      const ai = new GoogleGenAI({ apiKey: cleanKey });
+      const geminiModel = model || 'gemini-2.5-flash';
       await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: geminiModel,
         contents: 'Ping. Trả lời đúng 1 chữ: OK',
         config: { maxOutputTokens: 5 },
       });
       return reply.send({
         success: true,
-        message: 'Khóa API hoạt động chính xác với Gemini 2.5 Flash!',
-        model: 'gemini-2.5-flash',
+        provider: 'gemini',
+        message: `Khóa API hoạt động chính xác với Google Gemini! (Model: ${geminiModel})`,
+        model: geminiModel,
       });
     } catch (err: any) {
       return reply.code(400).send({
         success: false,
+        provider: 'gemini',
         message: `Xác thực API Key thất bại: ${err.message || 'Khóa không hợp lệ'}`,
       });
     }

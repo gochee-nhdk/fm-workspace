@@ -34,6 +34,7 @@ import {
   SFArrowUp,
   SFCheckmark,
   SFSquareOnSquare,
+  SFChevronDown,
 } from '@/components/ui/AppleIcon';
 import {
   getGeminiKeysPool,
@@ -45,6 +46,7 @@ import {
   testSingleGeminiKey,
   testAllGeminiKeys,
   type GeminiKeyItem,
+  type AIProvider,
 } from '@/services/writingToolsService';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -196,10 +198,10 @@ export const SettingsPage: React.FC = () => {
   const [showSmtpPassword, setShowSmtpPassword] = useState(false);
   const [isDisconnectingSmtp, setIsDisconnectingSmtp] = useState(false);
 
-  // Gemini AI & OCR Multi-Key Management State
+  // Multi-Provider AI & OCR Key Management State
   const [geminiKeys, setGeminiKeys] = useState<GeminiKeyItem[]>(() => getGeminiKeysPool());
   const [newKeyInput, setNewKeyInput] = useState('');
-  const [newKeyNameInput, setNewKeyNameInput] = useState('');
+  const [selectedProvider, setSelectedProvider] = useState<AIProvider | 'auto'>('auto');
   const [showKeyMap, setShowKeyMap] = useState<Record<string, boolean>>({});
   const [isTestingAllKeys, setIsTestingAllKeys] = useState(false);
   const [testingKeyId, setTestingKeyId] = useState<string | null>(null);
@@ -268,20 +270,21 @@ export const SettingsPage: React.FC = () => {
 
     setIsAddingKey(true);
     try {
-      const newItem = addGeminiKey(key, newKeyNameInput.trim() || undefined);
+      const explicitProvider = selectedProvider !== 'auto' ? (selectedProvider as AIProvider) : undefined;
+      const newItem = addGeminiKey(key, undefined, explicitProvider);
       const updatedPool = getGeminiKeysPool();
       setGeminiKeys(updatedPool);
       setNewKeyInput('');
-      setNewKeyNameInput('');
       toast.success(`Đã thêm ${newItem.name} vào danh sách dự phòng!`);
 
-      // Tự động kiểm tra khóa vừa thêm
+      // Tự động kiểm tra khóa vừa thêm theo đúng nhà cung cấp đã chọn
       setTestingKeyId(newItem.id);
-      const testRes = await testSingleGeminiKey(newItem.key);
+      const testRes = await testSingleGeminiKey(newItem.key, newItem.provider);
       updateGeminiKey(newItem.id, {
         status: testRes.status,
         statusMessage: testRes.message,
         model: testRes.model,
+        provider: testRes.provider || newItem.provider,
         lastCheckedAt: new Date().toISOString(),
       });
       const refreshedPool = getGeminiKeysPool();
@@ -323,18 +326,19 @@ export const SettingsPage: React.FC = () => {
   const handleTestSingleGeminiKey = async (item: GeminiKeyItem) => {
     setTestingKeyId(item.id);
     try {
-      const res = await testSingleGeminiKey(item.key);
+      const res = await testSingleGeminiKey(item.key, item.provider);
       updateGeminiKey(item.id, {
         status: res.status,
         statusMessage: res.message,
         model: res.model,
+        provider: res.provider || item.provider,
         lastCheckedAt: new Date().toISOString(),
       });
       const updated = getGeminiKeysPool();
       setGeminiKeys(updated);
 
       if (res.status === 'active') {
-        toast.success(`${item.name}: Hoạt động tốt! (${res.model || 'Flash'})`);
+        toast.success(`${item.name}: Hoạt động tốt! (${res.model || item.provider || 'AI'})`);
       } else if (res.status === 'quota_exceeded') {
         toast('Khóa đã hết hạn mức (429) — Hệ thống sẽ dùng khóa dự phòng!', { icon: '⚠️' });
       } else {
@@ -1862,20 +1866,41 @@ export const SettingsPage: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <div className="sm:col-span-1">
-                  <input
-                    type="text"
-                    value={newKeyNameInput}
-                    onChange={(e) => setNewKeyNameInput(e.target.value)}
-                    placeholder={`Ví dụ: Khóa dự phòng #${geminiKeys.length || 1}`}
-                    className="w-full px-3.5 py-2 text-[13px] rounded-xl bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:border-[#0071e3] dark:focus:border-[#2997ff] transition-all"
-                  />
+                  <div className="relative">
+                    <select
+                      value={selectedProvider}
+                      onChange={(e) => setSelectedProvider(e.target.value as any)}
+                      aria-label="Nhà cung cấp / Model API"
+                      className="w-full px-3.5 py-2 text-[13px] rounded-xl bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none text-[#1d1d1f] dark:text-white font-medium focus:border-[#0071e3] dark:focus:border-[#2997ff] transition-all cursor-pointer appearance-none pr-8"
+                    >
+                      <option value="auto">✨ Tự động nhận diện</option>
+                      <option value="gemini">🔷 Google Gemini (2.5 Flash)</option>
+                      <option value="deepseek">🐋 DeepSeek (V3 / R1)</option>
+                      <option value="openai">🟢 OpenAI (GPT-4o mini)</option>
+                      <option value="claude">🟣 Anthropic Claude</option>
+                      <option value="custom">⚡ Tùy chỉnh (Khác)</option>
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#86868b]">
+                      <SFChevronDown size={12} />
+                    </div>
+                  </div>
                 </div>
                 <div className="sm:col-span-2 flex items-center gap-2">
                   <input
                     type="password"
                     value={newKeyInput}
                     onChange={(e) => setNewKeyInput(e.target.value)}
-                    placeholder="Dán mã API Key (AIzaSy..., sk-...)"
+                    placeholder={
+                      selectedProvider === 'deepseek'
+                        ? 'Dán mã API Key DeepSeek (sk-... hoặc 32 ký tự hex)'
+                        : selectedProvider === 'openai'
+                        ? 'Dán mã API Key OpenAI (sk-proj-...)'
+                        : selectedProvider === 'claude'
+                        ? 'Dán mã API Key Anthropic Claude (sk-ant-...)'
+                        : selectedProvider === 'gemini'
+                        ? 'Dán mã API Key Google Gemini (AIzaSy...)'
+                        : 'Dán mã API Key (AIzaSy..., sk-..., c2195...)'
+                    }
                     className="flex-1 px-3.5 py-2 text-[13px] font-mono rounded-xl bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:border-[#0071e3] dark:focus:border-[#2997ff] transition-all"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {

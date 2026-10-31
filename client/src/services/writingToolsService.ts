@@ -12,7 +12,7 @@ export type WritingToolAction =
   | 'translate_vi';
 
 export type GeminiKeyStatus = 'active' | 'quota_exceeded' | 'invalid' | 'unchecked';
-export type AIProvider = 'gemini' | 'deepseek' | 'openai' | 'custom';
+export type AIProvider = 'gemini' | 'deepseek' | 'openai' | 'claude' | 'custom';
 
 export interface GeminiKeyItem {
   id: string;
@@ -32,7 +32,8 @@ const GEMINI_KEYS_POOL_STORAGE = 'fm_gemini_api_keys_pool';
 export const detectProvider = (key: string): AIProvider => {
   const k = key.trim();
   if (k.startsWith('AIzaSy')) return 'gemini';
-  if (k.startsWith('sk-ant-')) return 'custom';
+  if (k.startsWith('sk-ant-')) return 'claude';
+  if (k.startsWith('sk-proj-')) return 'openai';
   if (k.startsWith('sk-')) return 'deepseek';
   return 'gemini';
 };
@@ -123,7 +124,16 @@ export const addGeminiKey = (key: string, name?: string, provider?: AIProvider):
   const id = 'key_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
   const count = pool.length;
   const detectedProv = provider && provider !== ('auto' as any) ? provider : detectProvider(cleanKey);
-  const provLabel = detectedProv === 'deepseek' ? 'DeepSeek' : detectedProv === 'openai' ? 'OpenAI' : 'Gemini';
+  const provLabel =
+    detectedProv === 'deepseek'
+      ? 'DeepSeek'
+      : detectedProv === 'openai'
+      ? 'OpenAI'
+      : detectedProv === 'claude'
+      ? 'Claude'
+      : detectedProv === 'custom'
+      ? 'Custom'
+      : 'Gemini';
   const defaultName = count === 0 ? `Khóa chính (${provLabel})` : `Khóa dự phòng #${count} (${provLabel})`;
   const newItem: GeminiKeyItem = {
     id,
@@ -532,7 +542,8 @@ export const testOpenAiKey = async (
 };
 
 /**
- * Kiểm tra trạng thái của một khóa duy nhất thuộc bất kỳ nhà cung cấp nào (Gemini, DeepSeek, OpenAI...)
+ * Kiểm tra trạng thái của một khóa duy nhất thuộc bất kỳ nhà cung cấp nào (Gemini, DeepSeek, OpenAI, Claude...)
+ * Kết hợp xác thực qua máy chủ backend (/api/ai/verify-key) để tránh tuyệt đối lỗi CORS trên trình duyệt
  */
 export const testSingleGeminiKey = async (
   key: string,
@@ -549,8 +560,38 @@ export const testSingleGeminiKey = async (
 
   const prov = preferredProvider && preferredProvider !== ('auto' as any) ? preferredProvider : detectProvider(cleanKey);
 
-  // 1. Nếu là DeepSeek hoặc khóa bắt đầu bằng sk-
-  if (prov === 'deepseek' || (cleanKey.startsWith('sk-') && prov !== 'openai')) {
+  // 1. Thử xác thực an toàn qua Server Proxy (/api/ai/verify-key) trước (miễn nhiễm với Browser CORS)
+  try {
+    const res = await api.post('/ai/verify-key', {
+      apiKey: cleanKey,
+      provider: prov,
+    });
+    if (res.data?.success) {
+      return {
+        success: true,
+        status: 'active',
+        message: res.data.message || `Khóa hoạt động chính xác! (${res.data.model || prov})`,
+        model: res.data.model,
+        provider: res.data.provider || prov,
+      };
+    }
+  } catch (serverErr: any) {
+    const errMsg = serverErr.response?.data?.message || serverErr.message || '';
+    const errStatus = serverErr.response?.status;
+    const isQuota = errStatus === 429 || /429|quota|rate.?limit|exhausted/i.test(errMsg);
+    if (serverErr.response?.status && serverErr.response?.status < 500) {
+      return {
+        success: false,
+        status: isQuota ? 'quota_exceeded' : 'invalid',
+        message: errMsg || 'Khóa không hợp lệ',
+        provider: prov,
+      };
+    }
+    // Nếu server 500 hoặc mất mạng, tiếp tục fallback trực tiếp từ browser
+  }
+
+  // 2. Nếu là DeepSeek hoặc khóa bắt đầu bằng sk-
+  if (prov === 'deepseek' || (cleanKey.startsWith('sk-') && prov !== 'openai' && prov !== 'claude')) {
     const dsRes = await testDeepSeekKey(cleanKey);
     if (dsRes.success) return dsRes;
 
@@ -562,12 +603,12 @@ export const testSingleGeminiKey = async (
     return dsRes;
   }
 
-  // 2. Nếu là OpenAI
+  // 3. Nếu là OpenAI
   if (prov === 'openai') {
     return testOpenAiKey(cleanKey);
   }
 
-  // 3. Mặc định: Google Gemini
+  // 4. Mặc định: Google Gemini (browser direct)
   const res = await testGeminiApiKey(cleanKey);
   if (res.success) {
     return {
