@@ -35,6 +35,8 @@ export const detectProvider = (key: string): AIProvider => {
   if (k.startsWith('sk-ant-')) return 'claude';
   if (k.startsWith('sk-proj-')) return 'openai';
   if (k.startsWith('sk-')) return 'deepseek';
+  // DeepSeek raw 32-character hexadecimal key format
+  if (/^[a-f0-9]{32}$/i.test(k)) return 'deepseek';
   return 'gemini';
 };
 
@@ -124,17 +126,7 @@ export const addGeminiKey = (key: string, name?: string, provider?: AIProvider):
   const id = 'key_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
   const count = pool.length;
   const detectedProv = provider && provider !== ('auto' as any) ? provider : detectProvider(cleanKey);
-  const provLabel =
-    detectedProv === 'deepseek'
-      ? 'DeepSeek'
-      : detectedProv === 'openai'
-      ? 'OpenAI'
-      : detectedProv === 'claude'
-      ? 'Claude'
-      : detectedProv === 'custom'
-      ? 'Custom'
-      : 'Gemini';
-  const defaultName = count === 0 ? `Khóa chính (${provLabel})` : `Khóa dự phòng #${count} (${provLabel})`;
+  const defaultName = count === 0 ? 'Khóa chính' : `Khóa dự phòng #${count}`;
   const newItem: GeminiKeyItem = {
     id,
     name: name?.trim() || defaultName,
@@ -575,19 +567,30 @@ export const testSingleGeminiKey = async (
         provider: res.data.provider || prov,
       };
     }
+    if (res.data?.status === 'quota_exceeded') {
+      return {
+        success: false,
+        status: 'quota_exceeded',
+        message: res.data.message || 'Hết hạn mức (429) — Sẵn sàng chuyển dự phòng',
+        provider: res.data.provider || prov,
+      };
+    }
   } catch (serverErr: any) {
     const errMsg = serverErr.response?.data?.message || serverErr.message || '';
     const errStatus = serverErr.response?.status;
-    const isQuota = errStatus === 429 || /429|quota|rate.?limit|exhausted/i.test(errMsg);
-    if (serverErr.response?.status && serverErr.response?.status < 500) {
-      return {
-        success: false,
-        status: isQuota ? 'quota_exceeded' : 'invalid',
-        message: errMsg || 'Khóa không hợp lệ',
-        provider: prov,
-      };
+    // Bỏ qua lỗi 404 hoặc 405 (do routing proxy cũ/chưa deploy) để chuyển tiếp fallback kiểm tra trực tiếp
+    if (errStatus !== 404 && errStatus !== 405) {
+      const isQuota = errStatus === 429 || /429|quota|rate.?limit|exhausted/i.test(errMsg);
+      if (errStatus && errStatus < 500) {
+        return {
+          success: false,
+          status: isQuota ? 'quota_exceeded' : 'invalid',
+          message: errMsg || 'Khóa không hợp lệ',
+          provider: prov,
+        };
+      }
     }
-    // Nếu server 500 hoặc mất mạng, tiếp tục fallback trực tiếp từ browser
+    // Nếu server 404/405/500 hoặc mất mạng, tiếp tục fallback trực tiếp từ browser
   }
 
   // 2. Nếu là DeepSeek hoặc khóa bắt đầu bằng sk-
