@@ -2862,10 +2862,10 @@ export const QuickNoteWindow: React.FC = () => {
 
     const lines = text.split('\n');
     const innerHtml = lines
-      .map((line) => (line.trim() === '' ? '<br/>' : `<span>${escHtml(line)}</span>`))
+      .map((line) => (line.trim() === '' ? '<br/>' : `<div>${escHtml(line)}</div>`))
       .join('');
 
-    const blockHtml = `<p><br/></p><blockquote><p>📋 <strong>Nội dung trích xuất từ ảnh:</strong></p><p>${innerHtml}</p></blockquote>`;
+    const blockHtml = `<p><br/></p><blockquote><p>📋 <strong>Nội dung trích xuất từ ảnh:</strong></p>${innerHtml}</blockquote><p><br/></p>`;
 
     const currentHtml = editorRef.current
       ? editorRef.current.innerHTML

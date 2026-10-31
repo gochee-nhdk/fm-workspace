@@ -268,10 +268,12 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     ];
 
     const ocrPrompt =
-      'Hãy trích xuất TOÀN BỘ nội dung văn bản có trong hình ảnh này một cách chính xác nhất. ' +
-      'Giữ nguyên cấu trúc dòng, khoảng cách và định dạng gốc. ' +
-      'Nếu hình ảnh không chứa bất kỳ văn bản nào, hãy trả về chính xác chuỗi: [KHÔNG CÓ VĂN BẢN]. ' +
-      'Chỉ trả về nội dung văn bản thuần túy, không thêm lời giải thích hay nhận xét.';
+      'Bạn là chuyên gia OCR văn bản chuyên nghiệp. Hãy trích xuất TOÀN BỘ nội dung chữ/văn bản xuất hiện trong hình ảnh một cách đầy đủ và chính xác 100%:\n' +
+      '- Nhận diện chính xác từng từ tiếng Việt có dấu, số hiệu, mã chứng từ (PO, SKU), ngày tháng, giờ giấc, tên riêng, email, số điện thoại.\n' +
+      '- Giữ nguyên trật tự trên-dưới, cấu trúc từng dòng, đoạn văn và các danh sách có đánh số.\n' +
+      '- Không tự ý tóm tắt, không sửa từ, không bỏ qua các dòng chữ nhỏ, chữ ký hay ghi chú ở cuối.\n' +
+      '- Nếu trong ảnh hoàn toàn không có bất kỳ ký tự chữ hay số nào, hãy trả về chính xác: [KHÔNG CÓ VĂN BẢN]\n' +
+      '- Chỉ trả về duy nhất nội dung văn bản thuần túy được trích xuất, tuyệt đối không thêm lời mở đầu hay giải thích.';
 
     let lastErr: any = null;
 
