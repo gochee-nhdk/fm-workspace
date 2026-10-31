@@ -1973,26 +1973,63 @@ export const SettingsPage: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                <div className="sm:col-span-1">
-                  <div className="relative">
-                    <select
-                      value={selectedProvider}
-                      onChange={(e) => setSelectedProvider(e.target.value as any)}
-                      aria-label="Nhà cung cấp / Model API"
-                      className="w-full px-3.5 py-2 text-[13px] rounded-xl bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none text-[#1d1d1f] dark:text-white font-medium focus:border-[#0071e3] dark:focus:border-[#2997ff] transition-all cursor-pointer appearance-none pr-8"
-                    >
-                      <option value="auto">✨ Tự động nhận diện</option>
-                      <option value="gemini">🔷 Google Gemini (2.5 Flash)</option>
-                      <option value="deepseek">🐋 DeepSeek (V3 / R1)</option>
-                      <option value="openai">🟢 OpenAI (GPT-4o mini)</option>
-                      <option value="claude">🟣 Anthropic Claude</option>
-                      <option value="custom">⚡ Tùy chỉnh (Khác)</option>
-                    </select>
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#86868b]">
-                      <SFChevronDown size={12} />
+                {/* Apple Liquid Custom Listbox (No emoji, Official Brand Logos) */}
+                <div className="sm:col-span-1 relative" ref={providerListboxRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsProviderListboxOpen(!isProviderListboxOpen)}
+                    className="w-full flex items-center justify-between gap-2 px-3.5 py-2 text-[13px] rounded-xl bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none text-[#1d1d1f] dark:text-white font-medium hover:border-[#0071e3] dark:hover:border-[#2997ff] transition-all cursor-pointer shadow-2xs"
+                    title="Chọn nhà cung cấp khóa API"
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <ProviderLogo provider={selectedProvider} className="w-4 h-4 shrink-0" />
+                      <span className="truncate">
+                        {PROVIDER_OPTIONS.find((opt) => opt.value === selectedProvider)?.label || 'Chọn nhà cung cấp'}
+                      </span>
                     </div>
-                  </div>
+                    <SFChevronDown
+                      size={12}
+                      className={cn("text-[#86868b] transition-transform duration-200 shrink-0", isProviderListboxOpen && "rotate-180")}
+                    />
+                  </button>
+
+                  {/* Apple Liquid Glass Dropdown Popover */}
+                  {isProviderListboxOpen && (
+                    <div className="absolute top-full mt-1.5 left-0 w-full sm:w-72 rounded-2xl bg-white/95 dark:bg-[#1e1e24]/95 backdrop-blur-2xl border border-black/10 dark:border-white/15 shadow-[0_16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.6)] py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                      {PROVIDER_OPTIONS.map((opt) => {
+                        const isSelected = selectedProvider === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setSelectedProvider(opt.value);
+                              setIsProviderListboxOpen(false);
+                            }}
+                            className={cn(
+                              "w-full text-left px-3.5 py-2.5 flex items-center justify-between gap-2.5 transition-colors cursor-pointer text-[12.5px]",
+                              isSelected
+                                ? "bg-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff] font-semibold"
+                                : "text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10"
+                            )}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <ProviderLogo provider={opt.value} className="w-4 h-4 shrink-0" />
+                              <div className="min-w-0">
+                                <div className="leading-tight truncate">{opt.label}</div>
+                                <div className="text-[10.5px] font-normal text-[#86868b] dark:text-[#a1a1a6] truncate pt-0.5">
+                                  {opt.desc}
+                                </div>
+                              </div>
+                            </div>
+                            {isSelected && <SFCheckmark size={12} className="text-[#0071e3] dark:text-[#2997ff] shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
+
                 <div className="sm:col-span-2 flex items-center gap-2">
                   <input
                     type="password"
