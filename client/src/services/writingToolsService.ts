@@ -11,14 +11,150 @@ export type WritingToolAction =
   | 'translate_en'
   | 'translate_vi';
 
+export type GeminiKeyStatus = 'active' | 'quota_exceeded' | 'invalid' | 'unchecked';
+
+export interface GeminiKeyItem {
+  id: string;
+  name: string;
+  key: string;
+  isActive: boolean;
+  status: GeminiKeyStatus;
+  statusMessage?: string;
+  lastCheckedAt?: string;
+  model?: string;
+}
+
 const GEMINI_KEY_STORAGE = 'fm_gemini_api_key';
+const GEMINI_KEYS_POOL_STORAGE = 'fm_gemini_api_keys_pool';
 
 export const getStoredGeminiKey = (): string => {
+  const pool = getGeminiKeysPool();
+  const activePrimary = pool.find((k) => k.isActive && k.key.trim().length > 0);
+  if (activePrimary) return activePrimary.key.trim();
   return localStorage.getItem(GEMINI_KEY_STORAGE) || '';
 };
 
 export const setStoredGeminiKey = (key: string): void => {
-  localStorage.setItem(GEMINI_KEY_STORAGE, key.trim());
+  const trimmed = key.trim();
+  localStorage.setItem(GEMINI_KEY_STORAGE, trimmed);
+  const pool = getGeminiKeysPool();
+  if (pool.length === 0) {
+    if (trimmed) {
+      addGeminiKey(trimmed, 'Khóa chính (Mặc định)');
+    }
+  } else {
+    // Update first key or add
+    pool[0].key = trimmed;
+    saveGeminiKeysPool(pool);
+  }
+};
+
+/**
+ * Lấy toàn bộ danh sách Khóa API Gemini trong hệ thống (gồm cả khóa chính & các khóa dự phòng)
+ */
+export const getGeminiKeysPool = (): GeminiKeyItem[] => {
+  try {
+    const raw = localStorage.getItem(GEMINI_KEYS_POOL_STORAGE);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (_) {}
+
+  // Auto-migration from legacy single key
+  const legacyKey = localStorage.getItem(GEMINI_KEY_STORAGE);
+  if (legacyKey && legacyKey.trim()) {
+    const initialPool: GeminiKeyItem[] = [
+      {
+        id: 'key_primary',
+        name: 'Khóa chính (Mặc định)',
+        key: legacyKey.trim(),
+        isActive: true,
+        status: 'unchecked',
+      },
+    ];
+    saveGeminiKeysPool(initialPool);
+    return initialPool;
+  }
+
+  return [];
+};
+
+/**
+ * Lưu danh sách Khóa API Gemini vào bộ nhớ an toàn của client
+ */
+export const saveGeminiKeysPool = (pool: GeminiKeyItem[]): void => {
+  try {
+    localStorage.setItem(GEMINI_KEYS_POOL_STORAGE, JSON.stringify(pool));
+    const activePrimary = pool.find((k) => k.isActive && k.key.trim().length > 0);
+    if (activePrimary) {
+      localStorage.setItem(GEMINI_KEY_STORAGE, activePrimary.key.trim());
+    } else if (pool.length > 0 && pool[0].key.trim()) {
+      localStorage.setItem(GEMINI_KEY_STORAGE, pool[0].key.trim());
+    }
+  } catch (_) {}
+};
+
+/**
+ * Lấy các khóa đang kích hoạt sẵn sàng sử dụng
+ */
+export const getActiveGeminiKeys = (): GeminiKeyItem[] => {
+  return getGeminiKeysPool().filter((k) => k.isActive && k.key.trim().length > 0);
+};
+
+/**
+ * Thêm một khóa mới vào pool (không giới hạn số lượng khóa dự phòng)
+ */
+export const addGeminiKey = (key: string, name?: string): GeminiKeyItem => {
+  const cleanKey = key.trim();
+  const pool = getGeminiKeysPool();
+  const id = 'key_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+  const count = pool.length;
+  const defaultName = count === 0 ? 'Khóa chính' : `Khóa dự phòng #${count}`;
+  const newItem: GeminiKeyItem = {
+    id,
+    name: name?.trim() || defaultName,
+    key: cleanKey,
+    isActive: true,
+    status: 'unchecked',
+  };
+  const updated = [...pool, newItem];
+  saveGeminiKeysPool(updated);
+  return newItem;
+};
+
+/**
+ * Cập nhật thông tin hoặc trạng thái một khóa
+ */
+export const updateGeminiKey = (id: string, updates: Partial<GeminiKeyItem>): void => {
+  const pool = getGeminiKeysPool();
+  const updated = pool.map((item) => (item.id === id ? { ...item, ...updates } : item));
+  saveGeminiKeysPool(updated);
+};
+
+/**
+ * Xóa một khóa khỏi danh sách
+ */
+export const deleteGeminiKey = (id: string): void => {
+  const pool = getGeminiKeysPool();
+  const updated = pool.filter((item) => item.id !== id);
+  saveGeminiKeysPool(updated);
+};
+
+/**
+ * Đặt khóa được chọn lên làm khóa chính ưu tiên số 1
+ */
+export const setPrimaryKey = (id: string): void => {
+  const pool = getGeminiKeysPool();
+  const index = pool.findIndex((item) => item.id === id);
+  if (index > 0) {
+    const item = pool[index];
+    const rest = pool.filter((_, i) => i !== index);
+    const updated = [item, ...rest];
+    saveGeminiKeysPool(updated);
+  }
 };
 
 /**
@@ -42,21 +178,30 @@ export const freeTranslate = async (text: string, targetLang: 'vi' | 'en'): Prom
 
 /**
  * Call backend AI proxy endpoint (/api/ai/writing-tool)
- * Benefit: Zero CORS issues, uses Google GenAI SDK, can use server or client key
+ * Benefit: Zero CORS issues, uses Google GenAI SDK, supports multiple backup keys failover
  */
 const callBackendWritingTool = async (
   text: string,
   action: WritingToolAction,
-  apiKey?: string,
+  apiKeys?: string[],
   signal?: AbortSignal
-): Promise<string> => {
-  const res = await api.post('/ai/writing-tool', {
-    text,
-    action,
-    apiKey: apiKey || undefined,
-  }, { signal });
+): Promise<{ result: string; usedKeyIndex?: number; fallbackKeyUsed?: boolean }> => {
+  const res = await api.post(
+    '/ai/writing-tool',
+    {
+      text,
+      action,
+      apiKeys: apiKeys && apiKeys.length > 0 ? apiKeys : undefined,
+      apiKey: apiKeys?.[0] || undefined,
+    },
+    { signal }
+  );
   if (res.data?.success && res.data?.result) {
-    return res.data.result.trim();
+    return {
+      result: res.data.result.trim(),
+      usedKeyIndex: res.data.usedKeyIndex,
+      fallbackKeyUsed: res.data.fallbackKeyUsed,
+    };
   }
   throw new Error(res.data?.message || 'Không thể tạo nội dung từ máy chủ AI');
 };
@@ -262,6 +407,85 @@ export const testGeminiApiKey = async (
     success: false,
     message: `Không thể xác thực API Key: ${lastErr || 'Vui lòng kiểm tra lại tính hợp lệ của khóa'}`,
   };
+};
+
+/**
+ * Kiểm tra trạng thái của một khóa duy nhất, phân biệt chính xác:
+ * - 'active': Hoạt động tốt
+ * - 'quota_exceeded': Hết hạn mức request / Quá quota (429)
+ * - 'invalid': Khóa không tồn tại / Bị vô hiệu hóa
+ */
+export const testSingleGeminiKey = async (
+  key: string
+): Promise<{ success: boolean; status: GeminiKeyStatus; message: string; model?: string }> => {
+  const cleanKey = key.trim();
+  if (!cleanKey) {
+    return {
+      success: false,
+      status: 'invalid',
+      message: 'Khóa API đang để trống.',
+    };
+  }
+
+  const res = await testGeminiApiKey(cleanKey);
+  if (res.success) {
+    return {
+      success: true,
+      status: 'active',
+      message: res.message,
+      model: res.model,
+    };
+  }
+
+  const lowerMsg = (res.message || '').toLowerCase();
+  const isQuota = /429|quota|rate.?limit|resource.?exhausted|exhausted|too many requests/i.test(lowerMsg);
+
+  return {
+    success: false,
+    status: isQuota ? 'quota_exceeded' : 'invalid',
+    message: isQuota
+      ? 'Hết hạn mức yêu cầu (Quota / Rate Limit) — Hệ thống sẽ tự động dùng khóa dự phòng.'
+      : res.message || 'Khóa API không hợp lệ hoặc đã bị vô hiệu hóa.',
+  };
+};
+
+/**
+ * Kiểm tra đồng loạt toàn bộ các khóa API trong pool và cập nhật trạng thái thời gian thực
+ */
+export const testAllGeminiKeys = async (
+  onProgress?: (index: number, total: number, item: GeminiKeyItem) => void
+): Promise<GeminiKeyItem[]> => {
+  const pool = getGeminiKeysPool();
+  const updatedList: GeminiKeyItem[] = [];
+
+  for (let i = 0; i < pool.length; i++) {
+    const item = pool[i];
+    if (!item.key.trim()) {
+      const updatedItem: GeminiKeyItem = {
+        ...item,
+        status: 'invalid',
+        statusMessage: 'Khóa đang để trống',
+        lastCheckedAt: new Date().toISOString(),
+      };
+      updatedList.push(updatedItem);
+      onProgress?.(i + 1, pool.length, updatedItem);
+      continue;
+    }
+
+    const testRes = await testSingleGeminiKey(item.key);
+    const updatedItem: GeminiKeyItem = {
+      ...item,
+      status: testRes.status,
+      statusMessage: testRes.message,
+      model: testRes.model,
+      lastCheckedAt: new Date().toISOString(),
+    };
+    updatedList.push(updatedItem);
+    onProgress?.(i + 1, pool.length, updatedItem);
+  }
+
+  saveGeminiKeysPool(updatedList);
+  return updatedList;
 };
 
 /**
@@ -525,16 +749,16 @@ const localTransform = (text: string, action: WritingToolAction): string => {
 
 /**
  * Execute Apple Intelligence Writing Tool
- * Multi-tier pipeline:
- * 1. Try Backend AI Proxy (/api/ai/writing-tool) with Google GenAI SDK (Zero CORS)
- * 2. Try Direct Browser Google Gemini API with user's personal key
+ * Multi-tier pipeline with automatic backup keys failover:
+ * 1. Try Backend AI Proxy (/api/ai/writing-tool) with all configured active keys
+ * 2. Try Direct Browser Google Gemini API iterating through active backup keys
  * 3. Fallback to resilient local offline NLP engine / Free Translate API
  */
 export const runWritingTool = async (
   text: string,
   action: WritingToolAction,
   signal?: AbortSignal
-): Promise<{ result: string; usedGemini: boolean; needsApiKey?: boolean }> => {
+): Promise<{ result: string; usedGemini: boolean; needsApiKey?: boolean; usedFallbackKey?: boolean; usedKeyName?: string }> => {
   if (signal?.aborted) {
     throw new DOMException('Aborted', 'AbortError');
   }
@@ -543,50 +767,84 @@ export const runWritingTool = async (
     throw new Error('Nội dung ghi chú đang trống');
   }
 
-  const apiKey = getStoredGeminiKey();
+  const activeKeys = getActiveGeminiKeys();
+  const rawKeyStrings = activeKeys.map((k) => k.key.trim()).filter(Boolean);
 
-  // Tier 1: Try backend AI endpoint (handles both server and client keys)
+  // Tier 1: Try backend AI endpoint (passes full keys pool for seamless failover)
   try {
-    const backendResult = await callBackendWritingTool(trimmed, action, apiKey, signal);
-    if (backendResult) {
-      return { result: backendResult, usedGemini: true };
+    const backendRes = await callBackendWritingTool(trimmed, action, rawKeyStrings, signal);
+    if (backendRes?.result) {
+      const usedIndex = backendRes.usedKeyIndex ?? 0;
+      const keyObj = activeKeys[usedIndex];
+      return {
+        result: backendRes.result,
+        usedGemini: true,
+        usedFallbackKey: Boolean(backendRes.fallbackKeyUsed),
+        usedKeyName: keyObj?.name,
+      };
     }
   } catch (backendErr: any) {
     if (signal?.aborted) throw backendErr;
     console.warn('Backend AI writing tool failed or not configured, trying direct API:', backendErr?.message);
   }
 
-  // Tier 2: Try direct browser Gemini API if user has stored key
-  if (apiKey) {
+  // Tier 2: Try direct browser Gemini API with active keys pool failover
+  if (activeKeys.length > 0) {
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-    try {
-      const strictConstraint = 'YÊU CẦU BẮT BUỘC: CHỈ trả về duy nhất văn bản kết quả đã xử lý. TUYỆT ĐỐI KHÔNG giải thích, KHÔNG thêm tiêu đề, KHÔNG thêm lời chào/kết, KHÔNG thêm nội dung văn mẫu không liên quan đến ngữ cảnh gốc.';
-      let prompt = '';
-      if (action === 'summarize') {
-        prompt = `Hãy tóm tắt văn bản sau thành các gạch đầu dòng ngắn gọn, súc tích và bám sát ngữ cảnh gốc bằng tiếng Việt.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
-      } else if (action === 'keypoints') {
-        prompt = `Hãy rút ra các ý chính quan trọng nhất từ văn bản sau (đánh số 1, 2, 3...) bám sát đúng ngữ cảnh bằng tiếng Việt.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
-      } else if (action === 'professional') {
-        prompt = `Hãy viết lại văn bản sau theo phong cách lịch sự, trang trọng và chuẩn mực tiếng Việt, giữ nguyên đúng ý và ngữ cảnh của câu gốc.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
-      } else if (action === 'concise') {
-        prompt = `Hãy viết lại văn bản sau thật ngắn gọn, súc tích, loại bỏ từ thừa nhưng giữ nguyên trọn vẹn ngữ nghĩa và ngữ cảnh gốc bằng tiếng Việt.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
-      } else if (action === 'proofread') {
-        prompt = `Hãy sửa toàn bộ lỗi chính tả, dấu câu và ngữ pháp trong văn bản sau. Giữ nguyên ý gốc và ngữ cảnh của câu.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
-      } else if (action === 'expand') {
-        prompt = `Hãy mở rộng văn bản sau một cách tự nhiên, mạch lạc, bám sát và phát triển đúng ngữ cảnh của câu gốc (ví dụ nếu nói về món ăn/đồ uống/nhu cầu cá nhân thì mở rộng về hương vị, loại, thời gian hoặc mong muốn cụ thể; nếu nói về công việc thì mở rộng về kế hoạch/chi tiết công việc). TUYỆT ĐỐI KHÔNG chèn nội dung quản lý dự án hay văn bản mẫu doanh nghiệp nếu câu gốc không nói về công việc doanh nghiệp.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
-      } else if (action === 'action_items') {
-        prompt = `Hãy chuyển văn bản sau thành danh sách hành động (Checklist) với cú pháp '- [ ] ' ở đầu mỗi dòng, sát với ngữ cảnh gốc.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
-      } else if (action === 'translate_en') {
-        prompt = `Hãy dịch văn bản sau sang tiếng Anh tự nhiên, chuẩn xác, đúng ngữ cảnh.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
-      } else if (action === 'translate_vi') {
-        prompt = `Hãy dịch văn bản sau sang tiếng Việt tự nhiên, chuẩn xác, đúng ngữ cảnh.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
-      }
 
-      const result = await callGeminiApi(prompt, apiKey, signal);
-      return { result, usedGemini: true };
-    } catch (err: any) {
-      if (signal?.aborted) throw err;
-      console.warn('Direct Gemini call failed, falling back to local writing tools:', err);
+    const strictConstraint =
+      'YÊU CẦU BẮT BUỘC: CHỈ trả về duy nhất văn bản kết quả đã xử lý. TUYỆT ĐỐI KHÔNG giải thích, KHÔNG thêm tiêu đề, KHÔNG thêm lời chào/kết, KHÔNG thêm nội dung văn mẫu không liên quan đến ngữ cảnh gốc.';
+    let prompt = '';
+    if (action === 'summarize') {
+      prompt = `Hãy tóm tắt văn bản sau thành các gạch đầu dòng ngắn gọn, súc tích và bám sát ngữ cảnh gốc bằng tiếng Việt.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+    } else if (action === 'keypoints') {
+      prompt = `Hãy rút ra các ý chính quan trọng nhất từ văn bản sau (đánh số 1, 2, 3...) bám sát đúng ngữ cảnh bằng tiếng Việt.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+    } else if (action === 'professional') {
+      prompt = `Hãy viết lại văn bản sau theo phong cách lịch sự, trang trọng và chuẩn mực tiếng Việt, giữ nguyên đúng ý và ngữ cảnh của câu gốc.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+    } else if (action === 'concise') {
+      prompt = `Hãy viết lại văn bản sau thật ngắn gọn, súc tích, loại bỏ từ thừa nhưng giữ nguyên trọn vẹn ngữ nghĩa và ngữ cảnh gốc bằng tiếng Việt.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+    } else if (action === 'proofread') {
+      prompt = `Hãy sửa toàn bộ lỗi chính tả, dấu câu và ngữ pháp trong văn bản sau. Giữ nguyên ý gốc và ngữ cảnh của câu.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+    } else if (action === 'expand') {
+      prompt = `Hãy mở rộng văn bản sau một cách tự nhiên, mạch lạc, bám sát và phát triển đúng ngữ cảnh của câu gốc (ví dụ nếu nói về món ăn/đồ uống/nhu cầu cá nhân thì mở rộng về hương vị, loại, thời gian hoặc mong muốn cụ thể; nếu nói về công việc thì mở rộng về kế hoạch/chi tiết công việc). TUYỆT ĐỐI KHÔNG chèn nội dung quản lý dự án hay văn bản mẫu doanh nghiệp nếu câu gốc không nói về công việc doanh nghiệp.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+    } else if (action === 'action_items') {
+      prompt = `Hãy chuyển văn bản sau thành danh sách hành động (Checklist) với cú pháp '- [ ] ' ở đầu mỗi dòng, sát với ngữ cảnh gốc.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+    } else if (action === 'translate_en') {
+      prompt = `Hãy dịch văn bản sau sang tiếng Anh tự nhiên, chuẩn xác, đúng ngữ cảnh.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+    } else if (action === 'translate_vi') {
+      prompt = `Hãy dịch văn bản sau sang tiếng Việt tự nhiên, chuẩn xác, đúng ngữ cảnh.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+    }
+
+    // Try keys sequentially until one succeeds
+    for (let i = 0; i < activeKeys.length; i++) {
+      const keyObj = activeKeys[i];
+      try {
+        const result = await callGeminiApi(prompt, keyObj.key, signal);
+        // Mark key active
+        updateGeminiKey(keyObj.id, {
+          status: 'active',
+          statusMessage: 'Hoạt động tốt',
+          lastCheckedAt: new Date().toISOString(),
+        });
+        return {
+          result,
+          usedGemini: true,
+          usedFallbackKey: i > 0,
+          usedKeyName: keyObj.name,
+        };
+      } catch (err: any) {
+        if (signal?.aborted) throw err;
+        const lower = (err?.message || '').toLowerCase();
+        const isQuota = /429|quota|rate.?limit|exhausted|resource/i.test(lower);
+        updateGeminiKey(keyObj.id, {
+          status: isQuota ? 'quota_exceeded' : 'invalid',
+          statusMessage: isQuota
+            ? 'Hết hạn mức (Quota Exceeded) — Đã tự động chuyển sang khóa dự phòng'
+            : err?.message || 'Lỗi kết nối',
+          lastCheckedAt: new Date().toISOString(),
+        });
+        console.warn(`Key #${i + 1} (${keyObj.name}) failed, attempting next key in pool...`, err?.message);
+      }
     }
   }
 
@@ -603,5 +861,41 @@ export const runWritingTool = async (
 
   // Tier 4: Resilient offline NLP transformer
   const result = localTransform(trimmed, action);
-  return { result, usedGemini: false, needsApiKey: !apiKey };
+  return { result, usedGemini: false, needsApiKey: activeKeys.length === 0 };
+};
+
+/**
+ * Trích xuất nội dung văn bản từ ảnh (OCR) sử dụng danh sách Khóa API với cơ chế dự phòng tự động
+ */
+export const extractTextFromImageWithFailover = async (
+  imageDataUrl: string,
+  signal?: AbortSignal
+): Promise<{ success: boolean; text: string; model?: string; noText?: boolean; usedKeyName?: string; fallbackKeyUsed?: boolean }> => {
+  const activeKeys = getActiveGeminiKeys();
+  const rawKeyStrings = activeKeys.map((k) => k.key.trim()).filter(Boolean);
+
+  const res = await api.post(
+    '/ai/extract-image-text',
+    {
+      imageDataUrl,
+      apiKeys: rawKeyStrings.length > 0 ? rawKeyStrings : undefined,
+      apiKey: rawKeyStrings[0] || undefined,
+    },
+    { signal }
+  );
+
+  if (res.data?.success) {
+    const usedIndex = res.data.usedKeyIndex ?? 0;
+    const keyObj = activeKeys[usedIndex];
+    return {
+      success: true,
+      text: res.data.text || '',
+      model: res.data.model,
+      noText: res.data.noText,
+      usedKeyName: keyObj?.name,
+      fallbackKeyUsed: Boolean(res.data.fallbackKeyUsed),
+    };
+  }
+
+  throw new Error(res.data?.message || 'Không thể trích xuất văn bản từ ảnh');
 };

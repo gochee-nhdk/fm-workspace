@@ -55,13 +55,25 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
    * 3. GET /gemini-status & /gemini-key-status: Check if Gemini API key is configured
    */
   const getGeminiStatusHandler = async () => {
-    const key = (await getDb().prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get()) as any;
-    const isConfigured = !!(key && key.value && key.value.trim().length > 0) || !!process.env.GEMINI_API_KEY;
+    const db = getDb();
+    const key = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get()) as any;
+    const pool = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_keys_pool'").get()) as any;
+
+    let poolCount = 0;
+    try {
+      if (pool?.value) {
+        const parsed = JSON.parse(pool.value);
+        if (Array.isArray(parsed)) poolCount = parsed.length;
+      }
+    } catch (_) {}
+
+    const isConfigured = !!(key && key.value && key.value.trim().length > 0) || !!process.env.GEMINI_API_KEY || poolCount > 0;
     return {
       success: true,
       data: {
         configured: isConfigured,
-        maskedKey: isConfigured ? '••••••••••••••••••••' : null
+        maskedKey: isConfigured ? '••••••••••••••••••••' : null,
+        poolCount,
       }
     };
   };
@@ -70,6 +82,118 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
   fastify.get('/gemini-status', getGeminiStatusHandler);
   // Backward compatibility alias for legacy client requests (D-02 documented alias)
   fastify.get('/gemini-key-status', getGeminiStatusHandler);
+
+  /**
+   * GET /gemini-keys-pool: Get list of configured Gemini API keys (masked for security)
+   */
+  fastify.get('/gemini-keys-pool', async (request: any, reply) => {
+    const db = getDb();
+    const poolSetting = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_keys_pool'").get()) as any;
+    let pool: any[] = [];
+    try {
+      if (poolSetting?.value) {
+        pool = JSON.parse(poolSetting.value);
+      }
+    } catch (_) {}
+
+    // Fallback: if pool is empty but single key exists, return it as primary
+    if (pool.length === 0) {
+      const singleKey = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get()) as any;
+      const k = singleKey?.value || process.env.GEMINI_API_KEY;
+      if (k && k.trim()) {
+        pool = [
+          {
+            id: 'key_primary',
+            name: 'Khóa chính (Mặc định)',
+            key: k.trim(),
+            isActive: true,
+            status: 'unchecked',
+          }
+        ];
+      }
+    }
+
+    // Mask keys before returning to UI
+    const maskedPool = pool.map((item) => ({
+      ...item,
+      key: item.key ? `${item.key.substring(0, 6)}••••••••${item.key.slice(-4)}` : '',
+      rawKeyPreview: item.key ? `${item.key.substring(0, 8)}...` : '',
+    }));
+
+    return { success: true, data: maskedPool };
+  });
+
+  /**
+   * PUT /gemini-keys-pool: Save full keys pool to system settings
+   */
+  fastify.put('/gemini-keys-pool', { preHandler: requireRole('admin') }, async (request: any, reply) => {
+    const { pool } = request.body || {};
+    if (!Array.isArray(pool)) {
+      return reply.code(400).send({ success: false, message: 'Dữ liệu danh sách khóa không hợp lệ.' });
+    }
+
+    const db = getDb();
+    const now = new Date().toISOString();
+    const userId = request.user?.id || 'admin';
+
+    // Fetch existing pool to preserve unmasked keys if client sent masked string
+    const existingRow = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_keys_pool'").get()) as any;
+    let existingMap = new Map<string, string>();
+    try {
+      if (existingRow?.value) {
+        const parsed = JSON.parse(existingRow.value);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((item: any) => {
+            if (item.id && item.key) existingMap.set(item.id, item.key);
+          });
+        }
+      }
+    } catch (_) {}
+
+    const sanitizedPool = pool.map((item: any, idx: number) => {
+      let finalKey = (item.key || '').trim();
+      // If client sent back a masked key, restore raw key from existingMap
+      if (finalKey.includes('••••') && existingMap.has(item.id)) {
+        finalKey = existingMap.get(item.id)!;
+      }
+      return {
+        id: item.id || `key_${Date.now()}_${idx}`,
+        name: item.name || (idx === 0 ? 'Khóa chính' : `Khóa dự phòng #${idx}`),
+        key: finalKey,
+        isActive: item.isActive !== false,
+        status: item.status || 'unchecked',
+        statusMessage: item.statusMessage || '',
+        model: item.model || '',
+        lastCheckedAt: item.lastCheckedAt || now,
+      };
+    });
+
+    await db.prepare(`
+      INSERT INTO system_settings (id, key, value, category, updated_by, updated_at)
+      VALUES (?, 'gemini_api_keys_pool', ?, 'ai', ?, ?)
+      ON CONFLICT(key) DO UPDATE SET
+        value = excluded.value,
+        updated_by = excluded.updated_by,
+        updated_at = excluded.updated_at
+    `).run(uuidv4(), JSON.stringify(sanitizedPool), userId, now);
+
+    // Update primary key in gemini_api_key for backward-compatibility
+    const primaryActive = sanitizedPool.find((k: any) => k.isActive && k.key);
+    if (primaryActive) {
+      await db.prepare(`
+        INSERT INTO system_settings (id, key, value, category, updated_by, updated_at)
+        VALUES (?, 'gemini_api_key', ?, 'ai', ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+          value = excluded.value,
+          updated_by = excluded.updated_by,
+          updated_at = excluded.updated_at
+      `).run(uuidv4(), primaryActive.key, userId, now);
+      geminiService.initClient();
+    }
+
+    auditLog(request, 'UPDATE_GEMINI_KEYS_POOL', 'system_settings', 'gemini_api_keys_pool', null, { count: sanitizedPool.length });
+    return { success: true, message: 'Đã cập nhật danh sách Khóa API Gemini thành công.' };
+  });
 
   /**
    * 4. PUT /gemini-key: Update Gemini API key and reinitialize service

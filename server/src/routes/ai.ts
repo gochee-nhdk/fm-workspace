@@ -12,7 +12,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     preHandler: verifyToken,
     config: {
       rateLimit: {
-        max: 30,
+        max: 40,
         timeWindow: '1 minute',
         errorResponseBuilder: () => ({
           statusCode: 429,
@@ -22,17 +22,49 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       }
     }
   }, async (request: any, reply) => {
-    const { text, action, apiKey: clientApiKey } = request.body || {};
+    const { text, action, apiKeys: clientApiKeys, apiKey: clientApiKey } = request.body || {};
     if (!text || typeof text !== 'string') {
       return reply.code(400).send({ error: 'Nội dung văn bản không được để trống' });
     }
 
     try {
       const db = getDb();
-      const keySetting = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get()) as any;
-      const apiKey = clientApiKey || keySetting?.value || process.env.GEMINI_API_KEY;
+      // Resolve keys pool (client keys -> DB pool -> DB single -> env)
+      const candidateKeys: string[] = [];
+      if (Array.isArray(clientApiKeys) && clientApiKeys.length > 0) {
+        candidateKeys.push(...clientApiKeys.filter((k: any) => typeof k === 'string' && k.trim()));
+      }
+      if (clientApiKey && typeof clientApiKey === 'string' && clientApiKey.trim()) {
+        candidateKeys.push(clientApiKey.trim());
+      }
 
-      if (!apiKey) {
+      // Check DB settings
+      try {
+        const poolSetting = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_keys_pool'").get()) as any;
+        if (poolSetting?.value) {
+          const parsed = JSON.parse(poolSetting.value);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((item: any) => {
+              if (item?.isActive !== false && item?.key && typeof item.key === 'string' && item.key.trim()) {
+                candidateKeys.push(item.key.trim());
+              }
+            });
+          }
+        }
+      } catch (_) {}
+
+      const singleKeySetting = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get()) as any;
+      if (singleKeySetting?.value && singleKeySetting.value.trim()) {
+        candidateKeys.push(singleKeySetting.value.trim());
+      }
+      if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim()) {
+        candidateKeys.push(process.env.GEMINI_API_KEY.trim());
+      }
+
+      // Deduplicate keys while preserving order
+      const uniqueKeys = Array.from(new Set(candidateKeys));
+
+      if (uniqueKeys.length === 0) {
         return reply.code(400).send({
           success: false,
           needsApiKey: true,
@@ -40,7 +72,6 @@ export default async function aiRoutes(fastify: FastifyInstance) {
         });
       }
 
-      const ai = new GoogleGenAI({ apiKey });
       const models = [
         'gemini-3.6-flash',
         'gemini-3.1-flash',
@@ -50,7 +81,6 @@ export default async function aiRoutes(fastify: FastifyInstance) {
         'gemini-2.0-flash',
         'gemini-1.5-flash',
       ];
-      let lastErr = null;
 
       const baseInstruction = 'YÊU CẦU BẮT BUỘC: CHỈ trả về duy nhất kết quả câu văn/đoạn văn sau khi xử lý. Tuyệt đối KHÔNG kèm theo lời giải thích, KHÔNG tiêu đề, KHÔNG lời chào, KHÔNG nội dung lan man ngoài ngữ cảnh gốc.';
 
@@ -76,30 +106,46 @@ export default async function aiRoutes(fastify: FastifyInstance) {
         prompt = `Hãy sửa toàn bộ lỗi chính tả, ngữ pháp, dấu câu và câu từ trong đoạn văn sau bằng tiếng Việt. ${baseInstruction}\n\nĐoạn văn gốc:\n${text}`;
       }
 
-      for (const model of models) {
-        try {
-          const response = await ai.models.generateContent({
-            model,
-            contents: prompt,
-            config: {
-              temperature: 0.2,
-            },
-          });
-          const resultText = response.text?.trim() || '';
-          if (resultText) {
-            return reply.send({
-              success: true,
-              result: resultText,
-              usedGemini: true,
+      let lastErr: any = null;
+
+      // Iterate through keys pool sequentially (Intelligent Auto-failover)
+      for (let kIdx = 0; kIdx < uniqueKeys.length; kIdx++) {
+        const apiKey = uniqueKeys[kIdx];
+        const ai = new GoogleGenAI({ apiKey });
+
+        for (const model of models) {
+          try {
+            const response = await ai.models.generateContent({
               model,
+              contents: prompt,
+              config: {
+                temperature: 0.2,
+              },
             });
+            const resultText = response.text?.trim() || '';
+            if (resultText) {
+              return reply.send({
+                success: true,
+                result: resultText,
+                usedGemini: true,
+                model,
+                usedKeyIndex: kIdx,
+                fallbackKeyUsed: kIdx > 0,
+              });
+            }
+          } catch (mErr: any) {
+            lastErr = mErr;
+            // If quota error on this key, break inner model loop and try next key in pool
+            const isQuota = mErr?.status === 429 || /quota|rate.?limit|exhausted|resource/i.test(mErr?.message || '');
+            if (isQuota) {
+              console.warn(`[AI Failover] Key #${kIdx + 1} exhausted quota, switching to backup key...`);
+              break;
+            }
           }
-        } catch (mErr: any) {
-          lastErr = mErr;
         }
       }
 
-      throw lastErr || new Error('Không thể tạo nội dung từ Gemini');
+      throw lastErr || new Error('Không thể tạo nội dung từ Gemini qua tất cả các khóa API');
     } catch (err: any) {
       console.error('Server AI writing tool error:', err);
       return reply.code(500).send({
@@ -210,12 +256,12 @@ export default async function aiRoutes(fastify: FastifyInstance) {
   });
 
   // ─── OCR / Extract Text from Image endpoint ───────────────────────────────
-  // Accepts a base64 image data URL and uses Gemini Vision to extract all text content.
+  // Accepts a base64 image data URL and uses Gemini Vision to extract all text content with multi-key failover.
   fastify.post('/extract-image-text', {
     preHandler: verifyToken,
     config: {
       rateLimit: {
-        max: 15,
+        max: 30,
         timeWindow: '1 minute',
         errorResponseBuilder: () => ({
           statusCode: 429,
@@ -225,7 +271,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       },
     },
   }, async (request: any, reply) => {
-    const { imageDataUrl, apiKey: clientApiKey } = request.body || {};
+    const { imageDataUrl, apiKeys: clientApiKeys, apiKey: clientApiKey } = request.body || {};
 
     // Validate input
     if (!imageDataUrl || typeof imageDataUrl !== 'string') {
@@ -245,20 +291,47 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     const mimeType = dataUrlMatch[1] as string;
     const base64Data = dataUrlMatch[2] as string;
 
-    // Resolve API key (client vault → DB → env)
+    // Resolve keys pool (client keys -> DB pool -> DB single -> env)
     const db = getDb();
-    const keySetting = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get()) as any;
-    const apiKey = clientApiKey || keySetting?.value || process.env.GEMINI_API_KEY;
+    const candidateKeys: string[] = [];
+    if (Array.isArray(clientApiKeys) && clientApiKeys.length > 0) {
+      candidateKeys.push(...clientApiKeys.filter((k: any) => typeof k === 'string' && k.trim()));
+    }
+    if (clientApiKey && typeof clientApiKey === 'string' && clientApiKey.trim()) {
+      candidateKeys.push(clientApiKey.trim());
+    }
 
-    if (!apiKey) {
+    try {
+      const poolSetting = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_keys_pool'").get()) as any;
+      if (poolSetting?.value) {
+        const parsed = JSON.parse(poolSetting.value);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((item: any) => {
+            if (item?.isActive !== false && item?.key && typeof item.key === 'string' && item.key.trim()) {
+              candidateKeys.push(item.key.trim());
+            }
+          });
+        }
+      }
+    } catch (_) {}
+
+    const keySetting = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get()) as any;
+    if (keySetting?.value && keySetting.value.trim()) {
+      candidateKeys.push(keySetting.value.trim());
+    }
+    if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim()) {
+      candidateKeys.push(process.env.GEMINI_API_KEY.trim());
+    }
+
+    const uniqueKeys = Array.from(new Set(candidateKeys));
+
+    if (uniqueKeys.length === 0) {
       return reply.code(400).send({
         success: false,
         needsApiKey: true,
         message: 'Chưa cấu hình Gemini API Key. Vui lòng cài đặt khóa API trong Cài đặt → AI.',
       });
     }
-
-    const ai = new GoogleGenAI({ apiKey });
 
     // Vision-capable model fallback chain (newest first)
     const models = [
@@ -277,38 +350,59 @@ export default async function aiRoutes(fastify: FastifyInstance) {
 
     let lastErr: any = null;
 
-    for (const model of models) {
-      try {
-        const response = await ai.models.generateContent({
-          model,
-          contents: [
-            {
-              parts: [
-                { text: ocrPrompt },
-                { inlineData: { mimeType, data: base64Data } },
-              ],
-            },
-          ],
-          config: { temperature: 0.1 },
-        });
+    // Iterate through candidate keys (Intelligent Auto-failover)
+    for (let kIdx = 0; kIdx < uniqueKeys.length; kIdx++) {
+      const apiKey = uniqueKeys[kIdx];
+      const ai = new GoogleGenAI({ apiKey });
 
-        const extracted = response.text?.trim() ?? '';
+      for (const model of models) {
+        try {
+          const response = await ai.models.generateContent({
+            model,
+            contents: [
+              {
+                parts: [
+                  { text: ocrPrompt },
+                  { inlineData: { mimeType, data: base64Data } },
+                ],
+              },
+            ],
+            config: { temperature: 0.1 },
+          });
 
-        // Detect "no text found" sentinel
-        if (!extracted || extracted === '[KHÔNG CÓ VĂN BẢN]') {
-          return reply.send({ success: true, text: '', model, noText: true });
+          const extracted = response.text?.trim() ?? '';
+
+          // Detect "no text found" sentinel
+          if (!extracted || extracted === '[KHÔNG CÓ VĂN BẢN]') {
+            return reply.send({
+              success: true,
+              text: '',
+              model,
+              noText: true,
+              usedKeyIndex: kIdx,
+              fallbackKeyUsed: kIdx > 0,
+            });
+          }
+
+          return reply.send({
+            success: true,
+            text: extracted,
+            model,
+            usedKeyIndex: kIdx,
+            fallbackKeyUsed: kIdx > 0,
+          });
+        } catch (err: any) {
+          lastErr = err;
+          const isQuota = err?.status === 429 || /quota|rate.?limit|exhausted|resource/i.test(err?.message ?? '');
+          if (isQuota) {
+            console.warn(`[OCR Failover] Key #${kIdx + 1} hit quota, trying next key...`);
+            break; // Break inner model loop, try next key in pool
+          }
         }
-
-        return reply.send({ success: true, text: extracted, model });
-      } catch (err: any) {
-        lastErr = err;
-        // Continue to next model on quota / model-not-found errors
-        const isQuota = err?.status === 429 || /quota|rate.?limit|not.?found|unavailable/i.test(err?.message ?? '');
-        if (!isQuota) break;
       }
     }
 
-    // All models failed
+    // All keys failed
     const errMsg = lastErr?.message || 'Lỗi không xác định từ Gemini API';
     return reply.code(500).send({ success: false, message: `Không thể trích xuất nội dung: ${errMsg}` });
   });

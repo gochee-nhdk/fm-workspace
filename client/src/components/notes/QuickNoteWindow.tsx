@@ -78,6 +78,7 @@ import {
   getStoredGeminiKey,
   setStoredGeminiKey,
   testGeminiApiKey,
+  extractTextFromImageWithFailover,
 } from '@/services/writingToolsService';
 import { attachmentService } from '@/services/attachmentService';
 import { CloseButton } from '@/components/ui/close-button';
@@ -389,7 +390,7 @@ const getStrictSelectionLineRects = (
 /**
  * Ensure note content is well-formed & strictly sanitized HTML for rich text editing
  */
-const ensureHtml = (content: string): string => {
+const ensureHtml = (content: string, noteImages?: NoteImageAttachment[]): string => {
   if (!content) return '<p><br></p>';
   // 1. Sanitize HTML to prevent Stored & DOM-based XSS attacks
   let cleaned = sanitizeNoteHTML(content);
@@ -411,17 +412,27 @@ const ensureHtml = (content: string): string => {
     cleaned = cleaned.replace(/<span class=["']apple-img-action-bar["'][^>]*>[\s\S]*?<\/span>/gi, '');
   }
 
-  // Tự động chuẩn hóa tất cả các hình ảnh chưa có nút xóa Apple thành thẻ chuẩn gọn gàng khít 100% với ảnh
+  // Tự động chuẩn hóa và Self-Healing phục hồi các hình ảnh bị vỡ hoặc bị lưu nhầm blob: URL
   if (typeof document !== 'undefined' && cleaned.includes('<img')) {
     try {
       const parser = new DOMParser();
       const doc = parser.parseFromString(cleaned, 'text/html');
       let modified = false;
       const imgs = Array.from(doc.querySelectorAll('img'));
-      imgs.forEach((img) => {
+      imgs.forEach((img, idx) => {
+        let src = img.getAttribute('src') || '';
+        // Self-Healing: Nếu src là blob: (đã bị revoke) hoặc rỗng, thử khôi phục từ noteImages
+        if ((src.startsWith('blob:') || !src) && noteImages && noteImages.length > 0) {
+          const matchImg = noteImages[idx] || noteImages.find((item) => item.url?.startsWith('data:image/'));
+          if (matchImg?.url && matchImg.url.startsWith('data:image/')) {
+            src = matchImg.url;
+            img.setAttribute('src', src);
+            modified = true;
+          }
+        }
+
         if (!img.closest('.apple-img-wrapper')) {
           modified = true;
-          const src = img.getAttribute('src') || '';
           const alt = img.getAttribute('alt') || 'Hình ảnh';
           const span = document.createElement('span');
           span.className = 'apple-img-wrapper';
@@ -432,15 +443,22 @@ const ensureHtml = (content: string): string => {
           img.replaceWith(span);
         } else {
           const wrapper = img.closest('.apple-img-wrapper');
-          if (wrapper && !wrapper.querySelector('.apple-img-delete-btn')) {
-            modified = true;
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'apple-img-delete-btn';
-            btn.setAttribute('style', 'position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; background: rgba(22,22,26,0.52); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #ffffff; border: 0.5px solid rgba(255,255,255,0.35); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; outline: none; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.25);');
-            btn.setAttribute('title', 'Xóa hình ảnh này');
-            btn.innerHTML = `<svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>`;
-            wrapper.appendChild(btn);
+          if (wrapper) {
+            // Đảm bảo src trong wrapper cũng được cập nhật nếu vừa self-heal
+            if (img.getAttribute('src') !== src) {
+              img.setAttribute('src', src);
+              modified = true;
+            }
+            if (!wrapper.querySelector('.apple-img-delete-btn')) {
+              modified = true;
+              const btn = document.createElement('button');
+              btn.type = 'button';
+              btn.className = 'apple-img-delete-btn';
+              btn.setAttribute('style', 'position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; background: rgba(22,22,26,0.52); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #ffffff; border: 0.5px solid rgba(255,255,255,0.35); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; outline: none; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.25);');
+              btn.setAttribute('title', 'Xóa hình ảnh này');
+              btn.innerHTML = `<svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>`;
+              wrapper.appendChild(btn);
+            }
           }
         }
       });
@@ -2762,17 +2780,16 @@ export const QuickNoteWindow: React.FC = () => {
     const oldUrl = currentActiveImg.url;
     const oldId = currentActiveImg.id;
 
-    // 1. If stored in IndexedDB attachment store, update or create attachment
-    let updatedUrl = editedDataUrl;
+    // 1. Luôn dùng Base64 dataUrl làm URL chính để vĩnh viễn không bị vỡ ảnh khi F5 hoặc mở lại session mới
+    const updatedUrl = editedDataUrl;
+
+    // Lưu backup vào IndexedDB attachment store trong nền (không ghi đè URL bằng blob URL tạm thời)
     try {
       const res = await fetch(editedDataUrl);
       const blob = await res.blob();
-      const saved = await attachmentService.saveAttachment(blob, name);
-      if (saved && saved.url) {
-        updatedUrl = saved.url;
-      }
+      await attachmentService.saveAttachment(blob, name);
     } catch (err) {
-      console.warn('Fallback to dataUrl for edited image:', err);
+      console.warn('Backup attachment save error:', err);
     }
 
     // 2. Update activeNote.images list
@@ -2791,8 +2808,28 @@ export const QuickNoteWindow: React.FC = () => {
     // 3. Update editor DOM / HTML content
     const currentHtml = editorRef.current ? editorRef.current.innerHTML : (localContentRef.current || activeNote.content || '');
     let updatedHtml = currentHtml;
-    if (oldUrl) {
+
+    if (oldUrl && updatedHtml.includes(oldUrl)) {
       updatedHtml = updatedHtml.split(oldUrl).join(updatedUrl);
+    } else {
+      // DOM-based replacement if exact string split failed
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(currentHtml, 'text/html');
+        const imgs = Array.from(doc.querySelectorAll('img'));
+        let matched = false;
+        for (const img of imgs) {
+          const src = img.getAttribute('src') || '';
+          if (src === oldUrl || src.startsWith('blob:') || !src) {
+            img.setAttribute('src', updatedUrl);
+            matched = true;
+            break;
+          }
+        }
+        if (matched) {
+          updatedHtml = doc.body.innerHTML;
+        }
+      } catch (_) {}
     }
 
     if (editorRef.current && editorRef.current.innerHTML !== updatedHtml) {
@@ -2814,37 +2851,42 @@ export const QuickNoteWindow: React.FC = () => {
     });
 
     playPopSound();
+    toast.success('Đã lưu ảnh đã chỉnh sửa vào ghi chú!');
   };
 
-  // ─── OCR: Extract text from image via Gemini Vision ───────────────────────
+  // ─── OCR: Extract text from image via Gemini Vision with Multi-Key Failover ─
   const handleExtractImageText = async (img: NoteImageAttachment) => {
     if (!img?.url) return;
     try {
       setIsExtractingText(true);
       toast.loading('Đang quét và trích xuất văn bản từ ảnh…', { id: 'ocr-extract' });
 
-      const storedKey = getStoredGeminiKey();
-      const res = await api.post('/ai/extract-image-text', {
-        imageDataUrl: img.url,
-        apiKey: storedKey || undefined,
-      });
+      const res = await extractTextFromImageWithFailover(img.url);
 
       toast.dismiss('ocr-extract');
 
-      if (res.data?.noText) {
+      if (res.fallbackKeyUsed) {
+        toast(`Đã tự động chuyển sang khóa dự phòng (${res.usedKeyName || 'Khóa phụ'}) để tiếp tục!`, {
+          icon: '🔄',
+          id: 'ocr-fallback-notify',
+          duration: 4000,
+        });
+      }
+
+      if (res.noText) {
         toast.error('Không tìm thấy nội dung văn bản nào trong ảnh này.');
         return;
       }
 
-      if (res.data?.success && res.data?.text?.trim()) {
-        setExtractedOcrText(res.data.text.trim());
+      if (res.success && res.text?.trim()) {
+        setExtractedOcrText(res.text.trim());
       } else {
         toast.error('Không tìm thấy nội dung văn bản nào trong ảnh này.');
       }
     } catch (err: any) {
       toast.dismiss('ocr-extract');
       if (err?.response?.data?.needsApiKey) {
-        toast.error('Cần cấu hình Gemini API Key để sử dụng tính năng này.');
+        toast.error('Cần cấu hình Gemini API Key trong Cài đặt để sử dụng tính năng này.');
       } else {
         const msg = err?.response?.data?.message || err.message || 'Lỗi khi trích xuất nội dung.';
         toast.error(msg);
@@ -3463,7 +3505,7 @@ export const QuickNoteWindow: React.FC = () => {
           }
         } else {
           setEditorMode('text');
-          const html = ensureHtml(initialContent);
+          const html = ensureHtml(initialContent, activeNote.images);
           setLocalContent(html);
           localContentRef.current = html;
           setLocalChecklist('- [ ] ');
@@ -3493,12 +3535,44 @@ export const QuickNoteWindow: React.FC = () => {
   useLayoutEffect(() => {
     if (isOpen && editorMode === 'text' && !isNoteLocked && editorRef.current) {
       const source = localContentRef.current || activeNote?.content || '';
-      const html = ensureHtml(source);
+      const html = ensureHtml(source, activeNote?.images);
       if (editorRef.current.innerHTML !== html) {
         editorRef.current.innerHTML = html;
       }
     }
-  }, [isOpen, editorMode, activeNote?.id, isNoteLocked, activeNote?.content]);
+  }, [isOpen, editorMode, activeNote?.id, isNoteLocked, activeNote?.content, activeNote?.images]);
+
+  // Self-Healing Image Error Interceptor: Nếu thẻ img phát sinh lỗi tải (ví dụ blob URL cũ bị revoke),
+  // tự động tìm ảnh tương ứng trong activeNote.images (dạng Base64 dataUrl) để khôi phục ngay lập tức
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const handleImgError = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (target && target.tagName === 'IMG') {
+        const img = target as HTMLImageElement;
+        const currentSrc = img.getAttribute('src') || '';
+        if (currentSrc.startsWith('blob:') || !currentSrc || img.naturalWidth === 0) {
+          const noteImages = activeNote?.images || [];
+          const validImg = noteImages.find((item) => item.url && item.url.startsWith('data:image/'));
+          if (validImg) {
+            img.src = validImg.url;
+            img.setAttribute('src', validImg.url);
+            if (activeNote) {
+              const healedHtml = editor.innerHTML;
+              setLocalContent(healedHtml);
+              localContentRef.current = healedHtml;
+              updateNote(activeNote.id, { content: healedHtml });
+            }
+          }
+        }
+      }
+    };
+
+    editor.addEventListener('error', handleImgError, true);
+    return () => editor.removeEventListener('error', handleImgError, true);
+  }, [activeNote, updateNote]);
 
   // Clean up and flush draft on unmount
   useEffect(() => {
