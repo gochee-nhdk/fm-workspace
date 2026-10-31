@@ -167,6 +167,8 @@ export default {
     },
   },
   plugins: [
-    require('@tailwindcss/forms')
+    require('@tailwindcss/forms'),
+    // Enables utility-first animation classes (animate-in, fade-in, zoom-in-95, etc.)
+    require('tailwindcss-animate'),
   ],
 }
