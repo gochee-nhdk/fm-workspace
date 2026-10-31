@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import {
   SFDocument,
@@ -54,6 +55,8 @@ import {
   SFEye,
   SFEyeSlash,
   AppleNotesBadge,
+  SFTextBelowPhoto,
+  SFTextBadgePlus,
 } from '@/components/ui/AppleIcon';
 import { useNoteStore } from '@/stores/note-store';
 import { QuickNoteColor, QuickNoteItem, TaskReminder, NoteImageAttachment } from '@/types/workspace';
@@ -1335,6 +1338,9 @@ export const QuickNoteWindow: React.FC = () => {
   const [lightboxPan, setLightboxPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isLightboxPanning, setIsLightboxPanning] = useState(false);
   const [isEditingImage, setIsEditingImage] = useState(false);
+  // OCR state
+  const [isExtractingText, setIsExtractingText] = useState(false);
+  const [extractedOcrText, setExtractedOcrText] = useState<string | null>(null);
   const lightboxPanStartRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
   const [snippingSnapshot, setSnippingSnapshot] = useState<string | null>(null);
   const [filePreviewModal, setFilePreviewModal] = useState<{
@@ -2810,7 +2816,71 @@ export const QuickNoteWindow: React.FC = () => {
     playPopSound();
   };
 
-  // Listen for Ctrl+V paste containing images
+  // ─── OCR: Extract text from image via Gemini Vision ───────────────────────
+  const handleExtractImageText = async (img: NoteImageAttachment) => {
+    if (!img?.url) return;
+    try {
+      setIsExtractingText(true);
+      toast.loading('Đang quét và trích xuất văn bản từ ảnh…', { id: 'ocr-extract' });
+
+      const storedKey = getStoredGeminiKey();
+      const res = await api.post('/ai/extract-image-text', {
+        imageDataUrl: img.url,
+        apiKey: storedKey || undefined,
+      });
+
+      toast.dismiss('ocr-extract');
+
+      if (res.data?.noText) {
+        toast.error('Không tìm thấy nội dung văn bản nào trong ảnh này.');
+        return;
+      }
+
+      if (res.data?.success && res.data?.text?.trim()) {
+        setExtractedOcrText(res.data.text.trim());
+      } else {
+        toast.error('Không tìm thấy nội dung văn bản nào trong ảnh này.');
+      }
+    } catch (err: any) {
+      toast.dismiss('ocr-extract');
+      if (err?.response?.data?.needsApiKey) {
+        toast.error('Cần cấu hình Gemini API Key để sử dụng tính năng này.');
+      } else {
+        const msg = err?.response?.data?.message || err.message || 'Lỗi khi trích xuất nội dung.';
+        toast.error(msg);
+      }
+    } finally {
+      setIsExtractingText(false);
+    }
+  };
+
+  const handleInsertOcrText = async (text: string) => {
+    if (!activeNote) return;
+    // Escape HTML special chars to prevent XSS when inserting raw text
+    const escHtml = (s: string) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    const lines = text.split('\n');
+    const innerHtml = lines
+      .map((line) => (line.trim() === '' ? '<br/>' : `<span>${escHtml(line)}</span>`))
+      .join('');
+
+    const blockHtml = `<p><br/></p><blockquote><p>📋 <strong>Nội dung trích xuất từ ảnh:</strong></p><p>${innerHtml}</p></blockquote>`;
+
+    const currentHtml = editorRef.current
+      ? editorRef.current.innerHTML
+      : (localContentRef.current || activeNote.content || '');
+    const updatedHtml = currentHtml + blockHtml;
+
+    if (editorRef.current) editorRef.current.innerHTML = updatedHtml;
+    setLocalContent(updatedHtml);
+    localContentRef.current = updatedHtml;
+    await updateNote(activeNote.id, { content: updatedHtml });
+
+    setExtractedOcrText(null);
+    toast.success('Đã thêm nội dung trích xuất vào ghi chú!');
+  };
+  // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     const handleGlobalPaste = async (e: ClipboardEvent) => {
       if (!isOpen || isMinimized || !activeNote) return;
@@ -7394,6 +7464,20 @@ export const QuickNoteWindow: React.FC = () => {
                     <SFPencil size={14} />
                   </button>
 
+                  {/* OCR – Extract text from image */}
+                  <button
+                    type="button"
+                    onClick={() => handleExtractImageText(activeImg)}
+                    disabled={isExtractingText}
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 active:scale-90 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 cursor-pointer shadow-xs shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
+                    title="Trích xuất văn bản từ ảnh (OCR)"
+                  >
+                    {isExtractingText
+                      ? <SFArrowClockwise size={13} className="animate-spin" />
+                      : <SFTextBelowPhoto size={14} />
+                    }
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => handleCopyImage(activeImg)}
@@ -7971,6 +8055,86 @@ export const QuickNoteWindow: React.FC = () => {
           onSave={handleSaveEditedImage}
         />
       )}
+
+      {/* ────────────────── OCR Review Dialog ────────────────── */}
+      {extractedOcrText !== null &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Nội dung trích xuất từ ảnh"
+            className="fixed inset-0 z-[10010] flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={(e) => { if (e.target === e.currentTarget) setExtractedOcrText(null); }}
+          >
+            <div
+              className="w-full max-w-lg rounded-3xl bg-white/[0.08] dark:bg-white/[0.06] backdrop-blur-3xl border border-white/20 shadow-[0_32px_80px_rgba(0,0,0,0.7),inset_0_1px_1px_rgba(255,255,255,0.25)] flex flex-col gap-0 overflow-hidden animate-in slide-in-from-bottom-4 duration-300"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-[#2997ff]/20 flex items-center justify-center">
+                    <SFTextBelowPhoto size={15} className="text-[#2997ff]" />
+                  </div>
+                  <div>
+                    <p className="text-[14px] font-semibold text-white leading-tight">Nội dung trích xuất từ ảnh</p>
+                    <p className="text-[11px] text-white/50 leading-tight mt-0.5">Kiểm tra và thêm vào ghi chú nếu chính xác</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setExtractedOcrText(null)}
+                  className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition-all active:scale-90 cursor-pointer"
+                  aria-label="Đóng"
+                >
+                  <SFXmark size={12} />
+                </button>
+              </div>
+
+              {/* Extracted text content */}
+              <div className="px-5 py-4 max-h-72 overflow-y-auto scrollbar-thin">
+                <pre
+                  className="text-[13px] text-white/85 font-mono leading-relaxed whitespace-pre-wrap break-words bg-white/5 rounded-2xl px-4 py-3 border border-white/10"
+                >
+                  {extractedOcrText}
+                </pre>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex items-center gap-2.5 px-5 pb-5 pt-3 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => handleInsertOcrText(extractedOcrText)}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[13px] font-semibold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
+                >
+                  <SFTextBadgePlus size={13} />
+                  <span>Thêm vào ghi chú</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(extractedOcrText).then(() => {
+                      toast.success('Đã sao chép nội dung vào bộ nhớ tạm!');
+                    });
+                  }}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-[13px] font-medium transition-all active:scale-95 cursor-pointer border border-white/15"
+                >
+                  <SFSquareOnSquare size={13} />
+                  <span>Sao chép</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExtractedOcrText(null)}
+                  className="inline-flex items-center justify-center px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-[13px] font-medium transition-all active:scale-95 cursor-pointer border border-white/15"
+                >
+                  Hủy
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      }
     </>,
     document.body
   );

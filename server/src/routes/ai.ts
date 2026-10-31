@@ -208,4 +208,106 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     const db = getDb();
     return await db.prepare('SELECT * FROM ai_conversations WHERE user_id = ? ORDER BY created_at DESC').all(request.user.id);
   });
+
+  // ─── OCR / Extract Text from Image endpoint ───────────────────────────────
+  // Accepts a base64 image data URL and uses Gemini Vision to extract all text content.
+  fastify.post('/extract-image-text', {
+    preHandler: verifyToken,
+    config: {
+      rateLimit: {
+        max: 15,
+        timeWindow: '1 minute',
+        errorResponseBuilder: () => ({
+          statusCode: 429,
+          error: 'Too Many Requests',
+          message: 'Bạn đã thực hiện quá nhiều yêu cầu trích xuất ảnh trong thời gian ngắn. Vui lòng thử lại sau 1 phút.',
+        }),
+      },
+    },
+  }, async (request: any, reply) => {
+    const { imageDataUrl, apiKey: clientApiKey } = request.body || {};
+
+    // Validate input
+    if (!imageDataUrl || typeof imageDataUrl !== 'string') {
+      return reply.code(400).send({ success: false, message: 'Dữ liệu ảnh không hợp lệ hoặc bị thiếu.' });
+    }
+
+    // Enforce maximum payload size (10 MB base64 ≈ ~7.5 MB image) to prevent abuse
+    if (imageDataUrl.length > 10_000_000) {
+      return reply.code(413).send({ success: false, message: 'Ảnh quá lớn để xử lý (tối đa 7.5 MB).' });
+    }
+
+    // Extract MIME type and raw base64 from data URL
+    const dataUrlMatch = imageDataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/s);
+    if (!dataUrlMatch) {
+      return reply.code(400).send({ success: false, message: 'Định dạng ảnh không được hỗ trợ. Chỉ chấp nhận định dạng data URL (data:image/...).' });
+    }
+    const mimeType = dataUrlMatch[1] as string;
+    const base64Data = dataUrlMatch[2] as string;
+
+    // Resolve API key (client vault → DB → env)
+    const db = getDb();
+    const keySetting = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get()) as any;
+    const apiKey = clientApiKey || keySetting?.value || process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      return reply.code(400).send({
+        success: false,
+        needsApiKey: true,
+        message: 'Chưa cấu hình Gemini API Key. Vui lòng cài đặt khóa API trong Cài đặt → AI.',
+      });
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+
+    // Vision-capable model fallback chain (newest first)
+    const models = [
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+    ];
+
+    const ocrPrompt =
+      'Hãy trích xuất TOÀN BỘ nội dung văn bản có trong hình ảnh này một cách chính xác nhất. ' +
+      'Giữ nguyên cấu trúc dòng, khoảng cách và định dạng gốc. ' +
+      'Nếu hình ảnh không chứa bất kỳ văn bản nào, hãy trả về chính xác chuỗi: [KHÔNG CÓ VĂN BẢN]. ' +
+      'Chỉ trả về nội dung văn bản thuần túy, không thêm lời giải thích hay nhận xét.';
+
+    let lastErr: any = null;
+
+    for (const model of models) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents: [
+            {
+              parts: [
+                { text: ocrPrompt },
+                { inlineData: { mimeType, data: base64Data } },
+              ],
+            },
+          ],
+          config: { temperature: 0.1 },
+        });
+
+        const extracted = response.text?.trim() ?? '';
+
+        // Detect "no text found" sentinel
+        if (!extracted || extracted === '[KHÔNG CÓ VĂN BẢN]') {
+          return reply.send({ success: true, text: '', model, noText: true });
+        }
+
+        return reply.send({ success: true, text: extracted, model });
+      } catch (err: any) {
+        lastErr = err;
+        // Continue to next model on quota / model-not-found errors
+        const isQuota = err?.status === 429 || /quota|rate.?limit|not.?found|unavailable/i.test(err?.message ?? '');
+        if (!isQuota) break;
+      }
+    }
+
+    // All models failed
+    const errMsg = lastErr?.message || 'Lỗi không xác định từ Gemini API';
+    return reply.code(500).send({ success: false, message: `Không thể trích xuất nội dung: ${errMsg}` });
+  });
 }

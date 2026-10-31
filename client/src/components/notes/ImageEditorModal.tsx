@@ -868,7 +868,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-3.5 py-1.5 rounded-full text-[13px] font-medium text-white/80 hover:text-white bg-white/10 hover:bg-white/20 border border-white/15 transition-all active:scale-95"
+            className="px-4 py-1.5 rounded-full text-[13px] font-medium text-white/80 hover:text-white bg-white/10 hover:bg-white/20 border border-white/15 transition-all active:scale-95"
             title="Hủy bỏ (Esc)"
           >
             Hủy
@@ -878,7 +878,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             type="button"
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[13px] font-semibold text-white bg-emerald-600 hover:bg-emerald-500 shadow-[0_4px_16px_rgba(16,185,129,0.35)] transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[13px] font-semibold text-white bg-[#0071e3] hover:bg-[#0077ed] shadow-[0_4px_16px_rgba(0,113,227,0.35)] transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
             title="Lưu thay đổi vào ghi chú (Ctrl+S)"
           >
             <SFCheckmark size={14} />
@@ -919,7 +919,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
           {/* Floating inline text box overlay while typing */}
           {activeTextInput && (
             <div
-              className="absolute z-40 bg-[#1c1c24] border border-amber-500/80 rounded-xl shadow-2xl p-2 flex flex-col gap-1.5 animate-scale-up"
+              className="absolute z-40 bg-black/60 dark:bg-black/75 backdrop-blur-2xl border border-white/20 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)] p-2.5 flex flex-col gap-2 animate-scale-up"
               style={{
                 left: Math.max(10, Math.min(window.innerWidth - 300, activeTextInput.screenX - 80)),
                 top: Math.max(70, Math.min(window.innerHeight - 150, activeTextInput.screenY - 40)),
@@ -938,7 +938,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                   color: selectedColor === '#1F2937' ? '#FFFFFF' : selectedColor,
                   fontSize: `${Math.max(14, selectedFontSize * 0.75)}px`,
                 }}
-                className="w-64 bg-transparent outline-none resize-none font-semibold leading-relaxed border-none focus:ring-0 p-1 placeholder-white/40"
+                className="w-64 bg-transparent outline-none resize-none font-medium leading-relaxed border-none focus:ring-0 p-1.5 placeholder-white/40 text-white"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                     e.preventDefault();
@@ -949,12 +949,12 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                   }
                 }}
               />
-              <div className="flex items-center justify-between pt-1 border-t border-white/10 text-[11px] text-white/60">
+              <div className="flex items-center justify-between pt-1.5 border-t border-white/10 text-[11px] text-white/50">
                 <span>Nhấn Ctrl+Enter để xong</span>
                 <button
                   type="button"
                   onClick={commitActiveText}
-                  className="px-2.5 py-0.5 rounded-full bg-amber-500 hover:bg-amber-400 text-black font-semibold transition-all active:scale-95"
+                  className="px-3 py-1 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white font-medium text-[12px] shadow-sm transition-all active:scale-95 cursor-pointer"
                 >
                   Xong
                 </button>
