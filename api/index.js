@@ -480,6 +480,183 @@ module.exports = async function handler(req, res, forcedPath) {
       });
     }
 
+    // 8. AI Extract Image Text (OCR)
+    if (pathname === '/ai/extract-image-text' && req.method === 'POST') {
+      const { imageDataUrl, apiKeys = [], apiKey } = req.body || {};
+      if (!imageDataUrl || typeof imageDataUrl !== 'string') {
+        return res.status(400).json({ success: false, message: 'Dữ liệu ảnh không hợp lệ' });
+      }
+
+      const keys = [...(Array.isArray(apiKeys) ? apiKeys : []), apiKey, process.env.GEMINI_API_KEY]
+        .filter((k) => typeof k === 'string' && k.trim());
+      const uniqueKeys = Array.from(new Set(keys));
+
+      if (uniqueKeys.length === 0) {
+        return res.status(400).json({
+          success: false,
+          needsApiKey: true,
+          message: 'Chưa cấu hình Gemini API Key. Vui lòng cài đặt khóa API trong Cài đặt → API Key.',
+        });
+      }
+
+      const dataUrlMatch = imageDataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/s);
+      if (!dataUrlMatch) {
+        return res.status(400).json({ success: false, message: 'Định dạng ảnh không được hỗ trợ.' });
+      }
+      const mimeType = dataUrlMatch[1];
+      const base64Data = dataUrlMatch[2];
+
+      const ocrPrompt =
+        'Bạn là chuyên gia OCR văn bản chuyên nghiệp. Hãy trích xuất TOÀN BỘ nội dung chữ/văn bản xuất hiện trong hình ảnh một cách đầy đủ và chính xác 100%:\n- Nhận diện chính xác từng từ tiếng Việt có dấu, số hiệu, mã chứng từ (PO, SKU), ngày tháng, giờ giấc, tên riêng, email, số điện thoại.\n- Giữ nguyên trật tự trên-dưới, cấu trúc từng dòng, đoạn văn và các danh sách có đánh số.\n- Không tự ý tóm tắt, không sửa từ, không bỏ qua các dòng chữ nhỏ, chữ ký hay ghi chú ở cuối.\n- Nếu trong ảnh hoàn toàn không có bất kỳ ký tự chữ hay số nào, hãy trả về chính xác: [KHÔNG CÓ VĂN BẢN]\n- Chỉ trả về duy nhất nội dung văn bản thuần túy được trích xuất, tuyệt đối không thêm lời mở đầu hay giải thích.';
+
+      const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+      let lastErr = null;
+
+      for (let kIdx = 0; kIdx < uniqueKeys.length; kIdx++) {
+        const k = uniqueKeys[kIdx];
+        if (!k.startsWith('AIzaSy')) continue; // Skip non-Gemini keys for Gemini Vision
+
+        for (const model of models) {
+          try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${k}`;
+            const fetchRes = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [
+                  {
+                    parts: [
+                      { text: ocrPrompt },
+                      { inlineData: { mimeType, data: base64Data } },
+                    ],
+                  },
+                ],
+                generationConfig: { temperature: 0.1 },
+              }),
+            });
+
+            if (!fetchRes.ok) {
+              const err = await fetchRes.json().catch(() => ({}));
+              lastErr = err.error?.message || `HTTP ${fetchRes.status}`;
+              if (fetchRes.status === 429) break;
+              continue;
+            }
+
+            const data = await fetchRes.json();
+            const extracted = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+
+            return res.status(200).json({
+              success: true,
+              text: extracted === '[KHÔNG CÓ VĂN BẢN]' ? '' : extracted,
+              noText: !extracted || extracted === '[KHÔNG CÓ VĂN BẢN]',
+              model,
+              usedKeyIndex: kIdx,
+              fallbackKeyUsed: kIdx > 0,
+            });
+          } catch (err) {
+            lastErr = err.message;
+          }
+        }
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: `Không thể trích xuất nội dung: ${lastErr || 'Lỗi xử lý hình ảnh'}`,
+      });
+    }
+
+    // 9. AI Writing Tool
+    if (pathname === '/ai/writing-tool' && req.method === 'POST') {
+      const { text, action = 'proofread', apiKeys = [], apiKey } = req.body || {};
+      if (!text || typeof text !== 'string') {
+        return res.status(400).json({ success: false, message: 'Nội dung văn bản không được để trống' });
+      }
+
+      const keys = [...(Array.isArray(apiKeys) ? apiKeys : []), apiKey, process.env.GEMINI_API_KEY]
+        .filter((k) => typeof k === 'string' && k.trim());
+      const uniqueKeys = Array.from(new Set(keys));
+
+      if (uniqueKeys.length === 0) {
+        return res.status(400).json({
+          success: false,
+          needsApiKey: true,
+          message: 'Chưa cấu hình API Key. Vui lòng cài đặt khóa API.',
+        });
+      }
+
+      let prompt = `Xử lý văn bản sau (${action}): ${text}`;
+      let lastErr = null;
+
+      for (let kIdx = 0; kIdx < uniqueKeys.length; kIdx++) {
+        const k = uniqueKeys[kIdx];
+        try {
+          if (k.startsWith('sk-')) {
+            // DeepSeek API
+            const dsRes = await fetch('https://api.deepseek.com/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${k}`,
+              },
+              body: JSON.stringify({
+                model: 'deepseek-chat',
+                messages: [
+                  { role: 'system', content: 'Bạn là trợ lý soạn thảo tiếng Việt. Chỉ trả về kết quả xử lý.' },
+                  { role: 'user', content: prompt },
+                ],
+                temperature: 0.2,
+              }),
+            });
+            if (dsRes.ok) {
+              const data = await dsRes.json();
+              const result = data.choices?.[0]?.message?.content?.trim();
+              if (result) {
+                return res.status(200).json({
+                  success: true,
+                  result,
+                  model: 'deepseek-chat',
+                  usedKeyIndex: kIdx,
+                  fallbackKeyUsed: kIdx > 0,
+                });
+              }
+            }
+          } else {
+            // Gemini API
+            const gRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${k}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { temperature: 0.2 },
+              }),
+            });
+            if (gRes.ok) {
+              const data = await gRes.json();
+              const result = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+              if (result) {
+                return res.status(200).json({
+                  success: true,
+                  result,
+                  model: 'gemini-2.5-flash',
+                  usedKeyIndex: kIdx,
+                  fallbackKeyUsed: kIdx > 0,
+                });
+              }
+            }
+          }
+        } catch (err) {
+          lastErr = err.message;
+        }
+      }
+
+      return res.status(500).json({ success: false, message: lastErr || 'Lỗi xử lý văn bản' });
+    }
+
+    // 10. Gemini Keys Pool Settings (GET & PUT)
+    if (pathname === '/settings/gemini-keys-pool') {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
     // Fallback for unknown /api routes
     return res.status(404).json({
       success: false,

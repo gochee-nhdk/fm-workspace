@@ -7440,6 +7440,17 @@ export const QuickNoteWindow: React.FC = () => {
                   <img
                     src={activeImg.url}
                     alt={activeImg.name || 'Ảnh chi tiết'}
+                    onError={(e) => {
+                      // Self-Healing: Nếu url bị lỗi (ví dụ blob URL hết hạn sau khi F5),
+                      // tự động tìm ảnh thay thế từ noteImages dạng base64 dataUrl
+                      const imgEl = e.currentTarget;
+                      const fallback = noteImages.find(
+                        (item) => (item.id === activeImg.id || item.name === activeImg.name) && item.url?.startsWith('data:image/')
+                      );
+                      if (fallback?.url) {
+                        imgEl.src = fallback.url;
+                      }
+                    }}
                     onClick={(e) => e.stopPropagation()}
                     onDoubleClick={(e) => {
                       e.stopPropagation();

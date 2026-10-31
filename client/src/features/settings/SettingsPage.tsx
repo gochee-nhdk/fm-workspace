@@ -33,7 +33,8 @@ import {
   SFPlus,
   SFArrowUp,
   SFCheckmark,
-} from 'sf-symbols-lib';
+  SFSquareOnSquare,
+} from '@/components/ui/AppleIcon';
 import {
   getGeminiKeysPool,
   saveGeminiKeysPool,
@@ -1605,7 +1606,7 @@ export const SettingsPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <SFKey size={18} className="text-[#0071e3] dark:text-[#2997ff]" />
                 <h3 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-white">
-                  Cấu Hình Khóa API Key (Google Gemini &amp; OCR)
+                  Cấu Hình API Key (AI Soạn Thảo &amp; OCR)
                 </h3>
               </div>
 
@@ -1701,16 +1702,10 @@ export const SettingsPage: React.FC = () => {
                             <span className="text-[13.5px] font-semibold text-[#1d1d1f] dark:text-white">
                               {item.name}
                             </span>
-                            {isPrimary ? (
-                              <div className="apple-badge-base apple-badge-info text-[11px] py-0.5 px-2.5 min-h-[22px]">
-                                <SFKey size={11} className="shrink-0" />
-                                <span>Khóa chính (Ưu tiên 1)</span>
-                              </div>
-                            ) : (
-                              <div className="apple-badge-base apple-badge-neutral text-[11px] py-0.5 px-2.5 min-h-[22px]">
-                                <span>Khóa dự phòng #{idx}</span>
-                              </div>
-                            )}
+                            {/* Provider Badge */}
+                            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-[#6e6e73] dark:text-[#a1a1a6] border border-black/5 dark:border-white/5 uppercase tracking-wider">
+                              {item.provider || (item.key.startsWith('sk-') ? 'DeepSeek' : 'Gemini')}
+                            </span>
 
                             {/* Status Indicator */}
                             {item.status === 'active' && (
@@ -1749,26 +1744,17 @@ export const SettingsPage: React.FC = () => {
                               </span>
                               <button
                                 type="button"
-                                onClick={() => setShowKeyMap((prev) => ({ ...prev, [item.id]: !prev[item.id] }))}
-                                className="text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0"
-                                title={isVisible ? 'Ẩn khóa' : 'Hiện khóa đầy đủ'}
+                                onClick={() => {
+                                  navigator.clipboard.writeText(item.key).then(() => {
+                                    toast.success('Đã sao chép khóa API!');
+                                  });
+                                }}
+                                className="text-[#86868b] hover:text-[#0071e3] dark:hover:text-[#2997ff] p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                                title="Sao chép khóa API"
                               >
-                                {isVisible ? <SFEyeSlash size={13} /> : <SFEye size={13} />}
+                                <SFSquareOnSquare size={13} />
                               </button>
                             </div>
-
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 text-[12px] px-2.5 text-[#0071e3] dark:text-[#2997ff]"
-                              onClick={() => {
-                                navigator.clipboard.writeText(item.key).then(() => {
-                                  toast.success('Đã sao chép khóa API!');
-                                });
-                              }}
-                            >
-                              Sao chép
-                            </Button>
                           </div>
 
                           {/* Detail / Error Message if any */}
@@ -1784,33 +1770,29 @@ export const SettingsPage: React.FC = () => {
                           )}
                         </div>
 
-                        {/* Actions for this specific key */}
-                        <div className="flex items-center gap-2 shrink-0 self-center">
-                          {/* Test single key */}
-                          <Button
-                            variant="glass"
-                            size="sm"
-                            className="h-7 text-[11.5px] px-3 font-medium"
+                        {/* Actions for this specific key (icon-only for clean Apple design) */}
+                        <div className="flex items-center gap-1.5 shrink-0 self-center">
+                          {/* Test single key (Icon-only) */}
+                          <button
+                            type="button"
                             onClick={() => handleTestSingleGeminiKey(item)}
                             disabled={isTesting}
-                            icon={<SFArrowClockwise size={11} className={isTesting ? 'animate-spin' : ''} />}
+                            className="w-8 h-8 rounded-full flex items-center justify-center bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 text-[#1d1d1f] dark:text-white transition-all cursor-pointer active:scale-95 disabled:opacity-50"
                             title="Kiểm tra khóa này"
                           >
-                            {isTesting ? 'Đang test...' : 'Kiểm tra'}
-                          </Button>
+                            <SFArrowClockwise size={13} className={isTesting ? 'animate-spin' : ''} />
+                          </button>
 
-                          {/* Set as Primary (if not already) */}
+                          {/* Move to Top (Primary) - Icon-only */}
                           {!isPrimary && (
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              className="h-7 text-[11.5px] px-3 font-medium text-[#0071e3] dark:text-[#2997ff]"
+                            <button
+                              type="button"
                               onClick={() => handleSetPrimaryGeminiKey(item.id)}
-                              icon={<SFArrowUp size={11} />}
-                              title="Đưa lên làm Khóa chính ưu tiên số 1"
+                              className="w-8 h-8 rounded-full flex items-center justify-center bg-[#0071e3]/10 hover:bg-[#0071e3]/20 text-[#0071e3] dark:text-[#2997ff] transition-all cursor-pointer active:scale-95"
+                              title="Đưa lên đầu danh sách (Làm khóa mặc định)"
                             >
-                              Làm chính
-                            </Button>
+                              <SFArrowUp size={13} />
+                            </button>
                           )}
 
                           {/* Toggle Active Switch */}
@@ -1855,16 +1837,27 @@ export const SettingsPage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <h4 className="text-[13px] font-semibold text-[#1d1d1f] dark:text-white flex items-center gap-1.5">
                   <SFPlus size={13} className="text-[#0071e3] dark:text-[#2997ff]" />
-                  <span>Thêm khóa API mới (Không giới hạn dự phòng)</span>
+                  <span>Thêm khóa API mới (Gemini, DeepSeek, OpenAI...)</span>
                 </h4>
-                <a
-                  href="https://aistudio.google.com/app/apikey"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[11.5px] text-[#0071e3] dark:text-[#2997ff] hover:underline"
-                >
-                  Lấy khóa Gemini API miễn phí ↗
-                </a>
+                <div className="flex items-center gap-3 text-[11.5px]">
+                  <a
+                    href="https://aistudio.google.com/app/apikey"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[#0071e3] dark:text-[#2997ff] hover:underline"
+                  >
+                    Gemini API ↗
+                  </a>
+                  <span className="text-[#86868b]">•</span>
+                  <a
+                    href="https://platform.deepseek.com/api_keys"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[#0071e3] dark:text-[#2997ff] hover:underline"
+                  >
+                    DeepSeek API ↗
+                  </a>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -1882,7 +1875,7 @@ export const SettingsPage: React.FC = () => {
                     type="password"
                     value={newKeyInput}
                     onChange={(e) => setNewKeyInput(e.target.value)}
-                    placeholder="Dán mã API Key (AIzaSy...)"
+                    placeholder="Dán mã API Key (AIzaSy..., sk-...)"
                     className="flex-1 px-3.5 py-2 text-[13px] font-mono rounded-xl bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:border-[#0071e3] dark:focus:border-[#2997ff] transition-all"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {

@@ -12,11 +12,13 @@ export type WritingToolAction =
   | 'translate_vi';
 
 export type GeminiKeyStatus = 'active' | 'quota_exceeded' | 'invalid' | 'unchecked';
+export type AIProvider = 'gemini' | 'deepseek' | 'openai' | 'custom';
 
 export interface GeminiKeyItem {
   id: string;
   name: string;
   key: string;
+  provider?: AIProvider;
   isActive: boolean;
   status: GeminiKeyStatus;
   statusMessage?: string;
@@ -26,6 +28,14 @@ export interface GeminiKeyItem {
 
 const GEMINI_KEY_STORAGE = 'fm_gemini_api_key';
 const GEMINI_KEYS_POOL_STORAGE = 'fm_gemini_api_keys_pool';
+
+export const detectProvider = (key: string): AIProvider => {
+  const k = key.trim();
+  if (k.startsWith('AIzaSy')) return 'gemini';
+  if (k.startsWith('sk-ant-')) return 'custom';
+  if (k.startsWith('sk-')) return 'deepseek';
+  return 'gemini';
+};
 
 export const getStoredGeminiKey = (): string => {
   const pool = getGeminiKeysPool();
@@ -107,16 +117,19 @@ export const getActiveGeminiKeys = (): GeminiKeyItem[] => {
 /**
  * Thêm một khóa mới vào pool (không giới hạn số lượng khóa dự phòng)
  */
-export const addGeminiKey = (key: string, name?: string): GeminiKeyItem => {
+export const addGeminiKey = (key: string, name?: string, provider?: AIProvider): GeminiKeyItem => {
   const cleanKey = key.trim();
   const pool = getGeminiKeysPool();
   const id = 'key_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
   const count = pool.length;
-  const defaultName = count === 0 ? 'Khóa chính' : `Khóa dự phòng #${count}`;
+  const detectedProv = provider && provider !== ('auto' as any) ? provider : detectProvider(cleanKey);
+  const provLabel = detectedProv === 'deepseek' ? 'DeepSeek' : detectedProv === 'openai' ? 'OpenAI' : 'Gemini';
+  const defaultName = count === 0 ? `Khóa chính (${provLabel})` : `Khóa dự phòng #${count} (${provLabel})`;
   const newItem: GeminiKeyItem = {
     id,
     name: name?.trim() || defaultName,
     key: cleanKey,
+    provider: detectedProv,
     isActive: true,
     status: 'unchecked',
   };
@@ -410,14 +423,121 @@ export const testGeminiApiKey = async (
 };
 
 /**
- * Kiểm tra trạng thái của một khóa duy nhất, phân biệt chính xác:
- * - 'active': Hoạt động tốt
- * - 'quota_exceeded': Hết hạn mức request / Quá quota (429)
- * - 'invalid': Khóa không tồn tại / Bị vô hiệu hóa
+ * Kiểm tra khóa API của DeepSeek
+ */
+export const testDeepSeekKey = async (
+  key: string
+): Promise<{ success: boolean; status: GeminiKeyStatus; message: string; model?: string; provider: AIProvider }> => {
+  const cleanKey = key.trim();
+  try {
+    const res = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${cleanKey}`,
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [{ role: 'user', content: 'Trả lời đúng 1 chữ: OK' }],
+        max_tokens: 5,
+      }),
+    });
+
+    if (res.ok) {
+      return {
+        success: true,
+        status: 'active',
+        message: 'Khóa API DeepSeek hoạt động chính xác! (Model: deepseek-chat)',
+        model: 'deepseek-chat',
+        provider: 'deepseek',
+      };
+    }
+
+    if (res.status === 429) {
+      return {
+        success: false,
+        status: 'quota_exceeded',
+        message: 'Hết hạn mức DeepSeek (429) — Hệ thống sẽ tự động dùng khóa dự phòng.',
+        model: 'deepseek-chat',
+        provider: 'deepseek',
+      };
+    }
+
+    const err = await res.json().catch(() => ({}));
+    return {
+      success: false,
+      status: 'invalid',
+      message: err.error?.message || `Xác thực DeepSeek thất bại (Mã lỗi ${res.status})`,
+      provider: 'deepseek',
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      status: 'invalid',
+      message: err.message || 'Lỗi mạng khi kết nối tới máy chủ DeepSeek',
+      provider: 'deepseek',
+    };
+  }
+};
+
+/**
+ * Kiểm tra khóa API của OpenAI
+ */
+export const testOpenAiKey = async (
+  key: string
+): Promise<{ success: boolean; status: GeminiKeyStatus; message: string; model?: string; provider: AIProvider }> => {
+  const cleanKey = key.trim();
+  try {
+    const res = await fetch('https://api.openai.com/v1/models', {
+      headers: {
+        Authorization: `Bearer ${cleanKey}`,
+      },
+    });
+
+    if (res.ok) {
+      return {
+        success: true,
+        status: 'active',
+        message: 'Khóa API OpenAI hoạt động chính xác! (Model: gpt-4o-mini)',
+        model: 'gpt-4o-mini',
+        provider: 'openai',
+      };
+    }
+
+    if (res.status === 429) {
+      return {
+        success: false,
+        status: 'quota_exceeded',
+        message: 'Hết hạn mức OpenAI (429) — Hệ thống sẽ tự động dùng khóa dự phòng.',
+        model: 'gpt-4o-mini',
+        provider: 'openai',
+      };
+    }
+
+    const err = await res.json().catch(() => ({}));
+    return {
+      success: false,
+      status: 'invalid',
+      message: err.error?.message || `Xác thực OpenAI thất bại (Mã lỗi ${res.status})`,
+      provider: 'openai',
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      status: 'invalid',
+      message: err.message || 'Lỗi kết nối tới OpenAI',
+      provider: 'openai',
+    };
+  }
+};
+
+/**
+ * Kiểm tra trạng thái của một khóa duy nhất thuộc bất kỳ nhà cung cấp nào (Gemini, DeepSeek, OpenAI...)
  */
 export const testSingleGeminiKey = async (
-  key: string
-): Promise<{ success: boolean; status: GeminiKeyStatus; message: string; model?: string }> => {
+  key: string,
+  preferredProvider?: AIProvider
+): Promise<{ success: boolean; status: GeminiKeyStatus; message: string; model?: string; provider?: AIProvider }> => {
   const cleanKey = key.trim();
   if (!cleanKey) {
     return {
@@ -427,6 +547,27 @@ export const testSingleGeminiKey = async (
     };
   }
 
+  const prov = preferredProvider && preferredProvider !== ('auto' as any) ? preferredProvider : detectProvider(cleanKey);
+
+  // 1. Nếu là DeepSeek hoặc khóa bắt đầu bằng sk-
+  if (prov === 'deepseek' || (cleanKey.startsWith('sk-') && prov !== 'openai')) {
+    const dsRes = await testDeepSeekKey(cleanKey);
+    if (dsRes.success) return dsRes;
+
+    // Nếu không có provider chỉ định và DeepSeek trả về 401, thử tiếp OpenAI
+    if (!preferredProvider) {
+      const oaiRes = await testOpenAiKey(cleanKey);
+      if (oaiRes.success) return oaiRes;
+    }
+    return dsRes;
+  }
+
+  // 2. Nếu là OpenAI
+  if (prov === 'openai') {
+    return testOpenAiKey(cleanKey);
+  }
+
+  // 3. Mặc định: Google Gemini
   const res = await testGeminiApiKey(cleanKey);
   if (res.success) {
     return {
@@ -434,7 +575,14 @@ export const testSingleGeminiKey = async (
       status: 'active',
       message: res.message,
       model: res.model,
+      provider: 'gemini',
     };
+  }
+
+  // Nếu test Gemini thất bại nhưng khóa có định dạng sk-..., tự động thử DeepSeek
+  if (cleanKey.startsWith('sk-') && !preferredProvider) {
+    const dsRes = await testDeepSeekKey(cleanKey);
+    if (dsRes.success) return dsRes;
   }
 
   const lowerMsg = (res.message || '').toLowerCase();
@@ -444,8 +592,9 @@ export const testSingleGeminiKey = async (
     success: false,
     status: isQuota ? 'quota_exceeded' : 'invalid',
     message: isQuota
-      ? 'Hết hạn mức yêu cầu (Quota / Rate Limit) — Hệ thống sẽ tự động dùng khóa dự phòng.'
+      ? 'Hết hạn mức yêu cầu (Quota 429) — Hệ thống sẽ tự động dùng khóa dự phòng.'
       : res.message || 'Khóa API không hợp lệ hoặc đã bị vô hiệu hóa.',
+    provider: 'gemini',
   };
 };
 
@@ -472,12 +621,13 @@ export const testAllGeminiKeys = async (
       continue;
     }
 
-    const testRes = await testSingleGeminiKey(item.key);
+    const testRes = await testSingleGeminiKey(item.key, item.provider);
     const updatedItem: GeminiKeyItem = {
       ...item,
       status: testRes.status,
       statusMessage: testRes.message,
-      model: testRes.model,
+      model: testRes.model || item.model,
+      provider: testRes.provider || item.provider || detectProvider(item.key),
       lastCheckedAt: new Date().toISOString(),
     };
     updatedList.push(updatedItem);
@@ -815,11 +965,84 @@ export const runWritingTool = async (
       prompt = `Hãy dịch văn bản sau sang tiếng Việt tự nhiên, chuẩn xác, đúng ngữ cảnh.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
     }
 
+    // Helper function to call appropriate API provider
+    const callProviderApi = async (keyItem: GeminiKeyItem, pr: string, sig?: AbortSignal): Promise<string> => {
+      const cleanKey = keyItem.key.trim();
+      const prov = keyItem.provider || detectProvider(cleanKey);
+
+      if (prov === 'deepseek' || (cleanKey.startsWith('sk-') && prov !== 'openai')) {
+        const res = await fetch('https://api.deepseek.com/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${cleanKey}`,
+          },
+          body: JSON.stringify({
+            model: 'deepseek-chat',
+            messages: [
+              {
+                role: 'system',
+                content: 'Bạn là trợ lý soạn thảo văn bản tiếng Việt xuất sắc. Hãy xử lý yêu cầu và CHỈ trả về duy nhất văn bản kết quả sau khi xử lý. Tuyệt đối KHÔNG giải thích, KHÔNG thêm tiêu đề, KHÔNG lời chào/kết, KHÔNG trả về nội dung ngoài ngữ cảnh.',
+              },
+              { role: 'user', content: pr },
+            ],
+            temperature: 0.2,
+          }),
+          signal: sig,
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error?.message || `Lỗi DeepSeek HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        const text = data.choices?.[0]?.message?.content?.trim();
+        if (!text) throw new Error('Không nhận được phản hồi từ DeepSeek');
+        return text;
+      }
+
+      if (prov === 'openai') {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${cleanKey}`,
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: 'Bạn là trợ lý soạn thảo văn bản tiếng Việt xuất sắc. Hãy xử lý yêu cầu và CHỈ trả về duy nhất văn bản kết quả sau khi xử lý.',
+              },
+              { role: 'user', content: pr },
+            ],
+            temperature: 0.2,
+          }),
+          signal: sig,
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error?.message || `Lỗi OpenAI HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
+        const text = data.choices?.[0]?.message?.content?.trim();
+        if (!text) throw new Error('Không nhận được phản hồi từ OpenAI');
+        return text;
+      }
+
+      // Default: Google Gemini
+      return callGeminiApi(pr, cleanKey, sig);
+    };
+
     // Try keys sequentially until one succeeds
     for (let i = 0; i < activeKeys.length; i++) {
       const keyObj = activeKeys[i];
       try {
-        const result = await callGeminiApi(prompt, keyObj.key, signal);
+        const result = await callProviderApi(keyObj, prompt, signal);
         // Mark key active
         updateGeminiKey(keyObj.id, {
           status: 'active',
@@ -865,6 +1088,68 @@ export const runWritingTool = async (
 };
 
 /**
+ * Direct browser Gemini Vision OCR call
+ */
+export const extractTextFromImageDirect = async (
+  imageDataUrl: string,
+  apiKey: string,
+  signal?: AbortSignal
+): Promise<string> => {
+  const dataUrlMatch = imageDataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/s);
+  if (!dataUrlMatch) throw new Error('Định dạng ảnh không hợp lệ');
+  const mimeType = dataUrlMatch[1];
+  const base64Data = dataUrlMatch[2];
+
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  let lastErr = '';
+
+  const ocrPrompt =
+    'Bạn là chuyên gia OCR văn bản chuyên nghiệp. Hãy trích xuất TOÀN BỘ nội dung chữ/văn bản xuất hiện trong hình ảnh một cách đầy đủ và chính xác 100%:\n- Nhận diện chính xác từng từ tiếng Việt có dấu, số hiệu, mã chứng từ (PO, SKU), ngày tháng, giờ giấc, tên riêng, email, số điện thoại.\n- Giữ nguyên trật tự trên-dưới, cấu trúc từng dòng, đoạn văn và các danh sách có đánh số.\n- Không tự ý tóm tắt, không sửa từ, không bỏ qua các dòng chữ nhỏ, chữ ký hay ghi chú ở cuối.\n- Nếu trong ảnh hoàn toàn không có bất kỳ ký tự chữ hay số nào, hãy trả về chính xác: [KHÔNG CÓ VĂN BẢN]\n- Chỉ trả về duy nhất nội dung văn bản thuần túy được trích xuất, tuyệt đối không thêm lời mở đầu hay giải thích.';
+
+  for (const model of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: ocrPrompt },
+                {
+                  inlineData: {
+                    mimeType,
+                    data: base64Data,
+                  },
+                },
+              ],
+            },
+          ],
+          generationConfig: { temperature: 0.1 },
+        }),
+        signal,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        lastErr = err.error?.message || `HTTP ${res.status}`;
+        continue;
+      }
+
+      const data = await res.json();
+      const extracted = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+      return extracted;
+    } catch (err: any) {
+      if (signal?.aborted) throw err;
+      lastErr = err.message || 'Lỗi mạng khi kết nối Gemini Vision';
+    }
+  }
+
+  throw new Error(lastErr || 'Không thể trích xuất văn bản từ ảnh');
+};
+
+/**
  * Trích xuất nội dung văn bản từ ảnh (OCR) sử dụng danh sách Khóa API với cơ chế dự phòng tự động
  */
 export const extractTextFromImageWithFailover = async (
@@ -874,28 +1159,93 @@ export const extractTextFromImageWithFailover = async (
   const activeKeys = getActiveGeminiKeys();
   const rawKeyStrings = activeKeys.map((k) => k.key.trim()).filter(Boolean);
 
-  const res = await api.post(
-    '/ai/extract-image-text',
-    {
-      imageDataUrl,
-      apiKeys: rawKeyStrings.length > 0 ? rawKeyStrings : undefined,
-      apiKey: rawKeyStrings[0] || undefined,
-    },
-    { signal }
-  );
+  // Lọc các khóa hỗ trợ Vision (ưu tiên Gemini keys: AIzaSy hoặc provider gemini)
+  const visionCandidates = activeKeys.filter((k) => k.provider === 'gemini' || k.key.trim().startsWith('AIzaSy'));
+  const candidateKeys = visionCandidates.length > 0 ? visionCandidates : activeKeys;
 
-  if (res.data?.success) {
-    const usedIndex = res.data.usedKeyIndex ?? 0;
-    const keyObj = activeKeys[usedIndex];
-    return {
-      success: true,
-      text: res.data.text || '',
-      model: res.data.model,
-      noText: res.data.noText,
-      usedKeyName: keyObj?.name,
-      fallbackKeyUsed: Boolean(res.data.fallbackKeyUsed),
-    };
+  let lastErr = '';
+
+  // Tier 1: Trực tiếp gọi Google Gemini Vision từ trình duyệt (hoạt động 100% không phụ thuộc máy chủ backend)
+  for (let i = 0; i < candidateKeys.length; i++) {
+    const keyObj = candidateKeys[i];
+    // Chỉ thử gọi Gemini Vision nếu khóa là Gemini
+    if (keyObj.provider === 'gemini' || keyObj.key.trim().startsWith('AIzaSy') || !keyObj.key.trim().startsWith('sk-')) {
+      try {
+        const text = await extractTextFromImageDirect(imageDataUrl, keyObj.key, signal);
+        updateGeminiKey(keyObj.id, {
+          status: 'active',
+          statusMessage: 'Hoạt động tốt',
+          lastCheckedAt: new Date().toISOString(),
+        });
+
+        if (!text || text === '[KHÔNG CÓ VĂN BẢN]') {
+          return {
+            success: true,
+            text: '',
+            noText: true,
+            usedKeyName: keyObj.name,
+            fallbackKeyUsed: i > 0,
+          };
+        }
+
+        return {
+          success: true,
+          text,
+          usedKeyName: keyObj.name,
+          fallbackKeyUsed: i > 0,
+        };
+      } catch (err: any) {
+        if (signal?.aborted) throw err;
+        const lower = (err?.message || '').toLowerCase();
+        const isQuota = /429|quota|rate.?limit|exhausted/i.test(lower);
+        updateGeminiKey(keyObj.id, {
+          status: isQuota ? 'quota_exceeded' : 'invalid',
+          statusMessage: isQuota ? 'Hết hạn mức (429)' : err?.message,
+          lastCheckedAt: new Date().toISOString(),
+        });
+        lastErr = err?.message || 'Lỗi xử lý ảnh';
+      }
+    }
   }
 
-  throw new Error(res.data?.message || 'Không thể trích xuất văn bản từ ảnh');
+  // Tier 2: Gọi thử qua endpoint backend proxy nếu có
+  try {
+    const res = await api.post(
+      '/ai/extract-image-text',
+      {
+        imageDataUrl,
+        apiKeys: rawKeyStrings.length > 0 ? rawKeyStrings : undefined,
+        apiKey: rawKeyStrings[0] || undefined,
+      },
+      { signal }
+    );
+
+    if (res.data?.success) {
+      const usedIndex = res.data.usedKeyIndex ?? 0;
+      const keyObj = activeKeys[usedIndex];
+      return {
+        success: true,
+        text: res.data.text || '',
+        model: res.data.model,
+        noText: res.data.noText,
+        usedKeyName: keyObj?.name,
+        fallbackKeyUsed: Boolean(res.data.fallbackKeyUsed),
+      };
+    }
+  } catch (backendErr: any) {
+    if (signal?.aborted) throw backendErr;
+    console.warn('Backend proxy OCR unavailable, falling back:', backendErr?.message);
+  }
+
+  if (activeKeys.length === 0) {
+    throw new Error('Chưa cấu hình API Key. Vui lòng cài đặt khóa API trong Cài đặt → API Key.');
+  }
+
+  // Nếu tất cả các khóa đều là DeepSeek (chỉ text, không hỗ trợ Vision)
+  const allTextOnly = activeKeys.every((k) => k.provider === 'deepseek' || k.key.trim().startsWith('sk-'));
+  if (allTextOnly) {
+    throw new Error('Tính năng quét chữ từ ảnh (OCR) cần khóa hỗ trợ hình ảnh (Google Gemini). Vui lòng thêm khóa Gemini trong Cài đặt → API Key.');
+  }
+
+  throw new Error(lastErr || 'Không thể trích xuất văn bản từ ảnh qua các khóa API hiện có');
 };
