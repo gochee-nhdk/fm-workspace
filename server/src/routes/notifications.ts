@@ -59,7 +59,7 @@ async function getSmtpConfig(clientConfig?: any): Promise<SmtpConfig> {
   let senderName = (await getSetting('smtp_sender_name')) || 'Farmers Market Assistant';
   let from = (await getSetting('smtp_from')) || process.env.SMTP_FROM || `"${senderName}" <${user}>`;
 
-  // Fallback to client-provided SMTP configuration (stored in client vault)
+  // Fallback to client-provided SMTP configuration (in-memory for this session only, never auto-save to global db)
   if ((!user || !pass) && clientConfig?.user && clientConfig?.pass) {
     user = String(clientConfig.user).trim();
     pass = String(clientConfig.pass).trim().replace(/\s+/g, '');
@@ -67,27 +67,6 @@ async function getSmtpConfig(clientConfig?: any): Promise<SmtpConfig> {
     port = Number(clientConfig.port) || port;
     senderName = String(clientConfig.senderName || senderName).trim();
     from = `"${senderName}" <${user}>`;
-
-    // Auto-persist to database system_settings so server background tasks also have it
-    try {
-      const now = new Date().toISOString();
-      const saveSetting = async (k: string, v: string) => {
-        await db.prepare(`
-          INSERT INTO system_settings (id, key, value, category, updated_at)
-          VALUES (?, ?, ?, 'smtp', ?)
-          ON CONFLICT(key) DO UPDATE SET
-            value = excluded.value,
-            updated_at = excluded.updated_at
-        `).run(uuidv4(), k, v, now);
-      };
-      await saveSetting('smtp_user', user);
-      await saveSetting('smtp_pass', pass);
-      await saveSetting('smtp_host', host);
-      await saveSetting('smtp_port', String(port));
-      await saveSetting('smtp_sender_name', senderName);
-    } catch (saveErr) {
-      console.warn('Auto-save client SMTP config to database failed:', saveErr);
-    }
   }
 
   return {
@@ -125,7 +104,7 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
       smtpHost: config.host,
       smtpPort: config.port,
       smtpUser: maskedUser,
-      fullUser: config.user || null,
+      fullUser: request.user?.role === 'admin' ? (config.user || null) : null,
       senderName: config.senderName,
     });
   });
@@ -236,8 +215,9 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
     });
   });
 
-  // 3. Automated Email Dispatch Endpoint (rate limited)
+  // 3. Automated Email Dispatch Endpoint (requires authenticated user + rate limited)
   fastify.post('/send-reminder-email', {
+    preHandler: verifyToken,
     config: {
       rateLimit: {
         max: 20,
@@ -608,8 +588,9 @@ ${safeContent}
     }
   });
 
-  // 4. Send Test Email Endpoint (rate limited)
+  // 4. Send Test Email Endpoint (requires authenticated user + rate limited)
   fastify.post('/test-email', {
+    preHandler: verifyToken,
     config: {
       rateLimit: {
         max: 5,
@@ -647,7 +628,7 @@ ${safeContent}
         pass: config.pass,
       },
       tls: {
-        rejectUnauthorized: false,
+        rejectUnauthorized: process.env.NODE_ENV === 'production',
       },
     });
 

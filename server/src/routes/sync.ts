@@ -145,6 +145,8 @@ export default async function syncRoutes(fastify: FastifyInstance) {
       }
 
       const db = getDb();
+      // SECURITY ISOLATION: Strictly isolate workspace backup by requesting user ID.
+      // Never fall back to returning another user's backup or default_user vault.
       let latest = (await db.prepare(`
         SELECT id, backup_type, device_name, checksum, item_counts, payload, is_encrypted, created_at
         FROM user_workspace_backups
@@ -154,43 +156,28 @@ export default async function syncRoutes(fastify: FastifyInstance) {
       `).get(userId)) as any;
 
       if (!latest) {
-        latest = (await db.prepare(`
-          SELECT id, backup_type, device_name, checksum, item_counts, payload, is_encrypted, created_at
-          FROM user_workspace_backups
-          ORDER BY created_at DESC
-          LIMIT 1
-        `).get()) as any;
-      }
-
-      if (!latest) {
-        // Multi-level fallback to restore data from disk vault if available
-        const potentialFiles = [
-          path.join(getVaultDir(userId), 'backup_latest.json'),
-          path.join(getVaultDir('default_user'), 'backup_latest.json'),
-        ];
-
-        for (const diskFile of potentialFiles) {
-          try {
-            if (fs.existsSync(diskFile)) {
-              const diskContent = JSON.parse(fs.readFileSync(diskFile, 'utf8'));
-              if (diskContent && diskContent.payload) {
-                return {
-                  success: true,
-                  data: {
-                    id: diskContent.id || 'recovered-backup',
-                    backup_type: 'auto',
-                    deviceName: 'Local Vault File',
-                    checksum: diskContent.checksum || '',
-                    item_counts: typeof diskContent.itemCounts === 'string' ? diskContent.itemCounts : JSON.stringify(diskContent.itemCounts || {}),
-                    payload: diskContent.payload,
-                    is_encrypted: diskContent.isEncrypted ? 1 : 0,
-                    created_at: diskContent.createdAt || new Date().toISOString(),
-                  },
-                };
-              }
+        // Fallback strictly to requesting user's own isolated disk vault file if available
+        const userVaultFile = path.join(getVaultDir(userId), 'backup_latest.json');
+        try {
+          if (fs.existsSync(userVaultFile)) {
+            const diskContent = JSON.parse(fs.readFileSync(userVaultFile, 'utf8'));
+            if (diskContent && diskContent.payload && diskContent.userId === userId) {
+              return {
+                success: true,
+                data: {
+                  id: diskContent.id || 'recovered-backup',
+                  backup_type: 'auto',
+                  deviceName: 'Local Vault File',
+                  checksum: diskContent.checksum || '',
+                  item_counts: typeof diskContent.itemCounts === 'string' ? diskContent.itemCounts : JSON.stringify(diskContent.itemCounts || {}),
+                  payload: diskContent.payload,
+                  is_encrypted: diskContent.isEncrypted ? 1 : 0,
+                  created_at: diskContent.createdAt || new Date().toISOString(),
+                },
+              };
             }
-          } catch (_) {}
-        }
+          }
+        } catch (_) {}
 
         return reply.code(404).send({
           success: false,

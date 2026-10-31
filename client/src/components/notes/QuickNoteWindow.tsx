@@ -14,6 +14,7 @@ import {
   SFSidebarLeft,
   SFMagnifyingglass,
   SFCheckmarkSquare,
+  SFPencil,
   SFSquareAndPencil,
   SFClock,
   SFBell,
@@ -27,6 +28,7 @@ import {
   SFChevronDown,
   SFChevronUp,
   SFWandAndSparkles,
+  SFSparkles,
   SFKey,
   SFKeyFill,
   SFChecklist,
@@ -65,6 +67,7 @@ import {
   formatFileSize,
 } from '@/services/noteImageService';
 import { SnippingToolOverlay } from '@/components/notes/SnippingToolOverlay';
+import { ImageEditorModal } from '@/components/notes/ImageEditorModal';
 import { tryCalculateInlineMath } from '@/services/mathNotesService';
 import {
   runWritingTool,
@@ -1331,6 +1334,7 @@ export const QuickNoteWindow: React.FC = () => {
   const [lightboxZoom, setLightboxZoom] = useState(1);
   const [lightboxPan, setLightboxPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isLightboxPanning, setIsLightboxPanning] = useState(false);
+  const [isEditingImage, setIsEditingImage] = useState(false);
   const lightboxPanStartRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
   const [snippingSnapshot, setSnippingSnapshot] = useState<string | null>(null);
   const [filePreviewModal, setFilePreviewModal] = useState<{
@@ -1360,6 +1364,7 @@ export const QuickNoteWindow: React.FC = () => {
   const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
   const [showWritingToolsMenu, setShowWritingToolsMenu] = useState(false);
   const [writingToolLoading, setWritingToolLoading] = useState(false);
+  const [currentWritingAction, setCurrentWritingAction] = useState<WritingToolAction | null>(null);
   const [aiDraft, setAiDraft] = useState<{
     action: WritingToolAction;
     title: string;
@@ -1755,6 +1760,7 @@ export const QuickNoteWindow: React.FC = () => {
       writingToolAbortControllerRef.current = null;
     }
     setWritingToolLoading(false);
+    setCurrentWritingAction(null);
     toast.dismiss('ai-writing');
     toast('Đã dừng tác vụ AI.', { icon: '⏹️' });
   };
@@ -1807,7 +1813,36 @@ export const QuickNoteWindow: React.FC = () => {
       }
     } else {
       savedSelectionRangeRef.current = null;
-      setSelectionBounds(null);
+      // Auto-detect line rects for the whole note when no specific selection is active
+      if (canvasRef.current && editorRef.current && targetText.trim()) {
+        try {
+          const fullRange = document.createRange();
+          fullRange.selectNodeContents(editorRef.current);
+          const canvasRect = canvasRef.current.getBoundingClientRect();
+          const lineRects = getStrictSelectionLineRects(fullRange, canvasRect);
+          if (lineRects.length > 0) {
+            const minLeft = Math.min(...lineRects.map((r) => r.left));
+            const maxRight = Math.max(...lineRects.map((r) => r.left + r.width));
+            const minTop = Math.min(...lineRects.map((r) => r.top));
+            const maxBottom = Math.max(...lineRects.map((r) => r.top + r.height));
+            setSelectionBounds({
+              top: minTop,
+              bottom: maxBottom,
+              left: minLeft,
+              right: maxRight,
+              width: Math.max(20, maxRight - minLeft),
+              height: Math.max(16, maxBottom - minTop),
+              lineRects,
+            });
+          } else {
+            setSelectionBounds(null);
+          }
+        } catch {
+          setSelectionBounds(null);
+        }
+      } else {
+        setSelectionBounds(null);
+      }
     }
     if (!targetText.trim()) {
       toast.error('Ghi chú chưa có nội dung để AI xử lý!');
@@ -1819,6 +1854,7 @@ export const QuickNoteWindow: React.FC = () => {
     writingToolAbortControllerRef.current = controller;
 
     setWritingToolLoading(true);
+    setCurrentWritingAction(action);
     toast.loading('AI Writing Tool đang tạo bản nháp...', { id: 'ai-writing' });
     try {
       const result = await runWritingTool(targetText, action, controller.signal);
@@ -1861,6 +1897,7 @@ export const QuickNoteWindow: React.FC = () => {
         writingToolAbortControllerRef.current = null;
       }
       setWritingToolLoading(false);
+      setCurrentWritingAction(null);
     }
   };
 
@@ -2507,6 +2544,7 @@ export const QuickNoteWindow: React.FC = () => {
     writingToolAbortControllerRef.current = controller;
 
     setWritingToolLoading(true);
+    setCurrentWritingAction(action);
     setShowFloatingAiMenu(false);
     toast.loading('AI Writing Tool đang tạo bản nháp...', { id: 'ai-writing' });
     try {
@@ -2550,6 +2588,7 @@ export const QuickNoteWindow: React.FC = () => {
         writingToolAbortControllerRef.current = null;
       }
       setWritingToolLoading(false);
+      setCurrentWritingAction(null);
     }
   };
 
@@ -2707,6 +2746,68 @@ export const QuickNoteWindow: React.FC = () => {
     } else {
       toast.error('Trình duyệt chưa hỗ trợ sao chép ảnh trực tiếp, bạn hãy tải ảnh về máy!', { id: 'note-img-copy' });
     }
+  };
+
+  const handleSaveEditedImage = async (editedDataUrl: string, name: string, size: number) => {
+    if (!activeNote) return;
+    const currentActiveImg = lightboxImage || lastLightboxImageRef.current;
+    if (!currentActiveImg) return;
+
+    const oldUrl = currentActiveImg.url;
+    const oldId = currentActiveImg.id;
+
+    // 1. If stored in IndexedDB attachment store, update or create attachment
+    let updatedUrl = editedDataUrl;
+    try {
+      const res = await fetch(editedDataUrl);
+      const blob = await res.blob();
+      const saved = await attachmentService.saveAttachment(blob, name);
+      if (saved && saved.url) {
+        updatedUrl = saved.url;
+      }
+    } catch (err) {
+      console.warn('Fallback to dataUrl for edited image:', err);
+    }
+
+    // 2. Update activeNote.images list
+    const updatedImages = (activeNote.images || []).map((img) => {
+      if (img.id === oldId || img.url === oldUrl) {
+        return {
+          ...img,
+          url: updatedUrl,
+          name,
+          size,
+        };
+      }
+      return img;
+    });
+
+    // 3. Update editor DOM / HTML content
+    const currentHtml = editorRef.current ? editorRef.current.innerHTML : (localContentRef.current || activeNote.content || '');
+    let updatedHtml = currentHtml;
+    if (oldUrl) {
+      updatedHtml = updatedHtml.split(oldUrl).join(updatedUrl);
+    }
+
+    if (editorRef.current && editorRef.current.innerHTML !== updatedHtml) {
+      editorRef.current.innerHTML = updatedHtml;
+    }
+    setLocalContent(updatedHtml);
+    localContentRef.current = updatedHtml;
+
+    // 4. Update note in store
+    await updateNote(activeNote.id, { images: updatedImages, content: updatedHtml });
+
+    // 5. Update active lightbox image so user sees the newly edited image right away
+    setLightboxImage({
+      id: oldId,
+      url: updatedUrl,
+      name,
+      size,
+      createdAt: new Date().toISOString(),
+    });
+
+    playPopSound();
   };
 
   // Listen for Ctrl+V paste containing images
@@ -3044,6 +3145,9 @@ export const QuickNoteWindow: React.FC = () => {
       } else if (e.key === '0') {
         e.preventDefault();
         handleResetLightboxZoom();
+      } else if (e.key.toLowerCase() === 'e' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        setIsEditingImage(true);
       }
     };
 
@@ -5565,28 +5669,65 @@ export const QuickNoteWindow: React.FC = () => {
               ) : (
                 /* Seamless Flowing Writing Canvas */
                 <div ref={canvasRef} className="flex-1 flex flex-col min-h-0 relative">
-                  {/* Apple AI Creative Text Transformation Effect - Ethereal Rearrange & Defocus Shimmer */}
+                  {/* Apple AI High-Precision Holographic Text Scanning Engine - Strictly Line-Bound */}
                   {writingToolLoading && selectionBounds?.lineRects && selectionBounds.lineRects.length > 0 && (
                     <div className="absolute inset-0 pointer-events-none select-none z-20 overflow-hidden">
                       {selectionBounds.lineRects.map((rect, idx) => (
                         <div
-                          key={`morph-line-${idx}-${rect.top.toFixed(0)}-${rect.left.toFixed(0)}`}
-                          className="absolute overflow-hidden apple-ai-text-morphing-pill"
+                          key={`scan-line-${idx}-${rect.top.toFixed(0)}-${rect.left.toFixed(0)}`}
+                          className="apple-ai-scan-pill"
                           style={{
-                            top: `${Math.max(0, rect.top - 1)}px`,
-                            left: `${Math.max(0, rect.left - 2)}px`,
-                            width: `${Math.max(6, rect.width + 4)}px`,
-                            height: `${Math.max(18, rect.height + 2)}px`,
-                            animationDelay: `${idx * 0.12}s`,
+                            top: `${Math.max(0, rect.top - 2)}px`,
+                            left: `${Math.max(0, rect.left - 4)}px`,
+                            width: `${Math.max(12, rect.width + 8)}px`,
+                            height: `${Math.max(18, rect.height + 4)}px`,
+                            animationDelay: `${idx * 0.08}s`,
                           }}
                         >
-                          {/* Inner undulating glyph rearrangement aura */}
+                          {/* 1. Underlying Liquid Aurora Shimmer */}
+                          <div className="absolute inset-0 apple-ai-aurora-glow" />
+
+                          {/* 2. Microscopic High-Tech Neural Frequency Lines */}
+                          <div className="absolute inset-0 apple-ai-neural-grid" />
+
+                          {/* 3. Synchronized Sweeping Laser Beam (Unified Global Coordinate Track) */}
                           <div
-                            className="absolute inset-0 apple-ai-character-rearrange-aura"
+                            className="apple-ai-laser-track"
                             style={{
-                              animationDelay: `${idx * 0.16}s`,
+                              left: `${selectionBounds.left - rect.left}px`,
+                              width: `${selectionBounds.width}px`,
                             }}
-                          />
+                          >
+                            <div
+                              className="apple-ai-laser-beam"
+                              style={{
+                                animationDelay: `${idx * 0.08}s`,
+                              }}
+                            >
+                              {/* Trailing Phosphor Comet Wake */}
+                              <div className="apple-ai-comet-wake" />
+
+                              {/* White-Hot Razor-Sharp Optical Laser Needle */}
+                              <div className="apple-ai-laser-needle" />
+
+                              {/* Leading Chromatic Dispersion Flare */}
+                              <div className="apple-ai-leading-dispersion" />
+
+                              {/* Top & Bottom Sparkling Lens Flares */}
+                              <div className="apple-ai-lens-spark apple-ai-lens-spark-top" />
+                              <div className="apple-ai-lens-spark apple-ai-lens-spark-bottom" />
+                            </div>
+                          </div>
+
+                          {/* 4. Apple Intelligence Stardust Twinkles */}
+                          <div
+                            className="apple-ai-stardust-field"
+                            style={{ animationDelay: `${(idx % 3) * 0.25}s` }}
+                          >
+                            <span className="apple-ai-sparkle-star apple-ai-star-1">✦</span>
+                            <span className="apple-ai-sparkle-star apple-ai-star-2">✦</span>
+                            <span className="apple-ai-sparkle-star apple-ai-star-3">✦</span>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -5638,8 +5779,8 @@ export const QuickNoteWindow: React.FC = () => {
                   {writingToolLoading && (() => {
                     const canvasW = canvasRef.current?.clientWidth || 500;
                     const canvasH = canvasRef.current?.clientHeight || 400;
-                    const pillWidth = 165;
-                    const pillHeight = 28;
+                    const pillWidth = 215;
+                    const pillHeight = 32;
 
                     let pillTop = 10;
                     let pillLeft = Math.max(12, canvasW - pillWidth - 12);
@@ -5651,37 +5792,60 @@ export const QuickNoteWindow: React.FC = () => {
                       const lineH = lastLine.height;
 
                       // Check if there is enough room on the same line after the last character
-                      const spaceOnSameLine = canvasW - (endX + 8);
-                      if (spaceOnSameLine >= pillWidth + 8) {
+                      const spaceOnSameLine = canvasW - (endX + 10);
+                      if (spaceOnSameLine >= pillWidth + 10) {
                         // Sit immediately after the last character on the same line
-                        pillLeft = endX + 8;
+                        pillLeft = endX + 10;
                         pillTop = Math.max(4, lineTop + (lineH - pillHeight) / 2);
                       } else {
                         // If end of line is too close to edge, place right below the end of text
                         pillLeft = Math.max(8, Math.min(canvasW - pillWidth - 12, endX - pillWidth + 30));
-                        pillTop = Math.min(canvasH - pillHeight - 8, lineTop + lineH + 6);
+                        pillTop = Math.min(canvasH - pillHeight - 8, lineTop + lineH + 8);
                       }
                     } else if (selectionBounds) {
-                      pillLeft = Math.max(8, Math.min(canvasW - pillWidth - 12, selectionBounds.right + 8));
-                      pillTop = Math.max(4, selectionBounds.bottom + 6);
+                      pillLeft = Math.max(8, Math.min(canvasW - pillWidth - 12, selectionBounds.right + 10));
+                      pillTop = Math.max(4, selectionBounds.bottom + 8);
                     }
+
+                    const statusLabel = (() => {
+                      switch (currentWritingAction) {
+                        case 'summarize': return 'Đang tóm tắt nội dung...';
+                        case 'keypoints': return 'Đang rút ra các ý chính...';
+                        case 'professional': return 'Đang viết chuyên nghiệp...';
+                        case 'concise': return 'Đang cô đọng súc tích...';
+                        case 'proofread': return 'Đang sửa chính tả & câu từ...';
+                        case 'expand': return 'Đang mở rộng ý tưởng...';
+                        case 'action_items': return 'Đang lập việc cần làm...';
+                        case 'translate_en': return 'Đang dịch tiếng Anh...';
+                        case 'translate_vi': return 'Đang dịch tiếng Việt...';
+                        default: return 'AI đang quét văn bản...';
+                      }
+                    })();
 
                     return (
                       <div
-                        className="absolute z-50 flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-2xl border border-purple-500/35 dark:border-purple-400/45 shadow-[0_8px_24px_rgba(0,0,0,0.14),0_2px_8px_rgba(168,85,247,0.2)] select-none animate-in fade-in zoom-in-95 duration-150 pointer-events-auto"
+                        className="absolute z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/95 dark:bg-[#1a1a24]/95 backdrop-blur-2xl border border-purple-500/40 dark:border-purple-400/50 shadow-[0_10px_30px_rgba(0,0,0,0.18),0_2px_12px_rgba(168,85,247,0.25)] select-none animate-in fade-in zoom-in-95 duration-150 pointer-events-auto"
                         style={{
                           top: `${pillTop}px`,
                           left: `${pillLeft}px`,
                         }}
                       >
-                        <div className="w-3.5 h-3.5 rounded-full border-2 border-[#a855f7] border-t-transparent animate-spin shrink-0" />
-                        <span className="text-[11.5px] font-semibold bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] bg-clip-text text-transparent select-none whitespace-nowrap">
-                          Đang xử lý...
+                        {/* Animated Apple Intelligence Glowing Orb with Sparkle */}
+                        <div className="relative w-4 h-4 flex items-center justify-center shrink-0">
+                          <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#6366f1] via-[#a855f7] to-[#ec4899] animate-spin opacity-85 blur-[1px]" />
+                          <div className="relative w-3.5 h-3.5 rounded-full bg-white dark:bg-[#181820] flex items-center justify-center shadow-xs">
+                            <SFSparkles size={10} className="text-[#a855f7] dark:text-[#c084fc] animate-pulse shrink-0" />
+                          </div>
+                        </div>
+
+                        <span className="text-[12px] font-semibold bg-gradient-to-r from-[#6366f1] via-[#a855f7] to-[#ec4899] bg-clip-text text-transparent select-none whitespace-nowrap">
+                          {statusLabel}
                         </span>
+
                         <button
                           type="button"
                           onClick={handleCancelWritingTool}
-                          className="ml-1 px-2 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white text-[10.5px] font-semibold transition-all duration-150 cursor-pointer active:scale-95 flex items-center gap-1 shadow-2xs"
+                          className="ml-0.5 px-2 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white text-[11px] font-semibold transition-all duration-150 cursor-pointer active:scale-95 flex items-center gap-1 shadow-2xs"
                           title="Dừng xử lý ngay lập tức"
                         >
                           <SFXmark size={10} />
@@ -7223,6 +7387,15 @@ export const QuickNoteWindow: React.FC = () => {
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
+                    onClick={() => setIsEditingImage(true)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 active:scale-90 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 cursor-pointer shadow-xs shrink-0"
+                    title="Chỉnh sửa ảnh (Bút vẽ, Dạ quang, Text, Khung) - Phím E"
+                  >
+                    <SFPencil size={14} />
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => handleCopyImage(activeImg)}
                     className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 active:scale-90 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 cursor-pointer shadow-xs shrink-0"
                     title="Sao chép ảnh (Ctrl+C)"
@@ -7450,8 +7623,29 @@ export const QuickNoteWindow: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Thứ tự nút chuẩn Apple: Tải về -> Xóa -> Phóng to/Thu nhỏ -> Đóng (Thống nhất màu sắc trung tính thanh lịch) */}
+                {/* Thứ tự nút chuẩn Apple: Chỉnh sửa (nếu là ảnh) -> Tải về -> Xóa -> Phóng to/Thu nhỏ -> Đóng */}
                 <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Nút Chỉnh sửa ảnh (nếu tệp là hình ảnh) */}
+                  {['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(currentFilePreview.ext.toLowerCase()) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLightboxImage({
+                          id: currentFilePreview.fileId || ('img_' + Date.now()),
+                          url: previewBlobUrl || currentFilePreview.url,
+                          name: currentFilePreview.name,
+                          size: typeof currentFilePreview.size === 'number' ? currentFilePreview.size : undefined,
+                          createdAt: new Date().toISOString(),
+                        });
+                        setIsEditingImage(true);
+                      }}
+                      className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs shrink-0"
+                      title="Chỉnh sửa hình ảnh"
+                    >
+                      <SFPencil size={14} />
+                    </button>
+                  )}
+
                   {/* 1. Nút Tải về */}
                   <button
                     type="button"
@@ -7767,6 +7961,16 @@ export const QuickNoteWindow: React.FC = () => {
             </>
           )}
       </AppleLiquidDialog>
+
+      {/* ────────────────── Apple Markup Image Editor Modal ────────────────── */}
+      {(lightboxImage || lastLightboxImageRef.current) && (
+        <ImageEditorModal
+          isOpen={isEditingImage}
+          onClose={() => setIsEditingImage(false)}
+          image={(lightboxImage || lastLightboxImageRef.current)!}
+          onSave={handleSaveEditedImage}
+        />
+      )}
     </>,
     document.body
   );

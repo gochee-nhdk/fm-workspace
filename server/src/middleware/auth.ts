@@ -26,8 +26,11 @@ export async function verifyToken(request: FastifyRequest, reply: FastifyReply) 
 
     if (!token) {
       // In local-first / offline-first desktop mode (when not hosted and not running tests),
-      // if request comes from local loopback (127.0.0.1 / ::1), safely resolve active admin user
-      const isLocalHost = request.ip === '127.0.0.1' || request.ip === '::1' || request.hostname.includes('localhost');
+      // strictly verify both loopback IP and trusted local host to prevent DNS rebinding / host spoofing
+      const isLoopbackIp = request.ip === '127.0.0.1' || request.ip === '::1' || request.ip === '::ffff:127.0.0.1';
+      const cleanHost = (request.hostname || '').split(':')[0].toLowerCase();
+      const isLoopbackHost = cleanHost === 'localhost' || cleanHost === '127.0.0.1';
+      const isLocalHost = isLoopbackIp && isLoopbackHost;
       const isTestEnv = process.env.NODE_ENV === 'test' || process.env.DATABASE_PATH?.includes('test_security');
       const db = getDb();
       const isHosted = db.isRemote() || process.env.APP_ENV === 'hosted' || (process.env.NODE_ENV === 'production' && !process.env.ELECTRON_RUN_AS_NODE);

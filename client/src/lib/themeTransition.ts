@@ -84,12 +84,12 @@ export const toggleThemeWithIris = (
     }
   }
 
-  // Calculate distance from (x, y) to the farthest corner of the viewport (+ 12px subpixel pad)
+  // Calculate distance from (x, y) to the farthest corner of the viewport (+ 36px subpixel pad)
   const endRadius =
     Math.hypot(
       Math.max(x, window.innerWidth - x),
       Math.max(y, window.innerHeight - y)
-    ) + 12;
+    ) + 36;
 
   const doc = document as any;
 
@@ -101,7 +101,7 @@ export const toggleThemeWithIris = (
 };
 
 /**
- * 120 FPS Native View Transitions implementation
+ * 120 FPS Native View Transitions implementation with guaranteed completion
  */
 function runViewTransition(
   doc: any,
@@ -114,7 +114,12 @@ function runViewTransition(
   isTransitioning = true;
   const root = document.documentElement;
 
-  // Signal CSS whether this transition is to-dark or to-light for proper z-index layering
+  // Set CSS Custom Properties for iris origin and radius so CSS animations can read them directly
+  root.style.setProperty('--iris-x', `${x.toFixed(1)}px`);
+  root.style.setProperty('--iris-y', `${y.toFixed(1)}px`);
+  root.style.setProperty('--iris-r', `${endRadius.toFixed(1)}px`);
+
+  // Signal CSS whether this transition is to-dark or to-light for proper z-index layering and CSS animations
   root.dataset.themeTransition = isGoingDark ? 'to-dark' : 'to-light';
 
   let hasCleanedUp = false;
@@ -122,11 +127,14 @@ function runViewTransition(
     if (hasCleanedUp) return;
     hasCleanedUp = true;
     delete root.dataset.themeTransition;
+    root.style.removeProperty('--iris-x');
+    root.style.removeProperty('--iris-y');
+    root.style.removeProperty('--iris-r');
     isTransitioning = false;
   };
 
-  // Fail-safe guard: guaranteed cleanup within 600ms
-  const safetyTimer = setTimeout(cleanup, 600);
+  // Fail-safe guard: guaranteed cleanup within 800ms
+  const safetyTimer = setTimeout(cleanup, 800);
 
   try {
     const transition = doc.startViewTransition(() => {
@@ -150,12 +158,13 @@ function runViewTransition(
           `circle(${endRadius.toFixed(1)}px at ${x.toFixed(1)}px ${y.toFixed(1)}px)`,
         ];
 
+        // Explicit Web Animation guarantees subpixel accuracy & smooth GPU 120 FPS
         const animation = document.documentElement.animate(
           {
             clipPath: isGoingDark ? clipPath : [clipPath[1], clipPath[0]],
           },
           {
-            duration: 380,
+            duration: 400,
             easing: 'cubic-bezier(0.2, 0, 0, 1)',
             pseudoElement: isGoingDark
               ? '::view-transition-new(root)'
@@ -164,25 +173,11 @@ function runViewTransition(
           }
         );
 
-        animation.addEventListener('finish', () => {
+        // ONLY clean up once the animation has completely reached 100% full screen
+        Promise.allSettled([animation.finished, transition.finished]).then(() => {
           clearTimeout(safetyTimer);
           cleanup();
-        }, { once: true });
-
-        animation.addEventListener('cancel', () => {
-          clearTimeout(safetyTimer);
-          cleanup();
-        }, { once: true });
-      })
-      .catch(() => {
-        clearTimeout(safetyTimer);
-        cleanup();
-      });
-
-    transition.finished
-      .then(() => {
-        clearTimeout(safetyTimer);
-        cleanup();
+        });
       })
       .catch(() => {
         clearTimeout(safetyTimer);
@@ -227,54 +222,67 @@ function runGpuOverlayFallback(
     isTransitioning = false;
   };
 
-  const fallbackTimer = setTimeout(removeOverlay, 500);
+  const fallbackTimer = setTimeout(removeOverlay, 800);
 
   if (isGoingDark) {
+    // Sáng -> Tối: Dark overlay starts at button and expands until full screen
     overlay.style.clipPath = clipPath[0];
     document.body.appendChild(overlay);
 
     const anim = overlay.animate(
       { clipPath: clipPath },
       {
-        duration: 360,
+        duration: 380,
         easing: 'cubic-bezier(0.2, 0, 0, 1)',
         fill: 'forwards',
       }
     );
 
     anim.onfinish = () => {
-      clearTimeout(fallbackTimer);
+      // The dark overlay has fully covered the screen.
+      // Switch DOM underneath the opaque dark overlay so user never sees light flash!
       root.classList.add('dark');
       useUiStore.getState().setTheme(nextTarget);
-      removeOverlay();
+
+      // Wait 2 animation frames for the dark DOM paint to commit before removing the overlay
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          clearTimeout(fallbackTimer);
+          removeOverlay();
+        });
+      });
     };
     anim.oncancel = () => {
       clearTimeout(fallbackTimer);
       removeOverlay();
     };
   } else {
+    // Tối -> Sáng: Dark overlay covers the screen, switch DOM underneath to light,
+    // then shrink the dark overlay into the button to reveal light mode.
     overlay.style.clipPath = clipPath[1];
     document.body.appendChild(overlay);
 
     root.classList.remove('dark');
     useUiStore.getState().setTheme(nextTarget);
 
-    const anim = overlay.animate(
-      { clipPath: [clipPath[1], clipPath[0]] },
-      {
-        duration: 360,
-        easing: 'cubic-bezier(0.2, 0, 0, 1)',
-        fill: 'forwards',
-      }
-    );
+    requestAnimationFrame(() => {
+      const anim = overlay.animate(
+        { clipPath: [clipPath[1], clipPath[0]] },
+        {
+          duration: 380,
+          easing: 'cubic-bezier(0.2, 0, 0, 1)',
+          fill: 'forwards',
+        }
+      );
 
-    anim.onfinish = () => {
-      clearTimeout(fallbackTimer);
-      removeOverlay();
-    };
-    anim.oncancel = () => {
-      clearTimeout(fallbackTimer);
-      removeOverlay();
-    };
+      anim.onfinish = () => {
+        clearTimeout(fallbackTimer);
+        removeOverlay();
+      };
+      anim.oncancel = () => {
+        clearTimeout(fallbackTimer);
+        removeOverlay();
+      };
+    });
   }
 }

@@ -251,18 +251,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
         }
       }
     } catch (netErr) {
-      // Offline fallback: Decode JWT payload directly
-      try {
-        const decoded = jwt.decode(credential) as any;
-        if (decoded && decoded.email && decoded.sub) {
-          googleProfile = {
-            sub: decoded.sub,
-            email: String(decoded.email).toLowerCase().trim(),
-            name: decoded.name || String(decoded.email).split('@')[0],
-            picture: decoded.picture,
-          };
-        }
-      } catch (_) {}
+      // SECURITY HARDENING: Strictly reject unverified credentials.
+      // Never fall back to unverified jwt.decode(credential) as it would allow forging arbitrary identities.
+      googleProfile = null;
     }
 
     if (!googleProfile || !googleProfile.email) {
@@ -313,8 +304,24 @@ export default async function authRoutes(fastify: FastifyInstance) {
     };
   });
 
-  // Quick Profile / Google Identity: Enables instant personal workspace sign-in without external OAuth failures
+  // Quick Profile: Enables local offline personal workspace bootstrap
+  // SECURITY GUARD: Strictly restricted to local desktop/electron loopback.
+  // Never permits passwordless access to admin accounts or password-protected accounts.
   fastify.post('/quick-profile', async (request, reply) => {
+    const isDesktop = process.env.ELECTRON_RUN === 'true';
+    const isLocalDev = process.env.LOCAL_DEV === 'true' && process.env.NODE_ENV !== 'production';
+    const clientIp = request.ip;
+    const isLoopback = clientIp === '127.0.0.1' || clientIp === '::1' || clientIp === '::ffff:127.0.0.1';
+    const db = getDb();
+    const isHosted = db.isRemote() || process.env.RENDER === 'true' || process.env.HOSTED === 'true' || (!isDesktop && process.env.NODE_ENV === 'production');
+
+    if (isHosted || (!isDesktop && !isLocalDev) || !isLoopback) {
+      return reply.code(403).send({
+        error: 'Forbidden',
+        message: 'Endpoint đăng nhập nhanh không khả dụng trên môi trường mạng công khai. Vui lòng đăng nhập bằng tài khoản và mật khẩu.',
+      });
+    }
+
     const { email, full_name, avatar_url } = (request.body || {}) as {
       email?: string;
       full_name?: string;
@@ -330,12 +337,22 @@ export default async function authRoutes(fastify: FastifyInstance) {
       ? full_name.trim() 
       : cleanEmail.split('@')[0];
 
-    const db = getDb();
     const now = new Date().toISOString();
 
     let user = (await db.prepare('SELECT * FROM users WHERE email = ?').get(cleanEmail)) as any;
 
     if (user) {
+      // SECURITY GUARD: Never allow passwordless sign-in for users with a password or admin privileges
+      if (user.password_hash || user.role === 'admin') {
+        return reply.code(403).send({
+          error: 'Forbidden',
+          message: 'Tài khoản này có mật khẩu bảo vệ hoặc quyền quản trị viên. Vui lòng đăng nhập bằng mật khẩu.',
+        });
+      }
+      if (user.is_active === 0) {
+        return reply.code(401).send({ error: 'Unauthorized', message: 'Tài khoản đã bị vô hiệu hóa.' });
+      }
+
       await db.prepare(`
         UPDATE users 
         SET full_name = COALESCE(?, full_name), avatar_url = COALESCE(?, avatar_url), updated_at = ?

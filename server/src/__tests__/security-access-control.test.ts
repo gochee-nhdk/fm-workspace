@@ -105,6 +105,7 @@ async function runSecurityTests() {
   // Seed test users
   const userAId = 'user_aaa_111';
   const userBId = 'user_bbb_222';
+  const userCId = 'user_ccc_333';
   const adminId = 'admin_999_xyz';
   const now = new Date().toISOString();
 
@@ -117,6 +118,11 @@ async function runSecurityTests() {
     INSERT INTO users (id, email, full_name, password_hash, role, is_active, created_at, updated_at)
     VALUES (?, ?, ?, 'mockhash', ?, 1, ?, ?)
   `).run(userBId, 'userb@fm.vn', 'User B', 'user', now, now);
+
+  await db.prepare(`
+    INSERT INTO users (id, email, full_name, password_hash, role, is_active, created_at, updated_at)
+    VALUES (?, ?, ?, 'mockhash', ?, 1, ?, ?)
+  `).run(userCId, 'userc@fm.vn', 'User C (No Backups)', 'user', now, now);
 
   await db.prepare(`
     INSERT INTO users (id, email, full_name, password_hash, role, is_active, created_at, updated_at)
@@ -139,6 +145,7 @@ async function runSecurityTests() {
   // Generate valid test JWTs
   const tokenUserA = jwt.sign({ id: userAId, email: 'usera@fm.vn', role: 'user', full_name: 'User A' }, TEST_JWT_SECRET, { expiresIn: '1h' });
   const tokenUserB = jwt.sign({ id: userBId, email: 'userb@fm.vn', role: 'user', full_name: 'User B' }, TEST_JWT_SECRET, { expiresIn: '1h' });
+  const tokenUserC = jwt.sign({ id: userCId, email: 'userc@fm.vn', role: 'user', full_name: 'User C' }, TEST_JWT_SECRET, { expiresIn: '1h' });
   const tokenAdmin = jwt.sign({ id: adminId, email: 'admin@fm.vn', role: 'admin', full_name: 'Admin User' }, TEST_JWT_SECRET, { expiresIn: '1h' });
   const invalidToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalid.signature';
 
@@ -222,6 +229,13 @@ async function runSecurityTests() {
   });
   assert(resAdminDownloadB.statusCode === 200, '3.5: Admin can access backup for maintenance');
 
+  const resUserCLatest = await app.inject({
+    method: 'GET',
+    url: '/api/sync/latest',
+    headers: { authorization: `Bearer ${tokenUserC}` },
+  });
+  assert(resUserCLatest.statusCode === 404, '3.6: User C with no backups gets 404 (strictly no cross-user backup leak)');
+
   // ── TEST 4: Spoofed User ID in request body/header has no effect
   console.log('\n--- TEST GROUP 4: Identity Tampering Resistance ---');
   const resSpoofedBackup = await app.inject({
@@ -262,6 +276,28 @@ async function runSecurityTests() {
     url: '/api/notifications/smtp-status',
   });
   assert(resNoAuthSmtpStatus.statusCode === 401, '5.3: Unauthenticated request to /smtp-status returns 401 Unauthorized');
+
+  const resNoAuthSendReminder = await app.inject({
+    method: 'POST',
+    url: '/api/notifications/send-reminder-email',
+    payload: { to: 'victim@fm.vn', content: 'phishing' },
+  });
+  assert(resNoAuthSendReminder.statusCode === 401, '5.4: Unauthenticated request to /send-reminder-email returns 401 (blocks open mail relay)');
+
+  const resNoAuthTestEmail = await app.inject({
+    method: 'POST',
+    url: '/api/notifications/test-email',
+    payload: { to: 'test@fm.vn' },
+  });
+  assert(resNoAuthTestEmail.statusCode === 401, '5.5: Unauthenticated request to /test-email returns 401 Unauthorized');
+
+  const resUserSmtpStatus = await app.inject({
+    method: 'GET',
+    url: '/api/notifications/smtp-status',
+    headers: { authorization: `Bearer ${tokenUserA}` },
+  });
+  const userSmtpBody = resUserSmtpStatus.json();
+  assert(resUserSmtpStatus.statusCode === 200 && userSmtpBody.fullUser === null, '5.6: Non-admin user gets masked SMTP status without full username leak');
 
   // ── TEST 6: AI endpoint protection
   console.log('\n--- TEST GROUP 6: AI Protection ---');
@@ -393,6 +429,36 @@ async function runSecurityTests() {
       fs.rmSync(tempCustomDataDir, { recursive: true, force: true });
     }
   } catch (_) {}
+
+  // ── TEST 8: Authentication Hardening (OAuth & Quick-Profile Lockdown)
+  console.log('\n--- TEST GROUP 8: Authentication Hardening Verification ---');
+
+  // 8.1: Forged Google OAuth token (without valid Google signature) is strictly rejected
+  const forgedGoogleToken = jwt.sign({ email: 'admin@fm.vn', sub: 'forged_sub_123' }, 'attacker_secret');
+  const resForgedGoogle = await app.inject({
+    method: 'POST',
+    url: '/api/auth/google',
+    payload: { credential: forgedGoogleToken },
+  });
+  assert(resForgedGoogle.statusCode === 401, '8.1: Forged Google OAuth credential rejected with 401 Unauthorized (no unverified decode fallback)');
+
+  // 8.2: Attempt to /quick-profile sign into admin account without password rejected with 403 Forbidden
+  const resQuickProfileAdmin = await app.inject({
+    method: 'POST',
+    url: '/api/auth/quick-profile',
+    remoteAddress: '127.0.0.1',
+    payload: { email: 'admin@fm.vn' },
+  });
+  assert(resQuickProfileAdmin.statusCode === 403, '8.2: Attempt to /quick-profile into admin account without password rejected with 403 Forbidden');
+
+  // 8.3: Attempt to /quick-profile from non-loopback remote address rejected with 403 Forbidden
+  const resQuickProfileRemote = await app.inject({
+    method: 'POST',
+    url: '/api/auth/quick-profile',
+    remoteAddress: '198.51.100.25',
+    payload: { email: 'newstaff@fm.vn' },
+  });
+  assert(resQuickProfileRemote.statusCode === 403, '8.3: Attempt to /quick-profile from remote IP rejected with 403 Forbidden');
 
   await app.close();
   const { closeDb } = await import('../db/connection.js');

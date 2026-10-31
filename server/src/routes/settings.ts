@@ -10,10 +10,18 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', verifyToken);
 
   /**
-   * 1. GET /: Get all system settings (excluding Gemini key and SMTP pass)
+   * 1. GET /: Get system settings (excluding all sensitive keys, secrets, passwords and tokens)
    */
   fastify.get('/', async (request: any, reply) => {
-    const data = await getDb().prepare("SELECT * FROM system_settings WHERE key NOT IN ('gemini_api_key', 'smtp_pass') ORDER BY category, key").all();
+    const data = await getDb().prepare(`
+      SELECT * FROM system_settings 
+      WHERE key NOT IN ('gemini_api_key', 'smtp_pass', 'jwt_secret')
+        AND key NOT LIKE '%pass%'
+        AND key NOT LIKE '%secret%'
+        AND key NOT LIKE '%token%'
+        AND key NOT LIKE '%api_key%'
+      ORDER BY category, key
+    `).all();
     return { success: true, data };
   });
 
@@ -33,7 +41,7 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
     await db.transaction(async (tx) => {
       const updateStmt = tx.prepare('UPDATE system_settings SET value = ?, updated_by = ?, updated_at = ? WHERE key = ?');
       for (const item of settings) {
-        if (item.key !== 'gemini_api_key') {
+        if (item.key !== 'gemini_api_key' && item.key !== 'jwt_secret') {
           await updateStmt.run(String(item.value), userId, now, item.key);
         }
       }
