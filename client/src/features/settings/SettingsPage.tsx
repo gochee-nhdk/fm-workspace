@@ -745,7 +745,7 @@ export const SettingsPage: React.FC = () => {
               { id: 'backup', label: 'Sao lưu', icon: <SFArchivebox size={15} /> },
               { id: 'shield', label: 'Bảo mật', icon: <SFShieldFill size={15} /> },
               { id: 'smtp', label: 'Gửi mail', icon: <SFEnvelope size={15} /> },
-              { id: 'ai', label: 'AI & OCR', icon: <SFSparkles size={15} /> },
+              { id: 'ai', label: 'API Key', icon: <SFKey size={15} /> },
               { id: 'appearance', label: 'Giao Diện', icon: <SFPaintpalette size={15} /> },
             ]}
           />
@@ -1596,24 +1596,17 @@ export const SettingsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── TAB 4: TRÍ TUỆ NHÂN TẠO (AI WRITING & OCR MULTI-KEY POOL) ── */}
+      {/* ── TAB 4: QUẢN LÝ KHÓA API (GOOGLE GEMINI & OCR) ── */}
       <div className={activeTab === 'ai' ? `${animationClass} block` : 'hidden'}>
         <div className="space-y-6">
           {/* Header & Status Summary Card */}
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-5">
-            <div className="flex items-center justify-between pb-3.5 border-b border-[#e0e0e0] dark:border-white/10 flex-wrap gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500/20 to-blue-500/20 flex items-center justify-center text-[#7852ff] dark:text-[#a882ff]">
-                  <SFSparkles size={18} />
-                </div>
-                <div>
-                  <h3 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-white flex items-center gap-2">
-                    Khóa API Gemini (Writing Tools &amp; OCR)
-                  </h3>
-                  <p className="text-[12.5px] text-[#86868b] dark:text-[#a1a1a6] mt-0.5">
-                    Hỗ trợ khóa chính và không giới hạn khóa dự phòng tự động chuyển đổi khi hết quota.
-                  </p>
-                </div>
+            <div className="flex items-center justify-between pb-3.5 border-b border-[#e0e0e0] dark:border-white/10 flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <SFKey size={18} className="text-[#0071e3] dark:text-[#2997ff]" />
+                <h3 className="text-[15px] font-semibold text-[#1d1d1f] dark:text-white">
+                  Cấu Hình Khóa API Key (Google Gemini &amp; OCR)
+                </h3>
               </div>
 
               {/* Status Badges & Quick Action */}
@@ -1623,17 +1616,26 @@ export const SettingsPage: React.FC = () => {
                   const quotaCount = geminiKeys.filter((k) => k.isActive && k.status === 'quota_exceeded').length;
                   const invalidCount = geminiKeys.filter((k) => k.status === 'invalid').length;
 
+                  if (geminiKeys.length === 0) {
+                    return (
+                      <div className="apple-badge-base apple-badge-neutral">
+                        <SFKey size={12} className="shrink-0" />
+                        <span>Chưa cài đặt khóa</span>
+                      </div>
+                    );
+                  }
+
                   return (
                     <>
                       {activeCount > 0 && (
                         <div className="apple-badge-base apple-badge-success">
-                          <SFCheckmarkCircleFill size={13} className="shrink-0" />
+                          <SFCheckmarkCircleFill size={12} className="shrink-0" />
                           <span>{activeCount} khóa sẵn sàng</span>
                         </div>
                       )}
                       {quotaCount > 0 && (
                         <div className="apple-badge-base apple-badge-warning">
-                          <SFExclamationmarkTriangleFill size={13} className="shrink-0 text-amber-500" />
+                          <SFExclamationmarkTriangleFill size={12} className="shrink-0 text-amber-500" />
                           <span>{quotaCount} khóa hết quota</span>
                         </div>
                       )}
@@ -1646,24 +1648,28 @@ export const SettingsPage: React.FC = () => {
                   );
                 })()}
 
-                <button
-                  type="button"
+                <Button
+                  variant="glass"
+                  size="sm"
                   onClick={handleTestAllGeminiKeys}
                   disabled={isTestingAllKeys || geminiKeys.length === 0}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-medium bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-[#1d1d1f] dark:text-white border border-black/[0.06] dark:border-white/10 transition-all active:scale-95 disabled:opacity-40 cursor-pointer"
+                  icon={<SFArrowClockwise size={13} className={isTestingAllKeys ? 'animate-spin' : ''} />}
                   title="Kiểm tra trạng thái thực tế của tất cả các khóa"
                 >
-                  <SFArrowClockwise size={12} className={isTestingAllKeys ? 'animate-spin' : ''} />
-                  <span>{isTestingAllKeys ? 'Đang kiểm tra...' : 'Kiểm tra tất cả'}</span>
-                </button>
+                  {isTestingAllKeys ? 'Đang kiểm tra...' : 'Kiểm tra tất cả'}
+                </Button>
               </div>
             </div>
+
+            <p className="text-[13px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
+              Cấu hình các khóa API Google Gemini áp dụng cho toàn bộ ứng dụng gồm <strong>Trợ lý soạn thảo thông minh</strong> (Writing Tools) và <strong>Quét trích xuất nội dung từ ảnh</strong> (OCR). Bạn có thể thêm không giới hạn các khóa dự phòng để hệ thống tự động chuyển đổi khi khóa trước đó chạm trần hạn mức (429 Too Many Requests).
+            </p>
 
             {/* List of Configured Keys */}
             <div className="space-y-3">
               {geminiKeys.length === 0 ? (
                 <div className="p-8 rounded-2xl bg-black/[0.02] dark:bg-white/[0.02] border border-dashed border-black/10 dark:border-white/10 text-center">
-                  <div className="w-12 h-12 rounded-full bg-purple-500/10 text-purple-500 flex items-center justify-center mx-auto mb-3">
+                  <div className="w-12 h-12 rounded-full bg-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center mx-auto mb-3">
                     <SFKey size={22} />
                   </div>
                   <p className="text-[14px] font-medium text-[#1d1d1f] dark:text-white">Chưa có khóa API nào được cài đặt</p>
@@ -1681,11 +1687,11 @@ export const SettingsPage: React.FC = () => {
                     <div
                       key={item.id}
                       className={cn(
-                        "p-4 rounded-2xl transition-all duration-200 border",
+                        "p-4 rounded-xl transition-all duration-200 border",
                         isPrimary
-                          ? "bg-purple-500/[0.03] dark:bg-purple-500/[0.05] border-purple-500/25 shadow-xs"
-                          : "bg-black/[0.02] dark:bg-white/[0.03] border-black/[0.06] dark:border-white/10",
-                        !item.isActive && "opacity-60"
+                          ? "bg-[#0071e3]/[0.03] dark:bg-[#0071e3]/[0.05] border-[#0071e3]/25 shadow-2xs"
+                          : "bg-black/[0.02] dark:bg-white/[0.03] border-black/5 dark:border-white/5 hover:border-black/10 dark:hover:border-white/10",
+                        !item.isActive && "opacity-50"
                       )}
                     >
                       <div className="flex items-start justify-between gap-3 flex-wrap sm:flex-nowrap">
@@ -1696,74 +1702,78 @@ export const SettingsPage: React.FC = () => {
                               {item.name}
                             </span>
                             {isPrimary ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30">
-                                ★ Khóa chính (Ưu tiên 1)
-                              </span>
+                              <div className="apple-badge-base apple-badge-info text-[11px] py-0.5 px-2.5 min-h-[22px]">
+                                <SFKey size={11} className="shrink-0" />
+                                <span>Khóa chính (Ưu tiên 1)</span>
+                              </div>
                             ) : (
-                              <span className="px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-black/5 dark:bg-white/10 text-[#86868b] dark:text-white/70 border border-black/10 dark:border-white/10">
-                                Khóa dự phòng #{idx}
-                              </span>
+                              <div className="apple-badge-base apple-badge-neutral text-[11px] py-0.5 px-2.5 min-h-[22px]">
+                                <span>Khóa dự phòng #{idx}</span>
+                              </div>
                             )}
 
                             {/* Status Indicator */}
                             {item.status === 'active' && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              <div className="apple-badge-base apple-badge-success text-[11px] py-0.5 px-2.5 min-h-[22px]">
+                                <SFCheckmarkCircleFill size={11} className="shrink-0" />
                                 <span>Hoạt động {item.model ? `(${item.model})` : ''}</span>
-                              </span>
+                              </div>
                             )}
                             {item.status === 'quota_exceeded' && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                <span>Hết hạn mức (429) — Tự động dùng dự phòng</span>
-                              </span>
+                              <div className="apple-badge-base apple-badge-warning text-[11px] py-0.5 px-2.5 min-h-[22px]">
+                                <SFExclamationmarkTriangleFill size={11} className="shrink-0 text-amber-500" />
+                                <span>Hết hạn mức (429) — Sẵn sàng chuyển dự phòng</span>
+                              </div>
                             )}
                             {item.status === 'invalid' && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/25">
-                                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                              <div className="apple-badge-base bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 text-[11px] py-0.5 px-2.5 min-h-[22px]">
                                 <span>Khóa không hợp lệ</span>
-                              </span>
+                              </div>
                             )}
                             {item.status === 'unchecked' && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-gray-500/10 text-gray-500 dark:text-gray-400 border border-gray-500/20">
+                              <div className="apple-badge-base apple-badge-neutral text-[11px] py-0.5 px-2.5 min-h-[22px]">
                                 <span>Chưa kiểm tra</span>
-                              </span>
+                              </div>
                             )}
                           </div>
 
                           {/* Key Preview / Masking */}
-                          <div className="flex items-center gap-2 pt-0.5">
-                            <span className="font-mono text-[12px] text-[#6e6e73] dark:text-[#a1a1a6] bg-black/[0.04] dark:bg-white/[0.06] px-2.5 py-1 rounded-lg">
-                              {isVisible
-                                ? item.key
-                                : item.key.length > 10
-                                ? `${item.key.substring(0, 6)}••••••••••••••••${item.key.slice(-4)}`
-                                : '••••••••••••••••'}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => setShowKeyMap((prev) => ({ ...prev, [item.id]: !prev[item.id] }))}
-                              className="w-6 h-6 rounded-md hover:bg-black/5 dark:hover:bg-white/10 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white flex items-center justify-center transition-all cursor-pointer"
-                              title={isVisible ? 'Ẩn khóa' : 'Hiện khóa đầy đủ'}
-                            >
-                              {isVisible ? <SFEyeSlash size={13} /> : <SFEye size={13} />}
-                            </button>
-                            <button
-                              type="button"
+                          <div className="flex items-center gap-2 pt-1">
+                            <div className="font-mono text-[12px] text-[#1d1d1f] dark:text-white bg-white dark:bg-white/10 border border-black/10 dark:border-white/10 px-3 py-1.5 rounded-lg flex items-center gap-2 max-w-full overflow-hidden">
+                              <span className="truncate">
+                                {isVisible
+                                  ? item.key
+                                  : item.key.length > 10
+                                  ? `${item.key.substring(0, 6)}••••••••••••••••${item.key.slice(-4)}`
+                                  : '••••••••••••••••'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setShowKeyMap((prev) => ({ ...prev, [item.id]: !prev[item.id] }))}
+                                className="text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                                title={isVisible ? 'Ẩn khóa' : 'Hiện khóa đầy đủ'}
+                              >
+                                {isVisible ? <SFEyeSlash size={13} /> : <SFEye size={13} />}
+                              </button>
+                            </div>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-[12px] px-2.5 text-[#0071e3] dark:text-[#2997ff]"
                               onClick={() => {
                                 navigator.clipboard.writeText(item.key).then(() => {
                                   toast.success('Đã sao chép khóa API!');
                                 });
                               }}
-                              className="text-[11px] text-[#0071e3] dark:text-[#2997ff] hover:underline cursor-pointer ml-1"
                             >
                               Sao chép
-                            </button>
+                            </Button>
                           </div>
 
                           {/* Detail / Error Message if any */}
                           {item.statusMessage && (
-                            <p className="text-[11.5px] text-[#86868b] dark:text-[#a1a1a6] pt-0.5">
+                            <p className="text-[12px] text-[#86868b] dark:text-[#a1a1a6] pt-0.5">
                               {item.statusMessage}
                               {item.lastCheckedAt && (
                                 <span className="opacity-60 ml-2">
@@ -1775,46 +1785,50 @@ export const SettingsPage: React.FC = () => {
                         </div>
 
                         {/* Actions for this specific key */}
-                        <div className="flex items-center gap-1.5 shrink-0 self-center">
+                        <div className="flex items-center gap-2 shrink-0 self-center">
                           {/* Test single key */}
-                          <button
-                            type="button"
+                          <Button
+                            variant="glass"
+                            size="sm"
+                            className="h-7 text-[11.5px] px-3 font-medium"
                             onClick={() => handleTestSingleGeminiKey(item)}
                             disabled={isTesting}
-                            className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-white transition-all active:scale-95 disabled:opacity-50 cursor-pointer flex items-center gap-1"
+                            icon={<SFArrowClockwise size={11} className={isTesting ? 'animate-spin' : ''} />}
                             title="Kiểm tra khóa này"
                           >
-                            <SFArrowClockwise size={11} className={isTesting ? 'animate-spin' : ''} />
-                            <span>{isTesting ? 'Đang test...' : 'Kiểm tra'}</span>
-                          </button>
+                            {isTesting ? 'Đang test...' : 'Kiểm tra'}
+                          </Button>
 
                           {/* Set as Primary (if not already) */}
                           {!isPrimary && (
-                            <button
-                              type="button"
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="h-7 text-[11.5px] px-3 font-medium text-[#0071e3] dark:text-[#2997ff]"
                               onClick={() => handleSetPrimaryGeminiKey(item.id)}
-                              className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-300 transition-all active:scale-95 cursor-pointer flex items-center gap-1"
+                              icon={<SFArrowUp size={11} />}
                               title="Đưa lên làm Khóa chính ưu tiên số 1"
                             >
-                              <SFArrowUp size={11} />
-                              <span>Làm chính</span>
-                            </button>
+                              Làm chính
+                            </Button>
                           )}
 
                           {/* Toggle Active Switch */}
                           <button
                             type="button"
+                            role="switch"
+                            aria-checked={item.isActive}
                             onClick={() => handleToggleActiveGeminiKey(item.id, item.isActive)}
                             className={cn(
-                              "w-7 h-4 rounded-full p-0.5 transition-colors duration-200 cursor-pointer shrink-0",
-                              item.isActive ? "bg-[#0071e3]" : "bg-black/20 dark:bg-white/20"
+                              "w-9 h-5 rounded-full p-0.5 transition-colors duration-200 cursor-pointer shrink-0 focus:outline-none",
+                              item.isActive ? "bg-[#34c759]" : "bg-black/20 dark:bg-white/20"
                             )}
                             title={item.isActive ? 'Khóa đang BẬT (nhấp để tạm dừng)' : 'Khóa đang TẮT (nhấp để kích hoạt)'}
                           >
                             <div
                               className={cn(
-                                "w-3 h-3 rounded-full bg-white transition-transform duration-200 shadow-xs",
-                                item.isActive ? "translate-x-3" : "translate-x-0"
+                                "w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-sm",
+                                item.isActive ? "translate-x-4" : "translate-x-0"
                               )}
                             />
                           </button>
@@ -1823,7 +1837,7 @@ export const SettingsPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleDeleteGeminiKey(item.id, item.name)}
-                            className="w-7 h-7 rounded-full text-red-500/80 hover:text-red-500 hover:bg-red-500/10 flex items-center justify-center transition-all active:scale-90 cursor-pointer"
+                            className="w-7 h-7 rounded-full text-[#86868b] hover:text-[#ff383c] hover:bg-red-500/10 flex items-center justify-center transition-colors cursor-pointer"
                             title="Xóa khóa này"
                           >
                             <SFTrash size={13} />
@@ -1838,10 +1852,20 @@ export const SettingsPage: React.FC = () => {
 
             {/* Form Thêm Khóa Mới */}
             <div className="pt-4 border-t border-[#e0e0e0] dark:border-white/10 space-y-3">
-              <h4 className="text-[13px] font-semibold text-[#1d1d1f] dark:text-white flex items-center gap-1.5">
-                <SFPlus size={13} className="text-[#0071e3] dark:text-[#2997ff]" />
-                <span>Thêm khóa API mới (Không giới hạn dự phòng)</span>
-              </h4>
+              <div className="flex items-center justify-between">
+                <h4 className="text-[13px] font-semibold text-[#1d1d1f] dark:text-white flex items-center gap-1.5">
+                  <SFPlus size={13} className="text-[#0071e3] dark:text-[#2997ff]" />
+                  <span>Thêm khóa API mới (Không giới hạn dự phòng)</span>
+                </h4>
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[11.5px] text-[#0071e3] dark:text-[#2997ff] hover:underline"
+                >
+                  Lấy khóa Gemini API miễn phí ↗
+                </a>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <div className="sm:col-span-1">
@@ -1850,7 +1874,7 @@ export const SettingsPage: React.FC = () => {
                     value={newKeyNameInput}
                     onChange={(e) => setNewKeyNameInput(e.target.value)}
                     placeholder={`Ví dụ: Khóa dự phòng #${geminiKeys.length || 1}`}
-                    className="w-full px-3.5 py-2 text-[13px] rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/10 outline-none text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:border-[#0071e3] dark:focus:border-[#2997ff] transition-all"
+                    className="w-full px-3.5 py-2 text-[13px] rounded-xl bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:border-[#0071e3] dark:focus:border-[#2997ff] transition-all"
                   />
                 </div>
                 <div className="sm:col-span-2 flex items-center gap-2">
@@ -1859,7 +1883,7 @@ export const SettingsPage: React.FC = () => {
                     value={newKeyInput}
                     onChange={(e) => setNewKeyInput(e.target.value)}
                     placeholder="Dán mã API Key (AIzaSy...)"
-                    className="flex-1 px-3.5 py-2 text-[13px] font-mono rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/10 outline-none text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:border-[#0071e3] dark:focus:border-[#2997ff] transition-all"
+                    className="flex-1 px-3.5 py-2 text-[13px] font-mono rounded-xl bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:border-[#0071e3] dark:focus:border-[#2997ff] transition-all"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -1868,38 +1892,15 @@ export const SettingsPage: React.FC = () => {
                     }}
                   />
                   <Button
-                    type="button"
+                    variant="glassProminent"
+                    size="sm"
                     onClick={handleAddGeminiKey}
                     disabled={isAddingKey || !newKeyInput.trim()}
-                    className="rounded-xl px-4 py-2 text-[12.5px] font-semibold shrink-0 cursor-pointer bg-[#0071e3] hover:bg-[#0077ed] text-white active:scale-95 shadow-xs"
+                    icon={<SFPlus size={13} />}
                   >
-                    <SFPlus size={13} className="mr-1" />
-                    <span>Thêm khóa</span>
+                    {isAddingKey ? 'Đang thêm...' : 'Thêm khóa'}
                   </Button>
                 </div>
-              </div>
-            </div>
-
-            {/* Smart Failover Information Card */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-500/[0.04] to-purple-500/[0.04] border border-blue-500/15 dark:border-purple-500/20 space-y-2">
-              <div className="flex items-center gap-2 text-[#0071e3] dark:text-[#2997ff]">
-                <SFBolt size={14} />
-                <span className="text-[12.5px] font-semibold">Cơ chế tự động chuyển khóa dự phòng (Failover)</span>
-              </div>
-              <p className="text-[12px] text-[#6e6e73] dark:text-[#a1a1a6] leading-relaxed">
-                Tài khoản miễn phí của Google Gemini giới hạn khoảng 15 yêu cầu/phút và một định mức nhất định theo ngày.
-                Khi bạn thêm 2 hoặc nhiều khóa dự phòng, hệ thống sẽ <strong>tự động chuyển ngay sang khóa tiếp theo</strong> khi khóa trước đó chạm trần hạn mức (429 Too Many Requests), đảm bảo toàn bộ quá trình <em>Soạn thảo văn bản thông minh</em> và <em>Quét nội dung chữ từ ảnh (OCR)</em> luôn diễn ra liền mạch không gián đoạn.
-              </p>
-              <div className="pt-1">
-                <a
-                  href="https://aistudio.google.com/app/apikey"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-[12px] font-medium text-[#0071e3] dark:text-[#2997ff] hover:underline inline-flex items-center gap-1"
-                >
-                  <span>Lấy khóa Gemini API miễn phí tại Google AI Studio</span>
-                  <span>→</span>
-                </a>
               </div>
             </div>
           </div>

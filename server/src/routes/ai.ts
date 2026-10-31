@@ -68,7 +68,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
         return reply.code(400).send({
           success: false,
           needsApiKey: true,
-          message: 'Chưa cấu hình Gemini API Key. Vui lòng cài đặt khóa API.',
+          message: 'Chưa cấu hình Gemini API Key. Vui lòng cài đặt khóa API trong Cài đặt → API Key.',
         });
       }
 
@@ -329,7 +329,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({
         success: false,
         needsApiKey: true,
-        message: 'Chưa cấu hình Gemini API Key. Vui lòng cài đặt khóa API trong Cài đặt → AI.',
+        message: 'Chưa cấu hình Gemini API Key. Vui lòng cài đặt khóa API trong Cài đặt → API Key.',
       });
     }
 

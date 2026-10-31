@@ -75,9 +75,6 @@ import { tryCalculateInlineMath } from '@/services/mathNotesService';
 import {
   runWritingTool,
   WritingToolAction,
-  getStoredGeminiKey,
-  setStoredGeminiKey,
-  testGeminiApiKey,
   extractTextFromImageWithFailover,
 } from '@/services/writingToolsService';
 import { attachmentService } from '@/services/attachmentService';
@@ -1449,16 +1446,6 @@ export const QuickNoteWindow: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [showFloatingAiMenu]);
-  const [geminiApiKeyInput, setGeminiApiKeyInput] = useState(getStoredGeminiKey());
-  const [showApiKeySetting, setShowApiKeySetting] = useState(false);
-  const [showApiKeyPassword, setShowApiKeyPassword] = useState(false);
-  const [isTestingApiKey, setIsTestingApiKey] = useState(false);
-  const [apiKeyTestResult, setApiKeyTestResult] = useState<{
-    success: boolean;
-    message: string;
-    model?: string;
-  } | null>(null);
-  const [apiKeyShake, setApiKeyShake] = useState(false);
   const [mathAnimatedRowIndex, setMathAnimatedRowIndex] = useState<number | null>(null);
 
   // Active text formatting states for toolbar highlighting
@@ -1910,6 +1897,13 @@ export const QuickNoteWindow: React.FC = () => {
         isSelectionOnly: isSelection,
         originalText: targetText,
       });
+      if (result.usedFallbackKey) {
+        toast(`Đã tự động chuyển sang khóa dự phòng (${result.usedKeyName || 'Khóa phụ'}) để tiếp tục!`, {
+          icon: '🔄',
+          id: 'ai-fallback-notify',
+          duration: 4000,
+        });
+      }
       toast.success('✨ Đã tạo bản nháp AI trực tiếp trong ghi chú!');
     } catch (err: any) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || controller.signal.aborted) {
@@ -2204,7 +2198,6 @@ export const QuickNoteWindow: React.FC = () => {
     setLockConfirmPassword('');
     setLockConfigMismatch(false);
     setShowReminderModal(false);
-    setShowApiKeySetting(false);
     setShowFloatingAiMenu(false);
     setShowLockConfigModal(true);
   };
@@ -2601,6 +2594,13 @@ export const QuickNoteWindow: React.FC = () => {
         originalText: targetText,
       });
       toast.dismiss('ai-writing');
+      if (result.usedFallbackKey) {
+        toast(`Đã tự động chuyển sang khóa dự phòng (${result.usedKeyName || 'Khóa phụ'}) để tiếp tục!`, {
+          icon: '🔄',
+          id: 'ai-fallback-notify',
+          duration: 4000,
+        });
+      }
       toast.success('✨ Đã tạo bản nháp AI trực tiếp trong ghi chú!');
     } catch (err: any) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || controller.signal.aborted) {
@@ -3407,7 +3407,6 @@ export const QuickNoteWindow: React.FC = () => {
       if (
         lightboxImage ||
         filePreviewModal ||
-        showApiKeySetting ||
         showReminderModal ||
         todoReminderTarget ||
         showLockConfigModal ||
@@ -3419,7 +3418,6 @@ export const QuickNoteWindow: React.FC = () => {
         if (showFloatingAiMenu) setShowFloatingAiMenu(false);
         if (showCompactAiMenu) setShowCompactAiMenu(false);
         if (showWritingToolsMenu) setShowWritingToolsMenu(false);
-        if (showApiKeySetting) setShowApiKeySetting(false);
         if (showReminderModal) setShowReminderModal(false);
         if (todoReminderTarget) setTodoReminderTarget(null);
         if (showLockConfigModal) setShowLockConfigModal(false);
@@ -3438,7 +3436,6 @@ export const QuickNoteWindow: React.FC = () => {
     isWindowClosing,
     lightboxImage,
     filePreviewModal,
-    showApiKeySetting,
     showReminderModal,
     todoReminderTarget,
     showLockConfigModal,
@@ -3448,19 +3445,6 @@ export const QuickNoteWindow: React.FC = () => {
     showSmtpConfig,
     handleCloseNote,
   ]);
-
-  // Mutual modal logic: prevent overlapping popovers
-  const handleToggleApiKeySetting = () => {
-    if (showApiKeySetting) {
-      setShowApiKeySetting(false);
-    } else {
-      setShowReminderModal(false);
-      setShowFloatingAiMenu(false);
-      setShowLockConfigModal(false);
-      setGeminiApiKeyInput(getStoredGeminiKey());
-      setShowApiKeySetting(true);
-    }
-  };
 
   // Sync local draft when active note switches or editorMode switches
   useEffect(() => {
@@ -4359,7 +4343,6 @@ export const QuickNoteWindow: React.FC = () => {
 
   // ──────── Main Note Reminder Handlers ────────
   const handleOpenReminderModal = () => {
-    setShowApiKeySetting(false);
     setShowFloatingAiMenu(false);
     setShowLockConfigModal(false);
     if (activeNote?.reminderAt) {
@@ -4415,50 +4398,6 @@ export const QuickNoteWindow: React.FC = () => {
       toast.error(err.message || 'Lỗi khi gửi email', { duration: 5000 });
     } finally {
       setIsSendingTestEmail(false);
-    }
-  };
-
-  const handleValidateAndSaveApiKey = async () => {
-    const keyToSave = geminiApiKeyInput.trim();
-    if (!keyToSave) {
-      setApiKeyShake(true);
-      setTimeout(() => setApiKeyShake(false), 500);
-      toast.error('Vui lòng nhập Gemini API Key');
-      return;
-    }
-
-    setIsTestingApiKey(true);
-    setApiKeyTestResult(null);
-    toast.loading('Đang xác thực kết nối với Google Gemini...', { id: 'test-gemini-key' });
-    try {
-      const res = await testGeminiApiKey(keyToSave);
-      toast.dismiss('test-gemini-key');
-      if (res.success) {
-        setStoredGeminiKey(keyToSave);
-        setApiKeyTestResult(res);
-        playAppleChime();
-        toast.success(`🎉 Đã xác thực & lưu Gemini API Key thành công (${res.model})!`);
-        setShowApiKeySetting(false);
-      } else {
-        setApiKeyTestResult({
-          success: false,
-          message: res.message,
-        });
-        setApiKeyShake(true);
-        setTimeout(() => setApiKeyShake(false), 500);
-        toast.error(`Xác thực thất bại: ${res.message}`);
-      }
-    } catch (err: any) {
-      toast.dismiss('test-gemini-key');
-      setApiKeyTestResult({
-        success: false,
-        message: err.message || 'Không thể kết nối tới Google Gemini',
-      });
-      setApiKeyShake(true);
-      setTimeout(() => setApiKeyShake(false), 500);
-      toast.error('Lỗi khi kiểm tra kết nối API key');
-    } finally {
-      setIsTestingApiKey(false);
     }
   };
 
@@ -5313,24 +5252,8 @@ export const QuickNoteWindow: React.FC = () => {
                     </button>
                   )}
 
-                  {/* Gemini API Key Setting Button: Matches Reminder button with NO border (Hình 1) */}
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={handleToggleApiKeySetting}
-                      className="w-7 h-7 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white border-0 transition-all cursor-pointer active:scale-90 relative"
-                      title={getStoredGeminiKey() ? 'Cấu hình Gemini API Key (Đã kích hoạt)' : 'Cài đặt Gemini API Key để dùng AI Writing'}
-                      aria-label="Cấu hình Gemini API Key"
-                    >
-                      <SFKey size={13.5} className={getStoredGeminiKey() ? 'text-[#0071e3] dark:text-[#2997ff]' : ''} />
-                      {getStoredGeminiKey() && (
-                        <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-[#0071e3] ring-2 ring-white dark:ring-[#1c1c24]" />
-                      )}
-                    </button>
-                  </div>
-
                   {/* Quick Note Color Tag Selector */}
-                  <div className="flex items-center gap-1.5 p-1 rounded-full bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.03] dark:border-white/[0.05] shrink-0">
+                  <div className="flex items-center gap-1.5 p-1 rounded-full bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.03] dark:border-white/0.05] shrink-0">
                     {(['amber', 'blue', 'emerald', 'purple', 'rose'] as QuickNoteColor[]).map((c) => (
                       <button
                         key={c}
@@ -6546,136 +6469,6 @@ export const QuickNoteWindow: React.FC = () => {
 
                   </div>
       </div>
-
-      {/* ─────────────────── Apple Gemini API Key Modal (Apple Liquid Glass Blur & Translucency) ─────────────────── */}
-      <AppleLiquidDialog
-        isOpen={showApiKeySetting}
-        onClose={() => {
-          setShowApiKeySetting(false);
-          setApiKeyTestResult(null);
-        }}
-        zIndex={10015}
-        ariaLabel="Cài đặt Gemini API Key"
-        containerClassName={cn(
-          "w-full max-w-[440px] bg-white/90 dark:bg-[#1c1c24]/90 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/12 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] p-5.5 space-y-4 text-left",
-          apiKeyShake && "apple-shake"
-        )}
-      >
-        <div className="flex items-center justify-between pb-3 border-b border-black/[0.06] dark:border-white/10">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-b from-[#0071e3]/15 to-[#0071e3]/5 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center border border-[#0071e3]/20 shadow-xs">
-              <SFKey size={15} />
-            </div>
-            <div>
-              <h4 className="font-semibold text-[14.5px] text-[#1d1d1f] dark:text-white leading-tight">
-                Gemini API Key
-              </h4>
-              <p className="text-[11.5px] text-[#86868b] dark:text-[#a1a1a6] mt-0.5">
-                Cung cấp trí tuệ cho Writing Tools
-              </p>
-            </div>
-          </div>
-          <CloseButton
-            onClick={() => {
-              setShowApiKeySetting(false);
-              setApiKeyTestResult(null);
-            }}
-            size="sm"
-          />
-        </div>
-
-        <div className="space-y-2.5">
-          <label className="text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
-            Nhập Google Gemini API Key:
-          </label>
-          <div className="relative flex items-center">
-            <input
-              type={showApiKeyPassword ? 'text' : 'password'}
-              value={geminiApiKeyInput}
-              onChange={(e) => {
-                setGeminiApiKeyInput(e.target.value);
-                setApiKeyTestResult(null);
-              }}
-              placeholder="AIzaSy..."
-              className="w-full pl-3 pr-10 py-2.5 rounded-xl text-[12.5px] font-mono bg-black/[0.02] dark:bg-white/[0.04] border border-black/15 dark:border-white/20 outline-none focus:border-[#0071e3] dark:focus:border-[#2997ff] text-[#1d1d1f] dark:text-white transition-all shadow-2xs"
-              autoFocus
-            />
-            <button
-              type="button"
-              onClick={() => setShowApiKeyPassword(!showApiKeyPassword)}
-              className="absolute right-2.5 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white cursor-pointer p-1"
-              title={showApiKeyPassword ? 'Ẩn khóa' : 'Hiện khóa'}
-            >
-              {showApiKeyPassword ? <SFEyeSlash size={14} /> : <SFEye size={14} />}
-            </button>
-          </div>
-
-          {/* Validation Error Badge */}
-          {apiKeyTestResult && !apiKeyTestResult.success && (
-            <div
-              className="text-[11.5px] px-3 py-2 rounded-xl font-medium flex items-start gap-2 bg-rose-500/12 text-rose-700 dark:text-rose-400 border border-rose-500/25 leading-snug animate-in fade-in duration-150"
-            >
-              <SFXmark size={14} className="shrink-0 mt-0.5 text-rose-600 dark:text-rose-400" />
-              <div className="flex-1 break-words">
-                <span className="font-semibold">Xác thực thất bại:</span> {apiKeyTestResult.message}
-              </div>
-            </div>
-          )}
-
-          <p className="text-[11px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed">
-            Hệ thống sẽ tự động quét và kết nối với model Gemini Flash mới nhất khả dụng cho tài khoản của bạn. Khóa API hợp lệ sẽ được lưu an toàn trên máy của bạn.
-          </p>
-        </div>
-
-        <div className="flex items-center justify-between pt-3 border-t border-black/[0.06] dark:border-white/10">
-          {getStoredGeminiKey() ? (
-            <button
-              type="button"
-              onClick={() => {
-                setStoredGeminiKey('');
-                setGeminiApiKeyInput('');
-                setApiKeyTestResult(null);
-                toast.success('Đã xóa Gemini API Key!', { id: 'api-key-clear' });
-              }}
-              className="text-[12px] font-medium text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
-            >
-              Xóa khóa hiện tại
-            </button>
-          ) : (
-            <div />
-          )}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setShowApiKeySetting(false);
-                setApiKeyTestResult(null);
-              }}
-              className="px-3.5 py-1.5 rounded-full text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] border border-black/5 dark:border-white/10 transition-colors cursor-pointer active:scale-95"
-            >
-              Hủy
-            </button>
-            <button
-              type="button"
-              disabled={isTestingApiKey || !geminiApiKeyInput.trim()}
-              onClick={handleValidateAndSaveApiKey}
-              className="px-4.5 py-1.5 rounded-full text-[12px] font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 shrink-0"
-            >
-              {isTestingApiKey ? (
-                <>
-                  <SFArrowClockwise size={12.5} className="animate-spin" />
-                  <span>Đang xác thực...</span>
-                </>
-              ) : (
-                <>
-                  <SFCheckmark size={12} className="stroke-[2.5]" />
-                  <span>Xác thực & Lưu</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </AppleLiquidDialog>
 
       {/* ─────────────────── Apple Liquid Glass Master Reminder Modal (Apple Liquid Glass Blur & Translucency) ─────────────────── */}
       <AppleLiquidDialog
