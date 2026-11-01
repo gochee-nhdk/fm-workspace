@@ -3170,36 +3170,35 @@ tbody td {
 }
 
 /* ==========================================================================
-   Apple Intelligence Refined Ethereal Text Scanner (Clean, Delicate Shimmer)
+   Apple Intelligence Refined Text Selection Scanner (Exact Native Highlight)
    ========================================================================== */
 .apple-ai-scan-pill {
   position: absolute;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 0px !important;
   pointer-events: none;
-  background: rgba(168, 85, 247, 0.08);
-  border: 1px solid rgba(168, 85, 247, 0.25);
-  box-shadow: 0 0 14px rgba(168, 85, 247, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  animation: appleAiPillPulse 2.4s ease-in-out infinite;
+  background: rgba(168, 85, 247, 0.28);
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  animation: appleAiHighlightBreathe 2s ease-in-out infinite;
   transform: translateZ(0);
 }
 
 .dark .apple-ai-scan-pill {
-  background: rgba(168, 85, 247, 0.12);
-  border-color: rgba(192, 132, 252, 0.32);
-  box-shadow: 0 0 18px rgba(168, 85, 247, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  background: rgba(168, 85, 247, 0.38);
+  border: none !important;
+  box-shadow: none !important;
 }
 
-@keyframes appleAiPillPulse {
+@keyframes appleAiHighlightBreathe {
   0%, 100% {
-    opacity: 0.85;
+    opacity: 0.9;
   }
   50% {
     opacity: 1;
-    border-color: rgba(168, 85, 247, 0.45);
-    box-shadow: 0 0 18px rgba(168, 85, 247, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    background: rgba(168, 85, 247, 0.35);
   }
 }
 
@@ -3212,14 +3211,12 @@ tbody td {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(99, 102, 241, 0.08) 20%,
-    rgba(168, 85, 247, 0.22) 50%,
-    rgba(255, 255, 255, 0.55) 75%,
-    rgba(56, 189, 248, 0.25) 90%,
+    rgba(255, 255, 255, 0.1) 30%,
+    rgba(255, 255, 255, 0.45) 60%,
     transparent 100%
   );
-  filter: blur(2px);
-  animation: appleAiShimmerSweep 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  filter: none;
+  animation: appleAiShimmerSweep 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   pointer-events: none;
   transform: translateZ(0);
 }
@@ -3228,13 +3225,11 @@ tbody td {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(99, 102, 241, 0.12) 20%,
-    rgba(192, 132, 252, 0.32) 50%,
-    rgba(255, 255, 255, 0.65) 75%,
-    rgba(56, 189, 248, 0.35) 90%,
+    rgba(255, 255, 255, 0.15) 30%,
+    rgba(255, 255, 255, 0.55) 60%,
     transparent 100%
   );
-  filter: blur(2px);
+  filter: none;
 }
 
 @keyframes appleAiShimmerSweep {

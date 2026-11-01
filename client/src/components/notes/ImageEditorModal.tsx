@@ -33,6 +33,7 @@ import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import toast from 'react-hot-toast';
 
 export type AnnotationTool = 'select' | 'pen' | 'highlighter' | 'rect' | 'arrow' | 'text' | 'note' | 'eraser';
+export type ShapeVariant = 'rect' | 'roundRect' | 'circle' | 'ellipse' | 'triangle' | 'star';
 
 export interface Point {
   x: number;
@@ -53,6 +54,7 @@ export interface PathAnnotation extends BaseAnnotation {
 
 export interface ShapeAnnotation extends BaseAnnotation {
   type: 'rect' | 'arrow';
+  shapeVariant?: ShapeVariant;
   startX: number;
   startY: number;
   endX: number;
@@ -140,6 +142,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 }) => {
   // Current active tool (toggling off active tool switches directly to 'select' mode)
   const [activeTool, setActiveTool] = useState<AnnotationTool>('pen');
+  const [selectedShapeVariant, setSelectedShapeVariant] = useState<ShapeVariant>('rect');
+  const [isShapeMenuOpen, setIsShapeMenuOpen] = useState<boolean>(false);
+  const shapeMenuRef = useRef<HTMLDivElement>(null);
   const [selectedColor, setSelectedColor] = useState<string>('#EF4444');
   const [selectedStrokeWidth, setSelectedStrokeWidth] = useState<number>(6);
   const strokeWidthDisplayRef = useRef<HTMLSpanElement | null>(null);
@@ -229,6 +234,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
       }
       if (textEffectsRef.current && !textEffectsRef.current.contains(target)) {
         setIsTextEffectsOpen(false);
+      }
+      if (shapeMenuRef.current && !shapeMenuRef.current.contains(target)) {
+        setIsShapeMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -448,11 +456,41 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
           const y = Math.min(shape.startY, shape.endY);
           const w = Math.abs(shape.endX - shape.startX);
           const h = Math.abs(shape.endY - shape.startY);
+          const variant = shape.shapeVariant || 'rect';
 
-          ctx.fillStyle = hexToRgba(shape.color, 0.12);
           ctx.beginPath();
-          ctx.roundRect(x, y, w, h, 8);
-          ctx.fill();
+          if (variant === 'roundRect') {
+            ctx.roundRect(x, y, w, h, Math.min(16, w / 4, h / 4));
+          } else if (variant === 'circle' || variant === 'ellipse') {
+            const cx = x + w / 2;
+            const cy = y + h / 2;
+            ctx.ellipse(cx, cy, Math.max(1, w / 2), Math.max(1, h / 2), 0, 0, Math.PI * 2);
+          } else if (variant === 'triangle') {
+            ctx.moveTo(x + w / 2, y);
+            ctx.lineTo(x + w, y + h);
+            ctx.lineTo(x, y + h);
+            ctx.closePath();
+          } else if (variant === 'star') {
+            const cx = x + w / 2;
+            const cy = y + h / 2;
+            const outerR = Math.min(w, h) / 2;
+            const innerR = outerR * 0.42;
+            const points = 5;
+            for (let pIdx = 0; pIdx < points * 2; pIdx++) {
+              const r = pIdx % 2 === 0 ? outerR : innerR;
+              const angle = (pIdx * Math.PI) / points - Math.PI / 2;
+              const px = cx + r * Math.cos(angle);
+              const py = cy + r * Math.sin(angle);
+              if (pIdx === 0) ctx.moveTo(px, py);
+              else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+          } else {
+            // Pure rectangle without fill
+            ctx.rect(x, y, w, h);
+          }
+
+          // Strict user requirement: Không đổ màu bên trong khung hình
           ctx.stroke();
           ctx.restore();
         } else if (item.type === 'arrow') {
@@ -927,6 +965,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
       const newShapeAnnotation: ShapeAnnotation = {
         id: 'ann_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
         type: activeTool,
+        shapeVariant: activeTool === 'rect' ? selectedShapeVariant : undefined,
         color: selectedColor,
         strokeWidth: selectedStrokeWidth,
         startX: pt.x,
@@ -1404,11 +1443,14 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         }}
       >
         <div className="relative inline-flex items-center justify-center max-w-full max-h-full">
-          {/* Left Side Sticky Notes Column */}
-          <div className="absolute left-[-240px] top-4 bottom-4 w-52 pointer-events-none flex flex-col gap-3 z-40 overflow-y-auto hidden xl:flex">
-            {annotations.filter((a) => a.type === 'note' && (a as NoteAnnotation).side === 'left').map((item) => {
+          {/* Left Side Sticky Notes - Anchored near clicked points outside the canvas */}
+          {annotations
+            .filter((a) => a.type === 'note' && (a as NoteAnnotation).side === 'left')
+            .map((item) => {
               const note = item as NoteAnnotation;
               const isSelected = selectedAnnotationId === note.id;
+              const topPos = note.anchorY * canvasScale;
+
               return (
                 <div
                   key={note.id}
@@ -1416,17 +1458,20 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                     e.stopPropagation();
                     setSelectedAnnotationId(note.id);
                   }}
+                  style={{
+                    top: `${Math.max(10, topPos - 35)}px`,
+                  }}
                   className={cn(
-                    "pointer-events-auto w-full p-3 rounded-2xl transition-all duration-200 cursor-pointer shadow-lg backdrop-blur-xl border select-none group relative",
+                    "absolute right-[calc(100%+16px)] w-56 p-3 rounded-2xl transition-all duration-200 cursor-pointer shadow-[0_12px_36px_rgba(0,0,0,0.18)] backdrop-blur-2xl border select-none group z-40 text-left",
                     isSelected
-                      ? "bg-[#FEF3C7] border-[#F59E0B] ring-2 ring-[#F59E0B]/50 scale-[1.02]"
-                      : "bg-[#FEF3C7]/90 hover:bg-[#FEF3C7] border-[#FCD34D]"
+                      ? "bg-amber-100/95 dark:bg-amber-950/80 border-amber-400 dark:border-amber-500 ring-2 ring-amber-400/50 scale-[1.02]"
+                      : "bg-white/95 dark:bg-[#1e1e24]/95 hover:bg-amber-50/90 dark:hover:bg-[#282830] border-black/10 dark:border-white/15"
                   )}
                 >
-                  <div className="flex items-center justify-between pb-1 mb-1 border-b border-[#FCD34D]/60 text-[11px] font-semibold text-[#92400E]">
-                    <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-[#F59E0B]" />
-                      Ghi chú trái
+                  <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-black/10 dark:border-white/10 text-[11px] font-semibold text-[#1d1d1f] dark:text-white">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                      <span>Ghi chú</span>
                     </span>
                     <button
                       type="button"
@@ -1436,10 +1481,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                         pushState(rem);
                         if (selectedAnnotationId === note.id) setSelectedAnnotationId(null);
                       }}
-                      className="w-4 h-4 rounded-full flex items-center justify-center text-[#92400E] hover:bg-[#FDE68A] transition-colors"
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-[#86868b] hover:text-[#ff3b30] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                       title="Xóa ghi chú"
                     >
-                      <SFXmark size={10} />
+                      <SFXmark size={11} />
                     </button>
                   </div>
                   <textarea
@@ -1451,14 +1496,13 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                       );
                     }}
                     onBlur={() => pushState([...annotations])}
-                    className="w-full bg-transparent border-none outline-none resize-none text-[12.5px] leading-relaxed text-[#78350F] placeholder-[#92400E]/50 font-sans"
+                    className="w-full bg-transparent border-none outline-none resize-none text-[12px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] placeholder-[#86868b] font-sans"
                     rows={Math.max(2, note.text.split('\n').length)}
                     placeholder="Gõ nội dung ghi chú..."
                   />
                 </div>
               );
             })}
-          </div>
 
           <canvas
             ref={canvasRef}
@@ -1471,11 +1515,14 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             className="max-h-[calc(100vh-190px)] max-w-[90vw] object-contain rounded-xl shadow-[0_20px_70px_rgba(0,0,0,0.85)] border border-white/15 select-none touch-none"
           />
 
-          {/* Right Side Sticky Notes Column */}
-          <div className="absolute right-[-240px] top-4 bottom-4 w-52 pointer-events-none flex flex-col gap-3 z-40 overflow-y-auto hidden xl:flex">
-            {annotations.filter((a) => a.type === 'note' && (a as NoteAnnotation).side === 'right').map((item) => {
+          {/* Right Side Sticky Notes - Anchored near clicked points outside the canvas */}
+          {annotations
+            .filter((a) => a.type === 'note' && (a as NoteAnnotation).side === 'right')
+            .map((item) => {
               const note = item as NoteAnnotation;
               const isSelected = selectedAnnotationId === note.id;
+              const topPos = note.anchorY * canvasScale;
+
               return (
                 <div
                   key={note.id}
@@ -1483,17 +1530,20 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                     e.stopPropagation();
                     setSelectedAnnotationId(note.id);
                   }}
+                  style={{
+                    top: `${Math.max(10, topPos - 35)}px`,
+                  }}
                   className={cn(
-                    "pointer-events-auto w-full p-3 rounded-2xl transition-all duration-200 cursor-pointer shadow-lg backdrop-blur-xl border select-none group relative",
+                    "absolute left-[calc(100%+16px)] w-56 p-3 rounded-2xl transition-all duration-200 cursor-pointer shadow-[0_12px_36px_rgba(0,0,0,0.18)] backdrop-blur-2xl border select-none group z-40 text-left",
                     isSelected
-                      ? "bg-[#FEF3C7] border-[#F59E0B] ring-2 ring-[#F59E0B]/50 scale-[1.02]"
-                      : "bg-[#FEF3C7]/90 hover:bg-[#FEF3C7] border-[#FCD34D]"
+                      ? "bg-amber-100/95 dark:bg-amber-950/80 border-amber-400 dark:border-amber-500 ring-2 ring-amber-400/50 scale-[1.02]"
+                      : "bg-white/95 dark:bg-[#1e1e24]/95 hover:bg-amber-50/90 dark:hover:bg-[#282830] border-black/10 dark:border-white/15"
                   )}
                 >
-                  <div className="flex items-center justify-between pb-1 mb-1 border-b border-[#FCD34D]/60 text-[11px] font-semibold text-[#92400E]">
-                    <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-[#F59E0B]" />
-                      Ghi chú phải
+                  <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-black/10 dark:border-white/10 text-[11px] font-semibold text-[#1d1d1f] dark:text-white">
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                      <span>Ghi chú</span>
                     </span>
                     <button
                       type="button"
@@ -1503,10 +1553,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                         pushState(rem);
                         if (selectedAnnotationId === note.id) setSelectedAnnotationId(null);
                       }}
-                      className="w-4 h-4 rounded-full flex items-center justify-center text-[#92400E] hover:bg-[#FDE68A] transition-colors"
+                      className="w-5 h-5 rounded-full flex items-center justify-center text-[#86868b] hover:text-[#ff3b30] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                       title="Xóa ghi chú"
                     >
-                      <SFXmark size={10} />
+                      <SFXmark size={11} />
                     </button>
                   </div>
                   <textarea
@@ -1518,71 +1568,144 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                       );
                     }}
                     onBlur={() => pushState([...annotations])}
-                    className="w-full bg-transparent border-none outline-none resize-none text-[12.5px] leading-relaxed text-[#78350F] placeholder-[#92400E]/50 font-sans"
+                    className="w-full bg-transparent border-none outline-none resize-none text-[12px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] placeholder-[#86868b] font-sans"
                     rows={Math.max(2, note.text.split('\n').length)}
                     placeholder="Gõ nội dung ghi chú..."
                   />
                 </div>
               );
             })}
-          </div>
 
-          {/* Direct In-Image Inline Textarea Editor (Positioned Directly on the Canvas) */}
+          {/* Direct In-Image Inline Textarea Editor (Designed to match Figure 4 - Floating Mini Toolbar + Dashed Selection Handle) */}
           {activeInlineText && inlineScreenPos && (
             <div
-              className="fixed z-50 rounded-lg p-1.5 border border-[#0071e3] ring-1 ring-[#0071e3]/40 bg-black/40 backdrop-blur-xs shadow-lg transition-all"
+              className="fixed z-50 transition-all select-none"
               style={{
-                left: inlineScreenPos.x - 4,
-                top: inlineScreenPos.y - 4,
-                minWidth: Math.max(140, (activeInlineText.width || 200) * canvasScale),
+                left: inlineScreenPos.x - 6,
+                top: inlineScreenPos.y - 42,
+                minWidth: Math.max(180, (activeInlineText.width || 200) * canvasScale + 24),
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <textarea
-                ref={inlineTextareaRef}
-                value={activeInlineText.text}
-                onChange={(e) =>
-                  setActiveInlineText({ ...activeInlineText, text: e.target.value })
-                }
-                placeholder="Gõ chữ trực tiếp..."
-                rows={Math.max(2, activeInlineText.text.split('\n').length)}
-                style={{
-                  color: selectedColor === '#1F2937' ? '#FFFFFF' : selectedColor,
-                  fontSize: `${Math.max(13, selectedFontSize * canvasScale)}px`,
-                  fontFamily: selectedFontFamily,
-                  textAlign: selectedTextAlign,
-                  fontWeight: isBold ? 700 : 500,
-                  fontStyle: isItalic ? 'italic' : 'normal',
-                }}
-                className="w-full bg-transparent outline-none resize-none leading-relaxed border-none focus:ring-0 p-1 placeholder-white/40 text-white"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                    e.preventDefault();
-                    commitActiveInlineText();
-                  } else if (e.key === 'Escape') {
-                    e.preventDefault();
-                    commitActiveInlineText();
-                  }
-                }}
-              />
-              <div className="flex items-center justify-between pt-1 border-t border-white/10 text-[10px]">
-                <span className="opacity-60 text-white">Ctrl+Enter xong</span>
-                <div className="flex items-center gap-1.5">
+              {/* Apple Floating Quick Formatting Bar on Top (Figure 4) */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 mb-1.5 rounded-2xl bg-white/95 dark:bg-[#1e1e24]/95 backdrop-blur-2xl border border-black/10 dark:border-white/15 shadow-[0_12px_36px_rgba(0,0,0,0.22)] w-max">
+                {/* Font Color Preview Indicator */}
+                <div className="flex items-center gap-1 pr-1 border-r border-black/10 dark:border-white/10">
+                  <span className="text-[12px] font-bold text-[#1d1d1f] dark:text-white">A</span>
+                  <span
+                    className="w-3.5 h-1 rounded-full shadow-2xs"
+                    style={{ backgroundColor: selectedColor === '#1F2937' ? '#0071E3' : selectedColor }}
+                  />
+                </div>
+
+                {/* Font Size Up / Down */}
+                <div className="flex items-center gap-0.5 pr-1 border-r border-black/10 dark:border-white/10">
                   <button
                     type="button"
-                    onClick={() => setActiveInlineText(null)}
-                    className="px-2 py-0.5 rounded-md hover:bg-white/10 text-white/70 hover:text-white cursor-pointer"
+                    onClick={() => setSelectedFontSize((prev) => Math.min(80, prev + 2))}
+                    className="px-1.5 py-0.5 rounded-lg text-[11px] font-semibold text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+                    title="Tăng cỡ chữ"
                   >
-                    Hủy
+                    A<span className="text-[9px] align-super">^</span>
                   </button>
                   <button
                     type="button"
-                    onClick={commitActiveInlineText}
-                    className="px-2.5 py-0.5 rounded-md bg-[#0071e3] hover:bg-[#0077ed] text-white font-medium shadow-xs cursor-pointer"
+                    onClick={() => setSelectedFontSize((prev) => Math.max(10, prev - 2))}
+                    className="px-1.5 py-0.5 rounded-lg text-[11px] font-semibold text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+                    title="Giảm cỡ chữ"
                   >
-                    Xong
+                    A<span className="text-[9px] align-sub">v</span>
                   </button>
                 </div>
+
+                {/* Alignment */}
+                <div className="flex items-center gap-0.5 pr-1 border-r border-black/10 dark:border-white/10">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedTextAlign((prev) =>
+                        prev === 'left' ? 'center' : prev === 'center' ? 'right' : 'left'
+                      )
+                    }
+                    className="p-1 rounded-lg text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all cursor-pointer text-[11px] font-semibold"
+                    title="Căn chỉnh lề văn bản"
+                  >
+                    AV
+                  </button>
+                </div>
+
+                {/* Delete / Cancel Button */}
+                <button
+                  type="button"
+                  onClick={() => setActiveInlineText(null)}
+                  className="p-1 rounded-lg text-[#86868b] hover:text-[#ff3b30] hover:bg-rose-500/10 active:scale-95 transition-all cursor-pointer"
+                  title="Hủy bỏ văn bản này"
+                >
+                  <SFTrash size={13} />
+                </button>
+
+                {/* Quick Confirm Checkmark Button */}
+                <button
+                  type="button"
+                  onClick={commitActiveInlineText}
+                  className="ml-0.5 px-2.5 py-0.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] font-semibold shadow-xs active:scale-95 transition-all cursor-pointer"
+                  title="Hoàn tất nhập chữ (Ctrl+Enter)"
+                >
+                  Xong
+                </button>
+              </div>
+
+              {/* Text Input Container with Blue Drag Grip and Dashed Border (Figure 4) */}
+              <div className="relative flex items-stretch rounded-lg border-2 border-dashed border-[#0071e3] bg-white/10 dark:bg-black/20 backdrop-blur-2xs shadow-lg group">
+                {/* Drag Handle on Left with Dots */}
+                <div
+                  className="w-5 bg-[#0071e3] rounded-l-[4px] flex items-center justify-center text-white shrink-0 cursor-move"
+                  title="Kéo di chuyển vị trí"
+                >
+                  <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" className="opacity-90">
+                    <circle cx="2" cy="2" r="1.2" />
+                    <circle cx="8" cy="2" r="1.2" />
+                    <circle cx="2" cy="7" r="1.2" />
+                    <circle cx="8" cy="7" r="1.2" />
+                    <circle cx="2" cy="12" r="1.2" />
+                    <circle cx="8" cy="12" r="1.2" />
+                  </svg>
+                </div>
+
+                {/* Pure Input Area with custom Typography */}
+                <textarea
+                  ref={inlineTextareaRef}
+                  value={activeInlineText.text}
+                  onChange={(e) =>
+                    setActiveInlineText({ ...activeInlineText, text: e.target.value })
+                  }
+                  placeholder="Start typing here..."
+                  rows={Math.max(1, activeInlineText.text.split('\n').length)}
+                  style={{
+                    color: selectedColor === '#1F2937' ? '#FFFFFF' : selectedColor,
+                    fontSize: `${Math.max(14, selectedFontSize * canvasScale)}px`,
+                    fontFamily: selectedFontFamily,
+                    textAlign: selectedTextAlign,
+                    fontWeight: isBold ? 700 : 500,
+                    fontStyle: isItalic ? 'italic' : 'normal',
+                  }}
+                  className="flex-1 min-w-[140px] bg-transparent outline-none resize-none leading-relaxed border-none focus:ring-0 px-2.5 py-1.5 placeholder-white/50 text-white"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                      e.preventDefault();
+                      commitActiveInlineText();
+                    } else if (e.key === 'Escape') {
+                      e.preventDefault();
+                      commitActiveInlineText();
+                    }
+                  }}
+                />
+
+                {/* Circle Resize Handle on Right Edge (Figure 4) */}
+                <div
+                  className="absolute right-[-8px] top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white border-2 border-[#0071e3] shadow-xs cursor-ew-resize flex items-center justify-center z-10"
+                  title="Kéo thay đổi chiều rộng ô nhập"
+                />
               </div>
             </div>
           )}
@@ -1622,20 +1745,122 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             <SFHighlighter size={16} />
           </button>
 
-          {/* Tool: Khung chữ nhật (Rectangle) */}
-          <button
-            type="button"
-            onClick={() => handleSelectTool('rect')}
-            className={cn(
-              "w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 active:scale-90 cursor-pointer",
-              activeTool === 'rect'
-                ? "bg-white/25 text-white scale-105 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_2px_8px_rgba(0,0,0,0.3)]"
-                : "text-white/70 hover:text-white hover:bg-white/10"
+          {/* Tool: Khung hình học đa dạng (Geometric Shapes Popover) */}
+          <div className="relative" ref={shapeMenuRef}>
+            <button
+              type="button"
+              onClick={() => {
+                if (activeTool === 'rect') {
+                  setIsShapeMenuOpen(!isShapeMenuOpen);
+                } else {
+                  setActiveTool('rect');
+                  setIsShapeMenuOpen(true);
+                }
+              }}
+              className={cn(
+                "w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 active:scale-90 cursor-pointer relative",
+                activeTool === 'rect'
+                  ? "bg-white/25 text-white scale-105 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),0_2px_8px_rgba(0,0,0,0.3)]"
+                  : "text-white/70 hover:text-white hover:bg-white/10"
+              )}
+              title="Kẻ khung hình học (Nhấp để chọn hình dạng: Vuông, Bo góc, Tròn, Elip, Tam giác, Ngôi sao)"
+            >
+              {selectedShapeVariant === 'circle' || selectedShapeVariant === 'ellipse' ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <circle cx="12" cy="12" r="9" />
+                </svg>
+              ) : selectedShapeVariant === 'roundRect' ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <rect x="3" y="3" width="18" height="18" rx="5" />
+                </svg>
+              ) : selectedShapeVariant === 'triangle' ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <polygon points="12 3 22 21 2 21" />
+                </svg>
+              ) : selectedShapeVariant === 'star' ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+              ) : (
+                <SFSquare size={16} />
+              )}
+            </button>
+
+            {/* Pop-up ô nhỏ ngay phía trên nút khung hình - Animation Apple Liquid Glass mượt mà */}
+            {isShapeMenuOpen && (
+              <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 rounded-2xl bg-[#1c1c24]/95 backdrop-blur-2xl border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.7),inset_0_1px_1px_rgba(255,255,255,0.25)] p-2 z-50 flex items-center gap-1.5 animate-in fade-in slide-in-from-bottom-2 zoom-in-95 duration-200 select-none">
+                {[
+                  {
+                    id: 'rect' as ShapeVariant,
+                    label: 'Chữ nhật',
+                    icon: (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="4" width="18" height="16" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    id: 'roundRect' as ShapeVariant,
+                    label: 'Bo tròn góc',
+                    icon: (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="4" width="18" height="16" rx="5" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    id: 'circle' as ShapeVariant,
+                    label: 'Hình tròn / Elip',
+                    icon: (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="9" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    id: 'triangle' as ShapeVariant,
+                    label: 'Tam giác',
+                    icon: (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polygon points="12 3 22 21 2 21" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    id: 'star' as ShapeVariant,
+                    label: 'Ngôi sao',
+                    icon: (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                    ),
+                  },
+                ].map((s) => {
+                  const isActive = selectedShapeVariant === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedShapeVariant(s.id);
+                        setActiveTool('rect');
+                        setIsShapeMenuOpen(false);
+                      }}
+                      className={cn(
+                        "w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-150 cursor-pointer",
+                        isActive
+                          ? "bg-[#0071e3] text-white shadow-xs scale-105"
+                          : "text-white/70 hover:text-white hover:bg-white/15"
+                      )}
+                      title={s.label}
+                    >
+                      {s.icon}
+                    </button>
+                  );
+                })}
+              </div>
             )}
-            title="Khung chữ nhật (Phím R — Nhấn thêm 1 lần để thoát ra chế độ trỏ chuột)"
-          >
-            <SFSquare size={16} />
-          </button>
+          </div>
 
           {/* Tool: Mũi tên (Arrow) */}
           <button
@@ -1699,117 +1924,141 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
           <span className="w-[1px] h-5 bg-white/20 mx-0.5" />
 
-          {/* Preset Colors & Advanced Color Picker */}
-          <div className="flex items-center gap-1.5" ref={colorPickerRef}>
-            {PRESET_COLORS.map((col) => (
-              <button
-                key={col.hex}
-                type="button"
-                onClick={() => {
-                  setSelectedColor(col.hex);
-                  setCustomHexInput(col.hex);
-                }}
-                className={cn(
-                  "w-5 h-5 sm:w-6 sm:h-6 rounded-full transition-all duration-200 cursor-pointer relative flex items-center justify-center border",
-                  selectedColor.toLowerCase() === col.hex.toLowerCase()
-                    ? "scale-125 border-white shadow-[0_0_8px_rgba(255,255,255,0.7)]"
-                    : "border-black/30 hover:scale-110 opacity-80 hover:opacity-100"
-                )}
-                style={{ backgroundColor: col.hex }}
-                title={col.name}
-              />
-            ))}
-
-            {/* Advanced Rainbow Spectrum Color Picker Button */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsColorPickerOpen(!isColorPickerOpen)}
-                className={cn(
-                  "w-6 h-6 rounded-full transition-all duration-200 cursor-pointer flex items-center justify-center border border-white/40 shadow-xs active:scale-95",
-                  isColorPickerOpen ? "ring-2 ring-white scale-110" : "hover:scale-105"
-                )}
+          {/* Advanced Compact Color Trigger (Unified Apple Palette & Spectrum Picker) */}
+          <div className="relative" ref={colorPickerRef}>
+            <button
+              type="button"
+              onClick={() => setIsColorPickerOpen(!isColorPickerOpen)}
+              className={cn(
+                "w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-90 relative",
+                isColorPickerOpen
+                  ? "ring-2 ring-white scale-105 shadow-[0_0_12px_rgba(255,255,255,0.6)]"
+                  : "hover:scale-105 hover:bg-white/10"
+              )}
+              title="Màu sắc hiện tại & Bảng chọn màu nâng cao"
+            >
+              {/* Outer multi-color spectrum ring indicator */}
+              <div
+                className="w-7 h-7 rounded-full p-[2px] flex items-center justify-center shadow-xs"
                 style={{
-                  background: 'conic-gradient(from 180deg at 50% 50%, #FF0000 0deg, #FF9900 60deg, #FFFF00 120deg, #00FF00 180deg, #00FFFF 240deg, #0000FF 300deg, #FF00FF 360deg)',
+                  background:
+                    'conic-gradient(from 180deg at 50% 50%, #FF0000 0deg, #FF9900 60deg, #FFFF00 120deg, #00FF00 180deg, #00FFFF 240deg, #0000FF 300deg, #FF00FF 360deg)',
                 }}
-                title="Bảng chọn màu nâng cao & Bút hút màu"
-              />
+              >
+                {/* Inner active color dot */}
+                <div
+                  className="w-full h-full rounded-full border border-black/30 dark:border-white/30 shadow-inner"
+                  style={{ backgroundColor: selectedColor }}
+                />
+              </div>
+            </button>
 
-              {/* Advanced Color Picker Popover */}
-              {isColorPickerOpen && (
-                <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 w-64 rounded-2xl bg-[#1c1c24]/95 backdrop-blur-2xl border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.7)] p-3.5 z-50 animate-in fade-in zoom-in-95 duration-150 text-white">
-                  <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-white/10 text-[12px] font-semibold text-white/90">
+            {/* Apple Liquid Glass Advanced Color Popover */}
+            {isColorPickerOpen && (
+              <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 w-72 rounded-2xl bg-[#1c1c24]/95 backdrop-blur-2xl border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.7),inset_0_1px_1px_rgba(255,255,255,0.25)] p-3.5 z-50 animate-in fade-in slide-in-from-bottom-2 zoom-in-95 duration-200 text-white select-none">
+                <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-white/10 text-[12.5px] font-semibold text-white/95">
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="w-3.5 h-3.5 rounded-full border border-white/40 shadow-xs"
+                      style={{ backgroundColor: selectedColor }}
+                    />
                     <span>Bảng màu nâng cao</span>
-                    <button
-                      type="button"
-                      onClick={() => setIsColorPickerOpen(false)}
-                      className="w-5 h-5 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10"
-                    >
-                      <SFXmark size={11} />
-                    </button>
-                  </div>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsColorPickerOpen(false)}
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10"
+                  >
+                    <SFXmark size={11} />
+                  </button>
+                </div>
 
-                  {/* Native Full Spectrum Gradient Picker */}
-                  <div className="flex flex-col gap-2.5">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={selectedColor.startsWith('#') ? selectedColor : '#EF4444'}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setSelectedColor(val);
-                          setCustomHexInput(val);
-                        }}
-                        className="w-10 h-10 rounded-xl border border-white/20 cursor-pointer bg-transparent overflow-hidden shrink-0"
-                        title="Nhấp để mở bảng màu gradient tự do"
-                      />
-                      <div className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/10 border border-white/15">
-                        <span className="text-[11px] font-mono text-white/50">#</span>
-                        <input
-                          type="text"
-                          maxLength={7}
-                          value={customHexInput.replace('#', '')}
-                          onChange={(e) => {
-                            const val = '#' + e.target.value.replace(/[^0-9A-Fa-f]/g, '');
-                            setCustomHexInput(val);
-                            if (/^#[0-9A-Fa-f]{6}$/.test(val) || /^#[0-9A-Fa-f]{3}$/.test(val)) {
-                              setSelectedColor(val);
-                            }
-                          }}
-                          className="w-full bg-transparent text-[12px] font-mono uppercase text-white outline-none"
-                          placeholder="HEX"
-                        />
-                      </div>
-                    </div>
-
-                    {/* EyeDropper Pipette Tool */}
-                    {'EyeDropper' in window && (
+                {/* Quick Swatches Grid (compact 9 colors) */}
+                <div className="space-y-1.5 mb-3">
+                  <span className="text-[11px] text-white/60 font-medium block">Màu sắc tiêu chuẩn:</span>
+                  <div className="grid grid-cols-9 gap-1.5">
+                    {PRESET_COLORS.map((col) => (
                       <button
+                        key={col.hex}
                         type="button"
-                        onClick={async () => {
-                          try {
-                            const eyeDropper = new (window as any).EyeDropper();
-                            const result = await eyeDropper.open();
-                            if (result?.sRGBHex) {
-                              setSelectedColor(result.sRGBHex);
-                              setCustomHexInput(result.sRGBHex);
-                              toast.success(`Đã hút màu: ${result.sRGBHex}`);
-                            }
-                          } catch (e) {
-                            // User cancelled eyedropper
-                          }
+                        onClick={() => {
+                          setSelectedColor(col.hex);
+                          setCustomHexInput(col.hex);
                         }}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 active:scale-98 border border-white/15 text-[12px] font-medium transition-all cursor-pointer"
-                        title="Bút hút màu từ bất kỳ điểm nào trên màn hình"
-                      >
-                        <SFEyedropper size={14} className="text-sky-400" />
-                        <span>Hút màu từ ảnh / màn hình</span>
-                      </button>
-                    )}
+                        className={cn(
+                          "w-6 h-6 rounded-full transition-all duration-150 cursor-pointer relative flex items-center justify-center border",
+                          selectedColor.toLowerCase() === col.hex.toLowerCase()
+                            ? "scale-115 border-white ring-2 ring-white/50 shadow-[0_0_8px_rgba(255,255,255,0.8)]"
+                            : "border-black/30 hover:scale-110 opacity-85 hover:opacity-100"
+                        )}
+                        style={{ backgroundColor: col.hex }}
+                        title={col.name}
+                      />
+                    ))}
                   </div>
                 </div>
-              )}
-            </div>
+
+                {/* Native Full Spectrum Gradient Picker & HEX */}
+                <div className="flex flex-col gap-2.5 pt-2 border-t border-white/10">
+                  <span className="text-[11px] text-white/60 font-medium block">Tùy biến dải màu quang phổ:</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={selectedColor.startsWith('#') ? selectedColor : '#EF4444'}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedColor(val);
+                        setCustomHexInput(val);
+                      }}
+                      className="w-10 h-10 rounded-xl border border-white/20 cursor-pointer bg-transparent overflow-hidden shrink-0"
+                      title="Nhấp để mở bảng màu gradient tự do"
+                    />
+                    <div className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/10 border border-white/15">
+                      <span className="text-[11px] font-mono text-white/50">#</span>
+                      <input
+                        type="text"
+                        maxLength={7}
+                        value={customHexInput.replace('#', '')}
+                        onChange={(e) => {
+                          const val = '#' + e.target.value.replace(/[^0-9A-Fa-f]/g, '');
+                          setCustomHexInput(val);
+                          if (/^#[0-9A-Fa-f]{6}$/.test(val) || /^#[0-9A-Fa-f]{3}$/.test(val)) {
+                            setSelectedColor(val);
+                          }
+                        }}
+                        className="w-full bg-transparent text-[12px] font-mono uppercase text-white outline-none"
+                        placeholder="HEX"
+                      />
+                    </div>
+                  </div>
+
+                  {/* EyeDropper Pipette Tool */}
+                  {'EyeDropper' in window && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const eyeDropper = new (window as any).EyeDropper();
+                          const result = await eyeDropper.open();
+                          if (result?.sRGBHex) {
+                            setSelectedColor(result.sRGBHex);
+                            setCustomHexInput(result.sRGBHex);
+                            toast.success(`Đã hút màu: ${result.sRGBHex}`);
+                          }
+                        } catch (e) {
+                          // User cancelled eyedropper
+                        }
+                      }}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 active:scale-98 border border-white/15 text-[12px] font-medium transition-all cursor-pointer"
+                      title="Bút hút màu từ bất kỳ điểm nào trên màn hình"
+                    >
+                      <SFEyedropper size={14} className="text-sky-400" />
+                      <span>Hút màu từ ảnh / màn hình</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <span className="w-[1px] h-5 bg-white/20 mx-0.5" />

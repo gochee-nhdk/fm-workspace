@@ -5751,10 +5751,10 @@ export const QuickNoteWindow: React.FC = () => {
                           key={`scan-line-${idx}-${rect.top.toFixed(0)}-${rect.left.toFixed(0)}`}
                           className="apple-ai-scan-pill"
                           style={{
-                            top: `${Math.max(0, rect.top - 2)}px`,
-                            left: `${Math.max(0, rect.left - 4)}px`,
-                            width: `${Math.max(12, rect.width + 8)}px`,
-                            height: `${Math.max(18, rect.height + 4)}px`,
+                            top: `${rect.top}px`,
+                            left: `${rect.left}px`,
+                            width: `${rect.width}px`,
+                            height: `${rect.height}px`,
                           }}
                         >
                           {/* Soft Ethereal Shimmer Wave Sweep */}
