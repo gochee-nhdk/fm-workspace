@@ -5737,6 +5737,7 @@ export const QuickNoteWindow: React.FC = () => {
                 /* Seamless Flowing Writing Canvas */
                 <div ref={canvasRef} className="flex-1 flex flex-col min-h-0 relative">
                   {/* Apple AI High-Precision Holographic Text Scanning Engine - Strictly Line-Bound */}
+                  {/* Apple Intelligence Refined Ethereal Scanner (Clean, Delicate Shimmer) */}
                   {writingToolLoading && selectionBounds?.lineRects && selectionBounds.lineRects.length > 0 && (
                     <div className="absolute inset-0 pointer-events-none select-none z-20 overflow-hidden">
                       {selectionBounds.lineRects.map((rect, idx) => (
@@ -5748,53 +5749,16 @@ export const QuickNoteWindow: React.FC = () => {
                             left: `${Math.max(0, rect.left - 4)}px`,
                             width: `${Math.max(12, rect.width + 8)}px`,
                             height: `${Math.max(18, rect.height + 4)}px`,
-                            animationDelay: `${idx * 0.08}s`,
                           }}
                         >
-                          {/* 1. Underlying Liquid Aurora Shimmer */}
-                          <div className="absolute inset-0 apple-ai-aurora-glow" />
-
-                          {/* 2. Microscopic High-Tech Neural Frequency Lines */}
-                          <div className="absolute inset-0 apple-ai-neural-grid" />
-
-                          {/* 3. Synchronized Sweeping Laser Beam (Unified Global Coordinate Track) */}
+                          {/* Soft Ethereal Shimmer Wave Sweep */}
                           <div
-                            className="apple-ai-laser-track"
+                            className="apple-ai-shimmer-wave"
                             style={{
                               left: `${selectionBounds.left - rect.left}px`,
                               width: `${selectionBounds.width}px`,
                             }}
-                          >
-                            <div
-                              className="apple-ai-laser-beam"
-                              style={{
-                                animationDelay: `${idx * 0.08}s`,
-                              }}
-                            >
-                              {/* Trailing Phosphor Comet Wake */}
-                              <div className="apple-ai-comet-wake" />
-
-                              {/* White-Hot Razor-Sharp Optical Laser Needle */}
-                              <div className="apple-ai-laser-needle" />
-
-                              {/* Leading Chromatic Dispersion Flare */}
-                              <div className="apple-ai-leading-dispersion" />
-
-                              {/* Top & Bottom Sparkling Lens Flares */}
-                              <div className="apple-ai-lens-spark apple-ai-lens-spark-top" />
-                              <div className="apple-ai-lens-spark apple-ai-lens-spark-bottom" />
-                            </div>
-                          </div>
-
-                          {/* 4. Apple Intelligence Stardust Twinkles */}
-                          <div
-                            className="apple-ai-stardust-field"
-                            style={{ animationDelay: `${(idx % 3) * 0.25}s` }}
-                          >
-                            <span className="apple-ai-sparkle-star apple-ai-star-1">✦</span>
-                            <span className="apple-ai-sparkle-star apple-ai-star-2">✦</span>
-                            <span className="apple-ai-sparkle-star apple-ai-star-3">✦</span>
-                          </div>
+                          />
                         </div>
                       ))}
                     </div>
