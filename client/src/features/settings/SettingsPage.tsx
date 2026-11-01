@@ -66,6 +66,7 @@ import { useSecurityStore } from '@/stores/security-store';
 import { useNoteStore } from '@/stores/note-store';
 import { formatBytes, cn } from '@/lib/utils';
 import { useAppleTabSpring, useDirectionalTab } from '@/lib/motion';
+import { triggerLiquidSpringClick } from '@/services/motionGuardian';
 import toast from 'react-hot-toast';
 import type { BackupImportOptions, BackupImportResult } from '@/types/workspace';
 
@@ -1899,7 +1900,10 @@ export const SettingsPage: React.FC = () => {
                           {!isPrimary && (
                             <button
                               type="button"
-                              onClick={() => handleSetPrimaryGeminiKey(item.id)}
+                              onClick={(e) => {
+                                triggerLiquidSpringClick(e.currentTarget);
+                                handleSetPrimaryGeminiKey(item.id);
+                              }}
                               className="w-8 h-8 rounded-full flex items-center justify-center bg-[#0071e3]/10 hover:bg-[#0071e3]/20 text-[#0071e3] dark:text-[#2997ff] transition-all cursor-pointer active:scale-95"
                               title="Đưa lên đầu danh sách (Làm khóa mặc định)"
                             >
@@ -1995,7 +1999,7 @@ export const SettingsPage: React.FC = () => {
 
                   {/* Apple Liquid Glass Dropdown Popover */}
                   {isProviderListboxOpen && (
-                    <div className="absolute top-full mt-1.5 left-0 w-full sm:w-72 rounded-2xl bg-white/95 dark:bg-[#1e1e24]/95 backdrop-blur-2xl border border-black/10 dark:border-white/15 shadow-[0_16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.6)] py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="absolute top-full mt-1.5 left-0 w-full sm:w-72 rounded-2xl bg-white/95 dark:bg-[#1e1e24]/95 backdrop-blur-2xl border border-black/10 dark:border-white/15 shadow-[0_16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.6)] py-1.5 z-50 apple-picker-open select-none">
                       {PROVIDER_OPTIONS.map((opt) => {
                         const isSelected = selectedProvider === opt.value;
                         return (

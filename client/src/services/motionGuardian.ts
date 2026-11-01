@@ -94,9 +94,6 @@ class MotionGuardianAgent {
     styleEl.textContent = `
       @media (prefers-reduced-motion: reduce) {
         *, *::before, *::after {
-          animation-duration: inherit !important;
-          animation-iteration-count: inherit !important;
-          transition-duration: inherit !important;
           animation-play-state: running !important;
         }
         .liquid-auth-btn,
@@ -115,6 +112,8 @@ class MotionGuardianAgent {
         .apple-popover-tl,
         .apple-popover-br,
         .apple-popover-bl,
+        .apple-picker-open,
+        .apple-picker-open-up,
         .animate-fade-in,
         .animate-in {
           animation-play-state: running !important;

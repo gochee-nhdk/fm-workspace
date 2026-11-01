@@ -38,21 +38,6 @@ export const toggleThemeWithIris = (
   const root = document.documentElement;
   const isGoingDark = nextResolved === 'dark';
 
-  // If user explicitly prefers reduced motion, switch instantly with zero animation
-  if (
-    typeof window !== 'undefined' &&
-    window.matchMedia &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  ) {
-    if (isGoingDark) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    setTheme(nextTarget);
-    return;
-  }
-
   // Determine button origin coordinates (x, y)
   let x = window.innerWidth - 60;
   let y = 30;
