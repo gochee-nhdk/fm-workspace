@@ -91,37 +91,30 @@ const ProviderLogo: React.FC<{ provider: AIProvider | 'auto'; className?: string
       );
     case 'deepseek':
       return (
-        <svg viewBox="0 0 24 24" className={className} fill="none">
-          <rect width="24" height="24" rx="6" fill="#0D53FF" />
-          <path
-            d="M5.5 14.5C7.2 11.2 10.8 9 14.8 9C17.2 9 19.1 9.8 20 11.2C19.5 8.2 16.5 6 12.8 6C8.2 6 4.4 9.5 4 14.1L5.5 14.5Z"
-            fill="#FFFFFF"
-          />
-          <path
-            d="M18.5 9.5C16.8 12.8 13.2 15 9.2 15C6.8 15 4.9 14.2 4 12.8C4.5 15.8 7.5 18 11.2 18C15.8 18 19.6 14.5 20 9.9L18.5 9.5Z"
-            fill="#70A0FF"
-          />
-        </svg>
+        <img
+          src="/icons/providers/deepseek.png"
+          alt="DeepSeek"
+          className={cn("object-contain shrink-0", className)}
+          loading="eager"
+        />
       );
     case 'openai':
       return (
-        <svg viewBox="0 0 24 24" className={className} fill="none">
-          <circle cx="12" cy="12" r="11" fill="#10A37F" />
-          <path
-            d="M17.2 10.7a3.8 3.8 0 0 0-.3-2.6 3.9 3.9 0 0 0-3.3-1.9 3.8 3.8 0 0 0-2.3.8 3.9 3.9 0 0 0-4 1.2 3.8 3.8 0 0 0-.6 2.6 3.9 3.9 0 0 0-.7 3.8 3.8 3.8 0 0 0 2 2.2 3.8 3.8 0 0 0 1.7 1.5 3.9 3.9 0 0 0 4.2-.4 3.8 3.8 0 0 0 2.2-.6 3.9 3.9 0 0 0 2-2.3 3.8 3.8 0 0 0-.9-4.3zm-5.2 7.7a2.7 2.7 0 0 1-1.7-.6l1-1.8 2.2 1.3a2.7 2.7 0 0 1-1.5 1.1zm-4.3-2.7a2.7 2.7 0 0 1-.4-1.8l2 .4.3 2.5a2.7 2.7 0 0 1-1.9-1.1zm-1.2-4.6a2.7 2.7 0 0 1 1.2-1.3l1 1.8-1.9 1.6a2.7 2.7 0 0 1-.3-2.1zm7.8-2a2.7 2.7 0 0 1 1.7.6l-1 1.8-2.2-1.3a2.7 2.7 0 0 1 1.5-1.1zm2.3 3.6a2.7 2.7 0 0 1 .4 1.8l-2-.4-.3-2.5a2.7 2.7 0 0 1 1.9 1.1zm1.2 4.6a2.7 2.7 0 0 1-1.2 1.3l-1-1.8 1.9-1.6a2.7 2.7 0 0 1 .3 2.1z"
-            fill="#FFFFFF"
-          />
-        </svg>
+        <img
+          src="/icons/providers/openai.png"
+          alt="OpenAI"
+          className={cn("object-contain shrink-0 dark:invert", className)}
+          loading="eager"
+        />
       );
     case 'claude':
       return (
-        <svg viewBox="0 0 24 24" className={className} fill="none">
-          <rect width="24" height="24" rx="6" fill="#D97706" />
-          <path
-            d="M13.8 6.5L18 17.5H15.6L14.7 15H9.3L8.4 17.5H6L10.2 6.5H13.8ZM13.9 13.1L12 7.9L10.1 13.1H13.9Z"
-            fill="#FFFFFF"
-          />
-        </svg>
+        <img
+          src="/icons/providers/claude.png"
+          alt="Claude"
+          className={cn("object-contain shrink-0", className)}
+          loading="eager"
+        />
       );
     case 'custom':
       return (
