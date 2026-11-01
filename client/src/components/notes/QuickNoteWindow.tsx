@@ -80,6 +80,7 @@ import {
 import { attachmentService } from '@/services/attachmentService';
 import { CloseButton } from '@/components/ui/close-button';
 import { AppleLiquidDialog } from '@/components/ui/AppleLiquidDialog';
+import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import { AppleDateTimePicker } from '@/components/ui/AppleDateTimePicker';
 import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
 import { sanitizeNoteHTML } from '@/services/backupService';
@@ -1009,6 +1010,8 @@ export const QuickNoteWindow: React.FC = () => {
     togglePinNote,
     changeColorNote,
   } = useNoteStore();
+
+  const [noteToDelete, setNoteToDelete] = useState<{ id: string; title: string } | null>(null);
 
   const [showSidebar, setShowSidebar] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -4847,7 +4850,10 @@ export const QuickNoteWindow: React.FC = () => {
 
                         <button
                           type="button"
-                          onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setNoteToDelete({ id: note.id, title: note.title?.trim() || 'Ghi chú không tên' });
+                          }}
                           className="w-7 h-7 rounded-full flex items-center justify-center text-[#86868b] hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-500/12 opacity-70 group-hover:opacity-100 transition-all cursor-pointer"
                           title="Xóa ghi chú"
                         >
@@ -6401,7 +6407,11 @@ export const QuickNoteWindow: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => deleteNote(activeNote.id)}
+                    onClick={() => {
+                      if (activeNote) {
+                        setNoteToDelete({ id: activeNote.id, title: activeNote.title?.trim() || 'Ghi chú hiện tại' });
+                      }
+                    }}
                     className="w-8 h-8 rounded-full flex items-center justify-center text-[#76767b] hover:text-rose-600 hover:bg-rose-500/15 transition-all cursor-pointer active:scale-90 hover:shadow-xs"
                     title="Xóa ghi chú này"
                     aria-label="Xóa ghi chú"
@@ -7971,6 +7981,24 @@ export const QuickNoteWindow: React.FC = () => {
           </>
         )}
       </AppleLiquidDialog>
+
+      {/* Unified Apple Confirm Delete Dialog for Notes */}
+      <ConfirmDeleteDialog
+        isOpen={Boolean(noteToDelete)}
+        title="Xóa ghi chú này?"
+        message="Ghi chú và tất cả hình ảnh, tệp đính kèm liên quan sẽ bị xóa vĩnh viễn khỏi hệ thống. Hành động này không thể hoàn tác."
+        itemLabel={noteToDelete?.title}
+        confirmText="Xóa ghi chú"
+        cancelText="Hủy"
+        onConfirm={() => {
+          if (noteToDelete) {
+            deleteNote(noteToDelete.id);
+            toast.success(`Đã xóa "${noteToDelete.title}"`);
+            setNoteToDelete(null);
+          }
+        }}
+        onCancel={() => setNoteToDelete(null)}
+      />
     </>,
     document.body
   );

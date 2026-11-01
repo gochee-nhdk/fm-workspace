@@ -272,31 +272,18 @@ export const SettingsPage: React.FC = () => {
   const [showSmtpPassword, setShowSmtpPassword] = useState(false);
   const [isDisconnectingSmtp, setIsDisconnectingSmtp] = useState(false);
 
-  // Multi-Provider AI & OCR Key Management State
+  // AI Key Management State (Google Gemini only)
   const [geminiKeys, setGeminiKeys] = useState<GeminiKeyItem[]>(() => getGeminiKeysPool());
   const [newKeyInput, setNewKeyInput] = useState('');
-  const [selectedProvider, setSelectedProvider] = useState<AIProvider | 'auto'>('auto');
-  const [isProviderListboxOpen, setIsProviderListboxOpen] = useState(false);
-  const providerListboxRef = useRef<HTMLDivElement>(null);
   const [showKeyMap, setShowKeyMap] = useState<Record<string, boolean>>({});
   const [isTestingAllKeys, setIsTestingAllKeys] = useState(false);
   const [testingKeyId, setTestingKeyId] = useState<string | null>(null);
   const [isAddingKey, setIsAddingKey] = useState(false);
 
-  // Close provider listbox on outside click
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (providerListboxRef.current && !providerListboxRef.current.contains(e.target as Node)) {
-        setIsProviderListboxOpen(false);
-      }
-    };
-    if (isProviderListboxOpen) {
-      document.addEventListener('mousedown', handleOutsideClick);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-    };
-  }, [isProviderListboxOpen]);
+  // Apple Confirm Delete Dialog States
+  const [keyToDelete, setKeyToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [confirmDisconnectSmtpOpen, setConfirmDisconnectSmtpOpen] = useState(false);
+  const [confirmRestoreServerTarget, setConfirmRestoreServerTarget] = useState<{ backupId?: string } | null>(null);
 
   // Sync keys from server on mount if available
   useEffect(() => {
@@ -319,9 +306,6 @@ export const SettingsPage: React.FC = () => {
   const { animationClass } = useDirectionalTab(activeTab, SETTINGS_TABS);
 
   const handleDisconnectSmtp = async () => {
-    if (!confirm('Bạn có chắc chắn muốn gỡ tài khoản Gmail gửi thư này? Bạn sẽ cần nhập tài khoản mới để tiếp tục gửi email nhắc nhở.')) {
-      return;
-    }
     setIsDisconnectingSmtp(true);
     try {
       const res = await reminderService.disconnectSmtp();
@@ -335,6 +319,7 @@ export const SettingsPage: React.FC = () => {
       }
     } finally {
       setIsDisconnectingSmtp(false);
+      setConfirmDisconnectSmtpOpen(false);
     }
   };
 
@@ -351,7 +336,7 @@ export const SettingsPage: React.FC = () => {
   const handleAddGeminiKey = async () => {
     const key = newKeyInput.trim();
     if (!key) {
-      toast.error('Vui lòng nhập API Key.');
+      toast.error('Vui lòng nhập Google Gemini API Key.');
       return;
     }
     if (geminiKeys.some((k) => k.key === key)) {
@@ -361,21 +346,20 @@ export const SettingsPage: React.FC = () => {
 
     setIsAddingKey(true);
     try {
-      const explicitProvider = selectedProvider !== 'auto' ? (selectedProvider as AIProvider) : undefined;
-      const newItem = addGeminiKey(key, undefined, explicitProvider);
+      const newItem = addGeminiKey(key);
       const updatedPool = getGeminiKeysPool();
       setGeminiKeys(updatedPool);
       setNewKeyInput('');
       toast.success(`Đã thêm ${newItem.name} vào danh sách dự phòng!`);
 
-      // Tự động kiểm tra khóa vừa thêm theo đúng nhà cung cấp đã chọn
+      // Tự động kiểm tra khóa vừa thêm với Google Gemini
       setTestingKeyId(newItem.id);
-      const testRes = await testSingleGeminiKey(newItem.key, newItem.provider);
+      const testRes = await testSingleGeminiKey(newItem.key);
       updateGeminiKey(newItem.id, {
         status: testRes.status,
         statusMessage: testRes.message,
         model: testRes.model,
-        provider: testRes.provider || newItem.provider,
+        provider: 'gemini',
         lastCheckedAt: new Date().toISOString(),
       });
       const refreshedPool = getGeminiKeysPool();
@@ -389,13 +373,13 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleDeleteGeminiKey = (id: string, name: string) => {
-    if (!confirm(`Bạn có chắc chắn muốn xóa "${name}"?`)) return;
+  const executeDeleteGeminiKey = (id: string, name: string) => {
     deleteGeminiKey(id);
     const updated = getGeminiKeysPool();
     setGeminiKeys(updated);
     api.put('/settings/gemini-keys-pool', { pool: updated }).catch(() => {});
     toast.success(`Đã xóa ${name}.`);
+    setKeyToDelete(null);
   };
 
   const handleSetPrimaryGeminiKey = (id: string) => {
@@ -417,19 +401,19 @@ export const SettingsPage: React.FC = () => {
   const handleTestSingleGeminiKey = async (item: GeminiKeyItem) => {
     setTestingKeyId(item.id);
     try {
-      const res = await testSingleGeminiKey(item.key, item.provider);
+      const res = await testSingleGeminiKey(item.key);
       updateGeminiKey(item.id, {
         status: res.status,
         statusMessage: res.message,
         model: res.model,
-        provider: res.provider || item.provider,
+        provider: 'gemini',
         lastCheckedAt: new Date().toISOString(),
       });
       const updated = getGeminiKeysPool();
       setGeminiKeys(updated);
 
       if (res.status === 'active') {
-        toast.success(`${item.name}: Hoạt động tốt! (${res.model || item.provider || 'AI'})`);
+        toast.success(`${item.name}: Hoạt động tốt! (${res.model || 'Gemini Flash'})`);
       } else if (res.status === 'quota_exceeded') {
         toast('Khóa đã hết hạn mức (429) — Hệ thống sẽ dùng khóa dự phòng!', { icon: '⚠️' });
       } else {
@@ -697,10 +681,9 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleRestoreLatestServerBackup = async (backupId?: string) => {
-    if (!confirm('Khôi phục từ máy chủ sẽ cập nhật dữ liệu hiện tại bằng phiên bản đã lưu. Bạn có muốn tiếp tục?')) {
-      return;
-    }
+  const executeRestoreLatestServerBackup = async (backupId?: string) => {
+    setIsRestoringServer(false);
+    setConfirmRestoreServerTarget(null);
     setIsRestoringServer(true);
     try {
       const res = await backupService.restoreFromServer(backupId);
@@ -1342,7 +1325,7 @@ export const SettingsPage: React.FC = () => {
               <Button
                 variant="glassProminent"
                 size="sm"
-                onClick={() => handleRestoreLatestServerBackup()}
+                onClick={() => setConfirmRestoreServerTarget({})}
                 disabled={isRestoringServer || serverHistory.length === 0}
                 icon={isRestoringServer ? <SFArrowClockwise size={16} className="animate-spin" /> : <SFCylinderSplit1x2 size={16} />}
                 className="rounded-full px-4"
@@ -1385,7 +1368,7 @@ export const SettingsPage: React.FC = () => {
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleRestoreLatestServerBackup(snap.id)}
+                        onClick={() => setConfirmRestoreServerTarget({ backupId: snap.id })}
                         disabled={isRestoringServer}
                         className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff] hover:bg-[#0071e3]/20 transition-all cursor-pointer"
                       >
@@ -1669,7 +1652,7 @@ export const SettingsPage: React.FC = () => {
                   <Button
                     variant="glass"
                     size="sm"
-                    onClick={handleDisconnectSmtp}
+                    onClick={() => setConfirmDisconnectSmtpOpen(true)}
                     disabled={isDisconnectingSmtp}
                     className="rounded-full px-4 py-2 text-red-600 dark:text-red-400 hover:bg-red-500/10 border-red-500/20 active:scale-95 text-xs font-medium cursor-pointer"
                   >
@@ -1799,18 +1782,8 @@ export const SettingsPage: React.FC = () => {
                             </span>
                             {/* Provider Badge */}
                             <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full bg-black/[0.04] dark:bg-white/[0.06] text-[#1d1d1f] dark:text-white border border-black/5 dark:border-white/5 tracking-wide">
-                              <ProviderLogo provider={item.provider || (item.key.startsWith('sk-') ? 'deepseek' : 'gemini')} className="w-3.5 h-3.5 shrink-0" />
-                              <span className="uppercase font-semibold">
-                                {item.provider === 'deepseek'
-                                  ? 'DeepSeek'
-                                  : item.provider === 'openai'
-                                  ? 'OpenAI'
-                                  : item.provider === 'claude'
-                                  ? 'Claude'
-                                  : item.provider === 'custom'
-                                  ? 'Custom'
-                                  : 'Gemini'}
-                              </span>
+                              <ProviderLogo provider="gemini" className="w-3.5 h-3.5 shrink-0" />
+                              <span className="uppercase font-semibold">Gemini</span>
                             </span>
 
                             {/* Status Indicator */}
@@ -1927,7 +1900,7 @@ export const SettingsPage: React.FC = () => {
                           {/* Delete */}
                           <button
                             type="button"
-                            onClick={() => handleDeleteGeminiKey(item.id, item.name)}
+                            onClick={() => setKeyToDelete({ id: item.id, name: item.name })}
                             className="w-7 h-7 rounded-full text-[#86868b] hover:text-[#ff383c] hover:bg-red-500/10 flex items-center justify-center transition-colors cursor-pointer"
                             title="Xóa khóa này"
                           >
@@ -1942,108 +1915,56 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             {/* Form Thêm Khóa Mới */}
-            <div className="pt-4 border-t border-[#e0e0e0] dark:border-white/10 space-y-3">
+            <div className="pt-4 border-t border-[#e0e0e0] dark:border-white/10 space-y-3.5">
               <div className="flex items-center justify-between">
                 <h4 className="text-[13px] font-semibold text-[#1d1d1f] dark:text-white flex items-center gap-1.5">
                   <SFPlus size={13} className="text-[#0071e3] dark:text-[#2997ff]" />
-                  <span>Thêm khóa API mới (Gemini, DeepSeek, OpenAI...)</span>
+                  <span>Thêm khóa Google Gemini API</span>
                 </h4>
-                <div className="flex items-center gap-3 text-[11.5px]">
-                  <a
-                    href="https://aistudio.google.com/app/apikey"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[#0071e3] dark:text-[#2997ff] hover:underline"
-                  >
-                    Gemini API ↗
-                  </a>
-                  <span className="text-[#86868b]">•</span>
-                  <a
-                    href="https://platform.deepseek.com/api_keys"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[#0071e3] dark:text-[#2997ff] hover:underline"
-                  >
-                    DeepSeek API ↗
-                  </a>
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-[12px] font-medium text-[#0071e3] dark:text-[#2997ff] hover:underline"
+                >
+                  <SFKey size={12} />
+                  <span>Lấy khóa Gemini miễn phí (Google AI Studio) ↗</span>
+                </a>
+              </div>
+
+              {/* Hướng dẫn lấy API Key nhanh chóng & dễ hiểu */}
+              <div className="p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/5 dark:border-white/5 space-y-2">
+                <p className="text-[12px] font-semibold text-[#1d1d1f] dark:text-white flex items-center gap-1.5">
+                  <SFSparkles size={13} className="text-[#0071e3] dark:text-[#2997ff]" />
+                  <span>Cách lấy khóa Google Gemini API trong 3 bước:</span>
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11.5px] text-[#555558] dark:text-[#a1a1a6]">
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-white/5 border border-black/5 dark:border-white/5 space-y-0.5">
+                    <span className="font-semibold text-[#0071e3] dark:text-[#2997ff]">Bước 1:</span>
+                    <p>Nhấp vào liên kết <strong>Google AI Studio</strong> ở góc trên và đăng nhập bằng tài khoản Google.</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-white/5 border border-black/5 dark:border-white/5 space-y-0.5">
+                    <span className="font-semibold text-[#0071e3] dark:text-[#2997ff]">Bước 2:</span>
+                    <p>Bấm nút <strong>Create API key</strong> (Tạo khóa API) rồi chọn tạo khóa mới cho dự án.</p>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white dark:bg-white/5 border border-black/5 dark:border-white/5 space-y-0.5">
+                    <span className="font-semibold text-[#0071e3] dark:text-[#2997ff]">Bước 3:</span>
+                    <p>Sao chép mã khóa (bắt đầu bằng <strong>AIzaSy...</strong>), dán vào ô bên dưới và bấm <strong>Thêm khóa</strong>.</p>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                {/* Apple Liquid Custom Listbox (No emoji, Official Brand Logos) */}
-                <div className="sm:col-span-1 relative" ref={providerListboxRef}>
-                  <button
-                    type="button"
-                    onClick={() => setIsProviderListboxOpen(!isProviderListboxOpen)}
-                    className="w-full flex items-center justify-between gap-2 px-3.5 py-2 text-[13px] rounded-xl bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none text-[#1d1d1f] dark:text-white font-medium hover:border-[#0071e3] dark:hover:border-[#2997ff] transition-all cursor-pointer shadow-2xs"
-                    title="Chọn nhà cung cấp khóa API"
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <ProviderLogo provider={selectedProvider} className="w-4 h-4 shrink-0" />
-                      <span className="truncate">
-                        {PROVIDER_OPTIONS.find((opt) => opt.value === selectedProvider)?.label || 'Chọn nhà cung cấp'}
-                      </span>
-                    </div>
-                    <SFChevronDown
-                      size={12}
-                      className={cn("text-[#86868b] transition-transform duration-200 shrink-0", isProviderListboxOpen && "rotate-180")}
-                    />
-                  </button>
-
-                  {/* Apple Liquid Glass Dropdown Popover */}
-                  {isProviderListboxOpen && (
-                    <div className="absolute top-full mt-1.5 left-0 w-full sm:w-72 rounded-2xl bg-white/95 dark:bg-[#1e1e24]/95 backdrop-blur-2xl border border-black/10 dark:border-white/15 shadow-[0_16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.6)] py-1.5 z-50 apple-picker-open select-none">
-                      {PROVIDER_OPTIONS.map((opt) => {
-                        const isSelected = selectedProvider === opt.value;
-                        return (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => {
-                              setSelectedProvider(opt.value);
-                              setIsProviderListboxOpen(false);
-                            }}
-                            className={cn(
-                              "w-full text-left px-3.5 py-2.5 flex items-center justify-between gap-2.5 transition-colors cursor-pointer text-[12.5px]",
-                              isSelected
-                                ? "bg-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff] font-semibold"
-                                : "text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10"
-                            )}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <ProviderLogo provider={opt.value} className="w-4 h-4 shrink-0" />
-                              <div className="min-w-0">
-                                <div className="leading-tight truncate">{opt.label}</div>
-                                <div className="text-[10.5px] font-normal text-[#86868b] dark:text-[#a1a1a6] truncate pt-0.5">
-                                  {opt.desc}
-                                </div>
-                              </div>
-                            </div>
-                            {isSelected && <SFCheckmark size={12} className="text-[#0071e3] dark:text-[#2997ff] shrink-0" />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                <div className="sm:col-span-2 flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none">
+                    <ProviderLogo provider="gemini" className="w-4 h-4" />
+                  </div>
                   <input
                     type="password"
                     value={newKeyInput}
                     onChange={(e) => setNewKeyInput(e.target.value)}
-                    placeholder={
-                      selectedProvider === 'deepseek'
-                        ? 'Dán mã API Key DeepSeek (sk-... hoặc 32 ký tự hex)'
-                        : selectedProvider === 'openai'
-                        ? 'Dán mã API Key OpenAI (sk-proj-...)'
-                        : selectedProvider === 'claude'
-                        ? 'Dán mã API Key Anthropic Claude (sk-ant-...)'
-                        : selectedProvider === 'gemini'
-                        ? 'Dán mã API Key Google Gemini (AIzaSy...)'
-                        : 'Dán mã API Key (AIzaSy..., sk-..., c2195...)'
-                    }
-                    className="flex-1 px-3.5 py-2 text-[13px] font-mono rounded-xl bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:border-[#0071e3] dark:focus:border-[#2997ff] transition-all"
+                    placeholder="Dán mã Google Gemini API Key (bắt đầu bằng AIzaSy...)"
+                    className="w-full pl-9 pr-3.5 py-2 text-[13px] font-mono rounded-xl bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:border-[#0071e3] dark:focus:border-[#2997ff] transition-all"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -2051,16 +1972,17 @@ export const SettingsPage: React.FC = () => {
                       }
                     }}
                   />
-                  <Button
-                    variant="glassProminent"
-                    size="sm"
-                    onClick={handleAddGeminiKey}
-                    disabled={isAddingKey || !newKeyInput.trim()}
-                    icon={<SFPlus size={13} />}
-                  >
-                    {isAddingKey ? 'Đang thêm...' : 'Thêm khóa'}
-                  </Button>
                 </div>
+                <Button
+                  variant="glassProminent"
+                  size="sm"
+                  onClick={handleAddGeminiKey}
+                  disabled={isAddingKey || !newKeyInput.trim()}
+                  icon={<SFPlus size={13} />}
+                  className="rounded-xl px-4 py-2"
+                >
+                  {isAddingKey ? 'Đang thêm...' : 'Thêm khóa'}
+                </Button>
               </div>
             </div>
           </div>
@@ -2567,6 +2489,52 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
       </AppleLiquidDialog>
+
+      {/* ── Dialog Xác Nhận Xóa Khóa API (Apple Liquid Glass) ── */}
+      <ConfirmDeleteDialog
+        isOpen={Boolean(keyToDelete)}
+        title="Xóa khóa API?"
+        message="Hệ thống sẽ không thể sử dụng khóa API này để dự phòng khi gọi Google Gemini hoặc OCR nữa. Hành động này không thể hoàn tác."
+        itemLabel={keyToDelete?.name}
+        confirmText="Xóa khóa"
+        cancelText="Hủy"
+        onConfirm={() => {
+          if (keyToDelete) {
+            executeDeleteGeminiKey(keyToDelete.id, keyToDelete.name);
+          }
+        }}
+        onCancel={() => setKeyToDelete(null)}
+      />
+
+      {/* ── Dialog Xác Nhận Gỡ Bỏ Gmail SMTP ── */}
+      <ConfirmDeleteDialog
+        isOpen={confirmDisconnectSmtpOpen}
+        title="Gỡ tài khoản gửi thư?"
+        message="Bạn sẽ cần cài đặt lại tài khoản Gmail và mật khẩu ứng dụng (App Password) mới để tiếp tục gửi email nhắc nhở tự động."
+        itemLabel={smtpStatus.fullUser || smtpStatus.smtpUser || smtpEmail}
+        confirmText="Gỡ tài khoản"
+        cancelText="Hủy"
+        onConfirm={handleDisconnectSmtp}
+        onCancel={() => setConfirmDisconnectSmtpOpen(false)}
+        isLoading={isDisconnectingSmtp}
+      />
+
+      {/* ── Dialog Xác Nhận Khôi Phục Từ Sao Lưu Máy Chủ ── */}
+      <ConfirmDeleteDialog
+        isOpen={Boolean(confirmRestoreServerTarget)}
+        title="Khôi phục dữ liệu từ máy chủ?"
+        message="Khôi phục thảm họa từ máy chủ sẽ ghi đè và đồng bộ lại dữ liệu hiện tại bằng phiên bản đã lưu trữ trên máy chủ. Bạn có chắc chắn muốn tiếp tục?"
+        confirmText="Khôi phục ngay"
+        cancelText="Hủy"
+        variant="warning"
+        onConfirm={() => {
+          if (confirmRestoreServerTarget) {
+            executeRestoreLatestServerBackup(confirmRestoreServerTarget.backupId);
+          }
+        }}
+        onCancel={() => setConfirmRestoreServerTarget(null)}
+        isLoading={isRestoringServer}
+      />
       </div>
     </div>
   );

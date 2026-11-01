@@ -6,52 +6,72 @@ import { AppleLiquidDialog } from '@/components/ui/AppleLiquidDialog';
 
 interface ConfirmDeleteDialogProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose?: () => void;
+  onCancel?: () => void;
   onConfirm: () => Promise<void> | void;
   title?: string;
   description?: string;
+  message?: string;
   itemLabel?: string;
+  confirmText?: string;
+  cancelText?: string;
+  variant?: 'danger' | 'warning';
+  isLoading?: boolean;
 }
 
 export const ConfirmDeleteDialog: React.FC<ConfirmDeleteDialogProps> = ({
   isOpen,
   onClose,
+  onCancel,
   onConfirm,
   title = 'Xóa mục này?',
-  description = 'Hành động này không thể hoàn tác. Dữ liệu sẽ bị xóa khỏi bộ nhớ workspace.',
+  description,
+  message,
   itemLabel,
+  confirmText = 'Xác nhận xóa',
+  cancelText = 'Hủy bỏ',
+  variant = 'danger',
+  isLoading = false,
 }) => {
-  const [loading, setLoading] = useState(false);
+  const [internalLoading, setInternalLoading] = useState(false);
+  const loading = isLoading || internalLoading;
+
+  const handleClose = () => {
+    if (onClose) onClose();
+    if (onCancel) onCancel();
+  };
 
   const handleConfirm = async () => {
     try {
-      setLoading(true);
+      setInternalLoading(true);
       await onConfirm();
-      onClose();
+      handleClose();
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      setInternalLoading(false);
     }
   };
+
+  const resolvedDesc = message || description || 'Hành động này không thể hoàn tác. Dữ liệu sẽ bị xóa khỏi bộ nhớ workspace.';
 
   return (
     <AppleLiquidDialog
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       zIndex={10030}
       title={title}
       overlayClassName="p-3 sm:p-4"
       contentClassName="relative bg-white dark:bg-[#1c1c22] rounded-[24px] max-w-md w-full p-4.5 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15"
     >
       <CloseButton
-        onClick={onClose}
+        onClick={handleClose}
         size="sm"
         className="absolute top-4 right-4"
       />
 
       <div className="flex items-start gap-4">
-        <div className="w-10 h-10 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 rounded-full flex items-center justify-center shrink-0">
+        <div className={`w-10 h-10 ${variant === 'warning' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400' : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400'} rounded-full flex items-center justify-center shrink-0`}>
           <SFExclamationmarkTriangleFill size={20} />
         </div>
 
@@ -65,7 +85,7 @@ export const ConfirmDeleteDialog: React.FC<ConfirmDeleteDialogProps> = ({
             </p>
           )}
           <p className="mt-2 text-[13px] text-[#76767b] dark:text-[#a1a1a6] leading-relaxed">
-            {description}
+            {resolvedDesc}
           </p>
         </div>
       </div>
@@ -75,20 +95,20 @@ export const ConfirmDeleteDialog: React.FC<ConfirmDeleteDialogProps> = ({
           type="button"
           variant="glass"
           size="sm"
-          onClick={onClose}
+          onClick={handleClose}
           disabled={loading}
         >
-          Hủy bỏ
+          {cancelText}
         </Button>
         <Button
           type="button"
-          variant="danger"
+          variant={variant === 'warning' ? 'glassProminent' : 'danger'}
           size="sm"
           onClick={handleConfirm}
           loading={loading}
-          icon={<SFTrash size={14} />}
+          icon={variant === 'warning' ? undefined : <SFTrash size={14} />}
         >
-          Xác nhận xóa
+          {confirmText}
         </Button>
       </div>
     </AppleLiquidDialog>

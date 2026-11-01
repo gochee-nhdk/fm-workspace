@@ -29,6 +29,7 @@ import {
   SFSparkles,
 } from '@/components/ui/AppleIcon';
 import { downloadImage, copyImageToClipboard, formatFileSize } from '@/services/noteImageService';
+import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import toast from 'react-hot-toast';
 
 export type AnnotationTool = 'select' | 'pen' | 'highlighter' | 'rect' | 'arrow' | 'text' | 'note' | 'eraser';
@@ -214,6 +215,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inlineTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 
   // Close dropdowns & popovers when clicking outside
   useEffect(() => {
@@ -310,10 +312,15 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
   const handleClearAll = useCallback(() => {
     if (annotations.length === 0) return;
+    setConfirmClearOpen(true);
+  }, [annotations.length]);
+
+  const executeClearAll = useCallback(() => {
     pushState([]);
     setSelectedAnnotationId(null);
-    toast.success('Đã xóa tất cả ghi chú trên ảnh');
-  }, [annotations.length, pushState]);
+    setConfirmClearOpen(false);
+    toast.success('Đã xóa tất cả nét vẽ và chú thích trên ảnh');
+  }, [pushState]);
 
   // Draw arrow helper
   const drawArrowhead = (
@@ -2168,6 +2175,18 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
           )}
         </div>
       </footer>
+
+      {/* Dialog Xác Nhận Xóa Toàn Bộ Chú Thích Trên Ảnh */}
+      <ConfirmDeleteDialog
+        isOpen={confirmClearOpen}
+        title="Xóa tất cả chú thích?"
+        message="Hành động này sẽ xóa toàn bộ các nét vẽ, khung hình, mũi tên và văn bản đã vẽ trên ảnh hiện tại."
+        itemLabel={`${annotations.length} chú thích trên ảnh`}
+        confirmText="Xóa tất cả"
+        cancelText="Hủy"
+        onConfirm={executeClearAll}
+        onCancel={() => setConfirmClearOpen(false)}
+      />
     </div>,
     document.body
   );

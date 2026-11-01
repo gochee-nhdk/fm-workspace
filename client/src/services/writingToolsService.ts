@@ -30,13 +30,6 @@ const GEMINI_KEY_STORAGE = 'fm_gemini_api_key';
 const GEMINI_KEYS_POOL_STORAGE = 'fm_gemini_api_keys_pool';
 
 export const detectProvider = (key: string): AIProvider => {
-  const k = key.trim();
-  if (k.startsWith('AIzaSy')) return 'gemini';
-  if (k.startsWith('sk-ant-')) return 'claude';
-  if (k.startsWith('sk-proj-')) return 'openai';
-  if (k.startsWith('sk-')) return 'deepseek';
-  // DeepSeek raw 32-character hexadecimal key format
-  if (/^[a-f0-9]{32}$/i.test(k)) return 'deepseek';
   return 'gemini';
 };
 
@@ -120,18 +113,17 @@ export const getActiveGeminiKeys = (): GeminiKeyItem[] => {
 /**
  * Thêm một khóa mới vào pool (không giới hạn số lượng khóa dự phòng)
  */
-export const addGeminiKey = (key: string, name?: string, provider?: AIProvider): GeminiKeyItem => {
+export const addGeminiKey = (key: string, name?: string): GeminiKeyItem => {
   const cleanKey = key.trim();
   const pool = getGeminiKeysPool();
   const id = 'key_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
   const count = pool.length;
-  const detectedProv = provider && provider !== ('auto' as any) ? provider : detectProvider(cleanKey);
   const defaultName = count === 0 ? 'Khóa chính' : `Khóa dự phòng #${count}`;
   const newItem: GeminiKeyItem = {
     id,
     name: name?.trim() || defaultName,
     key: cleanKey,
-    provider: detectedProv,
+    provider: 'gemini',
     isActive: true,
     status: 'unchecked',
   };
@@ -538,8 +530,7 @@ export const testOpenAiKey = async (
  * Kết hợp xác thực qua máy chủ backend (/api/ai/verify-key) để tránh tuyệt đối lỗi CORS trên trình duyệt
  */
 export const testSingleGeminiKey = async (
-  key: string,
-  preferredProvider?: AIProvider
+  key: string
 ): Promise<{ success: boolean; status: GeminiKeyStatus; message: string; model?: string; provider?: AIProvider }> => {
   const cleanKey = key.trim();
   if (!cleanKey) {
@@ -547,24 +538,23 @@ export const testSingleGeminiKey = async (
       success: false,
       status: 'invalid',
       message: 'Khóa API đang để trống.',
+      provider: 'gemini',
     };
   }
-
-  const prov = preferredProvider && preferredProvider !== ('auto' as any) ? preferredProvider : detectProvider(cleanKey);
 
   // 1. Thử xác thực an toàn qua Server Proxy (/api/ai/verify-key) trước (miễn nhiễm với Browser CORS)
   try {
     const res = await api.post('/ai/verify-key', {
       apiKey: cleanKey,
-      provider: prov,
+      provider: 'gemini',
     });
     if (res.data?.success) {
       return {
         success: true,
         status: 'active',
-        message: res.data.message || `Khóa hoạt động chính xác! (${res.data.model || prov})`,
+        message: res.data.message || `Khóa hoạt động chính xác! (${res.data.model || 'gemini'})`,
         model: res.data.model,
-        provider: res.data.provider || prov,
+        provider: 'gemini',
       };
     }
     if (res.data?.status === 'quota_exceeded') {
@@ -572,7 +562,7 @@ export const testSingleGeminiKey = async (
         success: false,
         status: 'quota_exceeded',
         message: res.data.message || 'Hết hạn mức (429) — Sẵn sàng chuyển dự phòng',
-        provider: res.data.provider || prov,
+        provider: 'gemini',
       };
     }
   } catch (serverErr: any) {
@@ -586,32 +576,14 @@ export const testSingleGeminiKey = async (
           success: false,
           status: isQuota ? 'quota_exceeded' : 'invalid',
           message: errMsg || 'Khóa không hợp lệ',
-          provider: prov,
+          provider: 'gemini',
         };
       }
     }
     // Nếu server 404/405/500 hoặc mất mạng, tiếp tục fallback trực tiếp từ browser
   }
 
-  // 2. Nếu là DeepSeek hoặc khóa bắt đầu bằng sk-
-  if (prov === 'deepseek' || (cleanKey.startsWith('sk-') && prov !== 'openai' && prov !== 'claude')) {
-    const dsRes = await testDeepSeekKey(cleanKey);
-    if (dsRes.success) return dsRes;
-
-    // Nếu không có provider chỉ định và DeepSeek trả về 401, thử tiếp OpenAI
-    if (!preferredProvider) {
-      const oaiRes = await testOpenAiKey(cleanKey);
-      if (oaiRes.success) return oaiRes;
-    }
-    return dsRes;
-  }
-
-  // 3. Nếu là OpenAI
-  if (prov === 'openai') {
-    return testOpenAiKey(cleanKey);
-  }
-
-  // 4. Mặc định: Google Gemini (browser direct)
+  // 2. Mặc định: Google Gemini (browser direct)
   const res = await testGeminiApiKey(cleanKey);
   if (res.success) {
     return {
@@ -621,12 +593,6 @@ export const testSingleGeminiKey = async (
       model: res.model,
       provider: 'gemini',
     };
-  }
-
-  // Nếu test Gemini thất bại nhưng khóa có định dạng sk-..., tự động thử DeepSeek
-  if (cleanKey.startsWith('sk-') && !preferredProvider) {
-    const dsRes = await testDeepSeekKey(cleanKey);
-    if (dsRes.success) return dsRes;
   }
 
   const lowerMsg = (res.message || '').toLowerCase();
@@ -665,7 +631,7 @@ export const testAllGeminiKeys = async (
       continue;
     }
 
-    const testRes = await testSingleGeminiKey(item.key, item.provider);
+    const testRes = await testSingleGeminiKey(item.key);
     const updatedItem: GeminiKeyItem = {
       ...item,
       status: testRes.status,
