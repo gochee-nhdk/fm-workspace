@@ -2,14 +2,22 @@ import React, { useState, useEffect } from 'react';
 import {
   POTrackerPO,
   POStatus,
-  PO_STATUS_CONFIG,
-  POTrackerItemLine,
   POPermission,
 } from '@/types/po-tracker';
 import { usePOTrackerStore } from '@/stores/po-tracker-store';
 import { poTrackerService } from '@/services/poTrackerService';
-import { POStatusPill } from './POStatusPill';
+import { POStatusPill, PO_STATUS_CONFIG_MAP } from './POStatusPill';
 import { POProgressBar } from './POProgressBar';
+import { Drawer } from '@/components/ui/drawer';
+import {
+  SFShippingboxFill,
+  SFCheckmarkCircleFill,
+  SFClockFill,
+  SFTray2Fill,
+  SFDocument,
+  SFPencil,
+  SFCalendar
+} from 'sf-symbols-lib';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -21,12 +29,12 @@ interface PODetailDrawerProps {
   onClose: () => void;
 }
 
-const TIMELINE_STEPS: { status: POStatus; label: string; icon: string }[] = [
-  { status: 'pending', label: 'Tạo PO', icon: '📝' },
-  { status: 'confirmed', label: 'Xác nhận', icon: '✅' },
-  { status: 'shipping', label: 'Đang giao', icon: '🚚' },
-  { status: 'partial_received', label: 'Nhận 1 phần', icon: '📦' },
-  { status: 'received', label: 'Đã nhận đủ', icon: '🎉' },
+const TIMELINE_STEPS: { status: POStatus; label: string; icon: React.ReactNode }[] = [
+  { status: 'pending', label: 'Tạo PO', icon: <SFDocument size={14} /> },
+  { status: 'confirmed', label: 'Xác nhận', icon: <SFCheckmarkCircleFill size={14} /> },
+  { status: 'shipping', label: 'Đang giao', icon: <SFTray2Fill size={14} /> },
+  { status: 'partial_received', label: 'Nhận 1 phần', icon: <SFShippingboxFill size={14} /> },
+  { status: 'received', label: 'Đã nhận đủ', icon: <SFCheckmarkCircleFill size={14} /> },
 ];
 
 export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
@@ -39,12 +47,10 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'items' | 'permissions'>('info');
 
-  // Status updating state
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [actualDate, setActualDate] = useState('');
   const [statusNotes, setStatusNotes] = useState('');
 
-  // Permission management
   const [targetUserId, setTargetUserId] = useState('');
   const [selectedPerm, setSelectedPerm] = useState<POPermission>('view');
   const [granting, setGranting] = useState(false);
@@ -87,7 +93,7 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
       };
       setPo(updated);
       updatePOInList(po.id, updated);
-      toast.success(`Đã cập nhật trạng thái: ${PO_STATUS_CONFIG[newStatus].label}`);
+      toast.success(`Đã cập nhật trạng thái: ${PO_STATUS_CONFIG_MAP[newStatus]?.label || newStatus}`);
     } catch {
       toast.error('Lỗi cập nhật trạng thái đơn hàng.');
     } finally {
@@ -102,7 +108,6 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
     item.received_qty = receivedQty;
     item.status = receivedQty >= item.ordered_qty ? 'received' : receivedQty > 0 ? 'partial' : 'pending';
 
-    // Check overall status
     const allReceived = nextItems.every((it) => it.received_qty >= it.ordered_qty);
     const someReceived = nextItems.some((it) => it.received_qty > 0);
     const newStatus: POStatus = allReceived ? 'received' : someReceived ? 'partial_received' : po.status;
@@ -133,7 +138,6 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
         permission: selectedPerm,
       });
       toast.success('Đã cấp quyền thành công.');
-      // Refresh details
       const res = await poTrackerService.getPO(po.id);
       setPo(res.data.data);
       setTargetUserId('');
@@ -156,92 +160,63 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
   const currentStepIdx = po ? TIMELINE_STEPS.findIndex((s) => s.status === po.status) : 0;
   const canEdit = !po?.user_permission || ['edit', 'admin'].includes(po.user_permission);
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-[200] bg-black/45 backdrop-blur-sm liquid-backdrop-enter"
-        onClick={onClose}
-      />
-
-      {/* Drawer */}
-      <div className="fixed inset-y-0 right-0 z-[201] w-full max-w-[650px] apple-drawer-enter flex flex-col">
-        <div className="vision-glass-sidebar h-full flex flex-col shadow-2xl border-l border-black/[0.08] dark:border-white/10 bg-white/95 dark:bg-[#16161a]/95 backdrop-blur-2xl">
-          {/* Header */}
-          <div className="h-16 px-6 flex items-center justify-between border-b border-black/[0.06] dark:border-white/[0.08] shrink-0">
-            <div className="flex items-center gap-3">
-              <span className="text-xl">📦</span>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-[15px] font-bold text-[#1d1d1f] dark:text-white leading-tight">
-                    {po?.po_number || 'Chi tiết PO'}
-                  </h2>
-                  {po && <POStatusPill status={po.status} size="sm" />}
-                </div>
-                <p className="text-[11px] text-[#76767b] dark:text-[#8e8e93]">
-                  {po?.supplier_name || 'Đơn hàng mua sắm'}
-                </p>
-              </div>
+    <Drawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title={po?.po_number || 'Chi tiết đơn hàng PO'}
+      description={po?.supplier_name ? `Đối tác: ${po.supplier_name}` : 'Theo dõi tiến độ giao hàng & kiểm nhận'}
+      width="lg"
+    >
+      <div className="space-y-5 font-sans text-left">
+        {loading || !po ? (
+          <div className="py-20 flex flex-col items-center justify-center space-y-3">
+            <div className="w-8 h-8 border-2 border-[#0088FF] border-t-transparent rounded-full animate-spin" />
+            <p className="text-[13px] font-medium text-[#86868b]">Đang tải dữ liệu đơn hàng...</p>
+          </div>
+        ) : (
+          <>
+            {/* Segmented Tab */}
+            <div className="flex gap-1.5 p-1 rounded-2xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.06]">
+              {[
+                { id: 'info', label: 'Tiến độ & Chi tiết' },
+                { id: 'items', label: `Hàng hóa (${po.items?.length || 0})` },
+                { id: 'permissions', label: 'Phân quyền' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={cn(
+                    'flex-1 py-1.5 rounded-xl text-[12.5px] font-bold transition-all duration-150 cursor-pointer',
+                    activeTab === tab.id
+                      ? 'bg-white dark:bg-zinc-800 text-[#0088FF] dark:text-[#0091FF] shadow-xs'
+                      : 'text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white'
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
 
-            <button
-              onClick={onClose}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-[#555558] dark:text-[#a1a1a6] hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Segmented Navigation Tab */}
-          <div className="px-6 py-2.5 border-b border-black/[0.04] dark:border-white/[0.06] flex gap-2">
-            {[
-              { id: 'info', label: 'Tiến độ & Thông tin' },
-              { id: 'items', label: `Hàng hóa (${po?.items?.length || 0})` },
-              { id: 'permissions', label: 'Phân quyền' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={cn(
-                  'px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-150 cursor-pointer',
-                  activeTab === tab.id
-                    ? 'fm-primary-pill-surface text-white shadow-xs'
-                    : 'text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Main Body */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            {loading || !po ? (
-              <div className="py-20 flex flex-col items-center justify-center space-y-3">
-                <div className="w-8 h-8 border-2 border-[#0088FF] border-t-transparent rounded-full animate-spin" />
-                <p className="text-[12px] text-[#999]">Đang tải dữ liệu PO...</p>
-              </div>
-            ) : activeTab === 'info' ? (
-              <div className="space-y-6">
-                {/* Visual Delivery Progress Tracker */}
-                <div className="p-4 rounded-2xl bg-white/70 dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/[0.06] space-y-3">
+            {activeTab === 'info' && (
+              <div className="space-y-5">
+                {/* Visual Step Timeline */}
+                <div className="p-4 sm:p-5 rounded-3xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10 space-y-3.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-[12px] font-bold uppercase tracking-wider text-[#76767b]">
-                      Tiến độ giao nhận
+                    <span className="text-[12px] font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white">
+                      Tiến độ giao hàng
                     </span>
-                    <POProgressBar items={po.items} size="md" />
+                    <POStatusPill status={po.status} size="sm" />
                   </div>
 
                   {/* Horizontal Step Timeline */}
                   <div className="relative pt-2 pb-1">
-                    <div className="absolute top-6 left-6 right-6 h-0.5 bg-black/[0.08] dark:bg-white/10 -z-0" />
+                    <div className="absolute top-5 left-5 right-5 h-1 bg-black/[0.08] dark:bg-white/10 rounded-full -z-0" />
                     <div
-                      className="absolute top-6 left-6 h-0.5 bg-[#0088FF] transition-all duration-500 -z-0"
+                      className="absolute top-5 left-5 h-1 bg-[#0088FF] rounded-full transition-all duration-500 -z-0"
                       style={{
                         width: `${Math.max(0, Math.min(100, (currentStepIdx / (TIMELINE_STEPS.length - 1)) * 100))}%`,
                       }}
@@ -259,24 +234,24 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                           >
                             <div
                               className={cn(
-                                'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-200 select-none',
+                                'w-9 h-9 rounded-2xl flex items-center justify-center text-xs font-bold border-2 transition-all duration-200 select-none shadow-2xs',
                                 isCurrent
-                                  ? 'bg-[#0088FF] text-white border-white dark:border-[#16161a] ring-4 ring-[#0088FF]/20 scale-110 shadow-md'
+                                  ? 'bg-[#0088FF] text-white border-white dark:border-[#16161a] ring-4 ring-[#0088FF]/20 scale-110'
                                   : isDone
                                   ? 'bg-emerald-500 text-white border-white dark:border-[#16161a]'
-                                  : 'bg-white dark:bg-zinc-800 text-[#999] border-black/10 dark:border-white/10 group-hover:border-[#0088FF]'
+                                  : 'bg-white dark:bg-zinc-800 text-[#86868b] border-black/10 dark:border-white/10 group-hover:border-[#0088FF]'
                               )}
                             >
                               {step.icon}
                             </div>
                             <span
                               className={cn(
-                                'text-[10px] font-semibold text-center whitespace-nowrap',
+                                'text-[11px] font-bold text-center whitespace-nowrap',
                                 isCurrent
                                   ? 'text-[#0088FF] dark:text-[#0091FF]'
                                   : isDone
                                   ? 'text-[#1d1d1f] dark:text-white'
-                                  : 'text-[#999]'
+                                  : 'text-[#86868b]'
                               )}
                             >
                               {step.label}
@@ -290,54 +265,54 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
 
                 {/* Key Attributes Grid */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] space-y-1">
-                    <span className="text-[10px] font-bold uppercase text-[#999]">Nhà cung cấp</span>
-                    <p className="text-[13px] font-semibold text-[#1d1d1f] dark:text-white">
+                  <div className="p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10 space-y-1">
+                    <span className="text-[11px] font-bold uppercase text-[#86868b]">Nhà cung cấp</span>
+                    <p className="text-[14px] font-bold text-[#1d1d1f] dark:text-white">
                       {po.supplier_name || '—'}
                     </p>
                     {po.supplier_code && (
-                      <span className="text-[11px] text-[#76767b]">Mã: {po.supplier_code}</span>
+                      <span className="text-[12px] font-medium text-[#0088FF]">Mã: {po.supplier_code}</span>
                     )}
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] space-y-1">
-                    <span className="text-[10px] font-bold uppercase text-[#999]">Kho tiếp nhận</span>
-                    <p className="text-[13px] font-semibold text-[#1d1d1f] dark:text-white">
+                  <div className="p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10 space-y-1">
+                    <span className="text-[11px] font-bold uppercase text-[#86868b]">Kho tiếp nhận</span>
+                    <p className="text-[14px] font-bold text-[#1d1d1f] dark:text-white">
                       {po.warehouse || '—'}
                     </p>
-                    <span className="text-[11px] text-[#76767b]">
-                      Folder: {po.folder_name || 'Chưa phân nhóm'}
+                    <span className="text-[12px] text-[#86868b]">
+                      Thư mục: {po.folder_name || 'Chưa phân nhóm'}
                     </span>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] space-y-1">
-                    <span className="text-[10px] font-bold uppercase text-[#999]">Hạn giao hàng</span>
-                    <p className="text-[13px] font-semibold text-[#0088FF]">
+                  <div className="p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10 space-y-1">
+                    <span className="text-[11px] font-bold uppercase text-[#86868b]">Hạn giao dự kiến</span>
+                    <p className="text-[14px] font-bold text-[#0088FF]">
                       {po.expected_delivery_date
                         ? format(parseISO(po.expected_delivery_date), 'dd/MM/yyyy', { locale: vi })
                         : '—'}
                     </p>
-                    <span className="text-[11px] text-[#76767b]">
+                    <span className="text-[12px] text-[#86868b]">
                       Ngày tạo: {po.po_date || format(parseISO(po.created_at), 'dd/MM/yyyy')}
                     </span>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] space-y-1">
-                    <span className="text-[10px] font-bold uppercase text-[#999]">Tổng giá trị đơn</span>
-                    <p className="text-[13px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                      {po.total_value ? `${po.total_value.toLocaleString('vi-VN')} ${po.currency}` : '—'}
+                  <div className="p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10 space-y-1">
+                    <span className="text-[11px] font-bold uppercase text-[#86868b]">Tổng giá trị đơn</span>
+                    <p className="text-[14px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                      {po.total_value ? `${Number(po.total_value).toLocaleString('vi-VN')} ${po.currency}` : '—'}
                     </p>
-                    <span className="text-[11px] text-[#76767b]">
-                      {po.items?.length || 0} mặt hàng
+                    <span className="text-[12px] text-[#86868b]">
+                      {po.items?.length || 0} dòng sản phẩm
                     </span>
                   </div>
                 </div>
 
-                {/* Quick Action Change Status */}
+                {/* Quick Status Bar */}
                 {canEdit && (
-                  <div className="p-4 rounded-xl border border-black/[0.08] dark:border-white/[0.08] space-y-3">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-[#76767b]">
-                      Cập nhật trạng thái nhanh
+                  <div className="p-4 rounded-2xl border border-black/[0.08] dark:border-white/10 space-y-3 bg-black/[0.01] dark:bg-white/[0.02]">
+                    <span className="text-[12px] font-bold text-[#1d1d1f] dark:text-white">
+                      Cập nhật trạng thái tiến độ giao
                     </span>
 
                     <div className="grid grid-cols-3 gap-2">
@@ -347,44 +322,45 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                           onClick={() => handleUpdateStatus(st)}
                           disabled={updatingStatus}
                           className={cn(
-                            'h-9 rounded-xl text-[12px] font-semibold border transition-all duration-150 cursor-pointer active:scale-95 disabled:opacity-50',
+                            'h-10 rounded-xl text-[12.5px] font-bold border transition-all duration-150 cursor-pointer active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5',
                             po.status === st
                               ? 'bg-[#0088FF] text-white border-[#0088FF] shadow-xs'
-                              : 'bg-white/60 dark:bg-white/[0.04] text-[#1d1d1f] dark:text-white border-black/10 dark:border-white/10 hover:border-[#0088FF]'
+                              : 'bg-white dark:bg-zinc-800 text-[#1d1d1f] dark:text-white border-black/10 dark:border-white/10 hover:border-[#0088FF]'
                           )}
                         >
-                          {PO_STATUS_CONFIG[st].icon} {PO_STATUS_CONFIG[st].label}
+                          {PO_STATUS_CONFIG_MAP[st]?.icon}
+                          <span>{PO_STATUS_CONFIG_MAP[st]?.label}</span>
                         </button>
                       ))}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                       <input
                         type="date"
                         value={actualDate}
                         onChange={(e) => setActualDate(e.target.value)}
-                        placeholder="Ngày nhận thực tế"
-                        className="h-8 px-2.5 rounded-lg bg-black/[0.02] dark:bg-white/[0.04] border border-black/10 dark:border-white/10 text-[12px]"
+                        className="h-9 px-3 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 text-[12.5px] font-medium"
                       />
                       <input
                         value={statusNotes}
                         onChange={(e) => setStatusNotes(e.target.value)}
-                        placeholder="Ghi chú nhận hàng / số xe..."
-                        className="h-8 px-2.5 rounded-lg bg-black/[0.02] dark:bg-white/[0.04] border border-black/10 dark:border-white/10 text-[12px]"
+                        placeholder="Ghi chú điều phối / số xe nhận..."
+                        className="h-9 px-3 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 text-[12.5px] font-medium"
                       />
                     </div>
                   </div>
                 )}
               </div>
-            ) : activeTab === 'items' ? (
-              /* Items Line Table with Received Qty Editor */
+            )}
+
+            {activeTab === 'items' && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-[12px] font-bold uppercase text-[#76767b]">
-                    Danh sách sản phẩm & Kiểm nhận
+                  <p className="text-[13px] font-bold text-[#1d1d1f] dark:text-white">
+                    Kiểm nhận số lượng hàng hóa
                   </p>
-                  <span className="text-[11px] text-[#999]">
-                    Nhập số lượng nhận để hệ thống tự tính tiến độ
+                  <span className="text-[11.5px] text-[#86868b]">
+                    Nhập số lượng thực nhận để cập nhật tiến độ
                   </span>
                 </div>
 
@@ -398,32 +374,32 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                         <div
                           key={it.id || idx}
                           className={cn(
-                            'p-3 rounded-xl border transition-colors space-y-2',
+                            'p-3.5 rounded-2xl border transition-colors space-y-2',
                             isFull
-                              ? 'bg-emerald-50/40 dark:bg-emerald-500/[0.03] border-emerald-200/60 dark:border-emerald-500/20'
+                              ? 'bg-emerald-50/50 dark:bg-emerald-500/[0.04] border-emerald-300/70 dark:border-emerald-500/30'
                               : isPartial
-                              ? 'bg-amber-50/40 dark:bg-amber-500/[0.03] border-amber-200/60 dark:border-amber-500/20'
-                              : 'bg-black/[0.015] dark:bg-white/[0.02] border-black/[0.06] dark:border-white/[0.06]'
+                              ? 'bg-amber-50/50 dark:bg-amber-500/[0.04] border-amber-300/70 dark:border-amber-500/30'
+                              : 'bg-black/[0.015] dark:bg-white/[0.02] border-black/[0.08] dark:border-white/10'
                           )}
                         >
                           <div className="flex items-center justify-between">
-                            <span className="text-[13px] font-semibold text-[#1d1d1f] dark:text-white">
+                            <span className="text-[13.5px] font-bold text-[#1d1d1f] dark:text-white">
                               {it.item_name}
                             </span>
                             {it.item_code && (
-                              <span className="text-[11px] font-mono text-[#999] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5">
+                              <span className="text-[11.5px] font-mono text-[#86868b] px-2 py-0.5 rounded-md bg-black/5 dark:bg-white/5 font-semibold">
                                 {it.item_code}
                               </span>
                             )}
                           </div>
 
-                          <div className="flex items-center justify-between text-[12px]">
-                            <span className="text-[#76767b]">
-                              Đặt: <b className="text-[#1d1d1f] dark:text-white">{it.ordered_qty} {it.unit}</b>
+                          <div className="flex items-center justify-between text-[13px]">
+                            <span className="text-[#555558] dark:text-[#a1a1a6]">
+                              Đặt: <b className="text-[#1d1d1f] dark:text-white font-bold">{it.ordered_qty} {it.unit}</b>
                             </span>
 
                             <div className="flex items-center gap-2">
-                              <span className="text-[#76767b]">Đã nhận:</span>
+                              <span className="text-[#555558] dark:text-[#a1a1a6] font-semibold text-[12px]">Đã nhận:</span>
                               <input
                                 type="number"
                                 min="0"
@@ -431,92 +407,91 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                                 value={it.received_qty || 0}
                                 disabled={!canEdit}
                                 onChange={(e) => handleUpdateItemReceived(idx, Number(e.target.value))}
-                                className="w-16 h-7 px-2 text-center rounded-lg bg-white dark:bg-zinc-800 border border-black/15 dark:border-white/15 text-[12px] font-bold tabular-nums"
+                                className="w-20 h-8 px-2 text-center rounded-xl bg-white dark:bg-zinc-800 border border-black/15 dark:border-white/15 text-[13px] font-bold tabular-nums"
                               />
-                              <span className="text-[11px] text-[#999]">{it.unit}</span>
+                              <span className="text-[12px] text-[#86868b] font-medium">{it.unit}</span>
                             </div>
                           </div>
                         </div>
                       );
                     })
                   ) : (
-                    <p className="text-[13px] text-center text-[#999] py-8">
+                    <p className="text-[13px] text-center text-[#86868b] py-8">
                       Chưa có danh sách mặt hàng chi tiết.
                     </p>
                   )}
                 </div>
               </div>
-            ) : (
-              /* Permissions Tab */
+            )}
+
+            {activeTab === 'permissions' && (
               <div className="space-y-4">
-                <div className="p-3.5 rounded-xl bg-blue-50/50 dark:bg-blue-500/5 border border-blue-200/40 dark:border-blue-500/15 text-[12px] text-[#555558] dark:text-[#a1a1a6]">
-                  💡 <b>Phân quyền PO</b>: Chỉ những người được cấp phép mới xem được PO này (Admin có quyền xem/sửa toàn bộ).
+                <div className="p-3.5 rounded-2xl bg-blue-50/60 dark:bg-blue-500/10 border border-blue-200/60 dark:border-blue-500/20 text-[12.5px] text-[#1d1d1f] dark:text-white leading-relaxed">
+                  Quản lý quyền truy cập đơn hàng: Chỉ người dùng được cấp phép mới có thể xem hoặc chỉnh sửa PO này.
                 </div>
 
-                {/* Add Permission Form */}
                 <form onSubmit={handleGrantPermission} className="flex gap-2">
                   <input
                     value={targetUserId}
                     onChange={(e) => setTargetUserId(e.target.value)}
-                    placeholder="User ID hoặc Email..."
+                    placeholder="Nhập User ID hoặc Email..."
                     required
-                    className="flex-1 h-9 px-3 rounded-xl bg-white/70 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[12px]"
+                    className="flex-1 h-10 px-3.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[13px]"
                   />
                   <select
                     value={selectedPerm}
                     onChange={(e) => setSelectedPerm(e.target.value as any)}
-                    className="h-9 px-2 rounded-xl bg-white/70 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[12px]"
+                    className="h-10 px-3 rounded-xl bg-black/[0.03] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[12.5px] font-semibold"
                   >
                     <option value="view">Chỉ xem</option>
                     <option value="comment">Bình luận</option>
                     <option value="edit">Chỉnh sửa</option>
-                    <option value="admin">Toàn quyền</option>
+                    <option value="admin">Quản trị</option>
                   </select>
                   <button
                     type="submit"
                     disabled={granting || !targetUserId.trim()}
-                    className="h-9 px-4 rounded-xl fm-primary-pill-surface text-white text-[12px] font-semibold cursor-pointer disabled:opacity-40"
+                    className="h-10 px-4 rounded-xl fm-primary-pill-surface text-white text-[12.5px] font-bold cursor-pointer disabled:opacity-40"
                   >
                     {granting ? '...' : '+ Thêm'}
                   </button>
                 </form>
 
-                {/* Permissions List */}
-                <div className="space-y-2 pt-2">
+                <div className="space-y-2 pt-1">
                   {po.permissions && po.permissions.length > 0 ? (
                     po.permissions.map((perm) => (
                       <div
                         key={perm.id}
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.05] dark:border-white/[0.05] text-[12px]"
+                        className="flex items-center justify-between p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10 text-[12.5px]"
                       >
                         <div>
-                          <p className="font-semibold text-[#1d1d1f] dark:text-white">
+                          <p className="font-bold text-[#1d1d1f] dark:text-white">
                             {perm.user_name || perm.email}
                           </p>
-                          <span className="text-[10px] text-[#999] uppercase font-bold">
+                          <span className="text-[11px] text-[#0088FF] uppercase font-bold">
                             Quyền: {perm.permission}
                           </span>
                         </div>
                         <button
                           type="button"
                           onClick={() => handleRevokePermission(perm.id)}
-                          className="text-red-500 hover:text-red-700 text-[11px] font-medium"
+                          className="text-red-500 hover:text-red-700 font-semibold text-[12px] cursor-pointer"
                         >
                           Thu hồi
                         </button>
                       </div>
                     ))
                   ) : (
-                    <p className="text-[12px] text-center text-[#999] py-4">
+                    <p className="text-[13px] text-center text-[#86868b] py-6">
                       Chưa có phân quyền riêng lẻ nào trên PO này.
                     </p>
                   )}
                 </div>
               </div>
             )}
-          </div>
-        </div>
+          </>
+        )}
       </div>
-    </>
+    </Drawer>
   );
 };

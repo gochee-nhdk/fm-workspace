@@ -15,7 +15,7 @@ import {
   SFSquareAndPencil,
 } from '@/components/ui/AppleIcon';
 import { CommandPalette } from '@/components/ui/command-palette';
-import { SFLink, SFShieldFill, SFStorefront, SFLock } from 'sf-symbols-lib';
+import { SFLink, SFShieldFill, SFStorefront, SFLock, SFShippingboxFill } from 'sf-symbols-lib';
 import { ExcelImportModal } from '@/components/excel/ExcelImportModal';
 import { QuickNoteFloatingButton } from '@/components/notes/QuickNoteFloatingButton';
 
@@ -33,17 +33,9 @@ import { useSecurityStore } from '@/stores/security-store';
 import { LocalLockScreen } from '@/components/security/LocalLockScreen';
 import { cn } from '@/lib/utils';
 
-const SFShippingBox: React.FC<{ size?: number; className?: string }> = ({ size = 16, className = '' }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-    <line x1="12" y1="22.08" x2="12" y2="12" />
-  </svg>
-);
-
 const navItems = [
   { to: '/', label: 'Bàn làm việc chính', icon: <SFSquareGrid2x2 size={16} /> },
-  { to: '/po-tracker', label: 'Theo dõi đơn hàng', icon: <SFShippingBox size={16} /> },
+  { to: '/po-tracker', label: 'Theo dõi đơn hàng', icon: <SFShippingboxFill size={16} /> },
   { to: '/settings', label: 'Cài đặt & Dữ liệu', icon: <SFGearshapeFill size={16} /> },
 ];
 

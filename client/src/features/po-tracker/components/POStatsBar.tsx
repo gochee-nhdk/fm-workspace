@@ -1,5 +1,14 @@
 import React from 'react';
-import { POTrackerStats, POStatus, PO_STATUS_CONFIG } from '@/types/po-tracker';
+import { POTrackerStats, POStatus } from '@/types/po-tracker';
+import { PO_STATUS_CONFIG_MAP } from './POStatusPill';
+import {
+  SFShippingboxFill,
+  SFClockFill,
+  SFCheckmarkCircleFill,
+  SFExclamationmarkTriangleFill,
+  SFCalendar,
+  SFTray2Fill
+} from 'sf-symbols-lib';
 import { cn } from '@/lib/utils';
 
 interface POStatsBarProps {
@@ -12,7 +21,7 @@ interface POStatsBarProps {
 const StatCard: React.FC<{
   label: string;
   value: number | string;
-  icon: string;
+  icon: React.ReactNode;
   color: string;
   bg: string;
   onClick?: () => void;
@@ -23,21 +32,21 @@ const StatCard: React.FC<{
     onClick={onClick}
     type="button"
     className={cn(
-      'flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all duration-200 cursor-pointer active:scale-[0.98] text-left select-none',
+      'flex items-center gap-3 px-4 py-2.5 rounded-2xl border transition-all duration-200 cursor-pointer active:scale-[0.98] text-left select-none',
       active
-        ? `${bg} border-current ${color} shadow-sm ring-1 ring-current/20`
-        : 'bg-white/50 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/[0.07] hover:bg-white/80 dark:hover:bg-white/[0.08]',
+        ? `${bg} border-current ${color} shadow-sm ring-2 ring-current/20 scale-[1.02]`
+        : 'bg-white/70 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/[0.07] hover:bg-white dark:hover:bg-white/[0.08] hover:shadow-xs',
       !onClick && 'cursor-default pointer-events-none'
     )}
   >
-    <span className={cn('text-xl leading-none', pulse && 'animate-pulse')}>
+    <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-2xs', bg, pulse && 'animate-pulse')}>
       {icon}
-    </span>
+    </div>
     <div className="min-w-0">
-      <div className={cn('text-[20px] font-bold tabular-nums leading-tight', active ? color : 'text-[#1d1d1f] dark:text-white')}>
+      <div className={cn('text-[20px] font-bold tracking-tight tabular-nums leading-none', active ? color : 'text-[#1d1d1f] dark:text-white')}>
         {value}
       </div>
-      <div className="text-[11px] font-medium text-[#555558] dark:text-[#a1a1a6] whitespace-nowrap">
+      <div className="text-[11.5px] font-medium text-[#555558] dark:text-[#a1a1a6] whitespace-nowrap mt-1">
         {label}
       </div>
     </div>
@@ -50,13 +59,13 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
   activeStatus,
   onStatusFilter,
 }) => {
-  if (loading || !stats) {
+  if (loading && !stats) {
     return (
-      <div className="flex gap-3 overflow-x-auto scrollbar-none pb-1">
-        {[...Array(5)].map((_, i) => (
+      <div className="flex gap-2.5 overflow-x-auto scrollbar-none pb-1">
+        {[...Array(6)].map((_, i) => (
           <div
             key={i}
-            className="shrink-0 w-[140px] h-[72px] rounded-2xl bg-white/40 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.07] animate-pulse"
+            className="shrink-0 w-[140px] h-[64px] rounded-2xl bg-white/40 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.07] animate-pulse"
           />
         ))}
       </div>
@@ -81,9 +90,9 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
 
   const cards = [
     {
-      label: 'Tổng PO',
+      label: 'Tổng đơn PO',
       value: s.total || 0,
-      icon: '📋',
+      icon: <SFShippingboxFill size={18} className="text-[#0088FF]" />,
       color: 'text-[#0088FF] dark:text-[#0091FF]',
       bg: 'bg-blue-50 dark:bg-blue-500/10',
       status: null as POStatus | null,
@@ -91,23 +100,23 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
     {
       label: 'Chờ xác nhận',
       value: s.pending || 0,
-      icon: '⏳',
-      color: PO_STATUS_CONFIG.pending.color,
-      bg: PO_STATUS_CONFIG.pending.bg,
+      icon: <SFClockFill size={18} className="text-amber-500" />,
+      color: 'text-amber-700 dark:text-amber-400',
+      bg: 'bg-amber-50 dark:bg-amber-500/10',
       status: 'pending' as POStatus,
     },
     {
-      label: 'Đang giao',
+      label: 'Đang giao hàng',
       value: s.shipping || 0,
-      icon: '🚚',
-      color: PO_STATUS_CONFIG.shipping.color,
-      bg: PO_STATUS_CONFIG.shipping.bg,
+      icon: <SFTray2Fill size={18} className="text-indigo-500" />,
+      color: 'text-indigo-700 dark:text-indigo-400',
+      bg: 'bg-indigo-50 dark:bg-indigo-500/10',
       status: 'shipping' as POStatus,
     },
     {
-      label: 'Quá hạn',
+      label: 'Quá hạn giao',
       value: totalOverdue,
-      icon: '⚠️',
+      icon: <SFExclamationmarkTriangleFill size={18} className="text-red-500" />,
       color: 'text-red-600 dark:text-red-400',
       bg: 'bg-red-50 dark:bg-red-500/10',
       status: 'overdue' as POStatus,
@@ -116,15 +125,15 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
     {
       label: 'Đã nhận đủ',
       value: s.received || 0,
-      icon: '✅',
-      color: PO_STATUS_CONFIG.received.color,
-      bg: PO_STATUS_CONFIG.received.bg,
+      icon: <SFCheckmarkCircleFill size={18} className="text-emerald-500" />,
+      color: 'text-emerald-700 dark:text-emerald-400',
+      bg: 'bg-emerald-50 dark:bg-emerald-500/10',
       status: 'received' as POStatus,
     },
     {
-      label: 'Sắp giao (7 ngày)',
+      label: 'Hạn 7 ngày tới',
       value: s.upcoming_7_days || 0,
-      icon: '📅',
+      icon: <SFCalendar size={18} className="text-purple-500" />,
       color: 'text-purple-700 dark:text-purple-400',
       bg: 'bg-purple-50 dark:bg-purple-500/10',
       status: null,
@@ -132,7 +141,7 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
   ];
 
   return (
-    <div className="flex gap-3 overflow-x-auto scrollbar-none pb-1">
+    <div className="flex gap-2.5 overflow-x-auto scrollbar-none pb-1">
       {cards.map((card) => (
         <div key={card.label} className="shrink-0">
           <StatCard

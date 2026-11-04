@@ -8,6 +8,13 @@ import { POUploadDrawer } from './components/POUploadDrawer';
 import { PODetailDrawer } from './components/PODetailDrawer';
 import { POTrackerPO } from '@/types/po-tracker';
 import { Button } from '@/components/ui/button';
+import {
+  SFArrowUpDocumentFill,
+  SFMagnifyingglass,
+  SFSidebarLeft,
+  SFFolderFill,
+  SFXmark
+} from 'sf-symbols-lib';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
@@ -91,7 +98,7 @@ export const POTrackerPage: React.FC = () => {
   }, [folders, activeFolderId]);
 
   return (
-    <div className="flex -m-4 sm:-m-5 lg:-m-6 h-[calc(100vh-3.75rem)] overflow-hidden select-none">
+    <div className="flex -m-4 sm:-m-5 lg:-m-6 h-[calc(100vh-3.75rem)] overflow-hidden select-none font-sans">
       {/* Left Folders Sidebar */}
       <POFolderSidebar
         onSelectFolder={(id) => setActiveFolderId(id)}
@@ -100,69 +107,70 @@ export const POTrackerPage: React.FC = () => {
 
       {/* Main Tracking Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-transparent">
-        {/* Top Control Bar */}
-        <div className="px-5 py-3.5 border-b border-black/[0.06] dark:border-white/[0.06] bg-white/40 dark:bg-[#121216]/40 backdrop-blur-md flex flex-wrap items-center justify-between gap-3 shrink-0">
+        {/* Top Control Bar with Glass Effect */}
+        <div className="px-5 py-3 border-b border-black/[0.06] dark:border-white/[0.08] bg-white/70 dark:bg-[#16161c]/70 backdrop-blur-2xl flex flex-wrap items-center justify-between gap-3 shrink-0 z-10 shadow-2xs">
           {/* Title & Folder Breadcrumb */}
           <div className="flex items-center gap-2.5 min-w-0">
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-1.5 rounded-lg text-[#555558] dark:text-[#a1a1a6] hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-              title={sidebarCollapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'}
+              className="w-8 h-8 rounded-xl flex items-center justify-center text-[#555558] dark:text-[#a1a1a6] hover:text-[#0088FF] dark:hover:text-[#0091FF] hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all cursor-pointer shrink-0"
+              title={sidebarCollapsed ? 'Mở rộng thanh nhóm' : 'Thu gọn thanh nhóm'}
             >
-              📑
+              <SFSidebarLeft size={16} className={cn('transition-transform duration-200', sidebarCollapsed && 'rotate-180')} />
             </button>
             <div className="truncate">
-              <h1 className="text-[16px] font-bold text-[#1d1d1f] dark:text-white flex items-center gap-2 truncate">
+              <h1 className="text-[17px] sm:text-[19px] font-bold text-[#1d1d1f] dark:text-white flex items-center gap-2 truncate tracking-tight">
                 <span>Theo dõi đơn hàng (PO Tracker)</span>
                 {currentFolder && (
-                  <span className="text-[12px] font-medium px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200/50">
-                    📁 {currentFolder.name}
+                  <span className="text-[12px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-500/20 text-[#0088FF] dark:text-[#0091FF] border border-blue-200/60 dark:border-blue-500/30 flex items-center gap-1">
+                    <SFFolderFill size={11} />
+                    <span>{currentFolder.name}</span>
                   </span>
                 )}
                 {activeFolderId === 'unassigned' && (
-                  <span className="text-[12px] font-medium px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500">
+                  <span className="text-[11.5px] font-semibold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
                     Chưa phân nhóm
                   </span>
                 )}
               </h1>
-              <p className="text-[11px] text-[#76767b] dark:text-[#8e8e93] truncate">
+              <p className="text-[12px] font-medium text-[#555558] dark:text-[#a1a1a6] truncate mt-0.5">
                 Tải file PDF hóa đơn PO, tự động đọc dữ liệu và quản lý tiến độ giao nhận
               </p>
             </div>
           </div>
 
           {/* Actions & Search */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Search Input */}
-            <div className="relative">
+          <div className="flex items-center gap-2.5 shrink-0">
+            {/* Search Input - Apple Spotlight Style */}
+            <div className="relative flex items-center">
+              <div className="absolute left-3 text-[#0088FF] dark:text-[#0091FF] pointer-events-none flex items-center justify-center">
+                <SFMagnifyingglass size={13} />
+              </div>
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Tìm số PO, NCC, kho..."
-                className="w-48 sm:w-60 h-9 pl-8 pr-3 rounded-full bg-white/80 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[12.5px] text-[#1d1d1f] dark:text-white placeholder-[#999] focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all"
+                className="w-48 sm:w-64 h-9 pl-8 pr-7 rounded-full bg-white/80 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[12.5px] font-medium text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs"
               />
-              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-[#999]">
-                🔍
-              </span>
               {search && (
                 <button
                   onClick={() => setSearch('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#999] hover:text-[#1d1d1f] dark:hover:text-white"
+                  className="absolute right-2.5 text-xs text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white cursor-pointer"
                 >
-                  ✕
+                  <SFXmark size={11} />
                 </button>
               )}
             </div>
 
-            {/* Upload PDF PO button */}
+            {/* Rút gọn thành "Tải lên PO" với icon SF Symbol chuẩn Apple */}
             <Button
               variant="primary"
               size="sm"
               onClick={() => setUploadDrawerOpen(true)}
-              className="fm-primary-pill-surface shadow-xs text-white h-9 px-3.5 rounded-full font-semibold gap-1.5"
+              className="fm-primary-pill-surface shadow-xs text-white h-9 px-4 rounded-full font-bold text-[13px] gap-1.5 active:scale-95 transition-transform"
             >
-              <span>📄</span>
-              <span>Upload PDF / Tạo PO</span>
+              <SFArrowUpDocumentFill size={14} />
+              <span>Tải lên PO</span>
             </Button>
           </div>
         </div>
@@ -179,24 +187,24 @@ export const POTrackerPage: React.FC = () => {
 
           {/* Active Filter Chips */}
           {(activeStatus || activeFolderId || search) && (
-            <div className="flex items-center gap-2 flex-wrap text-[11px]">
-              <span className="text-[#999] font-medium">Bộ lọc đang áp dụng:</span>
+            <div className="flex items-center gap-2 flex-wrap text-[12px] p-2 px-3 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05]">
+              <span className="text-[#86868b] font-medium">Bộ lọc:</span>
               {activeStatus && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
-                  Trạng thái: <b>{activeStatus}</b>
-                  <button onClick={() => setActiveStatus(null)} className="hover:font-bold">✕</button>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 font-semibold text-[11px]">
+                  Trạng thái: {activeStatus}
+                  <button onClick={() => setActiveStatus(null)} className="hover:opacity-75 cursor-pointer">✕</button>
                 </span>
               )}
               {activeFolderId && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
-                  Nhóm: <b>{currentFolder?.name || 'Chưa phân nhóm'}</b>
-                  <button onClick={() => setActiveFolderId(null)} className="hover:font-bold">✕</button>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 font-semibold text-[11px]">
+                  Nhóm: {currentFolder?.name || 'Chưa phân nhóm'}
+                  <button onClick={() => setActiveFolderId(null)} className="hover:opacity-75 cursor-pointer">✕</button>
                 </span>
               )}
               {search && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
-                  Từ khóa: <b>"{search}"</b>
-                  <button onClick={() => setSearch('')} className="hover:font-bold">✕</button>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 font-semibold text-[11px]">
+                  Từ khóa: "{search}"
+                  <button onClick={() => setSearch('')} className="hover:opacity-75 cursor-pointer">✕</button>
                 </span>
               )}
               <button
@@ -205,9 +213,9 @@ export const POTrackerPage: React.FC = () => {
                   setActiveFolderId(null);
                   setSearch('');
                 }}
-                className="text-[#0088FF] hover:underline cursor-pointer ml-1"
+                className="text-[#0088FF] hover:underline font-semibold text-[11.5px] cursor-pointer ml-auto"
               >
-                Xóa tất cả bộ lọc
+                Xóa bộ lọc
               </button>
             </div>
           )}
