@@ -402,6 +402,71 @@ async function initDb() {
       uploaded_by TEXT,
       created_at TEXT
     );
+
+    -- PO Tracker: Folders/Groups
+    CREATE TABLE IF NOT EXISTS po_tracker_folders (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      color TEXT DEFAULT 'blue',
+      icon TEXT DEFAULT 'shippingbox',
+      sort_order INTEGER DEFAULT 0,
+      created_by TEXT REFERENCES users(id),
+      created_at TEXT,
+      updated_at TEXT
+    );
+
+    -- PO Tracker: Purchase Orders
+    CREATE TABLE IF NOT EXISTS po_tracker_pos (
+      id TEXT PRIMARY KEY,
+      folder_id TEXT REFERENCES po_tracker_folders(id) ON DELETE SET NULL,
+      po_number TEXT,
+      po_date TEXT,
+      expected_delivery_date TEXT,
+      actual_delivery_date TEXT,
+      supplier_code TEXT,
+      supplier_name TEXT,
+      warehouse TEXT,
+      status TEXT DEFAULT 'pending',
+      total_value REAL DEFAULT 0,
+      currency TEXT DEFAULT 'VND',
+      notes TEXT,
+      tags TEXT,
+      extracted_data TEXT,
+      pdf_file_name TEXT,
+      is_overdue_notified INTEGER DEFAULT 0,
+      last_checked_at TEXT,
+      created_by TEXT REFERENCES users(id),
+      created_at TEXT,
+      updated_at TEXT
+    );
+
+    -- PO Tracker: Line items
+    CREATE TABLE IF NOT EXISTS po_tracker_items (
+      id TEXT PRIMARY KEY,
+      po_id TEXT REFERENCES po_tracker_pos(id) ON DELETE CASCADE,
+      item_code TEXT,
+      item_name TEXT,
+      unit TEXT DEFAULT 'thùng',
+      ordered_qty REAL DEFAULT 0,
+      received_qty REAL DEFAULT 0,
+      unit_price REAL DEFAULT 0,
+      total_price REAL DEFAULT 0,
+      warehouse TEXT,
+      notes TEXT,
+      status TEXT DEFAULT 'pending'
+    );
+
+    -- PO Tracker: Permissions
+    CREATE TABLE IF NOT EXISTS po_tracker_permissions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+      resource_type TEXT NOT NULL,
+      resource_id TEXT,
+      permission TEXT NOT NULL,
+      granted_by TEXT REFERENCES users(id),
+      created_at TEXT
+    );
   `);
 
   console.log('Tables created. Creating indices...');
@@ -437,6 +502,10 @@ async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_audit_logs_lookup ON audit_logs(entity_type, entity_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_datasets_status ON datasets(status, created_at);
     CREATE INDEX IF NOT EXISTS idx_company_knowledge_status ON company_knowledge(status, doc_type);
+    CREATE INDEX IF NOT EXISTS idx_po_tracker_folder ON po_tracker_pos(folder_id, status);
+    CREATE INDEX IF NOT EXISTS idx_po_tracker_status ON po_tracker_pos(status, expected_delivery_date);
+    CREATE INDEX IF NOT EXISTS idx_po_tracker_items_po ON po_tracker_items(po_id);
+    CREATE INDEX IF NOT EXISTS idx_po_tracker_perms ON po_tracker_permissions(user_id, resource_type, resource_id);
   `);
 
   console.log('Indices created. Checking default admin user...');

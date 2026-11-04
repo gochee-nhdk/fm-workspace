@@ -99,6 +99,86 @@ export class GeminiService {
       throw new Error(`AI generation failed: ${error.message}`);
     }
   }
+
+  async extractPOFromPdf(base64Pdf: string, fileName: string): Promise<any> {
+    if (!this.ai) {
+      await this.initClient();
+    }
+    if (!this.ai) {
+      throw new Error('Gemini API key chưa được cấu hình. Vui lòng vào Cài đặt để thêm API key.');
+    }
+
+    const prompt = `Bạn là chuyên gia đọc và trích xuất thông tin từ tài liệu Purchase Order (PO) / Đơn đặt hàng.
+
+Hãy đọc file PDF PO này và trích xuất TẤT CẢ thông tin sau đây. Trả về JSON THUẦN TÚY (không có markdown, không có backtick).
+
+Cấu trúc JSON cần trả về:
+{
+  "po_number": "Số PO / Số đơn hàng",
+  "po_date": "Ngày lập PO (định dạng YYYY-MM-DD nếu có thể xác định)",
+  "expected_delivery_date": "Ngày giao hàng dự kiến (định dạng YYYY-MM-DD)",
+  "supplier_code": "Mã nhà cung cấp",
+  "supplier_name": "Tên nhà cung cấp / Tên công ty cung cấp",
+  "warehouse": "Kho nhận hàng / Địa điểm giao hàng",
+  "total_value": số_tổng_giá_trị (số thực, không có dấu phẩy hay đơn vị tiền tệ),
+  "currency": "Đơn vị tiền tệ (VND, USD, EUR...)",
+  "notes": "Ghi chú đặc biệt nếu có",
+  "items": [
+    {
+      "item_code": "Mã hàng / SKU",
+      "item_name": "Tên hàng hóa / mô tả sản phẩm",
+      "unit": "Đơn vị tính (thùng, kg, cái, hộp...)",
+      "ordered_qty": số_lượng_đặt (số thực),
+      "unit_price": giá_đơn_vị (số thực),
+      "total_price": thành_tiền (số thực),
+      "warehouse": "Kho nhận riêng cho dòng này nếu có"
+    }
+  ]
+}
+
+Lưu ý quan trọng:
+- Nếu không tìm thấy thông tin nào, để null cho trường đó
+- Các trường số phải là number, không phải string
+- Mảng items phải có ít nhất 1 phần tử nếu tìm thấy hàng hóa
+- Nếu ngày tháng không rõ định dạng, hãy cố gắng chuyển sang YYYY-MM-DD
+- Tên file PDF để tham khảo: ${fileName}`;
+
+    try {
+      const response = await this.ai.models.generateContent({
+        model: this.model,
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType: 'application/pdf', data: base64Pdf } }
+          ]
+        }],
+        config: {
+          temperature: 0.0,
+          responseMimeType: 'application/json'
+        }
+      });
+
+      const text = response.text || '{}';
+      // Clean up any potential markdown wrapping
+      const cleaned = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+      return JSON.parse(cleaned);
+    } catch (error: any) {
+      console.error('Gemini PDF extraction error:', error);
+      // Return empty structure so user can fill manually
+      return {
+        po_number: null,
+        po_date: null,
+        expected_delivery_date: null,
+        supplier_code: null,
+        supplier_name: null,
+        warehouse: null,
+        total_value: null,
+        currency: 'VND',
+        notes: null,
+        items: []
+      };
+    }
+  }
 }
 
 export const geminiService = new GeminiService();
