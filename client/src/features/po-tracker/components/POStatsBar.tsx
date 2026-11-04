@@ -63,12 +63,26 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
     );
   }
 
-  const totalOverdue = (stats.actually_overdue || 0) + (stats.overdue || 0);
+  const s = stats || {
+    total: 0,
+    pending: 0,
+    confirmed: 0,
+    shipping: 0,
+    partial_received: 0,
+    received: 0,
+    cancelled: 0,
+    overdue: 0,
+    actually_overdue: 0,
+    upcoming_7_days: 0,
+    total_value: 0,
+  };
+
+  const totalOverdue = (s.actually_overdue || 0) + (s.overdue || 0);
 
   const cards = [
     {
       label: 'Tổng PO',
-      value: stats.total,
+      value: s.total || 0,
       icon: '📋',
       color: 'text-[#0088FF] dark:text-[#0091FF]',
       bg: 'bg-blue-50 dark:bg-blue-500/10',
@@ -76,7 +90,7 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
     },
     {
       label: 'Chờ xác nhận',
-      value: stats.pending,
+      value: s.pending || 0,
       icon: '⏳',
       color: PO_STATUS_CONFIG.pending.color,
       bg: PO_STATUS_CONFIG.pending.bg,
@@ -84,7 +98,7 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
     },
     {
       label: 'Đang giao',
-      value: stats.shipping,
+      value: s.shipping || 0,
       icon: '🚚',
       color: PO_STATUS_CONFIG.shipping.color,
       bg: PO_STATUS_CONFIG.shipping.bg,
@@ -101,7 +115,7 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
     },
     {
       label: 'Đã nhận đủ',
-      value: stats.received,
+      value: s.received || 0,
       icon: '✅',
       color: PO_STATUS_CONFIG.received.color,
       bg: PO_STATUS_CONFIG.received.bg,
@@ -109,7 +123,7 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
     },
     {
       label: 'Sắp giao (7 ngày)',
-      value: stats.upcoming_7_days,
+      value: s.upcoming_7_days || 0,
       icon: '📅',
       color: 'text-purple-700 dark:text-purple-400',
       bg: 'bg-purple-50 dark:bg-purple-500/10',

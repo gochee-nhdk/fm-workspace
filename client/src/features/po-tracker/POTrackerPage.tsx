@@ -38,13 +38,17 @@ export const POTrackerPage: React.FC = () => {
   const fetchFoldersAndStats = useCallback(async () => {
     try {
       const [foldersRes, statsRes] = await Promise.all([
-        poTrackerService.getFolders(),
-        poTrackerService.getStats(activeFolderId || undefined),
+        poTrackerService.getFolders().catch(() => ({ data: { data: [] } })),
+        poTrackerService.getStats(activeFolderId || undefined).catch(() => ({ data: { data: null } })),
       ]);
-      setFolders(foldersRes.data.data);
-      setStats(statsRes.data.data);
+      const folderList = Array.isArray(foldersRes?.data?.data) ? foldersRes.data.data : [];
+      setFolders(folderList);
+      if (statsRes?.data?.data) {
+        setStats(statsRes.data.data);
+      }
     } catch (err) {
-      console.error('Failed to load PO folders/stats:', err);
+      console.warn('Notice loading PO folders/stats:', err);
+      setFolders([]);
     }
   }, [activeFolderId, setFolders, setStats]);
 
@@ -56,11 +60,12 @@ export const POTrackerPage: React.FC = () => {
         folder_id: activeFolderId || undefined,
         status: activeStatus || undefined,
         search: search.trim() || undefined,
-      });
-      setPos(res.data.data);
+      }).catch(() => ({ data: { data: [] } }));
+      const poList = Array.isArray(res?.data?.data) ? res.data.data : [];
+      setPos(poList);
     } catch (err) {
-      console.error('Failed to fetch PO list:', err);
-      toast.error('Không thể tải danh sách PO.');
+      console.warn('Notice fetching PO list:', err);
+      setPos([]);
     } finally {
       setLoading(false);
     }

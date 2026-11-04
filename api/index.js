@@ -4,6 +4,12 @@ const crypto = require('crypto');
 // In-memory runtime cache for serverless environment (isolated per user)
 let globalSmtpConfig = null;
 const userBackups = new Map(); // userId -> { latest: backupData, history: [backupData] }
+const globalPoFolders = [
+  { id: 'f-default-1', name: 'Hàng kinh doanh', description: 'Các đơn hàng thu mua sản phẩm thương mại', color: 'blue', icon: 'shippingbox', sort_order: 1, created_at: new Date().toISOString() },
+  { id: 'f-default-2', name: 'Vật tư & Bao bì', description: 'Bao bì đóng gói, tem nhãn', color: 'amber', icon: 'shippingbox', sort_order: 2, created_at: new Date().toISOString() }
+];
+const globalPoRecords = [];
+const globalPoPermissions = [];
 
 /**
  * Timing-safe JWT token verification (zero-dependency for Vercel Serverless)
@@ -856,6 +862,226 @@ module.exports = async function handler(req, res, forcedPath) {
     // 10. Gemini Keys Pool Settings (GET & PUT)
     if (pathname === '/settings/gemini-keys-pool') {
       return res.status(200).json({ success: true, data: [] });
+    }
+
+    // 11. PO Tracker Endpoints (Vercel Cloud Serverless Support)
+    if (pathname.startsWith('/po-tracker')) {
+      // 11.1 Folders
+      if (pathname === '/po-tracker/folders') {
+        if (req.method === 'GET') {
+          const list = globalPoFolders.map((f) => ({
+            ...f,
+            po_count: globalPoRecords.filter((p) => p.folder_id === f.id).length
+          }));
+          return res.status(200).json({ success: true, data: list });
+        }
+        if (req.method === 'POST') {
+          const body = req.body || {};
+          const newFolder = {
+            id: `f-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            name: (body.name || 'Nhóm mới').trim(),
+            description: body.description || null,
+            color: body.color || 'blue',
+            icon: body.icon || 'shippingbox',
+            sort_order: Number(body.sort_order || 0),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          globalPoFolders.push(newFolder);
+          return res.status(200).json({ success: true, data: { ...newFolder, po_count: 0 } });
+        }
+      }
+
+      if (pathname.startsWith('/po-tracker/folders/')) {
+        const folderId = pathname.replace('/po-tracker/folders/', '');
+        const idx = globalPoFolders.findIndex((f) => f.id === folderId);
+        if (idx === -1) {
+          return res.status(404).json({ success: false, message: 'Nhóm không tồn tại' });
+        }
+        if (req.method === 'PUT') {
+          const body = req.body || {};
+          globalPoFolders[idx] = {
+            ...globalPoFolders[idx],
+            name: body.name ? body.name.trim() : globalPoFolders[idx].name,
+            description: body.description !== undefined ? body.description : globalPoFolders[idx].description,
+            color: body.color || globalPoFolders[idx].color,
+            updated_at: new Date().toISOString()
+          };
+          return res.status(200).json({ success: true, data: globalPoFolders[idx] });
+        }
+        if (req.method === 'DELETE') {
+          globalPoFolders.splice(idx, 1);
+          globalPoRecords.forEach((p) => {
+            if (p.folder_id === folderId) p.folder_id = null;
+          });
+          return res.status(200).json({ success: true, message: 'Đã xóa nhóm' });
+        }
+      }
+
+      // 11.2 Stats
+      if (pathname === '/po-tracker/stats') {
+        const folderId = req.query?.folder_id;
+        const filtered = folderId
+          ? folderId === 'unassigned'
+            ? globalPoRecords.filter((p) => !p.folder_id)
+            : globalPoRecords.filter((p) => p.folder_id === folderId)
+          : globalPoRecords;
+
+        const today = new Date().toISOString().split('T')[0];
+        const next7 = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+
+        const stats = {
+          total: filtered.length,
+          pending: filtered.filter((p) => p.status === 'pending').length,
+          confirmed: filtered.filter((p) => p.status === 'confirmed').length,
+          shipping: filtered.filter((p) => p.status === 'shipping').length,
+          partial_received: filtered.filter((p) => p.status === 'partial_received').length,
+          received: filtered.filter((p) => p.status === 'received').length,
+          cancelled: filtered.filter((p) => p.status === 'cancelled').length,
+          overdue: filtered.filter((p) => p.status === 'overdue').length,
+          actually_overdue: filtered.filter((p) => !['received', 'cancelled'].includes(p.status) && p.expected_delivery_date && p.expected_delivery_date < today).length,
+          upcoming_7_days: filtered.filter((p) => !['received', 'cancelled'].includes(p.status) && p.expected_delivery_date && p.expected_delivery_date >= today && p.expected_delivery_date <= next7).length,
+          total_value: filtered.reduce((s, p) => s + (Number(p.total_value) || 0), 0)
+        };
+        return res.status(200).json({ success: true, data: stats });
+      }
+
+      // 11.3 PO List & Create
+      if (pathname === '/po-tracker/pos' && req.method === 'GET') {
+        const { folder_id, status, search } = req.query || {};
+        let list = [...globalPoRecords];
+
+        if (folder_id === 'unassigned') {
+          list = list.filter((p) => !p.folder_id);
+        } else if (folder_id) {
+          list = list.filter((p) => p.folder_id === folder_id);
+        }
+
+        if (status) {
+          list = list.filter((p) => p.status === status);
+        }
+
+        if (search) {
+          const q = search.toLowerCase();
+          list = list.filter((p) =>
+            (p.po_number && p.po_number.toLowerCase().includes(q)) ||
+            (p.supplier_name && p.supplier_name.toLowerCase().includes(q)) ||
+            (p.warehouse && p.warehouse.toLowerCase().includes(q))
+          );
+        }
+
+        list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        return res.status(200).json({ success: true, data: list });
+      }
+
+      if (pathname === '/po-tracker/pos' && req.method === 'POST') {
+        const body = req.body || {};
+        const newPO = {
+          id: `po-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          folder_id: body.folder_id || null,
+          folder_name: globalPoFolders.find((f) => f.id === body.folder_id)?.name || null,
+          po_number: body.po_number || `PO-${Date.now().toString().slice(-6)}`,
+          po_date: body.po_date || new Date().toISOString().split('T')[0],
+          expected_delivery_date: body.expected_delivery_date || null,
+          actual_delivery_date: body.actual_delivery_date || null,
+          supplier_code: body.supplier_code || null,
+          supplier_name: body.supplier_name || null,
+          warehouse: body.warehouse || null,
+          status: body.status || 'pending',
+          total_value: Number(body.total_value || 0),
+          currency: body.currency || 'VND',
+          notes: body.notes || null,
+          pdf_file_name: body.pdf_file_name || null,
+          items: Array.isArray(body.items) ? body.items.map((it, idx) => ({
+            id: `item-${Date.now()}-${idx}`,
+            item_code: it.item_code || null,
+            item_name: it.item_name || 'Hàng hóa',
+            unit: it.unit || 'thùng',
+            ordered_qty: Number(it.ordered_qty || 1),
+            received_qty: Number(it.received_qty || 0),
+            unit_price: Number(it.unit_price || 0),
+            total_price: Number(it.total_price || 0),
+            status: it.status || 'pending'
+          })) : [],
+          item_count: Array.isArray(body.items) ? body.items.length : 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        globalPoRecords.unshift(newPO);
+        return res.status(200).json({ success: true, data: newPO });
+      }
+
+      // 11.4 Single PO Detail / Update / Status
+      if (pathname.startsWith('/po-tracker/pos/')) {
+        const sub = pathname.replace('/po-tracker/pos/', '');
+        const isStatusPatch = sub.endsWith('/status');
+        const poId = isStatusPatch ? sub.replace('/status', '') : sub;
+        const target = globalPoRecords.find((p) => p.id === poId);
+
+        if (!target) {
+          return res.status(404).json({ success: false, message: 'Không tìm thấy đơn hàng' });
+        }
+
+        if (isStatusPatch && req.method === 'PATCH') {
+          const { status, actual_delivery_date, notes } = req.body || {};
+          if (status) target.status = status;
+          if (actual_delivery_date) target.actual_delivery_date = actual_delivery_date;
+          if (notes !== undefined) target.notes = notes;
+          target.updated_at = new Date().toISOString();
+          return res.status(200).json({ success: true, message: 'Đã cập nhật trạng thái đơn hàng' });
+        }
+
+        if (req.method === 'GET') {
+          return res.status(200).json({
+            success: true,
+            data: {
+              ...target,
+              permissions: globalPoPermissions.filter((perm) => perm.resource_id === poId),
+              user_permission: 'admin'
+            }
+          });
+        }
+
+        if (req.method === 'PUT') {
+          const body = req.body || {};
+          Object.assign(target, {
+            ...body,
+            updated_at: new Date().toISOString()
+          });
+          return res.status(200).json({ success: true, data: target });
+        }
+
+        if (req.method === 'DELETE') {
+          const idx = globalPoRecords.findIndex((p) => p.id === poId);
+          if (idx !== -1) globalPoRecords.splice(idx, 1);
+          return res.status(200).json({ success: true, message: 'Đã xóa đơn hàng' });
+        }
+      }
+
+      // 11.5 Permissions
+      if (pathname.startsWith('/po-tracker/permissions')) {
+        if (req.method === 'POST') {
+          const body = req.body || {};
+          const newPerm = {
+            id: `perm-${Date.now()}`,
+            user_id: body.target_user_id,
+            user_name: body.target_user_id,
+            email: body.target_user_id,
+            resource_type: body.resource_type || 'po',
+            resource_id: body.resource_id || null,
+            permission: body.permission || 'view',
+            created_at: new Date().toISOString()
+          };
+          globalPoPermissions.push(newPerm);
+          return res.status(200).json({ success: true, message: 'Đã cấp quyền thành công', data: newPerm });
+        }
+        if (req.method === 'DELETE') {
+          const permId = pathname.replace('/po-tracker/permissions/', '');
+          const idx = globalPoPermissions.findIndex((p) => p.id === permId);
+          if (idx !== -1) globalPoPermissions.splice(idx, 1);
+          return res.status(200).json({ success: true, message: 'Đã thu hồi quyền' });
+        }
+      }
     }
 
     // Fallback for unknown /api routes

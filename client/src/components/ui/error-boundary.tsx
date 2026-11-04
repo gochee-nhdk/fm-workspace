@@ -6,7 +6,8 @@ import {
   SFChevronDown,
   SFChevronUp,
   SFSquareOnSquare,
-  SFCheckmark
+  SFCheckmark,
+  SFTrash
 } from 'sf-symbols-lib';
 
 interface Props {
@@ -46,6 +47,15 @@ export class ErrorBoundary extends Component<Props, State> {
     window.location.href = '/';
   };
 
+  public handleClearCacheAndReload = () => {
+    try {
+      sessionStorage.clear();
+      // Remove temporary transient filters without deleting persistent business databases
+      localStorage.removeItem('fm_sidebar_collapsed');
+    } catch (_) {}
+    window.location.href = '/';
+  };
+
   public handleCopyError = () => {
     const errorText = `${this.state.error?.name || 'Error'}: ${this.state.error?.message || 'Unknown error'}\n${this.state.error?.stack || ''}`;
     navigator.clipboard.writeText(errorText);
@@ -59,36 +69,42 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
+      const errMsg = this.state.error?.message || '';
+      const isChunkLoad = errMsg.includes('Loading chunk') || errMsg.includes('dynamically imported');
+
       return (
-        <div className="relative min-h-[460px] w-full flex items-center justify-center p-4 sm:p-8 font-sans select-none overflow-hidden">
+        <div className="relative min-h-[500px] w-full flex items-center justify-center p-4 sm:p-8 font-sans select-none overflow-hidden">
           {/* Ambient Caustic Glows */}
-          <div className="ambient-glow-azure opacity-60 pointer-events-none" />
-          <div className="ambient-glow-sunset opacity-40 pointer-events-none" />
+          <div className="ambient-glow-azure opacity-50 pointer-events-none" />
+          <div className="ambient-glow-sunset opacity-35 pointer-events-none" />
 
           {/* Liquid Glass Error Card */}
-          <div className="relative w-full max-w-lg p-6 sm:p-8 rounded-[28px] backdrop-blur-3xl bg-white/80 dark:bg-[#16161c]/80 border border-white/80 dark:border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.12),inset_0_1.5px_1px_rgba(255,255,255,1),inset_0_-1px_1.5px_rgba(0,0,0,0.06)] dark:shadow-[0_28px_90px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.18)] flex flex-col items-center text-center z-10 transition-all duration-300">
+          <div className="relative w-full max-w-lg p-6 sm:p-8 rounded-[32px] backdrop-blur-3xl bg-white/85 dark:bg-[#18181e]/85 border border-white/80 dark:border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.12),inset_0_1.5px_1px_rgba(255,255,255,1),inset_0_-1px_1.5px_rgba(0,0,0,0.06)] dark:shadow-[0_28px_90px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.18)] flex flex-col items-center text-center z-10 transition-all duration-300">
             {/* Top Specular Meniscus Highlight */}
-            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/90 dark:via-white/20 to-transparent pointer-events-none" />
+            <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/90 dark:via-white/20 to-transparent pointer-events-none" />
 
-            {/* Apple Squircle Alert Badge */}
-            <div className="relative w-14 h-14 rounded-2xl bg-gradient-to-b from-amber-500/20 to-rose-500/10 dark:from-amber-400/25 dark:to-rose-500/20 border border-amber-500/30 flex items-center justify-center text-amber-500 dark:text-amber-400 shadow-md shadow-amber-500/15 mb-4 group">
-              <SFExclamationmarkTriangleFill size={28} className="drop-shadow-xs" />
+            {/* Apple 3D Icon Alert Badge */}
+            <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-b from-amber-400/25 to-rose-500/15 dark:from-amber-400/20 dark:to-rose-500/20 border border-amber-500/30 flex items-center justify-center text-amber-500 dark:text-amber-400 shadow-lg shadow-amber-500/15 mb-4 group hover:scale-105 transition-transform duration-200">
+              <SFExclamationmarkTriangleFill size={30} className="drop-shadow-xs" />
             </div>
 
             {/* Heading */}
-            <h3 className="text-[18px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight mb-2">
-              Đã có sự cố hiển thị xảy ra
+            <h3 className="text-[19px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight mb-2">
+              {isChunkLoad ? 'Có phiên bản ứng dụng mới' : 'Đã có sự cố hiển thị xảy ra'}
             </h3>
 
             {/* Friendly explanation */}
-            <p className="text-[13.5px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed max-w-sm mb-5">
-              Hệ thống đã tự động cách ly sự cố hiển thị để bảo vệ dữ liệu công việc của bạn an toàn. Bạn có thể tải lại trang để tiếp tục.
+            <p className="text-[13.5px] text-[#86868b] dark:text-[#a1a1a6] leading-relaxed max-w-sm mb-4">
+              {isChunkLoad
+                ? 'Hệ thống vừa cập nhật tính năng mới. Vui lòng tải lại trang để nạp giao diện cập nhật mới nhất.'
+                : 'Hệ thống đã tự động cách ly sự cố hiển thị để bảo vệ dữ liệu công việc của bạn an toàn. Mọi dữ liệu đã lưu đều không bị ảnh hưởng.'}
             </p>
 
             {/* Error Message Pill */}
             <div className="w-full mb-5">
-              <div className="px-3.5 py-2 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.05] dark:border-white/[0.08] text-[12px] font-mono text-[#d70015] dark:text-[#ff6961] truncate">
-                {this.state.error?.message || 'Lỗi không xác định'}
+              <div className="px-3.5 py-2.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.06] dark:border-white/[0.08] text-[12px] font-mono text-[#d70015] dark:text-[#ff6961] truncate flex items-center justify-center gap-1.5">
+                <span>⚠️</span>
+                <span className="truncate">{errMsg || 'Lỗi hiển thị không xác định'}</span>
               </div>
 
               {/* Toggle technical details */}
@@ -112,17 +128,17 @@ export class ErrorBoundary extends Component<Props, State> {
 
               {/* Collapsible Details Drawer */}
               {this.state.showDetails && (
-                <div className="mt-2.5 p-3 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.06] dark:border-white/10 text-left relative animate-in fade-in duration-200">
+                <div className="mt-2.5 p-3.5 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.06] dark:border-white/10 text-left relative animate-in fade-in duration-200">
                   <button
                     type="button"
                     onClick={this.handleCopyError}
-                    className="absolute top-2 right-2 px-2 py-1 rounded-md text-[10.5px] font-medium bg-white/80 dark:bg-black/40 hover:bg-white dark:hover:bg-black/60 text-[#1d1d1f] dark:text-white border border-black/10 dark:border-white/10 flex items-center gap-1 cursor-pointer shadow-2xs"
+                    className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-lg text-[10.5px] font-medium bg-white/90 dark:bg-black/60 hover:bg-white dark:hover:bg-black/80 text-[#1d1d1f] dark:text-white border border-black/10 dark:border-white/10 flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                     title="Sao chép lỗi"
                   >
                     {this.state.copied ? (
                       <>
                         <SFCheckmark size={12} className="text-[#34c759]" />
-                        <span className="text-[#34c759]">Đã chép</span>
+                        <span className="text-[#34c759] font-semibold">Đã chép</span>
                       </>
                     ) : (
                       <>
@@ -131,7 +147,7 @@ export class ErrorBoundary extends Component<Props, State> {
                       </>
                     )}
                   </button>
-                  <pre className="text-[11px] font-mono text-slate-700 dark:text-slate-300 overflow-x-auto max-h-36 pr-16 select-text whitespace-pre-wrap break-words">
+                  <pre className="text-[11px] font-mono text-slate-700 dark:text-slate-300 overflow-x-auto max-h-40 pr-20 select-text whitespace-pre-wrap break-words leading-relaxed">
                     {this.state.error?.stack || this.state.error?.message || 'No stack trace available'}
                   </pre>
                 </div>
@@ -139,11 +155,11 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
 
             {/* Apple Liquid Glass Action Buttons */}
-            <div className="flex items-center gap-3 w-full justify-center">
+            <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full justify-center">
               <button
                 type="button"
                 onClick={this.handleReset}
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-b from-[#007aff] to-[#0062cc] text-white font-semibold text-[13px] shadow-[0_6px_20px_rgba(0,122,255,0.35),inset_0_1.5px_1px_rgba(255,255,255,0.65)] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-b from-[#0088FF] to-[#0062cc] text-white font-semibold text-[13px] shadow-[0_6px_20px_rgba(0,136,255,0.35),inset_0_1.5px_1px_rgba(255,255,255,0.65)] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
               >
                 <SFArrowCounterclockwise size={14} />
                 <span>Tải lại trang</span>
@@ -152,10 +168,20 @@ export class ErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={this.handleGoHome}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] font-medium text-[13px] border border-black/[0.06] dark:border-white/10 active:scale-[0.98] transition-all cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] font-medium text-[13px] border border-black/[0.06] dark:border-white/10 active:scale-[0.98] transition-all cursor-pointer"
               >
                 <SFHouse size={14} />
                 <span>Về trang chủ</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={this.handleClearCacheAndReload}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-full text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white text-[12px] font-medium hover:bg-black/[0.03] dark:hover:bg-white/[0.05] transition-colors cursor-pointer"
+                title="Khôi phục trạng thái mặc định an toàn"
+              >
+                <SFTrash size={12} />
+                <span>Khôi phục sạch</span>
               </button>
             </div>
           </div>

@@ -70,6 +70,8 @@ export const POListTable: React.FC<POListTableProps> = ({
     }
   };
 
+  const safePos = Array.isArray(pos) ? pos : [];
+
   if (loading) {
     return (
       <div className="space-y-2">
@@ -80,7 +82,7 @@ export const POListTable: React.FC<POListTableProps> = ({
     );
   }
 
-  if (pos.length === 0) {
+  if (safePos.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
         <div className="w-16 h-16 rounded-2xl bg-white/50 dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/[0.07] flex items-center justify-center text-3xl">
@@ -109,7 +111,7 @@ export const POListTable: React.FC<POListTableProps> = ({
 
       {/* Rows */}
       <div className="divide-y divide-black/[0.04] dark:divide-white/[0.04]">
-        {pos.map((po, idx) => {
+        {safePos.map((po, idx) => {
           const daysLeft = po.expected_delivery_date
             ? differenceInDays(parseISO(po.expected_delivery_date), new Date())
             : null;

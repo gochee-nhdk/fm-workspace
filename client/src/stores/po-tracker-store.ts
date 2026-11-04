@@ -48,9 +48,9 @@ export const usePOTrackerStore = create<POTrackerState>((set) => ({
   detailPO: null,
   detailLoading: false,
 
-  setFolders: (folders) => set({ folders }),
-  setPos: (pos) => set({ pos }),
-  setStats: (stats) => set({ stats }),
+  setFolders: (folders) => set({ folders: Array.isArray(folders) ? folders : [] }),
+  setPos: (pos) => set({ pos: Array.isArray(pos) ? pos : [] }),
+  setStats: (stats) => set({ stats: stats && typeof stats === 'object' ? stats : null }),
   setActiveFolderId: (id) => set({ activeFolderId: id, activeStatus: null }),
   setActiveStatus: (status) => set({ activeStatus: status }),
   setSearch: (q) => set({ search: q }),

@@ -52,6 +52,8 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
     ? (stats.actually_overdue || 0) + (stats.overdue || 0)
     : 0;
 
+  const safeFolders = Array.isArray(folders) ? folders : [];
+
   return (
     <>
       <aside
@@ -127,12 +129,12 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
           )}
 
           {/* Divider */}
-          {!collapsed && folders.length > 0 && (
+          {!collapsed && safeFolders.length > 0 && (
             <div className="h-px bg-black/[0.05] dark:bg-white/[0.06] mx-2 my-1" />
           )}
 
           {/* Folder list */}
-          {folders.map((folder) => {
+          {safeFolders.map((folder) => {
             const cfg = FOLDER_COLOR_CONFIG[folder.color || 'blue'];
             const isActive = activeFolderId === folder.id;
             const isHovered = hoveredId === folder.id;
