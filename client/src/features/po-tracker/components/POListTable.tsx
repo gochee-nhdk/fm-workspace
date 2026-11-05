@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { POTrackerPO, POStatus } from '@/types/po-tracker';
 import { usePOTrackerStore } from '@/stores/po-tracker-store';
 import { poTrackerService } from '@/services/poTrackerService';
@@ -50,18 +50,47 @@ export const POListTable: React.FC<POListTableProps> = ({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [poToDelete, setPoToDelete] = useState<POTrackerPO | null>(null);
   const [quickStatusPO, setQuickStatusPO] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Lắng nghe sự kiện click ngoài menu trạng thái để tự đóng mà không dùng overlay che mất click
+  useEffect(() => {
+    if (!quickStatusPO) return;
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setQuickStatusPO(null);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [quickStatusPO]);
 
   const safePos = Array.isArray(pos) ? pos : [];
 
   const handleQuickStatus = async (po: POTrackerPO, status: POStatus) => {
+    if (po.status === status) {
+      setQuickStatusPO(null);
+      return;
+    }
+    const prevStatus = po.status;
     setUpdatingId(po.id);
     setQuickStatusPO(null);
+
+    // Cập nhật lạc quan (optimistic update) ngay lập tức trên UI
+    updatePOInList(po.id, { status });
+
     try {
       await poTrackerService.updateStatus(po.id, status);
-      updatePOInList(po.id, { status });
-      toast.success(`Đã cập nhật trạng thái: ${PO_STATUS_CONFIG_MAP[status].label}`);
+      toast.success(`Đã cập nhật trạng thái: ${PO_STATUS_CONFIG_MAP[status]?.label || status}`, {
+        id: `status-update-${po.id}`
+      });
     } catch {
-      toast.error('Không thể cập nhật trạng thái.');
+      // Revert lại nếu có lỗi
+      updatePOInList(po.id, { status: prevStatus });
+      toast.error('Không thể cập nhật trạng thái.', {
+        id: `status-update-${po.id}`
+      });
     } finally {
       setUpdatingId(null);
     }
@@ -147,7 +176,8 @@ export const POListTable: React.FC<POListTableProps> = ({
               className={cn(
                 'grid grid-cols-[2fr_1.5fr_1fr_1.2fr_1fr_1.4fr_52px] gap-3 px-4 py-3.5 items-center group hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors duration-150 po-row-enter cursor-pointer select-none',
                 isOverdue && 'bg-red-50/50 dark:bg-red-500/[0.03]',
-                isUrgent && !isOverdue && 'bg-amber-50/50 dark:bg-amber-500/[0.03]'
+                isUrgent && !isOverdue && 'bg-amber-50/50 dark:bg-amber-500/[0.03]',
+                quickStatusPO === po.id ? 'relative z-30 ring-1 ring-[#0088FF]/30 dark:ring-[#0A84FF]/30 shadow-xs' : 'relative z-1'
               )}
               style={{ animationDelay: `${idx * 20}ms` }}
               onClick={() => onViewDetail(po)}
@@ -224,7 +254,11 @@ export const POListTable: React.FC<POListTableProps> = ({
               {/* Col 6: Status pill + quick update */}
               <div className="relative" onClick={(e) => e.stopPropagation()}>
                 <button
-                  onClick={() => setQuickStatusPO(quickStatusPO === po.id ? null : po.id)}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setQuickStatusPO(quickStatusPO === po.id ? null : po.id);
+                  }}
                   disabled={!canEdit || updatingId === po.id}
                   className={cn(
                     'transition-all duration-150 cursor-pointer active:scale-95 disabled:cursor-not-allowed',
@@ -237,13 +271,27 @@ export const POListTable: React.FC<POListTableProps> = ({
 
                 {/* Quick status dropdown */}
                 {quickStatusPO === po.id && canEdit && (
-                  <div className="absolute top-full mt-1.5 left-0 z-[100] w-[200px] rounded-2xl bg-white dark:bg-[#1c1c22] border border-black/10 dark:border-white/15 shadow-[0_16px_48px_rgba(0,0,0,0.22)] p-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                  <div
+                    ref={dropdownRef}
+                    className="absolute top-full mt-1.5 left-0 z-[120] w-[210px] rounded-2xl bg-white dark:bg-[#1c1c22] border border-black/10 dark:border-white/15 shadow-[0_16px_48px_rgba(0,0,0,0.22)] p-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {STATUS_FLOW.concat(['cancelled', 'overdue'] as POStatus[]).map((s) => {
                       const cfg = PO_STATUS_CONFIG_MAP[s];
                       return (
                         <button
                           key={s}
-                          onClick={() => handleQuickStatus(po, s)}
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleQuickStatus(po, s);
+                          }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleQuickStatus(po, s);
+                          }}
                           className={cn(
                             'w-full flex items-center gap-2 px-3 py-2 text-[12px] font-semibold rounded-xl hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors cursor-pointer text-left',
                             po.status === s && 'bg-blue-50 dark:bg-blue-500/10 text-[#0088FF]'
@@ -276,11 +324,6 @@ export const POListTable: React.FC<POListTableProps> = ({
           );
         })}
       </div>
-
-      {/* Click outside to close quick status */}
-      {quickStatusPO && (
-        <div className="fixed inset-0 z-40" onClick={() => setQuickStatusPO(null)} />
-      )}
 
       {/* Confirm Delete PO Dialog */}
       <ConfirmDeleteDialog

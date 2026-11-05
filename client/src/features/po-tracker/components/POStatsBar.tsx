@@ -32,10 +32,10 @@ const StatCard: React.FC<{
     onClick={onClick}
     type="button"
     className={cn(
-      'group relative flex items-center gap-3 px-4 py-2.5 rounded-2xl border transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer select-none text-left',
+      'group relative flex items-center gap-3 px-4 py-2.5 rounded-2xl border transition-all duration-200 ease-out cursor-pointer select-none text-left',
       active
-        ? 'bg-[#007AFF]/10 dark:bg-[#0A84FF]/15 border-[#007AFF]/50 dark:border-[#0A84FF]/50 shadow-[0_4px_16px_rgba(0,122,255,0.12)] -translate-y-0.5'
-        : 'bg-white/85 dark:bg-[#1a1a20]/80 border-black/[0.08] dark:border-white/10 hover:bg-white dark:hover:bg-[#202028] hover:border-black/15 dark:hover:border-white/15 hover:shadow-2xs hover:-translate-y-0.5 active:scale-[0.97]',
+        ? 'bg-white dark:bg-[#1f1f26] border-[#0088FF] dark:border-[#0A84FF] shadow-[0_2px_12px_rgba(0,136,255,0.14)] ring-1 ring-[#0088FF]/30 dark:ring-[#0A84FF]/30'
+        : 'bg-white/80 dark:bg-[#1a1a20]/80 border-black/[0.08] dark:border-white/10 hover:bg-white dark:hover:bg-[#202028] hover:border-black/15 dark:hover:border-white/15 hover:shadow-2xs active:scale-[0.98]',
       !onClick && 'cursor-default pointer-events-none'
     )}
   >
@@ -52,24 +52,20 @@ const StatCard: React.FC<{
       <div
         className={cn(
           'text-[21px] font-black tracking-tight tabular-nums leading-none',
-          active ? 'text-[#007AFF] dark:text-[#0A84FF]' : 'text-[#1d1d1f] dark:text-white'
+          active ? 'text-[#0088FF] dark:text-[#0A84FF]' : 'text-[#1d1d1f] dark:text-white'
         )}
       >
         {value}
       </div>
       <div
         className={cn(
-          'text-[12px] font-semibold whitespace-nowrap mt-1 transition-colors',
-          active ? 'text-[#007AFF] dark:text-[#0A84FF]' : 'text-[#48484a] dark:text-[#d1d1d6]'
+          'text-[12px] font-bold whitespace-nowrap mt-1 transition-colors',
+          active ? 'text-[#0088FF] dark:text-[#0A84FF]' : 'text-[#48484a] dark:text-[#d1d1d6]'
         )}
       >
         {label}
       </div>
     </div>
-    {/* Active subtle indicator dot */}
-    {active && (
-      <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#007AFF] dark:bg-[#0A84FF] shadow-[0_0_8px_rgba(0,122,255,0.6)] animate-pulse" />
-    )}
   </button>
 );
 
