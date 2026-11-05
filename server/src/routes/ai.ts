@@ -130,12 +130,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
             }
           } catch (mErr: any) {
             lastErr = mErr;
-            // If quota error on this key, break inner model loop and try next key in pool
-            const isQuota = mErr?.status === 429 || /quota|rate.?limit|exhausted|resource/i.test(mErr?.message || '');
-            if (isQuota) {
-              console.warn(`[AI Failover] Key #${kIdx + 1} exhausted quota, switching to backup key...`);
-              break;
-            }
+            continue; // Thử tiếp model khác trước khi chuyển key
           }
         }
       }
@@ -356,6 +351,9 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       }
 
       let lastGeminiErr = '';
+      let hadQuotaErr = false;
+      let allModelsQuotaExceeded = true;
+
       for (const gm of geminiModels) {
         try {
           const ai = new GoogleGenAI({ apiKey: cleanKey });
@@ -373,16 +371,31 @@ export default async function aiRoutes(fastify: FastifyInstance) {
         } catch (mErr: any) {
           lastGeminiErr = mErr.message || '';
           if (mErr.status === 429 || lastGeminiErr.includes('429') || lastGeminiErr.includes('RESOURCE_EXHAUSTED')) {
-            return reply.send({
+            hadQuotaErr = true;
+            // KHÔNG dừng ngay! Tiếp tục thử các model khác (2.0-flash, 1.5-flash...)
+            continue;
+          }
+          if (/not found|not supported/i.test(lastGeminiErr)) continue;
+          if (/API_KEY_INVALID|key not valid/i.test(lastGeminiErr)) {
+            return reply.code(400).send({
               success: false,
-              status: 'quota_exceeded',
               provider: 'gemini',
-              model: gm,
-              message: 'Khóa API đã hết hạn mức (429 Quota Exceeded) — Hệ thống sẽ tự động dùng khóa dự phòng.',
+              message: 'Khóa API không hợp lệ hoặc đã bị vô hiệu hóa trên Google AI Studio.',
             });
           }
+          allModelsQuotaExceeded = false;
         }
       }
+
+      if (hadQuotaErr && allModelsQuotaExceeded) {
+        return reply.send({
+          success: false,
+          status: 'quota_exceeded',
+          provider: 'gemini',
+          message: 'Khóa API đã hết hạn mức (429 Quota Exceeded) trên tất cả các mô hình khả dụng — Hệ thống sẽ tự động dùng khóa dự phòng.',
+        });
+      }
+
       return reply.code(400).send({
         success: false,
         provider: 'gemini',

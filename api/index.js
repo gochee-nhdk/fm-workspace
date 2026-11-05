@@ -53,6 +53,11 @@ const serverModelCache = new Map();
 
 function sortGeminiModelsNewestFirst(models) {
   return [...models].sort((a, b) => {
+    const isA20Flash = (a || '').toLowerCase() === 'gemini-2.0-flash';
+    const isB20Flash = (b || '').toLowerCase() === 'gemini-2.0-flash';
+    if (isA20Flash && !isB20Flash) return -1;
+    if (!isA20Flash && isB20Flash) return 1;
+
     const parseVer = (name) => {
       const match = (name || '').match(/gemini-(\d+(?:\.\d+)?)/i);
       return match ? parseFloat(match[1]) : 0;
@@ -643,8 +648,7 @@ module.exports = async function handler(req, res, forcedPath) {
               if (!fetchRes.ok) {
                 const err = await fetchRes.json().catch(() => ({}));
                 lastErr = err.error?.message || `HTTP ${fetchRes.status}`;
-                if (fetchRes.status === 429) break;
-                continue;
+                continue; // Thử model khác khi 429 trên 1 model cụ thể
               }
 
               const data = await fetchRes.json();
@@ -829,9 +833,19 @@ module.exports = async function handler(req, res, forcedPath) {
       // Google Gemini (Default for AIzaSy, AQ. or any Gemini key)
       try {
         let testModels = model ? [model] : await discoverBestGeminiModels(cleanKey);
+        const modelsToTry = Array.from(new Set([
+          'gemini-2.0-flash',
+          ...testModels,
+          'gemini-1.5-flash',
+          'gemini-2.0-flash-lite',
+          'gemini-2.5-flash',
+        ])).filter(Boolean);
 
         let lastGErr = '';
-        for (const geminiModel of testModels) {
+        let hadQuotaErr = false;
+        let allModelsQuotaExceeded = true;
+
+        for (const geminiModel of modelsToTry) {
           for (const apiVer of ['v1beta', 'v1']) {
             try {
               const fetchRes = await fetch(`https://generativelanguage.googleapis.com/${apiVer}/models/${geminiModel}:generateContent?key=${cleanKey}`, {
@@ -853,21 +867,36 @@ module.exports = async function handler(req, res, forcedPath) {
               }
 
               if (fetchRes.status === 429) {
-                return res.status(200).json({
-                  success: false,
-                  status: 'quota_exceeded',
-                  provider: 'gemini',
-                  model: geminiModel,
-                  message: 'Hết hạn mức Gemini (429) — Sẵn sàng chuyển dự phòng.',
-                });
+                hadQuotaErr = true;
+                // KHÔNG return ngay! Tiếp tục thử các model khác
+                continue;
               }
 
               const errJson = await fetchRes.json().catch(() => ({}));
               lastGErr = errJson.error?.message || `Mã lỗi ${fetchRes.status}`;
+              if (/not found|not supported/i.test(lastGErr)) continue;
+              if (/API_KEY_INVALID|key not valid/i.test(lastGErr)) {
+                return res.status(400).json({
+                  success: false,
+                  provider: 'gemini',
+                  message: 'Khóa API không hợp lệ hoặc đã bị vô hiệu hóa trên Google AI Studio.',
+                });
+              }
+              allModelsQuotaExceeded = false;
             } catch (netErr) {
               lastGErr = netErr.message;
+              allModelsQuotaExceeded = false;
             }
           }
+        }
+
+        if (hadQuotaErr && allModelsQuotaExceeded) {
+          return res.status(200).json({
+            success: false,
+            status: 'quota_exceeded',
+            provider: 'gemini',
+            message: 'Hết hạn mức Gemini (429) trên tất cả các mô hình khả dụng — Sẵn sàng chuyển dự phòng.',
+          });
         }
 
         return res.status(400).json({
@@ -1236,8 +1265,7 @@ Tên file: ${fileName}`;
                 if (!fetchRes.ok) {
                   const errData = await fetchRes.json().catch(() => ({}));
                   lastErr = errData.error?.message || `HTTP ${fetchRes.status}`;
-                  if (fetchRes.status === 429) break;
-                  continue;
+                  continue; // Tiếp tục thử model khác nếu model hiện tại bị 429
                 }
 
                 const resJson = await fetchRes.json();

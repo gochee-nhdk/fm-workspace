@@ -222,6 +222,13 @@ const callBackendWritingTool = async (
  */
 export const sortGeminiModelsNewestFirst = (models: string[]): string[] => {
   return [...models].sort((a, b) => {
+    // Ưu tiên gemini-2.0-flash lên hàng đầu vì đây là mô hình GA chính thức của Google,
+    // tốc độ xử lý nhanh nhất và có hạn mức miễn phí 15 RPM / 1500 RPD rộng rãi nhất
+    const isA20Flash = a.toLowerCase() === 'gemini-2.0-flash';
+    const isB20Flash = b.toLowerCase() === 'gemini-2.0-flash';
+    if (isA20Flash && !isB20Flash) return -1;
+    if (!isA20Flash && isB20Flash) return 1;
+
     const extractVersion = (name: string): number => {
       const match = name.match(/gemini-(\d+(?:\.\d+)?)/i) || name.match(/(\d+(?:\.\d+)?)/);
       return match ? parseFloat(match[1]) : 0;
@@ -360,16 +367,26 @@ const callGeminiApi = async (prompt: string, apiKey: string, signal?: AbortSigna
  */
 export const testGeminiApiKey = async (
   key: string
-): Promise<{ success: boolean; message: string; model?: string }> => {
+): Promise<{ success: boolean; message: string; model?: string; isQuota?: boolean }> => {
   const cleanKey = key.trim();
   if (!cleanKey) {
     return { success: false, message: 'Vui lòng nhập Gemini API Key.' };
   }
 
   // 1. Tự động truy vấn mô hình mới nhất theo quyền của API Key
-  const modelsToTry = await discoverBestFlashModels(cleanKey);
+  const discovered = await discoverBestFlashModels(cleanKey);
+  const modelsToTry = Array.from(new Set([
+    'gemini-2.0-flash',
+    ...discovered,
+    'gemini-1.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.5-flash',
+  ])).filter(Boolean);
 
   let lastErr = '';
+  let hadQuotaErr = false;
+  let allModelsQuotaExceeded = true;
+
   for (const model of modelsToTry) {
     // Try v1beta then v1 endpoint
     for (const apiVer of ['v1beta', 'v1']) {
@@ -386,19 +403,24 @@ export const testGeminiApiKey = async (
 
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({}));
-          lastErr = errorData.error?.message || `Mã lỗi HTTP ${res.status}`;
-          if (res.status === 429) {
-            return {
-              success: false,
-              message: 'Hết hạn mức yêu cầu (Quota 429) — Vui lòng chờ hoặc dùng khóa dự phòng.',
-            };
+          const errMsg = errorData.error?.message || `Mã lỗi HTTP ${res.status}`;
+          lastErr = errMsg;
+
+          if (res.status === 429 || /quota|exhausted|rate.?limit/i.test(errMsg)) {
+            hadQuotaErr = true;
+            // QUAN TRỌNG: KHÔNG DỪNG! Tiếp tục thử các model khác (2.0-flash, 1.5-flash...)
+            continue;
           }
           if (res.status === 400 || res.status === 403) {
-            if (/not found/i.test(lastErr)) continue; // Try next version / model
-            return {
-              success: false,
-              message: lastErr || 'Khóa API không hợp lệ hoặc đã bị vô hiệu hóa.',
-            };
+            allModelsQuotaExceeded = false;
+            if (/not found|not supported/i.test(errMsg)) continue; // Try next version / model
+            if (/API_KEY_INVALID|key not valid/i.test(errMsg)) {
+              return {
+                success: false,
+                isQuota: false,
+                message: 'Khóa API không hợp lệ hoặc đã bị vô hiệu hóa trên Google AI Studio.',
+              };
+            }
           }
           continue;
         }
@@ -412,19 +434,25 @@ export const testGeminiApiKey = async (
 
           return {
             success: true,
+            isQuota: false,
             message: `Khóa API hoạt động chính xác! (Model: ${model})`,
             model,
           };
         }
       } catch (err: any) {
         lastErr = err.message || 'Lỗi kết nối tới máy chủ Google Gemini';
+        allModelsQuotaExceeded = false;
       }
     }
   }
 
+  const isQuota = hadQuotaErr && allModelsQuotaExceeded;
   return {
     success: false,
-    message: `Không thể xác thực API Key: ${lastErr || 'Vui lòng kiểm tra lại tính hợp lệ của khóa'}`,
+    isQuota,
+    message: isQuota
+      ? 'Khóa API đã hết hạn mức (Quota 429) trên tất cả các mô hình khả dụng — Sẵn sàng chuyển khóa dự phòng.'
+      : `Không thể xác thực API Key: ${lastErr || 'Vui lòng kiểm tra lại tính hợp lệ của khóa'}`,
   };
 };
 
@@ -572,7 +600,19 @@ export const testSingleGeminiKey = async (
     return testDeepSeekKey(cleanKey);
   }
 
-  // 1. Thử xác thực an toàn qua Server Proxy (/api/ai/verify-key) trước (miễn nhiễm với Browser CORS)
+  // 1. Thử xác thực trực tiếp từ trình duyệt trước (phản hồi thời gian thực, trực tiếp từ kết nối của người dùng tới Google)
+  const browserRes = await testGeminiApiKey(cleanKey);
+  if (browserRes.success) {
+    return {
+      success: true,
+      status: 'active',
+      message: browserRes.message,
+      model: browserRes.model,
+      provider: 'gemini',
+    };
+  }
+
+  // 2. Dự phòng: Thử xác thực qua máy chủ backend / serverless (/api/ai/verify-key) nếu trình duyệt bị chặn CORS
   try {
     const res = await api.post('/ai/verify-key', {
       apiKey: cleanKey,
@@ -587,50 +627,22 @@ export const testSingleGeminiKey = async (
         provider: 'gemini',
       };
     }
-    if (res.data?.status === 'quota_exceeded') {
+    if (res.data?.status === 'quota_exceeded' && browserRes.isQuota) {
       return {
         success: false,
         status: 'quota_exceeded',
-        message: res.data.message || 'Hết hạn mức (429) — Sẵn sàng chuyển dự phòng',
+        message: res.data.message || 'Hết hạn mức (429) trên tất cả các mô hình khả dụng',
         provider: 'gemini',
       };
     }
-  } catch (serverErr: any) {
-    const errMsg = serverErr.response?.data?.message || serverErr.message || '';
-    const errStatus = serverErr.response?.status;
-    const isQuota = errStatus === 429 || /429|quota|rate.?limit|exhausted/i.test(errMsg);
-    if (isQuota) {
-      return {
-        success: false,
-        status: 'quota_exceeded',
-        message: errMsg || 'Hết hạn mức (429) — Sẵn sàng chuyển dự phòng',
-        provider: 'gemini',
-      };
-    }
-    // Nếu server lỗi (400 model, 401 unauth, 404, 500), tiếp tục thử kiểm tra trực tiếp từ trình duyệt
+  } catch (_serverErr: any) {
+    // Không thể kết nối server proxy, tiếp tục dùng kết quả từ trình duyệt
   }
-
-  // 2. Mặc định: Google Gemini (browser direct fallback)
-  const res = await testGeminiApiKey(cleanKey);
-  if (res.success) {
-    return {
-      success: true,
-      status: 'active',
-      message: res.message,
-      model: res.model,
-      provider: 'gemini',
-    };
-  }
-
-  const lowerMsg = (res.message || '').toLowerCase();
-  const isQuota = /429|quota|rate.?limit|resource.?exhausted|exhausted|too many requests/i.test(lowerMsg);
 
   return {
     success: false,
-    status: isQuota ? 'quota_exceeded' : 'invalid',
-    message: isQuota
-      ? 'Hết hạn mức yêu cầu (Quota 429) — Hệ thống sẽ tự động dùng khóa dự phòng.'
-      : res.message || 'Khóa API không hợp lệ hoặc đã bị vô hiệu hóa.',
+    status: browserRes.isQuota ? 'quota_exceeded' : 'invalid',
+    message: browserRes.message || 'Khóa API không hợp lệ hoặc đã bị vô hiệu hóa.',
     provider: 'gemini',
   };
 };
@@ -656,6 +668,11 @@ export const testAllGeminiKeys = async (
       updatedList.push(updatedItem);
       onProgress?.(i + 1, pool.length, updatedItem);
       continue;
+    }
+
+    // Nghỉ nhẹ 350ms giữa các khóa để tránh Google RPM rate limit dồn dập
+    if (i > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 350));
     }
 
     const testRes = await testSingleGeminiKey(item.key);

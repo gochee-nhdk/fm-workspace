@@ -417,6 +417,7 @@ export const SettingsPage: React.FC = () => {
       });
       const updated = getGeminiKeysPool();
       setGeminiKeys(updated);
+      api.put('/settings/gemini-keys-pool', { pool: updated }).catch(() => {});
 
       if (res.status === 'active') {
         toast.success(`${item.name}: Hoạt động tốt! (${res.model || 'Gemini Flash'})`);
@@ -440,10 +441,15 @@ export const SettingsPage: React.FC = () => {
     try {
       const tested = await testAllGeminiKeys();
       setGeminiKeys(tested);
+      api.put('/settings/gemini-keys-pool', { pool: tested }).catch(() => {});
       toast.dismiss('test-all-keys');
       const activeCount = tested.filter((k) => k.status === 'active').length;
       const quotaCount = tested.filter((k) => k.status === 'quota_exceeded').length;
-      toast.success(`Đã kiểm tra xong! ${activeCount} khóa sẵn sàng, ${quotaCount} khóa hết quota.`);
+      if (activeCount > 0) {
+        toast.success(`Đã kiểm tra xong! ${activeCount} khóa hoạt động realtime, ${quotaCount} khóa hết quota.`);
+      } else {
+        toast('Đã kiểm tra xong! Tất cả các khóa đều đã chạm hạn mức quota trên Google AI Studio.', { icon: '⚠️' });
+      }
     } catch (err: any) {
       toast.dismiss('test-all-keys');
       toast.error('Lỗi khi kiểm tra danh sách khóa: ' + err.message);

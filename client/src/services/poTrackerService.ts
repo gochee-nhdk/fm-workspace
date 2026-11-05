@@ -155,8 +155,7 @@ Tên file: ${fileName}`;
           if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
             lastErr = errData.error?.message || `HTTP ${res.status}`;
-            if (res.status === 429) break;
-            continue;
+            continue; // Không break khi 429 trên 1 model, tiếp tục thử model khác
           }
 
           const resJson = await res.json();
