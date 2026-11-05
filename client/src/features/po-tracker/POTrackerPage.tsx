@@ -133,8 +133,8 @@ export const POTrackerPage: React.FC = () => {
                   </span>
                 )}
               </h1>
-              <p className="text-[12.5px] font-medium text-slate-500 dark:text-zinc-400 truncate mt-0.5">
-                Tải file PO (PDF hoặc hình ảnh scan/chụp), tự động đọc dữ liệu và quản lý tiến độ giao nhận
+              <p className="text-[12.5px] font-semibold text-slate-700 dark:text-zinc-200 truncate mt-0.5 tracking-normal">
+                Tải file PO (PDF hoặc ảnh scan/chụp), tự động đọc dữ liệu và quản lý tiến độ giao nhận
               </p>
             </div>
           </div>

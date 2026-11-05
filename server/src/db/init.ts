@@ -561,7 +561,7 @@ async function initDb() {
     { key: 'default_safety_days', value: '3', category: 'procurement' },
     { key: 'default_review_period', value: '7', category: 'procurement' },
     { key: 'gemini_api_key', value: '', category: 'ai' },
-    { key: 'gemini_model', value: 'gemini-2.5-flash', category: 'ai' },
+    { key: 'gemini_model', value: 'gemini-2.0-flash', category: 'ai' },
     { key: 'sample_data_mode', value: 'false', category: 'system' }
   ];
 

@@ -39,6 +39,7 @@ import {
 import {
   getGeminiKeysPool,
   saveGeminiKeysPool,
+  setStoredGeminiKey,
   addGeminiKey,
   updateGeminiKey,
   deleteGeminiKey,
@@ -285,17 +286,20 @@ export const SettingsPage: React.FC = () => {
   const [confirmDisconnectSmtpOpen, setConfirmDisconnectSmtpOpen] = useState(false);
   const [confirmRestoreServerTarget, setConfirmRestoreServerTarget] = useState<{ backupId?: string } | null>(null);
 
-  // Sync keys from server on mount if available
+  // Sync keys from server on mount if available (safeguarding against masked keys)
   useEffect(() => {
     const fetchServerKeys = async () => {
       try {
         const res = await api.get('/settings/gemini-keys-pool');
         if (res.data?.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
-          // If local is empty, populate from server
           const local = getGeminiKeysPool();
           if (local.length === 0) {
             setGeminiKeys(res.data.data);
-            saveGeminiKeysPool(res.data.data);
+            // Only persist to local storage if they are real unmasked keys
+            const unmaskedOnly = res.data.data.filter((item: any) => item.key && !item.key.includes('••••'));
+            if (unmaskedOnly.length > 0) {
+              saveGeminiKeysPool(unmaskedOnly);
+            }
           }
         }
       } catch (_) {}
@@ -347,6 +351,7 @@ export const SettingsPage: React.FC = () => {
     setIsAddingKey(true);
     try {
       const newItem = addGeminiKey(key);
+      setStoredGeminiKey(key);
       const updatedPool = getGeminiKeysPool();
       setGeminiKeys(updatedPool);
       setNewKeyInput('');
@@ -365,8 +370,9 @@ export const SettingsPage: React.FC = () => {
       const refreshedPool = getGeminiKeysPool();
       setGeminiKeys(refreshedPool);
 
-      // Đồng bộ ngầm lên server
+      // Đồng bộ ngầm lên server cả pool và khóa chính
       api.put('/settings/gemini-keys-pool', { pool: refreshedPool }).catch(() => {});
+      api.put('/settings/gemini-key', { api_key: key }).catch(() => {});
     } finally {
       setIsAddingKey(false);
       setTestingKeyId(null);

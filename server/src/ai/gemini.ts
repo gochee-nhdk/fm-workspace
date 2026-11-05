@@ -28,7 +28,7 @@ function safeParseAIJson(text: string): any {
 
 export class GeminiService {
   private ai: GoogleGenAI | null = null;
-  private model = 'gemini-2.5-flash';
+  private model = 'gemini-2.0-flash';
 
   constructor() {
     // Initial sync fallback with environment variable
@@ -46,13 +46,32 @@ export class GeminiService {
       const keySetting = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get()) as any;
       const modelSetting = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_model'").get()) as any;
 
-      const apiKey = keySetting?.value || process.env.GEMINI_API_KEY;
-
-      if (apiKey) {
-        this.ai = new GoogleGenAI({ apiKey });
+      let apiKey = keySetting?.value;
+      if (!apiKey || apiKey.includes('••••')) {
+        // Fallback to active key from pool if single key is missing or masked
+        try {
+          const poolSetting = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_keys_pool'").get()) as any;
+          if (poolSetting?.value) {
+            const parsed = JSON.parse(poolSetting.value);
+            if (Array.isArray(parsed)) {
+              const active = parsed.find((item: any) => item?.isActive !== false && item?.key && !item.key.includes('••••'));
+              if (active) apiKey = active.key;
+            }
+          }
+        } catch (_) {}
       }
-      if (modelSetting && modelSetting.value) {
+
+      if (!apiKey || apiKey.includes('••••')) {
+        apiKey = process.env.GEMINI_API_KEY;
+      }
+
+      if (apiKey && apiKey.trim()) {
+        this.ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+      }
+      if (modelSetting && modelSetting.value && modelSetting.value !== 'gemini-2.5-flash') {
         this.model = modelSetting.value;
+      } else {
+        this.model = 'gemini-2.0-flash';
       }
     } catch {
       // Fallback to environment variable if system_settings table is not ready yet
@@ -65,8 +84,12 @@ export class GeminiService {
     }
   }
 
-  async chat(userMessage: string, dataContext: any): Promise<string> {
-    if (!this.ai) {
+  async chat(userMessage: string, dataContext: any, clientApiKey?: string): Promise<string> {
+    if (clientApiKey && clientApiKey.startsWith('AIzaSy') && !clientApiKey.includes('••••')) {
+      try {
+        this.ai = new GoogleGenAI({ apiKey: clientApiKey.trim() });
+      } catch (_) {}
+    } else if (!this.ai) {
       await this.initClient();
     }
 
@@ -126,7 +149,35 @@ export class GeminiService {
   }
 
   async extractPOFromPdf(base64Data: string, fileName: string, mimeType = 'application/pdf', clientKeys: string[] = []): Promise<any> {
-    const keys = [...clientKeys, process.env.GEMINI_API_KEY].filter((k) => typeof k === 'string' && k.trim());
+    const dbCandidateKeys: string[] = [];
+    try {
+      const db = getDb();
+      const poolSetting = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_keys_pool'").get()) as any;
+      if (poolSetting?.value) {
+        const parsed = JSON.parse(poolSetting.value);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((k: any) => {
+            if (k?.isActive !== false && k?.key && !k.key.includes('••••')) {
+              dbCandidateKeys.push(k.key.trim());
+            }
+          });
+        }
+      }
+      const singleKey = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_key'").get()) as any;
+      if (singleKey?.value && !singleKey.value.includes('••••')) {
+        dbCandidateKeys.push(singleKey.value.trim());
+      }
+    } catch (_) {}
+
+    const rawKeys = [...clientKeys, ...dbCandidateKeys, process.env.GEMINI_API_KEY];
+    const keys = Array.from(
+      new Set(
+        rawKeys
+          .filter((k): k is string => typeof k === 'string' && k.trim().length > 0)
+          .map((k) => k.trim())
+          .filter((k) => k.startsWith('AIzaSy') && !k.includes('••••'))
+      )
+    );
     
     // First try internal initialized instance if available
     if (!this.ai) {
@@ -190,7 +241,7 @@ Cấu trúc JSON cần trả về:
 
 Tên file: ${fileName}`;
 
-    const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
 
     // 1. Try with GoogleGenAI instance first if available
     if (this.ai) {

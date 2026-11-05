@@ -452,70 +452,78 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
                 </button>
               </div>
 
-              <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1 scrollbar-none">
-                {items.map((it, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10 space-y-2.5 text-[12.5px]"
-                  >
-                    <div className="flex items-center gap-2">
-                      <input
-                        value={it.item_name}
-                        onChange={(e) => handleUpdateItem(idx, { item_name: e.target.value })}
-                        placeholder="Tên sản phẩm..."
-                        className="flex-1 h-8 px-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 font-semibold text-[#1d1d1f] dark:text-white"
-                      />
-                      <input
-                        value={it.item_code}
-                        onChange={(e) => handleUpdateItem(idx, { item_code: e.target.value })}
-                        placeholder="Mã SKU"
-                        className="w-28 h-8 px-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 text-[#555558] dark:text-[#a1a1a6] font-mono text-[11.5px]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(idx)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 cursor-pointer"
-                        title="Xóa dòng"
-                      >
-                        <SFTrash size={12} />
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[#86868b] text-[11px] font-semibold">SL:</span>
-                        <input
-                          type="number"
-                          min="0"
-                          value={it.ordered_qty}
-                          onChange={(e) => handleUpdateItem(idx, { ordered_qty: Number(e.target.value) })}
-                          className="w-full h-8 px-2 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 tabular-nums font-bold text-[#1d1d1f] dark:text-white"
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[#86868b] text-[11px] font-semibold">ĐVT:</span>
-                        <input
-                          value={it.unit}
-                          onChange={(e) => handleUpdateItem(idx, { unit: e.target.value })}
-                          placeholder="thùng"
-                          className="w-full h-8 px-2 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 font-medium text-[#1d1d1f] dark:text-white"
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[#86868b] text-[11px] font-semibold">Đơn giá:</span>
-                        <input
-                          type="number"
-                          min="0"
-                          value={it.unit_price}
-                          onChange={(e) => handleUpdateItem(idx, { unit_price: Number(e.target.value) })}
-                          className="w-full h-8 px-2 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 tabular-nums font-medium text-[#1d1d1f] dark:text-white"
-                        />
-                      </div>
-                    </div>
+              <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1 scrollbar-none">
+                {items.length === 0 ? (
+                  <div className="py-5 px-4 rounded-xl border border-dashed border-black/15 dark:border-white/15 text-center bg-black/[0.01] dark:bg-white/[0.01]">
+                    <p className="text-[12.5px] font-medium text-slate-600 dark:text-zinc-400">
+                      Chưa có mặt hàng nào. Bấm <b className="text-[#0088FF] dark:text-[#0091FF]">+ Thêm dòng</b> để nhập thủ công hoặc chọn file PO có bảng mặt hàng để hệ thống tự động bóc tách.
+                    </p>
                   </div>
-                ))}
+                ) : (
+                  items.map((it, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10 space-y-2.5 text-[12.5px]"
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          value={it.item_name}
+                          onChange={(e) => handleUpdateItem(idx, { item_name: e.target.value })}
+                          placeholder="Tên sản phẩm..."
+                          className="flex-1 h-8 px-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 font-semibold text-[#1d1d1f] dark:text-white"
+                        />
+                        <input
+                          value={it.item_code}
+                          onChange={(e) => handleUpdateItem(idx, { item_code: e.target.value })}
+                          placeholder="Mã SKU"
+                          className="w-28 h-8 px-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 text-[#555558] dark:text-[#a1a1a6] font-mono text-[11.5px]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(idx)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 cursor-pointer"
+                          title="Xóa dòng"
+                        >
+                          <SFTrash size={12} />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[#86868b] text-[11px] font-semibold">SL:</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={it.ordered_qty}
+                            onChange={(e) => handleUpdateItem(idx, { ordered_qty: Number(e.target.value) })}
+                            className="w-full h-8 px-2 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 tabular-nums font-bold text-[#1d1d1f] dark:text-white"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[#86868b] text-[11px] font-semibold">ĐVT:</span>
+                          <input
+                            value={it.unit}
+                            onChange={(e) => handleUpdateItem(idx, { unit: e.target.value })}
+                            placeholder="thùng"
+                            className="w-full h-8 px-2 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 font-medium text-[#1d1d1f] dark:text-white"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[#86868b] text-[11px] font-semibold">Đơn giá:</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={it.unit_price}
+                            onChange={(e) => handleUpdateItem(idx, { unit_price: Number(e.target.value) })}
+                            className="w-full h-8 px-2 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 tabular-nums font-medium text-[#1d1d1f] dark:text-white"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 

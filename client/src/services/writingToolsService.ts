@@ -35,9 +35,11 @@ export const detectProvider = (key: string): AIProvider => {
 
 export const getStoredGeminiKey = (): string => {
   const pool = getGeminiKeysPool();
-  const activePrimary = pool.find((k) => k.isActive && k.key.trim().length > 0);
+  const activePrimary = pool.find((k) => k.isActive && k.key.trim().length > 0 && !k.key.includes('••••'));
   if (activePrimary) return activePrimary.key.trim();
-  return localStorage.getItem(GEMINI_KEY_STORAGE) || '';
+  const rawSingle = localStorage.getItem(GEMINI_KEY_STORAGE) || localStorage.getItem('gemini_api_key') || '';
+  if (rawSingle && !rawSingle.includes('••••')) return rawSingle.trim();
+  return '';
 };
 
 export const setStoredGeminiKey = (key: string): void => {
@@ -94,10 +96,10 @@ export const getGeminiKeysPool = (): GeminiKeyItem[] => {
 export const saveGeminiKeysPool = (pool: GeminiKeyItem[]): void => {
   try {
     localStorage.setItem(GEMINI_KEYS_POOL_STORAGE, JSON.stringify(pool));
-    const activePrimary = pool.find((k) => k.isActive && k.key.trim().length > 0);
+    const activePrimary = pool.find((k) => k.isActive && k.key.trim().length > 0 && !k.key.includes('••••'));
     if (activePrimary) {
       localStorage.setItem(GEMINI_KEY_STORAGE, activePrimary.key.trim());
-    } else if (pool.length > 0 && pool[0].key.trim()) {
+    } else if (pool.length > 0 && pool[0].key.trim() && !pool[0].key.includes('••••')) {
       localStorage.setItem(GEMINI_KEY_STORAGE, pool[0].key.trim());
     }
   } catch (_) {}
@@ -107,7 +109,7 @@ export const saveGeminiKeysPool = (pool: GeminiKeyItem[]): void => {
  * Lấy các khóa đang kích hoạt sẵn sàng sử dụng
  */
 export const getActiveGeminiKeys = (): GeminiKeyItem[] => {
-  return getGeminiKeysPool().filter((k) => k.isActive && k.key.trim().length > 0);
+  return getGeminiKeysPool().filter((k) => k.isActive && k.key.trim().length > 0 && !k.key.includes('••••'));
 };
 
 /**
@@ -223,14 +225,10 @@ const callBackendWritingTool = async (
 export const discoverBestFlashModels = async (apiKey: string): Promise<string[]> => {
   const cleanKey = apiKey.trim();
   const fallbackFlashModels = [
-    'gemini-3.6-flash',
-    'gemini-3.1-flash',
-    'gemini-3.1-flash-lite',
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
     'gemini-2.0-flash',
     'gemini-1.5-flash',
     'gemini-1.5-flash-8b',
+    'gemini-1.5-pro',
   ];
 
   try {
@@ -327,51 +325,12 @@ export const testGeminiApiKey = async (
     return { success: false, message: 'Vui lòng nhập Gemini API Key.' };
   }
 
-  // 1. Verify key validity and discover available models via Google models API
-  let modelsToTry: string[] = [];
-  try {
-    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${cleanKey}`);
-    if (!listRes.ok) {
-      const errJson = await listRes.json().catch(() => ({}));
-      const msg = errJson.error?.message || `Mã lỗi HTTP ${listRes.status}`;
-      return {
-        success: false,
-        message: `Không thể xác thực API Key: ${msg}`,
-      };
-    }
-    const listData = await listRes.json();
-    const serverModels: any[] = listData.models || [];
-    const validModels = serverModels
-      .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
-      .map((m) => m.name?.replace(/^models\//, ''))
-      .filter((name: string) => !name.toLowerCase().includes('2.5-pro'));
-
-    const flashFirst = validModels
-      .filter((m: string) => m.toLowerCase().includes('flash'))
-      .sort((a: string, b: string) => {
-        const vA = parseFloat(a.match(/gemini-(\d+(\.\d+)?)/)?.[1] || '0');
-        const vB = parseFloat(b.match(/gemini-(\d+(\.\d+)?)/)?.[1] || '0');
-        return vB - vA;
-      });
-
-    const rest = validModels.filter((m: string) => !m.toLowerCase().includes('flash'));
-    modelsToTry = Array.from(new Set([...flashFirst, ...rest]));
-  } catch (err: any) {
-    // If list API had a network issue, use fallback flash list
-    modelsToTry = [
-      'gemini-3.6-flash',
-      'gemini-3.1-flash',
-      'gemini-3.1-flash-lite',
-      'gemini-2.5-flash',
-      'gemini-2.5-flash-lite',
-      'gemini-2.0-flash',
-      'gemini-1.5-flash',
-    ];
-  }
-
-  if (modelsToTry.length === 0) {
-    modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
-  }
+  const modelsToTry = [
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-8b',
+    'gemini-1.5-pro',
+  ];
 
   let lastErr = '';
   for (const model of modelsToTry) {
@@ -389,6 +348,19 @@ export const testGeminiApiKey = async (
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         lastErr = errorData.error?.message || `Mã lỗi HTTP ${res.status}`;
+        if (res.status === 429) {
+          return {
+            success: false,
+            message: 'Hết hạn mức yêu cầu (Quota 429) — Vui lòng chờ hoặc dùng khóa dự phòng.',
+          };
+        }
+        if (res.status === 400 || res.status === 403) {
+          if (/not found/i.test(lastErr)) continue;
+          return {
+            success: false,
+            message: lastErr || 'Khóa API không hợp lệ hoặc đã bị vô hiệu hóa.',
+          };
+        }
         continue;
       }
 
@@ -542,6 +514,24 @@ export const testSingleGeminiKey = async (
     };
   }
 
+  if (cleanKey.includes('••••')) {
+    return {
+      success: false,
+      status: 'invalid',
+      message: 'Khóa đang bị ẩn. Vui lòng nhập lại khóa đầy đủ.',
+      provider: 'gemini',
+    };
+  }
+
+  // Provider routing based on key prefix
+  if (cleanKey.startsWith('sk-ant-')) {
+    // Claude (via server proxy)
+  } else if (cleanKey.startsWith('sk-proj-')) {
+    return testOpenAiKey(cleanKey);
+  } else if (cleanKey.startsWith('sk-')) {
+    return testDeepSeekKey(cleanKey);
+  }
+
   // 1. Thử xác thực an toàn qua Server Proxy (/api/ai/verify-key) trước (miễn nhiễm với Browser CORS)
   try {
     const res = await api.post('/ai/verify-key', {
@@ -552,8 +542,8 @@ export const testSingleGeminiKey = async (
       return {
         success: true,
         status: 'active',
-        message: res.data.message || `Khóa hoạt động chính xác! (${res.data.model || 'gemini'})`,
-        model: res.data.model,
+        message: res.data.message || `Khóa hoạt động chính xác! (${res.data.model || 'gemini-2.0-flash'})`,
+        model: res.data.model || 'gemini-2.0-flash',
         provider: 'gemini',
       };
     }
@@ -568,22 +558,19 @@ export const testSingleGeminiKey = async (
   } catch (serverErr: any) {
     const errMsg = serverErr.response?.data?.message || serverErr.message || '';
     const errStatus = serverErr.response?.status;
-    // Bỏ qua lỗi 404 hoặc 405 (do routing proxy cũ/chưa deploy) để chuyển tiếp fallback kiểm tra trực tiếp
-    if (errStatus !== 404 && errStatus !== 405) {
-      const isQuota = errStatus === 429 || /429|quota|rate.?limit|exhausted/i.test(errMsg);
-      if (errStatus && errStatus < 500) {
-        return {
-          success: false,
-          status: isQuota ? 'quota_exceeded' : 'invalid',
-          message: errMsg || 'Khóa không hợp lệ',
-          provider: 'gemini',
-        };
-      }
+    const isQuota = errStatus === 429 || /429|quota|rate.?limit|exhausted/i.test(errMsg);
+    if (isQuota) {
+      return {
+        success: false,
+        status: 'quota_exceeded',
+        message: errMsg || 'Hết hạn mức (429) — Sẵn sàng chuyển dự phòng',
+        provider: 'gemini',
+      };
     }
-    // Nếu server 404/405/500 hoặc mất mạng, tiếp tục fallback trực tiếp từ browser
+    // Nếu server lỗi (400 model, 401 unauth, 404, 500), tiếp tục thử kiểm tra trực tiếp từ trình duyệt
   }
 
-  // 2. Mặc định: Google Gemini (browser direct)
+  // 2. Mặc định: Google Gemini (browser direct fallback)
   const res = await testGeminiApiKey(cleanKey);
   if (res.success) {
     return {
@@ -1110,7 +1097,7 @@ export const extractTextFromImageDirect = async (
   const mimeType = dataUrlMatch[1];
   const base64Data = dataUrlMatch[2];
 
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
   let lastErr = '';
 
   const ocrPrompt =

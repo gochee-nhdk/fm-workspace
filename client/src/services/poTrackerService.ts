@@ -53,10 +53,21 @@ async function clientSideGeminiExtract(
   fileName: string,
   apiKeys: string[]
 ): Promise<POExtractedData> {
-  const keys = [...apiKeys, getStoredGeminiKey()].filter((k) => k && k.startsWith('AIzaSy'));
-  const uniqueKeys = Array.from(new Set(keys));
+  const rawCandidateKeys = [
+    ...apiKeys,
+    getStoredGeminiKey(),
+    ...getGeminiKeysPool().map((p) => p.key),
+  ];
+  const uniqueKeys = Array.from(
+    new Set(
+      rawCandidateKeys
+        .filter((k): k is string => typeof k === 'string')
+        .map((k) => k.trim())
+        .filter((k) => k.startsWith('AIzaSy') && !k.includes('••••'))
+    )
+  );
   if (uniqueKeys.length === 0) {
-    throw new Error('Chưa cấu hình Gemini API Key. Vui lòng vào Cài đặt để thêm API Key.');
+    throw new Error('Chưa cấu hình Gemini API Key hợp lệ. Vui lòng vào Cài đặt để thêm API Key Google Gemini (bắt đầu bằng AIzaSy).');
   }
 
   const prompt = `Bạn là chuyên gia bóc tách dữ liệu chứng từ Đơn mua hàng (PO - Purchase Order) của hệ thống FARMERS MARKET (CÔNG TY TNHH THƯƠNG MẠI LARIA).
@@ -113,7 +124,7 @@ Cấu trúc JSON cần trả về:
 }
 Tên file: ${fileName}`;
 
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
   let lastErr = '';
 
   for (const k of uniqueKeys) {
@@ -179,8 +190,15 @@ export const poTrackerService = {
 
     const pool = getGeminiKeysPool();
     const stored = getStoredGeminiKey();
-    const apiKeys = [stored, ...pool.map((p) => p.key)].filter((k) => k && k.startsWith('AIzaSy'));
-    const uniqueKeys = Array.from(new Set(apiKeys));
+    const rawKeys = [stored, ...pool.map((p) => p.key)];
+    const uniqueKeys = Array.from(
+      new Set(
+        rawKeys
+          .filter((k): k is string => typeof k === 'string')
+          .map((k) => k.trim())
+          .filter((k) => k.startsWith('AIzaSy') && !k.includes('••••'))
+      )
+    );
 
     // 1. Try server endpoint first
     try {

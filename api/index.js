@@ -3,6 +3,8 @@ const crypto = require('crypto');
 
 // In-memory runtime cache for serverless environment (isolated per user)
 let globalSmtpConfig = null;
+let globalGeminiKeysPool = [];
+let globalGeminiKey = '';
 const userBackups = new Map(); // userId -> { latest: backupData, history: [backupData] }
 const globalPoFolders = [
   { id: 'f-default-1', name: 'Hàng kinh doanh', description: 'Các đơn hàng thu mua sản phẩm thương mại', color: 'blue', icon: 'shippingbox', sort_order: 1, created_at: new Date().toISOString() },
@@ -753,40 +755,45 @@ module.exports = async function handler(req, res, forcedPath) {
 
       // Google Gemini (Default for AIzaSy or gemini)
       try {
-        const geminiModel = model || 'gemini-2.5-flash';
-        const fetchRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${cleanKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: 'Ping. Trả lời đúng 1 chữ: OK' }] }],
-            generationConfig: { maxOutputTokens: 5 },
-          }),
-        });
-
-        if (fetchRes.ok) {
-          return res.status(200).json({
-            success: true,
-            provider: 'gemini',
-            model: geminiModel,
-            message: `Khóa API hoạt động chính xác với Google Gemini! (Model: ${geminiModel})`,
+        const testModels = model ? [model] : ['gemini-2.0-flash', 'gemini-1.5-flash'];
+        let lastGErr = '';
+        for (const geminiModel of testModels) {
+          const fetchRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${cleanKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: 'Ping. Trả lời đúng 1 chữ: OK' }] }],
+              generationConfig: { maxOutputTokens: 5 },
+            }),
           });
+
+          if (fetchRes.ok) {
+            return res.status(200).json({
+              success: true,
+              provider: 'gemini',
+              model: geminiModel,
+              message: `Khóa API hoạt động chính xác với Google Gemini! (Model: ${geminiModel})`,
+            });
+          }
+
+          if (fetchRes.status === 429) {
+            return res.status(200).json({
+              success: false,
+              status: 'quota_exceeded',
+              provider: 'gemini',
+              model: geminiModel,
+              message: 'Hết hạn mức Gemini (429) — Sẵn sàng chuyển dự phòng.',
+            });
+          }
+
+          const errJson = await fetchRes.json().catch(() => ({}));
+          lastGErr = errJson.error?.message || `Mã lỗi ${fetchRes.status}`;
         }
 
-        if (fetchRes.status === 429) {
-          return res.status(200).json({
-            success: false,
-            status: 'quota_exceeded',
-            provider: 'gemini',
-            model: geminiModel,
-            message: 'Hết hạn mức Gemini (429) — Sẵn sàng chuyển dự phòng.',
-          });
-        }
-
-        const errJson = await fetchRes.json().catch(() => ({}));
         return res.status(400).json({
           success: false,
           provider: 'gemini',
-          message: errJson.error?.message || `Xác thực API Key Gemini thất bại (Mã lỗi ${fetchRes.status})`,
+          message: `Xác thực API Key Gemini thất bại: ${lastGErr || 'Khóa không hợp lệ'}`,
         });
       } catch (gErr) {
         return res.status(400).json({
@@ -854,7 +861,7 @@ module.exports = async function handler(req, res, forcedPath) {
             }
           } else {
             // Gemini API
-            const gRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${k}`, {
+            const gRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${k}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -869,7 +876,7 @@ module.exports = async function handler(req, res, forcedPath) {
                 return res.status(200).json({
                   success: true,
                   result,
-                  model: 'gemini-2.5-flash',
+                  model: 'gemini-2.0-flash',
                   usedKeyIndex: kIdx,
                   fallbackKeyUsed: kIdx > 0,
                 });
@@ -884,9 +891,112 @@ module.exports = async function handler(req, res, forcedPath) {
       return res.status(500).json({ success: false, message: lastErr || 'Lỗi xử lý văn bản' });
     }
 
+    // 9.1 AI Chat Copilot (Vercel Serverless)
+    if (pathname === '/ai/chat' && req.method === 'POST') {
+      const { message, conversationId, apiKey, apiKeys } = req.body || {};
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ success: false, message: 'Tin nhắn không được để trống' });
+      }
+      const rawCandidateKeys = [
+        apiKey,
+        ...(Array.isArray(apiKeys) ? apiKeys : []),
+        globalGeminiKey,
+        ...globalGeminiKeysPool.map((k) => k.key),
+        process.env.GEMINI_API_KEY,
+      ];
+      const validKey = rawCandidateKeys.find((k) => typeof k === 'string' && k.startsWith('AIzaSy') && !k.includes('••••'));
+      if (!validKey) {
+        return res.status(200).json({
+          success: true,
+          response: '⚠️ **Chưa cấu hình Gemini API Key**\n\nĐể kích hoạt Trợ lý AI Copilot phân tích dữ liệu tự động, vui lòng vào mục **Cài đặt hệ thống** (/settings) và nhập Gemini API Key của bạn.',
+        });
+      }
+
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${validKey}`;
+        const chatRes = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: message }] }],
+            systemInstruction: {
+              parts: [{ text: 'Bạn là Trợ lý AI Cấp cao chuyên trách Thu mua & Merchandising cho Farmers Market (Việt Nam). Hãy trả lời súc tích, chuyên nghiệp bằng tiếng Việt.' }],
+            },
+          }),
+        });
+        if (chatRes.ok) {
+          const chatData = await chatRes.json();
+          const replyText = chatData.candidates?.[0]?.content?.parts?.[0]?.text || 'Không có phản hồi.';
+          return res.status(200).json({ success: true, response: replyText, conversationId: conversationId || `conv_${Date.now()}` });
+        }
+        const errJson = await chatRes.json().catch(() => ({}));
+        return res.status(500).json({ success: false, message: errJson.error?.message || 'Lỗi kết nối Gemini' });
+      } catch (chatErr) {
+        return res.status(500).json({ success: false, message: chatErr.message });
+      }
+    }
+
     // 10. Gemini Keys Pool Settings (GET & PUT)
     if (pathname === '/settings/gemini-keys-pool') {
-      return res.status(200).json({ success: true, data: [] });
+      if (req.method === 'PUT') {
+        const body = req.body || {};
+        if (Array.isArray(body.pool)) {
+          const existingMap = new Map();
+          globalGeminiKeysPool.forEach((item) => {
+            if (item.id && item.key) existingMap.set(item.id, item.key);
+          });
+          globalGeminiKeysPool = body.pool.map((item, idx) => {
+            let finalKey = (item.key || '').trim();
+            if (finalKey.includes('••••') && existingMap.has(item.id)) {
+              finalKey = existingMap.get(item.id);
+            }
+            return {
+              id: item.id || `key_${Date.now()}_${idx}`,
+              name: item.name || (idx === 0 ? 'Khóa chính' : `Khóa dự phòng #${idx}`),
+              key: finalKey,
+              isActive: item.isActive !== false,
+              status: item.status || 'unchecked',
+              statusMessage: item.statusMessage || '',
+              model: item.model || 'gemini-2.0-flash',
+              lastCheckedAt: item.lastCheckedAt || new Date().toISOString(),
+            };
+          });
+          const activePrimary = globalGeminiKeysPool.find((k) => k.isActive && k.key && !k.key.includes('••••'));
+          if (activePrimary) {
+            globalGeminiKey = activePrimary.key;
+          }
+        }
+        return res.status(200).json({ success: true, message: 'Đã cập nhật danh sách Khóa API Gemini thành công.' });
+      }
+
+      // GET
+      const maskedPool = globalGeminiKeysPool.map((item) => ({
+        ...item,
+        key: item.key ? `${item.key.substring(0, 6)}••••••••${item.key.slice(-4)}` : '',
+        rawKeyPreview: item.key ? `${item.key.substring(0, 8)}...` : '',
+      }));
+      return res.status(200).json({ success: true, data: maskedPool });
+    }
+
+    if (pathname === '/settings/gemini-key' && req.method === 'PUT') {
+      const { api_key } = req.body || {};
+      if (api_key && typeof api_key === 'string' && !api_key.includes('••••')) {
+        globalGeminiKey = api_key.trim();
+        if (globalGeminiKeysPool.length === 0) {
+          globalGeminiKeysPool.push({
+            id: 'key_primary',
+            name: 'Khóa chính (Mặc định)',
+            key: globalGeminiKey,
+            isActive: true,
+            status: 'active',
+            model: 'gemini-2.0-flash',
+            lastCheckedAt: new Date().toISOString(),
+          });
+        } else {
+          globalGeminiKeysPool[0].key = globalGeminiKey;
+        }
+      }
+      return res.status(200).json({ success: true, message: 'Đã lưu khóa API Gemini thành công.' });
     }
 
     // 11. PO Tracker Endpoints (Vercel Cloud Serverless Support)
@@ -925,15 +1035,27 @@ module.exports = async function handler(req, res, forcedPath) {
           return res.status(400).json({ success: false, message: 'Vui lòng cung cấp dữ liệu tệp (base64/dataUrl).' });
         }
 
-        const keys = [...(Array.isArray(body.apiKeys) ? body.apiKeys : []), body.apiKey, process.env.GEMINI_API_KEY]
-          .filter((k) => typeof k === 'string' && k.trim());
-        const uniqueKeys = Array.from(new Set(keys)).filter((k) => k.startsWith('AIzaSy'));
+        const rawKeys = [
+          ...(Array.isArray(body.apiKeys) ? body.apiKeys : []),
+          body.apiKey,
+          globalGeminiKey,
+          ...globalGeminiKeysPool.map((p) => p.key),
+          process.env.GEMINI_API_KEY
+        ];
+        const uniqueKeys = Array.from(
+          new Set(
+            rawKeys
+              .filter((k) => typeof k === 'string' && k.trim().length > 0)
+              .map((k) => k.trim())
+              .filter((k) => k.startsWith('AIzaSy') && !k.includes('••••'))
+          )
+        );
 
         if (uniqueKeys.length === 0) {
           return res.status(400).json({
             success: false,
             needsApiKey: true,
-            message: 'Chưa cấu hình Gemini API Key. Vui lòng thêm khóa trong mục Cài đặt → API Key.',
+            message: 'Chưa cấu hình Gemini API Key hợp lệ. Vui lòng thêm khóa trong mục Cài đặt → API Key (bắt đầu bằng AIzaSy).',
           });
         }
 
@@ -991,7 +1113,7 @@ Cấu trúc JSON cần trả về:
 }
 Tên file: ${fileName}`;
 
-        const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+        const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
         let lastErr = null;
 
         for (const k of uniqueKeys) {

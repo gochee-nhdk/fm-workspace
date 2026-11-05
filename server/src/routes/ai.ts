@@ -73,11 +73,6 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       }
 
       const models = [
-        'gemini-3.6-flash',
-        'gemini-3.1-flash',
-        'gemini-3.1-flash-lite',
-        'gemini-2.5-flash',
-        'gemini-2.5-flash-lite',
         'gemini-2.0-flash',
         'gemini-1.5-flash',
       ];
@@ -157,10 +152,9 @@ export default async function aiRoutes(fastify: FastifyInstance) {
 
   // Verify API key endpoint with multi-provider support (Gemini, DeepSeek, OpenAI, Claude)
   fastify.post('/verify-key', {
-    preHandler: verifyToken,
     config: {
       rateLimit: {
-        max: 20,
+        max: 30,
         timeWindow: '1 minute',
         errorResponseBuilder: () => ({
           statusCode: 429,
@@ -177,6 +171,12 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     }
 
     const cleanKey = key.trim();
+    if (cleanKey.includes('••••')) {
+      return reply.code(400).send({
+        success: false,
+        message: 'Khóa API đang ở dạng hiển thị bảo mật (••••). Vui lòng nhập lại khóa đầy đủ để kiểm tra.'
+      });
+    }
     const cleanProvider = (provider || '').toLowerCase().trim();
 
     // 1. DeepSeek provider verification
@@ -325,18 +325,39 @@ export default async function aiRoutes(fastify: FastifyInstance) {
 
     // 4. Google Gemini provider verification (Default for AIzaSy or gemini)
     try {
-      const ai = new GoogleGenAI({ apiKey: cleanKey });
-      const geminiModel = model || 'gemini-2.5-flash';
-      await ai.models.generateContent({
-        model: geminiModel,
-        contents: 'Ping. Trả lời đúng 1 chữ: OK',
-        config: { maxOutputTokens: 5 },
-      });
-      return reply.send({
-        success: true,
+      const geminiModels = model ? [model] : ['gemini-2.0-flash', 'gemini-1.5-flash'];
+      let lastGeminiErr = '';
+      for (const gm of geminiModels) {
+        try {
+          const ai = new GoogleGenAI({ apiKey: cleanKey });
+          await ai.models.generateContent({
+            model: gm,
+            contents: 'Ping. Trả lời đúng 1 chữ: OK',
+            config: { maxOutputTokens: 5 },
+          });
+          return reply.send({
+            success: true,
+            provider: 'gemini',
+            message: `Khóa API hoạt động chính xác với Google Gemini! (Model: ${gm})`,
+            model: gm,
+          });
+        } catch (mErr: any) {
+          lastGeminiErr = mErr.message || '';
+          if (mErr.status === 429 || lastGeminiErr.includes('429') || lastGeminiErr.includes('RESOURCE_EXHAUSTED')) {
+            return reply.send({
+              success: false,
+              status: 'quota_exceeded',
+              provider: 'gemini',
+              model: gm,
+              message: 'Khóa API đã hết hạn mức (429 Quota Exceeded) — Hệ thống sẽ tự động dùng khóa dự phòng.',
+            });
+          }
+        }
+      }
+      return reply.code(400).send({
+        success: false,
         provider: 'gemini',
-        message: `Khóa API hoạt động chính xác với Google Gemini! (Model: ${geminiModel})`,
-        model: geminiModel,
+        message: `Xác thực API Key thất bại: ${lastGeminiErr || 'Khóa không hợp lệ'}`,
       });
     } catch (err: any) {
       return reply.code(400).send({
@@ -348,13 +369,14 @@ export default async function aiRoutes(fastify: FastifyInstance) {
   });
 
   fastify.post('/chat', { preHandler: verifyToken }, async (request: any, reply) => {
-    const { message, conversationId } = request.body;
+    const { message, conversationId, apiKey, apiKeys } = request.body || {};
+    const clientKey = apiKey || (Array.isArray(apiKeys) ? apiKeys.find((k: any) => typeof k === 'string' && !k.includes('••••')) : undefined);
     
     try {
       const intent = await parseUserIntent(message);
       const dataContext = await buildDataContext(intent, message);
       
-      const response = await geminiService.chat(message, dataContext);
+      const response = await geminiService.chat(message, dataContext, clientKey);
       
       const db = getDb();
       let convId = conversationId;
@@ -486,7 +508,6 @@ export default async function aiRoutes(fastify: FastifyInstance) {
 
     // Vision-capable model fallback chain (newest first)
     const models = [
-      'gemini-2.5-flash',
       'gemini-2.0-flash',
       'gemini-1.5-flash',
     ];
