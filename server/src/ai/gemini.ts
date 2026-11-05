@@ -100,84 +100,144 @@ export class GeminiService {
     }
   }
 
-  async extractPOFromPdf(base64Pdf: string, fileName: string): Promise<any> {
+  async extractPOFromPdf(base64Data: string, fileName: string, mimeType = 'application/pdf', clientKeys: string[] = []): Promise<any> {
+    const keys = [...clientKeys, process.env.GEMINI_API_KEY].filter((k) => typeof k === 'string' && k.trim());
+    
+    // First try internal initialized instance if available
     if (!this.ai) {
       await this.initClient();
     }
-    if (!this.ai) {
-      throw new Error('Gemini API key chưa được cấu hình. Vui lòng vào Cài đặt để thêm API key.');
-    }
 
-    const prompt = `Bạn là chuyên gia đọc và trích xuất thông tin từ tài liệu Purchase Order (PO) / Đơn đặt hàng.
+    const effectiveMime = mimeType && mimeType.includes('/') ? mimeType : (fileName.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
 
-Hãy đọc file PDF PO này và trích xuất TẤT CẢ thông tin sau đây. Trả về JSON THUẦN TÚY (không có markdown, không có backtick).
+    const prompt = `Bạn là chuyên gia bóc tách dữ liệu chứng từ Đơn mua hàng (PO - Purchase Order) của hệ thống FARMERS MARKET (CÔNG TY TNHH THƯƠNG MẠI LARIA).
+
+Hãy phân tích toàn bộ tài liệu/hình ảnh/PDF được cung cấp và trích xuất đầy đủ, chính xác các thông tin sau.
+Trả về định dạng JSON thuần túy (không bọc trong markdown code fence, không thêm lời chào hay giải thích).
+
+QUY TẮC NHẬN DIỆN ĐẶC THÙ CHO FARMERS MARKET:
+1. Số PO / Số chứng từ ("po_number"): Tìm sau các từ "Số hiệu chứng từ", "Số PO", "Số đơn hàng", "PO No.", ví dụ: "PO-118891".
+2. Ngày lập PO ("po_date"): Tìm sau "Ngày chứng từ", "Ngày lập", ví dụ "4/11/2026" -> chuẩn hóa thành "YYYY-MM-DD" (2026-11-04).
+3. Hạn giao hàng ("expected_delivery_date"): Tìm sau "Ngày giao hàng", "Hạn giao", "Giao trước ngày", ví dụ "9/11/2026" -> chuẩn hóa thành "YYYY-MM-DD" (2026-11-09).
+4. Nhà cung cấp:
+   - "supplier_name": Tên công ty / nhà cung cấp, tìm sau "Tên NCC:", ví dụ "CÔNG TY CỔ PHẦN CÔNG NGHỆ THỰC PHẨM LƯƠNG GIA".
+   - "supplier_code": Mã nhà cung cấp, tìm sau "Mã NCC:", ví dụ "V0001834".
+5. Địa điểm giao / Kho ("warehouse"):
+   - Tìm sau "Chi nhánh yêu cầu:", "Địa chỉ giao hàng:", "Kho nhận:", ví dụ: "DC01 - Nơ Trang Long, 204 Nơ Trang Long...". Trích xuất mã kho/tên chi nhánh (ví dụ: "DC01 - Nơ Trang Long").
+6. Tổng tiền ("total_value"):
+   - Tìm ở cuối sau "TỔNG TIỀN HÀNG" hoặc "TỔNG CỘNG TRƯỚC THUẾ VAT".
+   - Là số thực, bỏ dấu phân cách (ví dụ "54.770.204,00" -> 54770204).
+7. Đơn vị tiền tệ ("currency"): Mặc định "VND" nếu không ghi khác.
+8. Danh sách mặt hàng ("items"):
+   Duyệt qua từng dòng trong bảng chi tiết hàng hóa:
+   - "item_code": Lấy từ cột "Internal Code" hoặc "Barcode/PLU" (ví dụ: "10028694").
+   - "item_name": Lấy từ cột "Mặt hàng" hoặc "Tên hàng hóa" (ví dụ: "Cam vàng phủ cacao Ohla 120 g ( Hộp )").
+   - "ordered_qty": Số lượng đặt hàng (chuyển ví dụ "42,00" -> 42).
+   - "unit": Đơn vị tính từ cột "DVT" (ví dụ: "Hộp", "Thùng", "Kg", "Gói", "Chai").
+   - "unit_price": Lấy từ "Đơn giá chưa VAT (VND)" hoặc "Đơn giá" (chuyển ví dụ "116.364,00" -> 116364).
+   - "total_price": Lấy từ "Thành tiền chưa VAT (VND)" hoặc "Thành tiền" (chuyển ví dụ "4.887.288,00" -> 4887288).
+   - "warehouse": Chi nhánh hoặc kho nếu có trên dòng.
+9. Ghi chú ("notes"): Lưu các điều khoản hoặc tên người đặt hàng (ví dụ: "Người đặt: Nguyễn Hùng Tiến").
 
 Cấu trúc JSON cần trả về:
 {
-  "po_number": "Số PO / Số đơn hàng",
-  "po_date": "Ngày lập PO (định dạng YYYY-MM-DD nếu có thể xác định)",
-  "expected_delivery_date": "Ngày giao hàng dự kiến (định dạng YYYY-MM-DD)",
-  "supplier_code": "Mã nhà cung cấp",
-  "supplier_name": "Tên nhà cung cấp / Tên công ty cung cấp",
-  "warehouse": "Kho nhận hàng / Địa điểm giao hàng",
-  "total_value": số_tổng_giá_trị (số thực, không có dấu phẩy hay đơn vị tiền tệ),
-  "currency": "Đơn vị tiền tệ (VND, USD, EUR...)",
-  "notes": "Ghi chú đặc biệt nếu có",
+  "po_number": "PO-118891",
+  "po_date": "2026-11-04",
+  "expected_delivery_date": "2026-11-09",
+  "supplier_code": "V0001834",
+  "supplier_name": "CÔNG TY CỔ PHẦN CÔNG NGHỆ THỰC PHẨM LƯƠNG GIA",
+  "warehouse": "DC01 - Nơ Trang Long",
+  "total_value": 54770204,
+  "currency": "VND",
+  "notes": "Người đặt hàng: Nguyễn Hùng Tiến",
   "items": [
     {
-      "item_code": "Mã hàng / SKU",
-      "item_name": "Tên hàng hóa / mô tả sản phẩm",
-      "unit": "Đơn vị tính (thùng, kg, cái, hộp...)",
-      "ordered_qty": số_lượng_đặt (số thực),
-      "unit_price": giá_đơn_vị (số thực),
-      "total_price": thành_tiền (số thực),
-      "warehouse": "Kho nhận riêng cho dòng này nếu có"
+      "item_code": "10028694",
+      "item_name": "Cam vàng phủ cacao Ohla 120 g ( Hộp )",
+      "unit": "Hộp",
+      "ordered_qty": 42,
+      "unit_price": 116364,
+      "total_price": 4887288,
+      "warehouse": "DC01"
     }
   ]
 }
 
-Lưu ý quan trọng:
-- Nếu không tìm thấy thông tin nào, để null cho trường đó
-- Các trường số phải là number, không phải string
-- Mảng items phải có ít nhất 1 phần tử nếu tìm thấy hàng hóa
-- Nếu ngày tháng không rõ định dạng, hãy cố gắng chuyển sang YYYY-MM-DD
-- Tên file PDF để tham khảo: ${fileName}`;
+Tên file: ${fileName}`;
 
-    try {
-      const response = await this.ai.models.generateContent({
-        model: this.model,
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inlineData: { mimeType: 'application/pdf', data: base64Pdf } }
-          ]
-        }],
-        config: {
-          temperature: 0.0,
-          responseMimeType: 'application/json'
-        }
-      });
+    const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
-      const text = response.text || '{}';
-      // Clean up any potential markdown wrapping
-      const cleaned = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
-      return JSON.parse(cleaned);
-    } catch (error: any) {
-      console.error('Gemini PDF extraction error:', error);
-      // Return empty structure so user can fill manually
-      return {
-        po_number: null,
-        po_date: null,
-        expected_delivery_date: null,
-        supplier_code: null,
-        supplier_name: null,
-        warehouse: null,
-        total_value: null,
-        currency: 'VND',
-        notes: null,
-        items: []
-      };
+    // 1. Try with GoogleGenAI instance first if available
+    if (this.ai) {
+      try {
+        const response = await this.ai.models.generateContent({
+          model: this.model,
+          contents: [{
+            parts: [
+              { text: prompt },
+              { inlineData: { mimeType: effectiveMime, data: base64Data } }
+            ]
+          }],
+          config: {
+            temperature: 0.0,
+            responseMimeType: 'application/json'
+          }
+        });
+
+        const text = response.text || '{}';
+        const cleaned = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+        return JSON.parse(cleaned);
+      } catch (err: any) {
+        console.warn('GoogleGenAI SDK attempt error, trying fetch fallback:', err.message);
+      }
     }
+
+    // 2. Multi-key & Multi-model REST fetch fallback
+    for (const key of keys) {
+      if (!key || !key.startsWith('AIzaSy')) continue;
+      for (const m of models) {
+        try {
+          const fetchUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`;
+          const res = await fetch(fetchUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { text: prompt },
+                  { inlineData: { mimeType: effectiveMime, data: base64Data } }
+                ]
+              }],
+              generationConfig: {
+                temperature: 0.0,
+                responseMimeType: 'application/json'
+              }
+            })
+          });
+
+          if (res.ok) {
+            const data: any = await res.json();
+            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+            const cleaned = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+            return JSON.parse(cleaned);
+          }
+        } catch (_) {}
+      }
+    }
+
+    // Default structure if all attempts failed
+    return {
+      po_number: null,
+      po_date: null,
+      expected_delivery_date: null,
+      supplier_code: null,
+      supplier_name: null,
+      warehouse: null,
+      total_value: null,
+      currency: 'VND',
+      notes: null,
+      items: []
+    };
   }
 }
 

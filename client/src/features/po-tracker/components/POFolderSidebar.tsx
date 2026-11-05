@@ -8,7 +8,7 @@ import {
   SFExclamationmarkTriangleFill,
   SFPencil,
   SFTrash,
-  SFShippingboxFill,
+  SFShippingbox,
   SFListBullet
 } from 'sf-symbols-lib';
 import { cn } from '@/lib/utils';
@@ -88,11 +88,11 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
             className={cn(
               'w-full flex items-center gap-2.5 px-3 h-10 rounded-xl text-[13px] font-semibold transition-all duration-150 cursor-pointer active:scale-[0.98] text-left select-none',
               activeFolderId === null
-                ? 'fm-primary-pill-surface text-white shadow-sm'
+                ? 'bg-[#007AFF]/12 dark:bg-[#0A84FF]/20 text-[#007AFF] dark:text-[#0A84FF]'
                 : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
             )}
           >
-            <SFShippingboxFill size={16} className={cn('shrink-0', activeFolderId === null ? 'text-white' : 'text-[#0088FF]')} />
+            <SFShippingbox size={16} className={cn('shrink-0', activeFolderId === null ? 'text-[#007AFF] dark:text-[#0A84FF]' : 'text-[#76767b] dark:text-[#8e8e93]')} />
             {!collapsed && (
               <>
                 <span className="flex-1 truncate">Tất cả đơn PO</span>
@@ -101,7 +101,7 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
                     className={cn(
                       'text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center tabular-nums',
                       activeFolderId === null
-                        ? 'bg-white/20 text-white'
+                        ? 'bg-[#007AFF]/20 text-[#007AFF] dark:text-[#0A84FF]'
                         : 'bg-black/[0.06] dark:bg-white/[0.08] text-[#555558] dark:text-[#a1a1a6]'
                     )}
                   >
@@ -209,13 +209,13 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
             <button
               onClick={() => handleSelect('unassigned')}
               className={cn(
-                'w-full flex items-center gap-2.5 px-3 h-9 rounded-xl text-[12.5px] font-medium transition-all duration-150 cursor-pointer active:scale-[0.98] text-left select-none',
+                'w-full flex items-center gap-2.5 px-3 h-9 rounded-xl text-[12.5px] transition-all duration-150 cursor-pointer active:scale-[0.98] text-left select-none',
                 activeFolderId === 'unassigned'
-                  ? 'fm-primary-pill-surface text-white shadow-sm'
-                  : 'text-[#76767b] dark:text-[#a1a1a6] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
+                  ? 'bg-[#007AFF]/12 dark:bg-[#0A84FF]/20 text-[#007AFF] dark:text-[#0A84FF] font-semibold'
+                  : 'text-[#555558] dark:text-[#a1a1a6] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium'
               )}
             >
-              <span className="w-2 h-2 rounded-full shrink-0 bg-zinc-400 dark:bg-zinc-600" />
+              <span className={cn('w-2 h-2 rounded-full shrink-0', activeFolderId === 'unassigned' ? 'bg-[#007AFF] dark:bg-[#0A84FF]' : 'bg-zinc-400 dark:bg-zinc-600')} />
               <span className="flex-1 truncate">Chưa phân nhóm</span>
             </button>
           )}

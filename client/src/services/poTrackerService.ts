@@ -6,8 +6,133 @@ import {
   POTrackerStats,
   POPermission,
 } from '@/types/po-tracker';
+import { getStoredGeminiKey, getGeminiKeysPool } from './writingToolsService';
 
 type ApiResponse<T> = { success: boolean; data: T; message?: string };
+
+const fileToDataUrl = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+};
+
+/**
+ * Trực tiếp bóc tách PO qua Gemini phía trình duyệt trong trường hợp server không phản hồi
+ */
+async function clientSideGeminiExtract(
+  base64Data: string,
+  mimeType: string,
+  fileName: string,
+  apiKeys: string[]
+): Promise<POExtractedData> {
+  const keys = [...apiKeys, getStoredGeminiKey()].filter((k) => k && k.startsWith('AIzaSy'));
+  const uniqueKeys = Array.from(new Set(keys));
+  if (uniqueKeys.length === 0) {
+    throw new Error('Chưa cấu hình Gemini API Key. Vui lòng vào Cài đặt để thêm API Key.');
+  }
+
+  const prompt = `Bạn là chuyên gia bóc tách dữ liệu chứng từ Đơn mua hàng (PO - Purchase Order) của hệ thống FARMERS MARKET (CÔNG TY TNHH THƯƠNG MẠI LARIA).
+
+Hãy phân tích toàn bộ tài liệu/hình ảnh/PDF được cung cấp và trích xuất đầy đủ, chính xác các thông tin sau.
+Trả về định dạng JSON thuần túy (không bọc trong markdown code fence, không thêm lời chào hay giải thích).
+
+QUY TẮC NHẬN DIỆN ĐẶC THÙ CHO FARMERS MARKET:
+1. Số PO / Số chứng từ ("po_number"): Tìm sau các từ "Số hiệu chứng từ", "Số PO", "Số đơn hàng", "PO No.", ví dụ: "PO-118891".
+2. Ngày lập PO ("po_date"): Tìm sau "Ngày chứng từ", "Ngày lập", ví dụ "4/11/2026" -> chuẩn hóa thành "YYYY-MM-DD" (2026-11-04).
+3. Hạn giao hàng ("expected_delivery_date"): Tìm sau "Ngày giao hàng", "Hạn giao", "Giao trước ngày", ví dụ "9/11/2026" -> chuẩn hóa thành "YYYY-MM-DD" (2026-11-09).
+4. Nhà cung cấp:
+   - "supplier_name": Tên công ty / nhà cung cấp, tìm sau "Tên NCC:", ví dụ "CÔNG TY CỔ PHẦN CÔNG NGHỆ THỰC PHẨM LƯƠNG GIA".
+   - "supplier_code": Mã nhà cung cấp, tìm sau "Mã NCC:", ví dụ "V0001834".
+5. Địa điểm giao / Kho ("warehouse"):
+   - Tìm sau "Chi nhánh yêu cầu:", "Địa chỉ giao hàng:", "Kho nhận:", ví dụ: "DC01 - Nơ Trang Long, 204 Nơ Trang Long...". Trích xuất mã kho/tên chi nhánh (ví dụ: "DC01 - Nơ Trang Long").
+6. Tổng tiền ("total_value"):
+   - Tìm ở cuối sau "TỔNG TIỀN HÀNG" hoặc "TỔNG CỘNG TRƯỚC THUẾ VAT".
+   - Là số thực, bỏ dấu phân cách (ví dụ "54.770.204,00" -> 54770204).
+7. Đơn vị tiền tệ ("currency"): Mặc định "VND".
+8. Danh sách mặt hàng ("items"):
+   Duyệt qua từng dòng trong bảng chi tiết hàng hóa:
+   - "item_code": Lấy từ cột "Internal Code" hoặc "Barcode/PLU" (ví dụ: "10028694").
+   - "item_name": Lấy từ cột "Mặt hàng" hoặc "Tên hàng hóa" (ví dụ: "Cam vàng phủ cacao Ohla 120 g ( Hộp )").
+   - "ordered_qty": Số lượng đặt hàng (chuyển ví dụ "42,00" -> 42).
+   - "unit": Đơn vị tính từ cột "DVT" (ví dụ: "Hộp", "Thùng", "Kg", "Gói", "Chai").
+   - "unit_price": Lấy từ "Đơn giá chưa VAT (VND)" hoặc "Đơn giá" (chuyển ví dụ "116.364,00" -> 116364).
+   - "total_price": Lấy từ "Thành tiền chưa VAT (VND)" hoặc "Thành tiền" (chuyển ví dụ "4.887.288,00" -> 4887288).
+   - "warehouse": Chi nhánh hoặc kho nếu có trên dòng.
+9. Ghi chú ("notes"): Lưu các điều khoản hoặc người đặt hàng (ví dụ: "Người đặt: Nguyễn Hùng Tiến").
+
+Cấu trúc JSON cần trả về:
+{
+  "po_number": "PO-118891",
+  "po_date": "2026-11-04",
+  "expected_delivery_date": "2026-11-09",
+  "supplier_code": "V0001834",
+  "supplier_name": "CÔNG TY CỔ PHẦN CÔNG NGHỆ THỰC PHẨM LƯƠNG GIA",
+  "warehouse": "DC01 - Nơ Trang Long",
+  "total_value": 54770204,
+  "currency": "VND",
+  "notes": "Người đặt hàng: Nguyễn Hùng Tiến",
+  "items": [
+    {
+      "item_code": "10028694",
+      "item_name": "Cam vàng phủ cacao Ohla 120 g ( Hộp )",
+      "unit": "Hộp",
+      "ordered_qty": 42,
+      "unit_price": 116364,
+      "total_price": 4887288,
+      "warehouse": "DC01"
+    }
+  ]
+}
+Tên file: ${fileName}`;
+
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  let lastErr = '';
+
+  for (const k of uniqueKeys) {
+    for (const model of models) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${k}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: prompt },
+                  { inlineData: { mimeType, data: base64Data } },
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.0,
+              responseMimeType: 'application/json',
+            },
+          }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          lastErr = errData.error?.message || `HTTP ${res.status}`;
+          if (res.status === 429) break;
+          continue;
+        }
+
+        const resJson = await res.json();
+        const text = resJson.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '{}';
+        const cleaned = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+        return JSON.parse(cleaned);
+      } catch (err: any) {
+        lastErr = err.message;
+      }
+    }
+  }
+
+  throw new Error(lastErr || 'Không thể trích xuất PO qua AI');
+}
 
 export const poTrackerService = {
   // ─── Folders ───────────────────────────────────────────────────────────────
@@ -23,14 +148,51 @@ export const poTrackerService = {
   deleteFolder: (id: string) =>
     api.delete<ApiResponse<null>>(`/po-tracker/folders/${id}`),
 
-  // ─── PDF Upload ────────────────────────────────────────────────────────────
-  uploadPdf: (file: File) => {
-    const form = new FormData();
-    form.append('file', file);
-    return api.post<ApiResponse<POExtractedData>>('/po-tracker/upload-pdf', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 60_000, // 60s for large PDFs + Gemini processing
-    });
+  // ─── PO Document Upload (PDF / JPG / PNG) ──────────────────────────────────
+  uploadPOFile: async (file: File): Promise<ApiResponse<POExtractedData>> => {
+    const dataUrl = await fileToDataUrl(file);
+    const mimeType = file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+
+    const pool = getGeminiKeysPool();
+    const stored = getStoredGeminiKey();
+    const apiKeys = [stored, ...pool.map((p) => p.key)].filter((k) => k && k.startsWith('AIzaSy'));
+    const uniqueKeys = Array.from(new Set(apiKeys));
+
+    // 1. Try server endpoint first
+    try {
+      const res = await api.post<ApiResponse<POExtractedData>>('/po-tracker/upload-file', {
+        fileDataUrl: dataUrl,
+        fileName: file.name,
+        mimeType,
+        apiKeys: uniqueKeys,
+      }, { timeout: 60_000 });
+
+      if (res.data?.success && res.data?.data) {
+        return res.data;
+      }
+    } catch (err: any) {
+      console.warn('Backend extraction endpoint unhandled or error, falling back to client-side AI:', err?.message);
+    }
+
+    // 2. Client-side Gemini fallback
+    try {
+      const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/s);
+      const base64Data = match ? match[2] : dataUrl;
+      const extracted = await clientSideGeminiExtract(base64Data, mimeType, file.name, uniqueKeys);
+      return {
+        success: true,
+        data: {
+          ...extracted,
+          pdf_file_name: file.name,
+        },
+      };
+    } catch (fallbackErr: any) {
+      throw fallbackErr;
+    }
+  },
+
+  uploadPdf: function (file: File) {
+    return this.uploadPOFile(file);
   },
 
   // ─── Purchase Orders ───────────────────────────────────────────────────────

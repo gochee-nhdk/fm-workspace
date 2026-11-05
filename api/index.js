@@ -866,6 +866,160 @@ module.exports = async function handler(req, res, forcedPath) {
 
     // 11. PO Tracker Endpoints (Vercel Cloud Serverless Support)
     if (pathname.startsWith('/po-tracker')) {
+      // 11.0 PO Upload & AI Extraction (Vercel Serverless)
+      if ((pathname === '/po-tracker/upload-pdf' || pathname === '/po-tracker/upload-file') && req.method === 'POST') {
+        const body = req.body || {};
+        let base64Data = '';
+        let mimeType = 'application/pdf';
+        let fileName = body.fileName || 'po-document.pdf';
+
+        if (body.fileDataUrl && typeof body.fileDataUrl === 'string') {
+          const match = body.fileDataUrl.match(/^data:([^;]+);base64,(.+)$/s);
+          if (match) {
+            mimeType = match[1];
+            base64Data = match[2];
+          } else {
+            base64Data = body.fileDataUrl;
+          }
+        } else if (body.imageDataUrl && typeof body.imageDataUrl === 'string') {
+          const match = body.imageDataUrl.match(/^data:([^;]+);base64,(.+)$/s);
+          if (match) {
+            mimeType = match[1];
+            base64Data = match[2];
+          } else {
+            base64Data = body.imageDataUrl;
+          }
+        }
+
+        if (body.mimeType) mimeType = body.mimeType;
+
+        if (!base64Data) {
+          return res.status(400).json({ success: false, message: 'Vui lòng cung cấp dữ liệu tệp (base64/dataUrl).' });
+        }
+
+        const keys = [...(Array.isArray(body.apiKeys) ? body.apiKeys : []), body.apiKey, process.env.GEMINI_API_KEY]
+          .filter((k) => typeof k === 'string' && k.trim());
+        const uniqueKeys = Array.from(new Set(keys)).filter((k) => k.startsWith('AIzaSy'));
+
+        if (uniqueKeys.length === 0) {
+          return res.status(400).json({
+            success: false,
+            needsApiKey: true,
+            message: 'Chưa cấu hình Gemini API Key. Vui lòng thêm khóa trong mục Cài đặt → API Key.',
+          });
+        }
+
+        const prompt = `Bạn là chuyên gia bóc tách dữ liệu chứng từ Đơn mua hàng (PO - Purchase Order) của hệ thống FARMERS MARKET (CÔNG TY TNHH THƯƠNG MẠI LARIA).
+
+Hãy phân tích toàn bộ tài liệu/hình ảnh/PDF được cung cấp và trích xuất đầy đủ, chính xác các thông tin sau.
+Trả về định dạng JSON thuần túy (không bọc trong markdown code fence, không thêm lời chào hay giải thích).
+
+QUY TẮC NHẬN DIỆN ĐẶC THÙ CHO FARMERS MARKET:
+1. Số PO / Số chứng từ ("po_number"): Tìm sau các từ "Số hiệu chứng từ", "Số PO", "Số đơn hàng", "PO No.", ví dụ: "PO-118891".
+2. Ngày lập PO ("po_date"): Tìm sau "Ngày chứng từ", "Ngày lập", ví dụ "4/11/2026" -> chuẩn hóa thành "YYYY-MM-DD" (2026-11-04).
+3. Hạn giao hàng ("expected_delivery_date"): Tìm sau "Ngày giao hàng", "Hạn giao", "Giao trước ngày", ví dụ "9/11/2026" -> chuẩn hóa thành "YYYY-MM-DD" (2026-11-09).
+4. Nhà cung cấp:
+   - "supplier_name": Tên công ty / nhà cung cấp, tìm sau "Tên NCC:", ví dụ "CÔNG TY CỔ PHẦN CÔNG NGHỆ THỰC PHẨM LƯƠNG GIA".
+   - "supplier_code": Mã nhà cung cấp, tìm sau "Mã NCC:", ví dụ "V0001834".
+5. Địa điểm giao / Kho ("warehouse"):
+   - Tìm sau "Chi nhánh yêu cầu:", "Địa chỉ giao hàng:", "Kho nhận:", ví dụ: "DC01 - Nơ Trang Long, 204 Nơ Trang Long...". Trích xuất mã kho/tên chi nhánh (ví dụ: "DC01 - Nơ Trang Long").
+6. Tổng tiền ("total_value"):
+   - Tìm ở cuối sau "TỔNG TIỀN HÀNG" hoặc "TỔNG CỘNG TRƯỚC THUẾ VAT".
+   - Là số thực, bỏ dấu phân cách (ví dụ "54.770.204,00" -> 54770204).
+7. Đơn vị tiền tệ ("currency"): Mặc định "VND".
+8. Danh sách mặt hàng ("items"):
+   Duyệt qua từng dòng trong bảng chi tiết hàng hóa:
+   - "item_code": Lấy từ cột "Internal Code" hoặc "Barcode/PLU" (ví dụ: "10028694").
+   - "item_name": Lấy từ cột "Mặt hàng" hoặc "Tên hàng hóa" (ví dụ: "Cam vàng phủ cacao Ohla 120 g ( Hộp )").
+   - "ordered_qty": Số lượng đặt hàng (chuyển ví dụ "42,00" -> 42).
+   - "unit": Đơn vị tính từ cột "DVT" (ví dụ: "Hộp", "Thùng", "Kg", "Gói", "Chai").
+   - "unit_price": Lấy từ "Đơn giá chưa VAT (VND)" hoặc "Đơn giá" (chuyển ví dụ "116.364,00" -> 116364).
+   - "total_price": Lấy từ "Thành tiền chưa VAT (VND)" hoặc "Thành tiền" (chuyển ví dụ "4.887.288,00" -> 4887288).
+   - "warehouse": Chi nhánh hoặc kho nếu có trên dòng.
+9. Ghi chú ("notes"): Lưu các điều khoản hoặc người đặt hàng (ví dụ: "Người đặt: Nguyễn Hùng Tiến").
+
+Cấu trúc JSON cần trả về:
+{
+  "po_number": "PO-118891",
+  "po_date": "2026-11-04",
+  "expected_delivery_date": "2026-11-09",
+  "supplier_code": "V0001834",
+  "supplier_name": "CÔNG TY CỔ PHẦN CÔNG NGHỆ THỰC PHẨM LƯƠNG GIA",
+  "warehouse": "DC01 - Nơ Trang Long",
+  "total_value": 54770204,
+  "currency": "VND",
+  "notes": "Người đặt hàng: Nguyễn Hùng Tiến",
+  "items": [
+    {
+      "item_code": "10028694",
+      "item_name": "Cam vàng phủ cacao Ohla 120 g ( Hộp )",
+      "unit": "Hộp",
+      "ordered_qty": 42,
+      "unit_price": 116364,
+      "total_price": 4887288,
+      "warehouse": "DC01"
+    }
+  ]
+}
+Tên file: ${fileName}`;
+
+        const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+        let lastErr = null;
+
+        for (const k of uniqueKeys) {
+          for (const model of models) {
+            try {
+              const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${k}`;
+              const fetchRes = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [
+                    {
+                      parts: [
+                        { text: prompt },
+                        { inlineData: { mimeType, data: base64Data } },
+                      ],
+                    },
+                  ],
+                  generationConfig: {
+                    temperature: 0.0,
+                    responseMimeType: 'application/json'
+                  },
+                }),
+              });
+
+              if (!fetchRes.ok) {
+                const errData = await fetchRes.json().catch(() => ({}));
+                lastErr = errData.error?.message || `HTTP ${fetchRes.status}`;
+                if (fetchRes.status === 429) break;
+                continue;
+              }
+
+              const resJson = await fetchRes.json();
+              const text = resJson.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '{}';
+              const cleaned = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+              const parsed = JSON.parse(cleaned);
+
+              return res.status(200).json({
+                success: true,
+                data: {
+                  ...parsed,
+                  pdf_file_name: fileName
+                }
+              });
+            } catch (err) {
+              lastErr = err.message;
+            }
+          }
+        }
+
+        return res.status(500).json({
+          success: false,
+          message: `Không thể trích xuất PO: ${lastErr || 'Lỗi xử lý file qua AI'}`
+        });
+      }
+
       // 11.1 Folders
       if (pathname === '/po-tracker/folders') {
         if (req.method === 'GET') {

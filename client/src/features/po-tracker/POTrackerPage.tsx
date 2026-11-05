@@ -119,7 +119,7 @@ export const POTrackerPage: React.FC = () => {
               <SFSidebarLeft size={16} className={cn('transition-transform duration-200', sidebarCollapsed && 'rotate-180')} />
             </button>
             <div className="truncate">
-              <h1 className="text-[17px] sm:text-[19px] font-bold text-[#1d1d1f] dark:text-white flex items-center gap-2 truncate tracking-tight">
+              <h1 className="text-[18px] sm:text-[20px] font-bold text-slate-900 dark:text-white flex items-center gap-2 truncate tracking-tight">
                 <span>Theo dõi đơn hàng (PO Tracker)</span>
                 {currentFolder && (
                   <span className="text-[12px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-500/20 text-[#0088FF] dark:text-[#0091FF] border border-blue-200/60 dark:border-blue-500/30 flex items-center gap-1">
@@ -128,13 +128,13 @@ export const POTrackerPage: React.FC = () => {
                   </span>
                 )}
                 {activeFolderId === 'unassigned' && (
-                  <span className="text-[11.5px] font-semibold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+                  <span className="text-[11.5px] font-semibold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
                     Chưa phân nhóm
                   </span>
                 )}
               </h1>
-              <p className="text-[12px] font-medium text-[#555558] dark:text-[#a1a1a6] truncate mt-0.5">
-                Tải file PDF hóa đơn PO, tự động đọc dữ liệu và quản lý tiến độ giao nhận
+              <p className="text-[12.5px] font-medium text-slate-500 dark:text-zinc-400 truncate mt-0.5">
+                Tải file PO (PDF hoặc hình ảnh scan/chụp), tự động đọc dữ liệu và quản lý tiến độ giao nhận
               </p>
             </div>
           </div>
@@ -150,7 +150,7 @@ export const POTrackerPage: React.FC = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Tìm số PO, NCC, kho..."
-                className="w-48 sm:w-64 h-9 pl-8 pr-7 rounded-full bg-white/80 dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[12.5px] font-medium text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs"
+                className="w-48 sm:w-64 h-9 pl-8 pr-7 rounded-full bg-white dark:bg-[#1a1a1e] border border-black/15 dark:border-white/15 text-[12.5px] font-medium text-slate-900 dark:text-white placeholder-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs"
               />
               {search && (
                 <button
@@ -162,7 +162,7 @@ export const POTrackerPage: React.FC = () => {
               )}
             </div>
 
-            {/* Rút gọn thành "Tải lên PO" với icon SF Symbol chuẩn Apple */}
+            {/* Nút "Tải lên PO" với icon SF Symbol chuẩn Apple */}
             <Button
               variant="primary"
               size="sm"

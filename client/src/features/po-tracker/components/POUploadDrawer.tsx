@@ -77,12 +77,16 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
   };
 
   const handleFileSelected = async (selectedFile: File) => {
-    if (!selectedFile.name.toLowerCase().endsWith('.pdf')) {
-      toast.error('Vui lòng chỉ chọn tệp định dạng PDF.');
+    const name = selectedFile.name.toLowerCase();
+    const isPdf = name.endsWith('.pdf');
+    const isImage = name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.png') || name.endsWith('.webp');
+
+    if (!isPdf && !isImage) {
+      toast.error('Vui lòng chọn tệp định dạng PDF hoặc hình ảnh (PNG, JPG, WEBP).');
       return;
     }
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      toast.error('Kích thước file PDF không được vượt quá 10MB.');
+    if (selectedFile.size > 15 * 1024 * 1024) {
+      toast.error('Kích thước tệp không được vượt quá 15MB.');
       return;
     }
 
@@ -90,8 +94,8 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
     setStep('reading');
 
     try {
-      const res = await poTrackerService.uploadPdf(selectedFile);
-      const data: POExtractedData = res.data.data;
+      const res = await poTrackerService.uploadPOFile(selectedFile);
+      const data: POExtractedData = res.data;
 
       // Auto-populate form
       setPoNumber(data.po_number || '');
@@ -109,7 +113,7 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
           data.items.map((it) => ({
             item_code: it.item_code || '',
             item_name: it.item_name || 'Hàng hóa',
-            unit: it.unit || 'thùng',
+            unit: it.unit || 'Hộp',
             ordered_qty: Number(it.ordered_qty || 1),
             unit_price: Number(it.unit_price || 0),
             total_price: Number(it.total_price || (Number(it.ordered_qty || 1) * Number(it.unit_price || 0))),
@@ -121,10 +125,10 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
       }
 
       setStep('confirm');
-      toast.success('Đã đọc thông tin PO thành công!');
+      toast.success('Đã đọc và bóc tách thông tin PO thành công!');
     } catch (err: any) {
       console.error(err);
-      toast.error(err.response?.data?.message || 'Không thể trích xuất tự động qua AI. Bạn có thể tự điền thông tin.');
+      toast.error(err.message || 'Không thể trích xuất tự động qua AI. Bạn có thể tự điền thông tin.');
       setStep('confirm');
     }
   };
@@ -203,9 +207,9 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
     step === 'confirm' ? 'Xác nhận thông tin đơn hàng' : 'Tải lên đơn hàng (PO)';
   const drawerDesc =
     step === 'upload'
-      ? 'Chọn file PDF để hệ thống tự động bóc tách số liệu PO'
+      ? 'Chọn file PDF hoặc hình ảnh (PNG, JPG) để hệ thống tự động bóc tách số liệu PO'
       : step === 'reading'
-      ? 'Trí tuệ nhân tạo đang phân tích tài liệu PDF...'
+      ? 'Trí tuệ nhân tạo Gemini đang phân tích tài liệu PO...'
       : 'Kiểm tra và hiệu chỉnh lại dữ liệu trước khi lưu vào danh mục theo dõi';
 
   return (
@@ -249,7 +253,7 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="application/pdf"
+                accept="application/pdf,image/png,image/jpeg,image/webp"
                 className="hidden"
                 onChange={(e) => {
                   if (e.target.files?.[0]) {
@@ -261,10 +265,10 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
                 <SFArrowUpDocumentFill size={28} />
               </div>
               <p className="text-[16px] font-bold text-[#1d1d1f] dark:text-white">
-                Kéo thả file PDF PO vào đây
+                Kéo & thả file PO hoặc hình ảnh vào đây
               </p>
               <p className="text-[13px] text-[#555558] dark:text-[#a1a1a6] mt-1.5 max-w-sm">
-                Hoặc nhấp chuột để chọn file PDF từ thiết bị (Hỗ trợ file PDF đơn hàng, hóa đơn, tối đa 10MB)
+                Hoặc nhấp chuột để chọn file từ máy tính (Hỗ trợ file PDF, ảnh scan/chụp JPG, PNG tối đa 15MB)
               </p>
               <div className="mt-4 px-3.5 py-1.5 rounded-full bg-[#0088FF]/10 text-[#0088FF] dark:text-[#0091FF] text-[12px] font-semibold flex items-center gap-1.5">
                 <SFCheckmarkCircleFill size={13} />
@@ -340,12 +344,12 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
                 <select
                   value={folderId}
                   onChange={(e) => setFolderId(e.target.value)}
-                  className="w-full h-11 px-3.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[13.5px] font-medium text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all cursor-pointer"
+                  className="w-full h-11 px-3.5 rounded-xl bg-white dark:bg-[#1c1c20] border border-black/15 dark:border-white/15 text-[13.5px] font-medium text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all cursor-pointer shadow-2xs"
                 >
                   <option value="">(Chưa phân nhóm)</option>
                   {folders.map((f) => (
                     <option key={f.id} value={f.id}>
-                      📁 {f.name}
+                      {f.name}
                     </option>
                   ))}
                 </select>
@@ -361,8 +365,8 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
                 <input
                   value={poNumber}
                   onChange={(e) => setPoNumber(e.target.value)}
-                  placeholder="VD: PO-20261105-01"
-                  className="w-full h-10 px-3.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[13.5px] font-semibold text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all"
+                  placeholder="VD: PO-118891"
+                  className="w-full h-10 px-3.5 rounded-xl bg-white dark:bg-[#1c1c20] border border-black/15 dark:border-white/15 text-[13.5px] font-bold text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs"
                 />
               </div>
 
@@ -374,7 +378,7 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
                   type="date"
                   value={poDate}
                   onChange={(e) => setPoDate(e.target.value)}
-                  className="w-full h-10 px-3.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[13px] font-medium text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all"
+                  className="w-full h-10 px-3.5 rounded-xl bg-white dark:bg-[#1c1c20] border border-black/15 dark:border-white/15 text-[13px] font-semibold text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs"
                 />
               </div>
             </div>
@@ -383,13 +387,13 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
               <div className="space-y-1.5">
                 <label className="text-[13px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] flex items-center justify-between">
                   <span>Hạn giao hàng (Dự kiến)</span>
-                  <span className="text-[11px] text-[#0088FF] font-semibold">Nhắc nhở tự động</span>
+                  <span className="text-[11px] text-[#0088FF] dark:text-[#0091FF] font-semibold">Nhắc nhở tự động</span>
                 </label>
                 <input
                   type="date"
                   value={expectedDate}
                   onChange={(e) => setExpectedDate(e.target.value)}
-                  className="w-full h-10 px-3.5 rounded-xl bg-blue-50/50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-[13.5px] font-bold text-[#0088FF] dark:text-[#0091FF] focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all"
+                  className="w-full h-10 px-3.5 rounded-xl bg-blue-50/60 dark:bg-blue-500/15 border border-blue-300 dark:border-blue-500/30 text-[13.5px] font-bold text-[#0088FF] dark:text-[#0091FF] focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs"
                 />
               </div>
 
@@ -400,8 +404,8 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
                 <input
                   value={warehouse}
                   onChange={(e) => setWarehouse(e.target.value)}
-                  placeholder="VD: Kho Tổng Tân Bình, Kho Q7..."
-                  className="w-full h-10 px-3.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[13.5px] font-medium text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all"
+                  placeholder="VD: DC01 - Nơ Trang Long, Kho Tổng..."
+                  className="w-full h-10 px-3.5 rounded-xl bg-white dark:bg-[#1c1c20] border border-black/15 dark:border-white/15 text-[13.5px] font-medium text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs"
                 />
               </div>
             </div>
@@ -414,8 +418,8 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
                 <input
                   value={supplierName}
                   onChange={(e) => setSupplierName(e.target.value)}
-                  placeholder="VD: Công ty Cổ phần Vinamilk..."
-                  className="w-full h-10 px-3.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[13.5px] font-medium text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all"
+                  placeholder="VD: CÔNG TY CỔ PHẦN CÔNG NGHỆ THỰC PHẨM LƯƠNG GIA..."
+                  className="w-full h-10 px-3.5 rounded-xl bg-white dark:bg-[#1c1c20] border border-black/15 dark:border-white/15 text-[13.5px] font-medium text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs"
                 />
               </div>
 
@@ -426,8 +430,8 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
                 <input
                   value={supplierCode}
                   onChange={(e) => setSupplierCode(e.target.value)}
-                  placeholder="VNM-01"
-                  className="w-full h-10 px-3.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[13.5px] font-medium text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all"
+                  placeholder="VD: V0001834"
+                  className="w-full h-10 px-3.5 rounded-xl bg-white dark:bg-[#1c1c20] border border-black/15 dark:border-white/15 text-[13.5px] font-semibold text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs font-mono"
                 />
               </div>
             </div>
@@ -525,7 +529,7 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Ghi chú về tiến độ, tài xế, yêu cầu kiểm hàng..."
                 rows={2}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[13px] text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 resize-none"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#1c1c20] border border-black/15 dark:border-white/15 text-[13px] font-medium text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 resize-none shadow-2xs"
               />
             </div>
 

@@ -76,47 +76,69 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', verifyToken);
 
   // ─────────────────────────────────────────────────────────
-  // PDF UPLOAD & AI EXTRACTION
+  // PDF & IMAGE UPLOAD & AI EXTRACTION
   // ─────────────────────────────────────────────────────────
 
-  /**
-   * POST /upload-pdf — Upload PDF, extract PO data with Gemini Vision
-   */
-  fastify.post('/upload-pdf', async (request: any, reply) => {
-    const data = await request.file();
-    if (!data) {
-      return reply.code(400).send({ success: false, message: 'Không tìm thấy file được upload.' });
+  const handleUploadExtraction = async (request: any, reply: any) => {
+    let base64Data = '';
+    let fileName = 'po-document.pdf';
+    let mimeType = 'application/pdf';
+    let apiKeys: string[] = [];
+
+    // Check if body was sent as JSON (base64 DataURL)
+    if (request.body && typeof request.body === 'object') {
+      const { fileDataUrl, fileName: bFileName, mimeType: bMime, apiKeys: bKeys } = request.body;
+      if (fileDataUrl && typeof fileDataUrl === 'string') {
+        const match = fileDataUrl.match(/^data:([^;]+);base64,(.+)$/s);
+        if (match) {
+          mimeType = match[1];
+          base64Data = match[2];
+        } else {
+          base64Data = fileDataUrl;
+        }
+        if (bFileName) fileName = bFileName;
+        if (bMime) mimeType = bMime;
+        if (Array.isArray(bKeys)) apiKeys = bKeys;
+      }
     }
 
-    const fileName: string = data.filename || 'unknown.pdf';
-    if (!fileName.toLowerCase().endsWith('.pdf')) {
-      return reply.code(400).send({ success: false, message: 'Chỉ chấp nhận file định dạng PDF.' });
+    // Fall back to multipart streaming if not JSON
+    if (!base64Data && request.file) {
+      try {
+        const data = await request.file();
+        if (data) {
+          fileName = data.filename || 'po-document.pdf';
+          mimeType = data.mimetype || (fileName.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+          const chunks: Buffer[] = [];
+          for await (const chunk of data.file) {
+            chunks.push(chunk);
+          }
+          const buffer = Buffer.concat(chunks);
+          base64Data = buffer.toString('base64');
+        }
+      } catch (_) {}
     }
 
-    // Read file buffer
-    const chunks: Buffer[] = [];
-    for await (const chunk of data.file) {
-      chunks.push(chunk);
+    if (!base64Data) {
+      return reply.code(400).send({ success: false, message: 'Không tìm thấy dữ liệu tệp được tải lên.' });
     }
-    const pdfBuffer = Buffer.concat(chunks);
-
-    // Size limit: 10MB
-    if (pdfBuffer.length > 10 * 1024 * 1024) {
-      return reply.code(400).send({ success: false, message: 'File PDF quá lớn. Giới hạn tối đa là 10MB.' });
-    }
-
-    const base64Pdf = pdfBuffer.toString('base64');
 
     try {
-      const extractedData = await geminiService.extractPOFromPdf(base64Pdf, fileName);
+      const extractedData = await geminiService.extractPOFromPdf(base64Data, fileName, mimeType, apiKeys);
       return { success: true, data: { ...extractedData, pdf_file_name: fileName } };
     } catch (error: any) {
       return reply.code(500).send({
         success: false,
-        message: error.message || 'Không thể đọc nội dung PDF. Vui lòng nhập thông tin thủ công.'
+        message: error.message || 'Không thể đọc nội dung đơn hàng. Vui lòng kiểm tra lại file.'
       });
     }
-  });
+  };
+
+  /**
+   * POST /upload-pdf & POST /upload-file — Upload PO (PDF hoặc hình ảnh), trích xuất qua Gemini AI
+   */
+  fastify.post('/upload-pdf', handleUploadExtraction);
+  fastify.post('/upload-file', handleUploadExtraction);
 
   // ─────────────────────────────────────────────────────────
   // FOLDERS

@@ -2,7 +2,7 @@ import React from 'react';
 import { POTrackerStats, POStatus } from '@/types/po-tracker';
 import { PO_STATUS_CONFIG_MAP } from './POStatusPill';
 import {
-  SFShippingboxFill,
+  SFShippingbox,
   SFClockFill,
   SFCheckmarkCircleFill,
   SFExclamationmarkTriangleFill,
@@ -32,10 +32,10 @@ const StatCard: React.FC<{
     onClick={onClick}
     type="button"
     className={cn(
-      'flex items-center gap-3 px-4 py-2.5 rounded-2xl border transition-all duration-200 cursor-pointer active:scale-[0.98] text-left select-none',
+      'flex items-center gap-3 px-4 py-2.5 rounded-2xl border transition-all duration-180 cursor-pointer active:scale-[0.98] text-left select-none',
       active
-        ? `${bg} border-current ${color} shadow-sm ring-2 ring-current/20 scale-[1.02]`
-        : 'bg-white/70 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/[0.07] hover:bg-white dark:hover:bg-white/[0.08] hover:shadow-xs',
+        ? 'bg-white dark:bg-[#1e1e24] border-[#007AFF] dark:border-[#0A84FF] shadow-xs ring-2 ring-[#007AFF]/25 dark:ring-[#0A84FF]/30'
+        : 'bg-white/70 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/[0.07] hover:bg-white dark:hover:bg-white/[0.08] hover:shadow-2xs',
       !onClick && 'cursor-default pointer-events-none'
     )}
   >
@@ -43,7 +43,7 @@ const StatCard: React.FC<{
       {icon}
     </div>
     <div className="min-w-0">
-      <div className={cn('text-[20px] font-bold tracking-tight tabular-nums leading-none', active ? color : 'text-[#1d1d1f] dark:text-white')}>
+      <div className={cn('text-[20px] font-bold tracking-tight tabular-nums leading-none', active ? 'text-[#007AFF] dark:text-[#0A84FF]' : 'text-[#1d1d1f] dark:text-white')}>
         {value}
       </div>
       <div className="text-[11.5px] font-medium text-[#555558] dark:text-[#a1a1a6] whitespace-nowrap mt-1">
@@ -92,7 +92,7 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
     {
       label: 'Tổng đơn PO',
       value: s.total || 0,
-      icon: <SFShippingboxFill size={18} className="text-[#0088FF]" />,
+      icon: <SFShippingbox size={18} className="text-[#0088FF]" />,
       color: 'text-[#0088FF] dark:text-[#0091FF]',
       bg: 'bg-blue-50 dark:bg-blue-500/10',
       status: null as POStatus | null,

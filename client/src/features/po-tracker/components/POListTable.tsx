@@ -8,7 +8,7 @@ import {
   SFExclamationmarkTriangleFill,
   SFClockFill,
   SFTrash,
-  SFShippingboxFill,
+  SFShippingbox,
   SFPencil,
   SFCheckmark
 } from 'sf-symbols-lib';
@@ -93,7 +93,7 @@ export const POListTable: React.FC<POListTableProps> = ({
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
         <div className="w-16 h-16 rounded-3xl bg-white/80 dark:bg-white/[0.05] border border-black/[0.08] dark:border-white/10 flex items-center justify-center text-[#0088FF] shadow-sm">
-          <SFShippingboxFill size={32} />
+          <SFShippingbox size={30} />
         </div>
         <div>
           <p className="text-[16px] font-bold text-[#1d1d1f] dark:text-white">Chưa có đơn hàng nào</p>
