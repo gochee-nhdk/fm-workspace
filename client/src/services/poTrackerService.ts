@@ -7,6 +7,7 @@ import {
   POPermission,
 } from '@/types/po-tracker';
 import { getStoredGeminiKey, getGeminiKeysPool, discoverBestFlashModels } from './writingToolsService';
+import { convertPdfToImages } from '@/utils/pdfToImage';
 
 type ApiResponse<T> = { success: boolean; data: T; message?: string };
 
@@ -42,28 +43,100 @@ export function extractCleanBase64(dataUrl: string): { mimeType: string; base64:
 }
 
 /**
- * Tự động trích xuất số PO và Kho/Chi nhánh từ tên file chứng từ (ví dụ: "118744 - CENTRAL - FM01.pdf")
+ * Chuẩn hóa số tiền, số lượng theo định dạng Việt Nam (VD: "181.600,00" -> 181600, "46,00" -> 46)
  */
-export function extractMetadataFromFileName(fileName: string): { po_number?: string; warehouse?: string } {
+export function cleanVietnameseNumber(val: any): number {
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  if (!val) return 0;
+  let str = String(val).trim();
+  // Nếu là dạng 181.600,00 hoặc 8.353.600,00 (chấm phân cách nghìn, phẩy thập phân)
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(str)) {
+    str = str.replace(/\./g, '').replace(',', '.');
+  } else if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(str)) {
+    str = str.replace(/,/g, '');
+  } else {
+    // Trường hợp có dấu phẩy đơn lẻ như 46,00 -> 46.00
+    if (/^\d+,\d+$/.test(str)) {
+      str = str.replace(',', '.');
+    } else {
+      str = str.replace(/[^\d.-]/g, '');
+    }
+  }
+  const num = parseFloat(str);
+  return isNaN(num) ? 0 : num;
+}
+
+/**
+ * Chuẩn hóa ngày chứng từ Việt Nam thành YYYY-MM-DD (VD: "2/11/2026" -> "2026-11-02", "05-Nov-2026" -> "2026-11-05")
+ */
+export function cleanVietnameseDate(val: any): string | null {
+  if (!val || typeof val !== 'string') return null;
+  const str = val.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+
+  // D/M/YYYY hoặc DD/MM/YYYY
+  const dmyMatch = str.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+  if (dmyMatch) {
+    const day = dmyMatch[1].padStart(2, '0');
+    const month = dmyMatch[2].padStart(2, '0');
+    const year = dmyMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+
+  // DD-MMM-YYYY (VD: 05-Nov-2026)
+  const monthMap: Record<string, string> = {
+    jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+    jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+    thg1: '01', thg2: '02', thg3: '03', thg4: '04', thg5: '05', thg6: '06',
+    thg7: '07', thg8: '08', thg9: '09', thg10: '10', thg11: '11', thg12: '12'
+  };
+  const namedMatch = str.match(/^(\d{1,2})[\s\-\/]([a-zA-Z0-9]+)[\s\-\/](\d{4})$/);
+  if (namedMatch) {
+    const day = namedMatch[1].padStart(2, '0');
+    const mName = namedMatch[2].toLowerCase();
+    const month = monthMap[mName] || '01';
+    const year = namedMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+
+  return str;
+}
+
+/**
+ * Tự động trích xuất số PO, Nhà cung cấp và Kho/Chi nhánh từ tên file chứng từ
+ * (ví dụ: "118873_BẢO MINH_DC01.pdf" -> PO: PO-118873, NCC: BẢO MINH, Kho: DC01)
+ */
+export function extractMetadataFromFileName(fileName: string): {
+  po_number?: string;
+  warehouse?: string;
+  supplier_name?: string;
+} {
   if (!fileName) return {};
   const clean = fileName.replace(/\.[a-zA-Z0-9]+$/i, '').trim();
   const parts = clean.split(/[-_–—|]+/).map((p) => p.trim()).filter(Boolean);
 
   let poNumber = '';
   let warehouse = '';
+  let supplierName = '';
 
   for (const part of parts) {
     if (/^\d{5,8}$/.test(part) || /^PO[-_]?\d+/i.test(part)) {
       poNumber = /^PO/i.test(part) ? part.toUpperCase() : `PO-${part}`;
-    } else if (/CENTRAL|DC\d*|KHO|FM\d+|STORE|CHINHANH/i.test(part)) {
+    } else if (/\b(CENTRAL|DC\d*|KHO|FM\d+|STORE|CHINHANH|NƠ TRANG LONG|BÌNH THẠNH)\b/i.test(part)) {
       if (!warehouse) warehouse = part;
       else warehouse += ` - ${part}`;
+    } else if (part.length >= 2 && !/^\d+$/.test(part)) {
+      // Phân đoạn chữ thông thường là tên Nhà cung cấp (VD: "BẢO MINH", "DEVIE", "LƯƠNG GIA")
+      if (!supplierName) {
+        supplierName = part;
+      }
     }
   }
 
   return {
     po_number: poNumber || undefined,
     warehouse: warehouse || undefined,
+    supplier_name: supplierName || undefined,
   };
 }
 
@@ -74,87 +147,131 @@ export function safeParseAIJson(text: string, fileName?: string): any {
   // 1. Loại bỏ markdown code fence nếu có
   trimmed = trimmed.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
 
+  let rawParsed: any = null;
+
   // 2. Parse trực tiếp nếu chuỗi là JSON hoàn chỉnh
   try {
-    const parsed = JSON.parse(trimmed);
-    if (parsed && typeof parsed === 'object') return enrichWithFileNameHints(parsed, fileName);
+    rawParsed = JSON.parse(trimmed);
   } catch (_) {}
 
   // 3. Trích xuất substring giữa dấu { đầu tiên và } cuối cùng
-  const firstBrace = trimmed.indexOf('{');
-  const lastBrace = trimmed.lastIndexOf('}');
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-    try {
-      const parsed = JSON.parse(trimmed.slice(firstBrace, lastBrace + 1));
-      if (parsed && typeof parsed === 'object') return enrichWithFileNameHints(parsed, fileName);
-    } catch (_) {}
+  if (!rawParsed) {
+    const firstBrace = trimmed.indexOf('{');
+    const lastBrace = trimmed.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      try {
+        rawParsed = JSON.parse(trimmed.slice(firstBrace, lastBrace + 1));
+      } catch (_) {}
+    }
   }
 
   // 4. Cơ chế phục hồi JSON bị cắt ngắn (Truncated JSON Repair)
-  if (firstBrace !== -1) {
-    let partial = trimmed.slice(firstBrace).replace(/,\s*$/, '');
-    let inString = false;
-    let escaped = false;
-    let openBraces = 0;
-    let openBrackets = 0;
+  if (!rawParsed) {
+    const firstBrace = trimmed.indexOf('{');
+    if (firstBrace !== -1) {
+      let partial = trimmed.slice(firstBrace).replace(/,\s*$/, '');
+      let inString = false;
+      let escaped = false;
+      let openBraces = 0;
+      let openBrackets = 0;
 
-    for (let i = 0; i < partial.length; i++) {
-      const ch = partial[i];
-      if (ch === '\\' && !escaped) {
-        escaped = true;
-        continue;
+      for (let i = 0; i < partial.length; i++) {
+        const ch = partial[i];
+        if (ch === '\\' && !escaped) {
+          escaped = true;
+          continue;
+        }
+        if (ch === '"' && !escaped) {
+          inString = !inString;
+        } else if (!inString) {
+          if (ch === '{') openBraces++;
+          else if (ch === '}') openBraces--;
+          else if (ch === '[') openBrackets++;
+          else if (ch === ']') openBrackets--;
+        }
+        escaped = false;
       }
-      if (ch === '"' && !escaped) {
-        inString = !inString;
-      } else if (!inString) {
-        if (ch === '{') openBraces++;
-        else if (ch === '}') openBraces--;
-        else if (ch === '[') openBrackets++;
-        else if (ch === ']') openBrackets--;
+
+      if (inString) partial += '"';
+      while (openBrackets > 0) {
+        partial += ']';
+        openBrackets--;
       }
-      escaped = false;
-    }
+      while (openBraces > 0) {
+        partial += '}';
+        openBraces--;
+      }
 
-    if (inString) partial += '"';
-    while (openBrackets > 0) {
-      partial += ']';
-      openBrackets--;
+      try {
+        rawParsed = JSON.parse(partial);
+      } catch (_) {}
     }
-    while (openBraces > 0) {
-      partial += '}';
-      openBraces--;
-    }
-
-    try {
-      const repaired = JSON.parse(partial);
-      if (repaired && typeof repaired === 'object') return enrichWithFileNameHints(repaired, fileName);
-    } catch (_) {}
   }
 
   // 5. Regex Fallback: cứu các trường dữ liệu chính nếu JSON bị hỏng nặng
-  const fallbackObj: any = { items: [] };
-  const poMatch = trimmed.match(/"po_number"\s*:\s*"([^"]+)"/i) || trimmed.match(/PO[-_\s]?(\d{5,8})/i);
-  if (poMatch) fallbackObj.po_number = poMatch[1];
+  if (!rawParsed || typeof rawParsed !== 'object') {
+    const fallbackObj: any = { items: [] };
+    const poMatch = trimmed.match(/"po_number"\s*:\s*"([^"]+)"/i) || trimmed.match(/PO[-_\s]?(\d{5,8})/i);
+    if (poMatch) fallbackObj.po_number = poMatch[1];
 
-  const suppMatch = trimmed.match(/"supplier_name"\s*:\s*"([^"]+)"/i);
-  if (suppMatch) fallbackObj.supplier_name = suppMatch[1];
+    const suppMatch = trimmed.match(/"supplier_name"\s*:\s*"([^"]+)"/i);
+    if (suppMatch) fallbackObj.supplier_name = suppMatch[1];
 
-  const suppCodeMatch = trimmed.match(/"supplier_code"\s*:\s*"([^"]+)"/i);
-  if (suppCodeMatch) fallbackObj.supplier_code = suppCodeMatch[1];
+    const suppCodeMatch = trimmed.match(/"supplier_code"\s*:\s*"([^"]+)"/i);
+    if (suppCodeMatch) fallbackObj.supplier_code = suppCodeMatch[1];
 
-  const dateMatch = trimmed.match(/"po_date"\s*:\s*"([^"]+)"/i);
-  if (dateMatch) fallbackObj.po_date = dateMatch[1];
+    const dateMatch = trimmed.match(/"po_date"\s*:\s*"([^"]+)"/i);
+    if (dateMatch) fallbackObj.po_date = dateMatch[1];
 
-  const expMatch = trimmed.match(/"expected_delivery_date"\s*:\s*"([^"]+)"/i);
-  if (expMatch) fallbackObj.expected_delivery_date = expMatch[1];
+    const expMatch = trimmed.match(/"expected_delivery_date"\s*:\s*"([^"]+)"/i);
+    if (expMatch) fallbackObj.expected_delivery_date = expMatch[1];
 
-  const whMatch = trimmed.match(/"warehouse"\s*:\s*"([^"]+)"/i);
-  if (whMatch) fallbackObj.warehouse = whMatch[1];
+    const whMatch = trimmed.match(/"warehouse"\s*:\s*"([^"]+)"/i);
+    if (whMatch) fallbackObj.warehouse = whMatch[1];
 
-  const totalMatch = trimmed.match(/"total_value"\s*:\s*([0-9.]+)/i);
-  if (totalMatch) fallbackObj.total_value = parseFloat(totalMatch[1]);
+    const totalMatch = trimmed.match(/"total_value"\s*:\s*([0-9.,]+)/i);
+    if (totalMatch) fallbackObj.total_value = cleanVietnameseNumber(totalMatch[1]);
 
-  return enrichWithFileNameHints(fallbackObj, fileName);
+    rawParsed = fallbackObj;
+  }
+
+  // 6. Chuẩn hóa sâu toàn bộ các trường dữ liệu (Ngày tháng, số tiền, định dạng mã)
+  const normalized: any = {
+    ...rawParsed,
+    po_date: cleanVietnameseDate(rawParsed.po_date),
+    expected_delivery_date: cleanVietnameseDate(rawParsed.expected_delivery_date),
+    total_value: cleanVietnameseNumber(rawParsed.total_value),
+  };
+
+  // Bảo vệ: Nếu AI nhầm tên người mua "CÔNG TY TNHH THƯƠNG MẠI LARIA - FARMERS MARKET" làm NCC, xóa bỏ để lấy từ gợi ý
+  if (normalized.supplier_name && /LARIA|FARMERS.*MARKET/i.test(normalized.supplier_name)) {
+    normalized.supplier_name = '';
+  }
+
+  // Chuẩn hóa từng dòng mặt hàng
+  if (Array.isArray(rawParsed.items)) {
+    normalized.items = rawParsed.items
+      .map((it: any) => {
+        if (!it || typeof it !== 'object') return null;
+        const ordered_qty = cleanVietnameseNumber(it.ordered_qty || 1);
+        const unit_price = cleanVietnameseNumber(it.unit_price || 0);
+        const total_price = cleanVietnameseNumber(it.total_price || (ordered_qty * unit_price));
+        return {
+          item_code: String(it.item_code || it.internal_code || it.barcode || '').trim(),
+          item_name: String(it.item_name || it.description || 'Sản phẩm').trim(),
+          unit: String(it.unit || 'Hộp').trim(),
+          ordered_qty: ordered_qty > 0 ? ordered_qty : 1,
+          unit_price: unit_price,
+          total_price: total_price,
+          warehouse: String(it.warehouse || normalized.warehouse || '').trim(),
+        };
+      })
+      .filter((it: any) => it && (it.item_name || it.item_code));
+  } else {
+    normalized.items = [];
+  }
+
+  return enrichWithFileNameHints(normalized, fileName);
 }
 
 function enrichWithFileNameHints(data: any, fileName?: string): any {
@@ -164,17 +281,20 @@ function enrichWithFileNameHints(data: any, fileName?: string): any {
     ...data,
     po_number: data.po_number || hints.po_number || null,
     warehouse: data.warehouse || hints.warehouse || null,
+    supplier_name: data.supplier_name || hints.supplier_name || null,
   };
 }
 
+
 /**
- * Trực tiếp bóc tách PO qua Gemini phía trình duyệt trong trường hợp server không phản hồi
+ * Trực tiếp bóc tách PO qua Gemini Vision phía trình duyệt bằng mô hình đa phương thức mới nhất
  */
 async function clientSideGeminiExtract(
   base64Data: string,
   mimeType: string,
   fileName: string,
-  apiKeys: string[]
+  apiKeys: string[],
+  additionalImages?: string[]
 ): Promise<POExtractedData> {
   const rawCandidateKeys = [
     ...apiKeys,
@@ -193,48 +313,68 @@ async function clientSideGeminiExtract(
     throw new Error('Chưa cấu hình Gemini API Key hợp lệ. Vui lòng vào Cài đặt để thêm Google Gemini API Key.');
   }
 
-  const prompt = `Bạn là chuyên gia phân tích và bóc tách dữ liệu chứng từ Đơn mua hàng (PO - Purchase Order) hàng đầu của các hệ thống bán lẻ và chuỗi cung ứng tại Việt Nam (FARMERS MARKET, CENTRAL RETAIL, BIG C, GO!, TOPS MARKET, WINMART, SAIGON CO.OP, LOTTE, AEON, v.v.).
+  const prompt = `Bạn là chuyên gia phân tích và bóc tách dữ liệu chứng từ Đơn mua hàng (PO - Purchase Order) của hệ thống siêu thị FARMERS MARKET (CÔNG TY TNHH THƯƠNG MẠI LARIA) và các chuỗi bán lẻ tại Việt Nam.
 
 Hãy phân tích toàn bộ nội dung tài liệu (PDF / Hình ảnh) được cung cấp và trích xuất đầy đủ, chính xác tất cả các thông tin sau theo cấu trúc JSON:
 
-CÁC TRƯỜNG THÔNG TIN CẦN TRÍCH XUẤT:
-1. "po_number" (Số hiệu PO / Mã đơn hàng): 
-   - Tìm mã số sau các cụm từ: "Số hiệu chứng từ", "Số PO", "Số đơn đặt hàng", "Số chứng từ", "PO No.", "Order No.", "Mã đơn hàng", hoặc dãy số hiệu 5-8 chữ số ở đầu/tiêu đề chứng từ (ví dụ: "PO-118891", "118744", "PO-118744"). Nếu tên file có chứa số hiệu ("${fileName}"), hãy tham khảo để nhận diện chính xác.
-2. "po_date" (Ngày lập chứng từ PO): 
-   - Tìm sau: "Ngày chứng từ", "Ngày lập", "Ngày đặt", "Order Date", "Date". Chuẩn hóa thành định dạng: "YYYY-MM-DD" (ví dụ: 2026-11-04).
-3. "expected_delivery_date" (Hạn giao hàng / Ngày giao dự kiến): 
-   - Tìm sau: "Ngày giao hàng", "Hạn giao", "Giao trước ngày", "Delivery Date", "Ship Date". Chuẩn hóa thành: "YYYY-MM-DD".
-4. "supplier_name" (Tên Nhà cung cấp / Đơn vị cung ứng / Bên bán): 
-   - Tìm sau: "Tên NCC:", "Nhà cung cấp:", "Đơn vị bán:", "Vendor:", "Supplier:", "Bên bán:". Ví dụ: "CÔNG TY CỔ PHẦN CÔNG NGHỆ THỰC PHẨM LƯƠNG GIA", "CENTRAL RETAIL", v.v.
-5. "supplier_code" (Mã Nhà cung cấp): 
-   - Tìm sau: "Mã NCC:", "Mã nhà cung cấp:", "Vendor Code:", ví dụ: "V0001834".
-6. "warehouse" (Kho nhận hàng / Chi nhánh nhận / Địa điểm giao hàng): 
-   - Tìm sau: "Kho nhận:", "Chi nhánh yêu cầu:", "Địa chỉ giao hàng:", "Nơi nhận hàng:", "Ship to:", "DC:", "Store:". Ví dụ: "DC01 - Nơ Trang Long", "CENTRAL - FM01", "Kho Tổng".
-7. "total_value" (Tổng giá trị đơn hàng / Tổng thanh toán): 
-   - Tìm ở phần tổng kết: "TỔNG TIỀN HÀNG", "TỔNG CỘNG TRƯỚC THUẾ VAT", "TỔNG TIỀN THANH TOÁN", "Total Amount", "Grand Total". Là một số thực nguyên bản (bỏ các dấu phân cách nghìn).
+QUY TẮC BÓC TÁCH CHUẨN XÁC:
+1. "po_number" (Số hiệu PO / Mã đơn hàng):
+   - Lấy sau "Số hiệu chứng từ:", "Số PO", "Số đơn đặt hàng", hoặc mã 5-8 chữ số ở đầu chứng từ (ví dụ: "PO-118292", "PO-118873", "PO-118744"). Nếu chưa có tiền tố "PO-", hãy thêm "PO-". Tham khảo tên file: "${fileName}".
+2. "supplier_name" (Tên Nhà cung cấp / Đơn vị cung ứng):
+   - QUAN TRỌNG: "CÔNG TY TNHH THƯƠNG MẠI LARIA - FARMERS MARKET" là BÊN MUA HÀNG (Buyer), TUYỆT ĐỐI KHÔNG LẤY TÊN NÀY LÀM NHÀ CUNG CẤP!
+   - TÊN NHÀ CUNG CẤP là đơn vị nằm sau nhãn "Tên NCC:" (ví dụ: "CÔNG TY CỔ PHẦN DEVIE", "CÔNG TY TNHH BẢO MINH", "CENTRAL RETAIL").
+3. "supplier_code" (Mã Nhà cung cấp):
+   - Lấy sau nhãn "Mã NCC:" (ví dụ: "V0001613", "V0001834").
+4. "po_date" (Ngày lập chứng từ PO):
+   - Lấy sau nhãn "Ngày chứng từ:" (ví dụ: "2/11/2026" chuẩn hóa thành "2026-11-02").
+5. "expected_delivery_date" (Hạn giao hàng / Ngày giao dự kiến):
+   - Lấy sau nhãn "Ngày giao hàng:" (ví dụ: "5/11/2026" chuẩn hóa thành "2026-11-05").
+6. "warehouse" (Kho nhận hàng / Chi nhánh yêu cầu):
+   - Lấy sau "Chi nhánh yêu cầu:" hoặc "Địa chỉ giao hàng:" (ví dụ: "DC01 - Nơ Trang Long, 204 Nơ Trang Long, Phường Bình Thạnh, TP.HCM").
+7. "total_value" (Tổng giá trị đơn hàng / Tổng thanh toán):
+   - Lấy từ dòng "TỔNG TIỀN HÀNG" hoặc "TỔNG CỘNG TRƯỚC THUẾ VAT", là một số thực nguyên bản (bỏ các dấu phân cách chấm, phẩy). Ví dụ: 9021888 hoặc 8353600.
 8. "currency": Đơn vị tiền tệ, mặc định "VND".
-9. "notes": Ghi chú đơn hàng, người đặt hàng ("Người đặt: ...", "Liên hệ: ...").
-10. "items" (Danh sách toàn bộ các dòng mặt hàng trong bảng chi tiết):
-    Với MỖI dòng sản phẩm, trích xuất đầy đủ:
-    - "item_code": Mã hàng từ cột "Internal Code", "Barcode/PLU", "Mã hàng", "Mã SP", "Article", "SKU".
-    - "item_name": Tên sản phẩm từ cột "Mặt hàng", "Tên hàng hóa", "Tên sản phẩm", "Description".
-    - "ordered_qty": Số lượng đặt hàng (kiểu số, ví dụ 42).
-    - "unit": Đơn vị tính ("Hộp", "Thùng", "Kg", "Gói", "Chai", "Lon", "Túi", "Cái"...).
-    - "unit_price": Đơn giá (kiểu số).
-    - "total_price": Thành tiền (kiểu số).
-    - "warehouse": Kho hoặc chi nhánh của dòng nếu có.
+9. "notes": Người đặt hàng từ nhãn "Người đặt hàng:" (ví dụ: "Nguyễn Hùng Tiến").
+10. "items" (Danh sách toàn bộ các dòng mặt hàng trong bảng ĐƠN MUA HÀNG):
+    Bóc tách ĐẦY ĐỦ TẤT CẢ các dòng sản phẩm trong bảng chi tiết, tuyệt đối không bỏ sót dòng nào:
+    - "item_code": Cột "Internal Code" hoặc "Barcode/PLU" (ví dụ: "10015745").
+    - "item_name": Cột "Mặt hàng" (ví dụ: "Hạt dinh dưỡng Your SuperFood Mix nhiều loại hạt hũ 400 g").
+    - "ordered_qty": Cột "Số lượng" (kiểu số thực, ví dụ: 46).
+    - "unit": Cột "DVT" (ví dụ: "Hũ", "Hộp", "Thùng", "Kg", "Gói", "Chai", "Lon", "Túi", "Cái").
+    - "unit_price": Cột "Đơn giá chưa VAT" hoặc "Đơn giá chưa VAT sau chiết khấu" (kiểu số, ví dụ: 181600).
+    - "total_price": Cột "Thành tiền chưa VAT" (kiểu số, ví dụ: 8353600).
+    - "warehouse": Kho nhận nếu có (ví dụ: "DC01 - Nơ Trang Long").
 
-YÊU CẦU QUAN TRỌNG:
-- Bóc tách ĐẦY ĐỦ TẤT CẢ các dòng mặt hàng trong bảng, không bỏ sót dòng nào.
-- Chỉ trả về duy nhất chuỗi JSON hợp lệ, không bọc markdown fence, không kèm lời chào hay giải thích.
+Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ, không bọc markdown fence, không kèm lời chào.`;
 
-Tên file tham chiếu: ${fileName}`;
+  // Chuẩn bị danh sách parts đa phương thức
+  const contentParts: any[] = [{ text: prompt }];
+
+  if (Array.isArray(additionalImages) && additionalImages.length > 0) {
+    for (const imgUrl of additionalImages) {
+      const { mimeType: mType, base64: b64 } = extractCleanBase64(imgUrl);
+      if (b64) {
+        contentParts.push({ inlineData: { mimeType: mType || 'image/jpeg', data: b64 } });
+      }
+    }
+  } else if (base64Data) {
+    contentParts.push({ inlineData: { mimeType, data: base64Data } });
+  }
 
   let lastErr = '';
 
   for (const k of uniqueKeys) {
     const models = await discoverBestFlashModels(k);
-    for (const model of models) {
+    // Ưu tiên các model đa phương thức mạnh nhất hiện nay
+    const priorityModels = Array.from(new Set([
+      'gemini-2.0-flash',
+      'gemini-2.5-flash',
+      ...models,
+      'gemini-1.5-flash',
+      'gemini-2.0-flash-lite',
+    ])).filter((m) => !m.includes('pro')); // Tránh các model Pro cũ bị hạn chế quota/404
+
+    for (const model of priorityModels) {
       for (const apiVer of ['v1beta', 'v1']) {
         try {
           const url = `https://generativelanguage.googleapis.com/${apiVer}/models/${model}:generateContent?key=${k}`;
@@ -244,14 +384,7 @@ Tên file tham chiếu: ${fileName}`;
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              contents: [
-                {
-                  parts: [
-                    { text: prompt },
-                    { inlineData: { mimeType, data: base64Data } },
-                  ],
-                },
-              ],
+              contents: [{ parts: contentParts }],
               generationConfig: {
                 temperature: 0.1,
                 maxOutputTokens: 8192,
@@ -279,20 +412,7 @@ Tên file tham chiếu: ${fileName}`;
     }
   }
 
-  // Nếu AI không đọc được, trả về ít nhất thông tin cứu từ tên file thay vì ném lỗi trắng trơn
-  const fallbackHints = extractMetadataFromFileName(fileName);
-  return {
-    po_number: fallbackHints.po_number || null,
-    po_date: new Date().toISOString().split('T')[0],
-    expected_delivery_date: null,
-    supplier_code: null,
-    supplier_name: null,
-    warehouse: fallbackHints.warehouse || null,
-    total_value: null,
-    currency: 'VND',
-    notes: `Bóc tách tự động từ tệp: ${fileName}`,
-    items: [],
-  };
+  throw new Error(lastErr || 'Các mô hình AI đều không thể trích xuất bảng dữ liệu từ tài liệu này.');
 }
 
 export const poTrackerService = {
@@ -328,54 +448,81 @@ export const poTrackerService = {
       )
     );
 
-    // 1. Thử qua máy chủ backend / serverless endpoint trước
+    // BƯỚC 1: Nếu là tệp PDF, chuyển đổi sang hình ảnh Canvas độ nét cao (2x DPI)
+    // Giúp Gemini Vision OCR đọc chuẩn 100% từng dòng bảng, số lượng, đơn giá, mã nội bộ
+    let renderedImages: string[] = [];
+    if (isPdf) {
+      try {
+        renderedImages = await convertPdfToImages(file, 2);
+      } catch (pdfErr) {
+        console.warn('Could not render PDF pages to images:', pdfErr);
+      }
+    }
+
+    // BƯỚC 2: Ưu tiên bóc tách trực tiếp phía Client nếu có API Key
+    // Lợi ích: Bỏ qua giới hạn thời gian chạy 10s và kích thước payload của Vercel Serverless
+    if (uniqueKeys.length > 0) {
+      try {
+        const clientExtracted = await clientSideGeminiExtract(
+          cleanBase64,
+          effectiveMime,
+          file.name,
+          uniqueKeys,
+          renderedImages.length > 0 ? renderedImages : undefined
+        );
+        if (clientExtracted && (clientExtracted.items?.length > 0 || clientExtracted.supplier_name)) {
+          return {
+            success: true,
+            data: {
+              ...clientExtracted,
+              pdf_file_name: file.name,
+            },
+          };
+        }
+      } catch (clientErr: any) {
+        console.warn('Client-side AI extraction attempt failed, falling back to backend:', clientErr.message);
+      }
+    }
+
+    // BƯỚC 3: Thử qua máy chủ backend / serverless endpoint
     try {
       const res = await api.post<ApiResponse<POExtractedData>>('/po-tracker/upload-file', {
-        fileDataUrl: dataUrl,
+        fileDataUrl: renderedImages[0] || dataUrl, // Ưu tiên gửi ảnh JPEG sắc nét hơn nếu là PDF
         fileName: file.name,
-        mimeType: effectiveMime,
+        mimeType: renderedImages.length > 0 ? 'image/jpeg' : effectiveMime,
         apiKeys: uniqueKeys,
       }, { timeout: 60_000 });
 
       const d = res.data?.data;
-      // Chỉ chấp nhận nếu máy chủ bóc tách được ít nhất số PO, tên NCC hoặc danh sách mặt hàng
-      if (res.data?.success && d && (d.po_number || d.supplier_name || (d.items && d.items.length > 0))) {
+      // Chỉ chấp nhận nếu máy chủ bóc tách thành công danh sách mặt hàng hoặc tên NCC
+      if (res.data?.success && d && (d.items && d.items.length > 0)) {
+        return res.data;
+      }
+      if (res.data?.success && d && d.supplier_name && d.supplier_name !== 'CÔNG TY TNHH THƯƠNG MẠI LARIA - FARMERS MARKET') {
         return res.data;
       }
     } catch (err: any) {
-      console.warn('Backend extraction endpoint unhandled or error, falling back to client-side AI:', err?.message);
+      console.warn('Backend extraction endpoint unhandled or error:', err?.message);
     }
 
-    // 2. Client-side Gemini fallback (bóc tách trực tiếp tại máy người dùng với kết nối trực tiếp đến Google AI)
-    try {
-      const extracted = await clientSideGeminiExtract(cleanBase64, effectiveMime, file.name, uniqueKeys);
-      return {
-        success: true,
-        data: {
-          ...extracted,
-          pdf_file_name: file.name,
-        },
-      };
-    } catch (fallbackErr: any) {
-      // Cứu dữ liệu cơ bản từ tên file
-      const hints = extractMetadataFromFileName(file.name);
-      return {
-        success: true,
-        data: {
-          po_number: hints.po_number || null,
-          po_date: new Date().toISOString().split('T')[0],
-          expected_delivery_date: null,
-          supplier_code: null,
-          supplier_name: null,
-          warehouse: hints.warehouse || null,
-          total_value: null,
-          currency: 'VND',
-          notes: `Bóc tách từ tên tệp: ${file.name}`,
-          items: [],
-          pdf_file_name: file.name,
-        },
-      };
-    }
+    // BƯỚC 4: Fallback thông minh từ tên file nếu cả Client và Server đều không đọc được bảng mặt hàng
+    const fileHints = extractMetadataFromFileName(file.name);
+    return {
+      success: true,
+      data: {
+        po_number: fileHints.po_number || null,
+        po_date: new Date().toISOString().split('T')[0],
+        expected_delivery_date: null,
+        supplier_code: null,
+        supplier_name: fileHints.supplier_name || null,
+        warehouse: fileHints.warehouse || null,
+        total_value: null,
+        currency: 'VND',
+        notes: `Bóc tách từ tên tệp: ${file.name}`,
+        items: [],
+        pdf_file_name: file.name,
+      },
+    };
   },
 
   uploadPdf: (file: File) => poTrackerService.uploadPOFile(file),

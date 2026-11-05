@@ -267,12 +267,10 @@ export const discoverBestFlashModels = async (apiKey: string): Promise<string[]>
   }
 
   const fallbackFlashModels = [
-    'gemini-2.5-flash',
     'gemini-2.0-flash',
+    'gemini-2.5-flash',
     'gemini-1.5-flash',
     'gemini-2.0-flash-lite',
-    'gemini-2.5-pro',
-    'gemini-1.5-pro',
   ];
 
   try {
@@ -363,7 +361,7 @@ const callGeminiApi = async (prompt: string, apiKey: string, signal?: AbortSigna
 };
 
 /**
- * Test Gemini API key live with dynamic Flash model discovery and lightweight ping call
+ * Test Gemini API key live: Sử dụng ModelService.ListModels nhanh và không tiêu tốn hạn mức generateContent (15 RPM)
  */
 export const testGeminiApiKey = async (
   key: string
@@ -373,87 +371,106 @@ export const testGeminiApiKey = async (
     return { success: false, message: 'Vui lòng nhập Gemini API Key.' };
   }
 
-  // 1. Tự động truy vấn mô hình mới nhất theo quyền của API Key
-  const discovered = await discoverBestFlashModels(cleanKey);
-  const modelsToTry = Array.from(new Set([
-    'gemini-2.0-flash',
-    ...discovered,
-    'gemini-1.5-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.5-flash',
-  ])).filter(Boolean);
+  // 1. Kiểm tra xác thực tức thì qua endpoint ListModels của Google (Zero RPM quota consumed)
+  try {
+    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${cleanKey}`);
+    if (listRes.ok) {
+      const data = await listRes.json();
+      const models: any[] = data.models || [];
+      const supported = models
+        .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
+        .map((m) => m.name?.replace(/^models\//, ''))
+        .filter((m) => m && m.toLowerCase().startsWith('gemini'));
 
-  let lastErr = '';
-  let hadQuotaErr = false;
-  let allModelsQuotaExceeded = true;
+      const sorted = supported.length > 0
+        ? sortGeminiModelsNewestFirst(supported)
+        : ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'];
 
-  for (const model of modelsToTry) {
-    // Try v1beta then v1 endpoint
-    for (const apiVer of ['v1beta', 'v1']) {
+      const bestModel = sorted[0] || 'gemini-2.0-flash';
       try {
-        const url = `https://generativelanguage.googleapis.com/${apiVer}/models/${model}:generateContent?key=${cleanKey}`;
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: 'Ping. Trả lời đúng 1 chữ: OK' }] }],
-            generationConfig: { maxOutputTokens: 10 },
-          }),
-        });
+        localStorage.setItem('gemini_preferred_model', bestModel);
+      } catch (_) {}
 
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({}));
-          const errMsg = errorData.error?.message || `Mã lỗi HTTP ${res.status}`;
-          lastErr = errMsg;
-
-          if (res.status === 429 || /quota|exhausted|rate.?limit/i.test(errMsg)) {
-            hadQuotaErr = true;
-            // QUAN TRỌNG: KHÔNG DỪNG! Tiếp tục thử các model khác (2.0-flash, 1.5-flash...)
-            continue;
-          }
-          if (res.status === 400 || res.status === 403) {
-            allModelsQuotaExceeded = false;
-            if (/not found|not supported/i.test(errMsg)) continue; // Try next version / model
-            if (/API_KEY_INVALID|key not valid/i.test(errMsg)) {
-              return {
-                success: false,
-                isQuota: false,
-                message: 'Khóa API không hợp lệ hoặc đã bị vô hiệu hóa trên Google AI Studio.',
-              };
-            }
-          }
-          continue;
-        }
-
-        const data = await res.json();
-        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (reply) {
-          try {
-            localStorage.setItem('gemini_preferred_model', model);
-          } catch (_) {}
-
-          return {
-            success: true,
-            isQuota: false,
-            message: `Khóa API hoạt động chính xác! (Model: ${model})`,
-            model,
-          };
-        }
-      } catch (err: any) {
-        lastErr = err.message || 'Lỗi kết nối tới máy chủ Google Gemini';
-        allModelsQuotaExceeded = false;
-      }
+      return {
+        success: true,
+        isQuota: false,
+        message: `Khóa API hoạt động chính xác! (Mô hình: ${bestModel})`,
+        model: bestModel,
+      };
     }
+
+    if (listRes.status === 429) {
+      return {
+        success: false,
+        isQuota: true,
+        message: 'Khóa API đang chạm hạn mức tần suất (429 Too Many Requests) — Hệ thống sẽ tự động dùng khóa dự phòng.',
+      };
+    }
+
+    const errData = await listRes.json().catch(() => ({}));
+    const errMsg = errData.error?.message || `HTTP ${listRes.status}`;
+    if (/API_KEY_INVALID|key not valid|PERMISSION_DENIED/i.test(errMsg)) {
+      return {
+        success: false,
+        isQuota: false,
+        message: 'Khóa API không hợp lệ hoặc đã bị vô hiệu hóa trên Google AI Studio.',
+      };
+    }
+  } catch (_) {
+    // Nếu gặp lỗi mạng / CORS thì chuyển sang bước 2 ping trực tiếp
   }
 
-  const isQuota = hadQuotaErr && allModelsQuotaExceeded;
-  return {
-    success: false,
-    isQuota,
-    message: isQuota
-      ? 'Khóa API đã hết hạn mức (Quota 429) trên tất cả các mô hình khả dụng — Sẵn sàng chuyển khóa dự phòng.'
-      : `Không thể xác thực API Key: ${lastErr || 'Vui lòng kiểm tra lại tính hợp lệ của khóa'}`,
-  };
+  // 2. Ping trực tiếp mô hình gemini-2.0-flash (chuẩn GA) nếu bước 1 không phản hồi
+  try {
+    const pingUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`;
+    const res = await fetch(pingUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: 'OK' }] }],
+        generationConfig: { maxOutputTokens: 5 },
+      }),
+    });
+
+    if (res.ok) {
+      return {
+        success: true,
+        isQuota: false,
+        message: 'Khóa API hoạt động chính xác! (Mô hình: gemini-2.0-flash)',
+        model: 'gemini-2.0-flash',
+      };
+    }
+
+    if (res.status === 429) {
+      return {
+        success: false,
+        isQuota: true,
+        message: 'Khóa API đang chạm hạn mức (Quota 429) — Hệ thống sẽ tự động chuyển khóa dự phòng.',
+      };
+    }
+
+    const errData = await res.json().catch(() => ({}));
+    const errMsg = errData.error?.message || `Mã lỗi HTTP ${res.status}`;
+    if (/API_KEY_INVALID|key not valid/i.test(errMsg)) {
+      return {
+        success: false,
+        isQuota: false,
+        message: 'Khóa API không hợp lệ hoặc đã bị vô hiệu hóa trên Google AI Studio.',
+      };
+    }
+
+    return {
+      success: false,
+      isQuota: false,
+      message: `Không thể xác thực API Key: ${errMsg}`,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      isQuota: false,
+      message: `Lỗi kết nối tới máy chủ Google Gemini: ${err.message}`,
+    };
+  }
 };
 
 /**

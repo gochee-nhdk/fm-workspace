@@ -100,13 +100,14 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
 
       const finalPoNumber = data.po_number || fileHints.po_number || '';
       const finalWarehouse = data.warehouse || fileHints.warehouse || '';
+      const finalSupplierName = data.supplier_name || fileHints.supplier_name || '';
 
       // Auto-populate form
       setPoNumber(finalPoNumber);
       setPoDate(data.po_date || new Date().toISOString().split('T')[0]);
       setExpectedDate(data.expected_delivery_date || '');
       setSupplierCode(data.supplier_code || '');
-      setSupplierName(data.supplier_name || '');
+      setSupplierName(finalSupplierName);
       setWarehouse(finalWarehouse);
       setTotalValue(data.total_value || 0);
       setCurrency(data.currency || 'VND');
@@ -128,7 +129,7 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
       } else {
         setItems([]);
         if (finalPoNumber) {
-          toast.success(`Đã nhận diện số PO: ${finalPoNumber}. Hãy kiểm tra và lưu đơn.`);
+          toast.success(`Đã nhận diện: ${finalPoNumber}${finalSupplierName ? ` — NCC: ${finalSupplierName}` : ''}`);
         } else {
           toast('Đã nạp file PO. Bạn có thể kiểm tra và hoàn tất thông tin.', { icon: 'ℹ️' });
         }
@@ -140,6 +141,7 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
       const fileHints = extractMetadataFromFileName(selectedFile.name);
       if (fileHints.po_number) setPoNumber(fileHints.po_number);
       if (fileHints.warehouse) setWarehouse(fileHints.warehouse);
+      if (fileHints.supplier_name) setSupplierName(fileHints.supplier_name);
       setPoDate(new Date().toISOString().split('T')[0]);
       toast.error(err.message || 'Không thể trích xuất tự động qua AI. Bạn có thể kiểm tra và tự điền thông tin.');
       setStep('confirm');

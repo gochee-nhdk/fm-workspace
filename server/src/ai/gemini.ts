@@ -1,26 +1,86 @@
 import { GoogleGenAI } from '@google/genai';
 import { getDb } from '../db/connection.js';
 
-function extractMetadataFromFileName(fileName?: string): { po_number?: string; warehouse?: string } {
+function cleanVietnameseNumber(val: any): number {
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  if (!val) return 0;
+  let str = String(val).trim();
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(str)) {
+    str = str.replace(/\./g, '').replace(',', '.');
+  } else if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(str)) {
+    str = str.replace(/,/g, '');
+  } else {
+    if (/^\d+,\d+$/.test(str)) {
+      str = str.replace(',', '.');
+    } else {
+      str = str.replace(/[^\d.-]/g, '');
+    }
+  }
+  const num = parseFloat(str);
+  return isNaN(num) ? 0 : num;
+}
+
+function cleanVietnameseDate(val: any): string | null {
+  if (!val || typeof val !== 'string') return null;
+  const str = val.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+
+  const dmyMatch = str.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+  if (dmyMatch) {
+    const day = dmyMatch[1].padStart(2, '0');
+    const month = dmyMatch[2].padStart(2, '0');
+    const year = dmyMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+
+  const monthMap: Record<string, string> = {
+    jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+    jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+    thg1: '01', thg2: '02', thg3: '03', thg4: '04', thg5: '05', thg6: '06',
+    thg7: '07', thg8: '08', thg9: '09', thg10: '10', thg11: '11', thg12: '12'
+  };
+  const namedMatch = str.match(/^(\d{1,2})[\s\-\/]([a-zA-Z0-9]+)[\s\-\/](\d{4})$/);
+  if (namedMatch) {
+    const day = namedMatch[1].padStart(2, '0');
+    const mName = namedMatch[2].toLowerCase();
+    const month = monthMap[mName] || '01';
+    const year = namedMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+
+  return str;
+}
+
+function extractMetadataFromFileName(fileName?: string): {
+  po_number?: string;
+  warehouse?: string;
+  supplier_name?: string;
+} {
   if (!fileName) return {};
   const clean = fileName.replace(/\.[a-zA-Z0-9]+$/i, '').trim();
   const parts = clean.split(/[-_–—|]+/).map((p) => p.trim()).filter(Boolean);
 
   let poNumber = '';
   let warehouse = '';
+  let supplierName = '';
 
   for (const part of parts) {
     if (/^\d{5,8}$/.test(part) || /^PO[-_]?\d+/i.test(part)) {
       poNumber = /^PO/i.test(part) ? part.toUpperCase() : `PO-${part}`;
-    } else if (/CENTRAL|DC\d*|KHO|FM\d+|STORE|CHINHANH/i.test(part)) {
+    } else if (/\b(CENTRAL|DC\d*|KHO|FM\d+|STORE|CHINHANH|NƠ TRANG LONG|BÌNH THẠNH)\b/i.test(part)) {
       if (!warehouse) warehouse = part;
       else warehouse += ` - ${part}`;
+    } else if (part.length >= 2 && !/^\d+$/.test(part)) {
+      if (!supplierName) {
+        supplierName = part;
+      }
     }
   }
 
   return {
     po_number: poNumber || undefined,
     warehouse: warehouse || undefined,
+    supplier_name: supplierName || undefined,
   };
 }
 
@@ -31,6 +91,7 @@ function enrichWithFileNameHints(data: any, fileName?: string): any {
     ...data,
     po_number: data.po_number || hints.po_number || null,
     warehouse: data.warehouse || hints.warehouse || null,
+    supplier_name: data.supplier_name || hints.supplier_name || null,
   };
 }
 
@@ -40,22 +101,22 @@ function safeParseAIJson(text: string, fileName?: string): any {
 
   trimmed = trimmed.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
 
+  let rawParsed: any = null;
+
   try {
-    const parsed = JSON.parse(trimmed);
-    if (parsed && typeof parsed === 'object') return enrichWithFileNameHints(parsed, fileName);
+    rawParsed = JSON.parse(trimmed);
   } catch (_) {}
 
   const firstBrace = trimmed.indexOf('{');
   const lastBrace = trimmed.lastIndexOf('}');
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+  if (!rawParsed && firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
     try {
-      const parsed = JSON.parse(trimmed.slice(firstBrace, lastBrace + 1));
-      if (parsed && typeof parsed === 'object') return enrichWithFileNameHints(parsed, fileName);
+      rawParsed = JSON.parse(trimmed.slice(firstBrace, lastBrace + 1));
     } catch (_) {}
   }
 
   // Truncated JSON Repair
-  if (firstBrace !== -1) {
+  if (!rawParsed && firstBrace !== -1) {
     let partial = trimmed.slice(firstBrace).replace(/,\s*$/, '');
     let inString = false;
     let escaped = false;
@@ -90,35 +151,71 @@ function safeParseAIJson(text: string, fileName?: string): any {
     }
 
     try {
-      const repaired = JSON.parse(partial);
-      if (repaired && typeof repaired === 'object') return enrichWithFileNameHints(repaired, fileName);
+      rawParsed = JSON.parse(partial);
     } catch (_) {}
   }
 
   // Regex Fallback
-  const fallbackObj: any = { items: [] };
-  const poMatch = trimmed.match(/"po_number"\s*:\s*"([^"]+)"/i) || trimmed.match(/PO[-_\s]?(\d{5,8})/i);
-  if (poMatch) fallbackObj.po_number = poMatch[1];
+  if (!rawParsed || typeof rawParsed !== 'object') {
+    const fallbackObj: any = { items: [] };
+    const poMatch = trimmed.match(/"po_number"\s*:\s*"([^"]+)"/i) || trimmed.match(/PO[-_\s]?(\d{5,8})/i);
+    if (poMatch) fallbackObj.po_number = poMatch[1];
 
-  const suppMatch = trimmed.match(/"supplier_name"\s*:\s*"([^"]+)"/i);
-  if (suppMatch) fallbackObj.supplier_name = suppMatch[1];
+    const suppMatch = trimmed.match(/"supplier_name"\s*:\s*"([^"]+)"/i);
+    if (suppMatch) fallbackObj.supplier_name = suppMatch[1];
 
-  const suppCodeMatch = trimmed.match(/"supplier_code"\s*:\s*"([^"]+)"/i);
-  if (suppCodeMatch) fallbackObj.supplier_code = suppCodeMatch[1];
+    const suppCodeMatch = trimmed.match(/"supplier_code"\s*:\s*"([^"]+)"/i);
+    if (suppCodeMatch) fallbackObj.supplier_code = suppCodeMatch[1];
 
-  const dateMatch = trimmed.match(/"po_date"\s*:\s*"([^"]+)"/i);
-  if (dateMatch) fallbackObj.po_date = dateMatch[1];
+    const dateMatch = trimmed.match(/"po_date"\s*:\s*"([^"]+)"/i);
+    if (dateMatch) fallbackObj.po_date = dateMatch[1];
 
-  const expMatch = trimmed.match(/"expected_delivery_date"\s*:\s*"([^"]+)"/i);
-  if (expMatch) fallbackObj.expected_delivery_date = expMatch[1];
+    const expMatch = trimmed.match(/"expected_delivery_date"\s*:\s*"([^"]+)"/i);
+    if (expMatch) fallbackObj.expected_delivery_date = expMatch[1];
 
-  const whMatch = trimmed.match(/"warehouse"\s*:\s*"([^"]+)"/i);
-  if (whMatch) fallbackObj.warehouse = whMatch[1];
+    const whMatch = trimmed.match(/"warehouse"\s*:\s*"([^"]+)"/i);
+    if (whMatch) fallbackObj.warehouse = whMatch[1];
 
-  const totalMatch = trimmed.match(/"total_value"\s*:\s*([0-9.]+)/i);
-  if (totalMatch) fallbackObj.total_value = parseFloat(totalMatch[1]);
+    const totalMatch = trimmed.match(/"total_value"\s*:\s*([0-9.,]+)/i);
+    if (totalMatch) fallbackObj.total_value = cleanVietnameseNumber(totalMatch[1]);
 
-  return enrichWithFileNameHints(fallbackObj, fileName);
+    rawParsed = fallbackObj;
+  }
+
+  const normalized: any = {
+    ...rawParsed,
+    po_date: cleanVietnameseDate(rawParsed.po_date),
+    expected_delivery_date: cleanVietnameseDate(rawParsed.expected_delivery_date),
+    total_value: cleanVietnameseNumber(rawParsed.total_value),
+  };
+
+  if (normalized.supplier_name && /LARIA|FARMERS.*MARKET/i.test(normalized.supplier_name)) {
+    normalized.supplier_name = '';
+  }
+
+  if (Array.isArray(rawParsed.items)) {
+    normalized.items = rawParsed.items
+      .map((it: any) => {
+        if (!it || typeof it !== 'object') return null;
+        const ordered_qty = cleanVietnameseNumber(it.ordered_qty || 1);
+        const unit_price = cleanVietnameseNumber(it.unit_price || 0);
+        const total_price = cleanVietnameseNumber(it.total_price || (ordered_qty * unit_price));
+        return {
+          item_code: String(it.item_code || it.internal_code || it.barcode || '').trim(),
+          item_name: String(it.item_name || it.description || 'Sản phẩm').trim(),
+          unit: String(it.unit || 'Hộp').trim(),
+          ordered_qty: ordered_qty > 0 ? ordered_qty : 1,
+          unit_price,
+          total_price,
+          warehouse: String(it.warehouse || normalized.warehouse || '').trim(),
+        };
+      })
+      .filter((it: any) => it && (it.item_name || it.item_code));
+  } else {
+    normalized.items = [];
+  }
+
+  return enrichWithFileNameHints(normalized, fileName);
 }
 
 const serverModelCache = new Map<string, { models: string[]; timestamp: number }>();
@@ -360,42 +457,39 @@ export class GeminiService {
     const effectiveMime = mimeType && mimeType.includes('/') ? mimeType : (fileName.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
     const cleanBase64 = (base64Data || '').replace(/\s+/g, '');
 
-    const prompt = `Bạn là chuyên gia phân tích và bóc tách dữ liệu chứng từ Đơn mua hàng (PO - Purchase Order) hàng đầu của các hệ thống bán lẻ và chuỗi cung ứng tại Việt Nam (FARMERS MARKET, CENTRAL RETAIL, BIG C, GO!, TOPS MARKET, WINMART, SAIGON CO.OP, LOTTE, AEON, v.v.).
+    const prompt = `Bạn là chuyên gia phân tích và bóc tách dữ liệu chứng từ Đơn mua hàng (PO - Purchase Order) của hệ thống siêu thị FARMERS MARKET (CÔNG TY TNHH THƯƠNG MẠI LARIA) và các chuỗi bán lẻ tại Việt Nam.
 
 Hãy phân tích toàn bộ nội dung tài liệu (PDF / Hình ảnh) được cung cấp và trích xuất đầy đủ, chính xác tất cả các thông tin sau theo cấu trúc JSON:
 
-CÁC TRƯỜNG THÔNG TIN CẦN TRÍCH XUẤT:
-1. "po_number" (Số hiệu PO / Mã đơn hàng): 
-   - Tìm mã số sau các cụm từ: "Số hiệu chứng từ", "Số PO", "Số đơn đặt hàng", "Số chứng từ", "PO No.", "Order No.", "Mã đơn hàng", hoặc dãy số hiệu 5-8 chữ số ở đầu/tiêu đề chứng từ (ví dụ: "PO-118891", "118744", "PO-118744"). Nếu tên file có chứa số hiệu ("${fileName}"), hãy tham khảo để nhận diện chính xác.
-2. "po_date" (Ngày lập chứng từ PO): 
-   - Tìm sau: "Ngày chứng từ", "Ngày lập", "Ngày đặt", "Order Date", "Date". Chuẩn hóa thành định dạng: "YYYY-MM-DD" (ví dụ: 2026-11-04).
-3. "expected_delivery_date" (Hạn giao hàng / Ngày giao dự kiến): 
-   - Tìm sau: "Ngày giao hàng", "Hạn giao", "Giao trước ngày", "Delivery Date", "Ship Date". Chuẩn hóa thành: "YYYY-MM-DD".
-4. "supplier_name" (Tên Nhà cung cấp / Đơn vị cung ứng / Bên bán): 
-   - Tìm sau: "Tên NCC:", "Nhà cung cấp:", "Đơn vị bán:", "Vendor:", "Supplier:", "Bên bán:". Ví dụ: "CÔNG TY CỔ PHẦN CÔNG NGHỆ THỰC PHẨM LƯƠNG GIA", "CENTRAL RETAIL", v.v.
-5. "supplier_code" (Mã Nhà cung cấp): 
-   - Tìm sau: "Mã NCC:", "Mã nhà cung cấp:", "Vendor Code:", ví dụ: "V0001834".
-6. "warehouse" (Kho nhận hàng / Chi nhánh nhận / Địa điểm giao hàng): 
-   - Tìm sau: "Kho nhận:", "Chi nhánh yêu cầu:", "Địa chỉ giao hàng:", "Nơi nhận hàng:", "Ship to:", "DC:", "Store:". Ví dụ: "DC01 - Nơ Trang Long", "CENTRAL - FM01", "Kho Tổng".
-7. "total_value" (Tổng giá trị đơn hàng / Tổng thanh toán): 
-   - Tìm ở phần tổng kết: "TỔNG TIỀN HÀNG", "TỔNG CỘNG TRƯỚC THUẾ VAT", "TỔNG TIỀN THANH TOÁN", "Total Amount", "Grand Total". Là một số thực nguyên bản (bỏ các dấu phân cách nghìn).
-8. "currency": Đơn vị tiền tệ, mặc định "VND" nếu không ghi khác.
-9. "notes": Ghi chú đơn hàng, người đặt hàng ("Người đặt: ...", "Liên hệ: ...").
-10. "items" (Danh sách toàn bộ các dòng mặt hàng trong bảng chi tiết):
-    Với MỖI dòng sản phẩm, trích xuất đầy đủ:
-    - "item_code": Mã hàng từ cột "Internal Code", "Barcode/PLU", "Mã hàng", "Mã SP", "Article", "SKU".
-    - "item_name": Tên sản phẩm từ cột "Mặt hàng", "Tên hàng hóa", "Tên sản phẩm", "Description".
-    - "ordered_qty": Số lượng đặt hàng (kiểu số, ví dụ 42).
-    - "unit": Đơn vị tính ("Hộp", "Thùng", "Kg", "Gói", "Chai", "Lon", "Túi", "Cái"...).
-    - "unit_price": Đơn giá (kiểu số).
-    - "total_price": Thành tiền (kiểu số).
-    - "warehouse": Kho hoặc chi nhánh của dòng nếu có.
+QUY TẮC BÓC TÁCH CHUẨN XÁC:
+1. "po_number" (Số hiệu PO / Mã đơn hàng):
+   - Lấy sau "Số hiệu chứng từ:", "Số PO", "Số đơn đặt hàng", hoặc mã 5-8 chữ số ở đầu chứng từ (ví dụ: "PO-118292", "PO-118873", "PO-118744"). Nếu chưa có tiền tố "PO-", hãy thêm "PO-". Tham khảo tên file: "${fileName}".
+2. "supplier_name" (Tên Nhà cung cấp / Đơn vị cung ứng):
+   - QUAN TRỌNG: "CÔNG TY TNHH THƯƠNG MẠI LARIA - FARMERS MARKET" là BÊN MUA HÀNG (Buyer), TUYỆT ĐỐI KHÔNG LẤY TÊN NÀY LÀM NHÀ CUNG CẤP!
+   - TÊN NHÀ CUNG CẤP là đơn vị nằm sau nhãn "Tên NCC:" (ví dụ: "CÔNG TY CỔ PHẦN DEVIE", "CÔNG TY TNHH BẢO MINH", "CENTRAL RETAIL").
+3. "supplier_code" (Mã Nhà cung cấp):
+   - Lấy sau nhãn "Mã NCC:" (ví dụ: "V0001613", "V0001834").
+4. "po_date" (Ngày lập chứng từ PO):
+   - Lấy sau nhãn "Ngày chứng từ:" (ví dụ: "2/11/2026" chuẩn hóa thành "2026-11-02").
+5. "expected_delivery_date" (Hạn giao hàng / Ngày giao dự kiến):
+   - Lấy sau nhãn "Ngày giao hàng:" (ví dụ: "5/11/2026" chuẩn hóa thành "2026-11-05").
+6. "warehouse" (Kho nhận hàng / Chi nhánh yêu cầu):
+   - Lấy sau "Chi nhánh yêu cầu:" hoặc "Địa chỉ giao hàng:" (ví dụ: "DC01 - Nơ Trang Long, 204 Nơ Trang Long, Phường Bình Thạnh, TP.HCM").
+7. "total_value" (Tổng giá trị đơn hàng / Tổng thanh toán):
+   - Lấy từ dòng "TỔNG TIỀN HÀNG" hoặc "TỔNG CỘNG TRƯỚC THUẾ VAT", là một số thực nguyên bản (bỏ các dấu phân cách chấm, phẩy). Ví dụ: 9021888 hoặc 8353600.
+8. "currency": Đơn vị tiền tệ, mặc định "VND".
+9. "notes": Người đặt hàng từ nhãn "Người đặt hàng:" (ví dụ: "Nguyễn Hùng Tiến").
+10. "items" (Danh sách toàn bộ các dòng mặt hàng trong bảng ĐƠN MUA HÀNG):
+    Bóc tách ĐẦY ĐỦ TẤT CẢ các dòng sản phẩm trong bảng chi tiết, tuyệt đối không bỏ sót dòng nào:
+    - "item_code": Cột "Internal Code" hoặc "Barcode/PLU" (ví dụ: "10015745").
+    - "item_name": Cột "Mặt hàng" (ví dụ: "Hạt dinh dưỡng Your SuperFood Mix nhiều loại hạt hũ 400 g").
+    - "ordered_qty": Cột "Số lượng" (kiểu số thực, ví dụ: 46).
+    - "unit": Cột "DVT" (ví dụ: "Hũ", "Hộp", "Thùng", "Kg", "Gói", "Chai", "Lon", "Túi", "Cái").
+    - "unit_price": Cột "Đơn giá chưa VAT" hoặc "Đơn giá chưa VAT sau chiết khấu" (kiểu số, ví dụ: 181600).
+    - "total_price": Cột "Thành tiền chưa VAT" (kiểu số, ví dụ: 8353600).
+    - "warehouse": Kho nhận nếu có (ví dụ: "DC01 - Nơ Trang Long").
 
-YÊU CẦU QUAN TRỌNG:
-- Bóc tách ĐẦY ĐỦ TẤT CẢ các dòng mặt hàng trong bảng, không bỏ sót dòng nào.
-- Chỉ trả về duy nhất chuỗi JSON hợp lệ, không bọc markdown fence, không kèm lời chào hay giải thích.
-
-Tên file tham chiếu: ${fileName}`;
+Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ, không bọc markdown fence, không kèm lời chào.`;
 
     // 1. Try dynamic models for each available key
     for (const key of keys) {
