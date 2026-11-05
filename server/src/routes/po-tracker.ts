@@ -44,6 +44,10 @@ async function getUserPermissionOnPO(
 ): Promise<Permission | null> {
   if (userRole === 'admin') return 'admin';
 
+  // Creator always has full access to their own PO
+  const po = await db.prepare('SELECT created_by FROM po_tracker_pos WHERE id = ?').get(poId) as any;
+  if (po && po.created_by === userId) return 'admin';
+
   // Check direct PO permission first
   const directPerm = await db.prepare(`
     SELECT permission FROM po_tracker_permissions
@@ -307,6 +311,8 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
              f.name as folder_name, f.color as folder_color,
              u.full_name as creator_name,
              COUNT(DISTINCT pi.id) as item_count,
+             COALESCE(SUM(pi.ordered_qty), 0) as total_ordered_qty,
+             COALESCE(SUM(pi.received_qty), 0) as total_received_qty,
              CAST(julianday('now') - julianday(p.expected_delivery_date) AS INTEGER) as days_overdue
       FROM po_tracker_pos p
       LEFT JOIN po_tracker_folders f ON p.folder_id = f.id
@@ -342,7 +348,10 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
       params.push(folder_id);
     }
 
-    if (status) {
+    if (status === 'overdue') {
+      query += " AND (p.status = 'overdue' OR (p.status NOT IN ('received', 'cancelled') AND p.expected_delivery_date IS NOT NULL AND p.expected_delivery_date < ?))";
+      params.push(new Date().toISOString().split('T')[0]);
+    } else if (status) {
       query += ' AND p.status = ?';
       params.push(status);
     }
@@ -481,6 +490,14 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
           );
         }
       }
+
+      // Auto-grant admin permission to creator
+      if (userId) {
+        await tx.prepare(`
+          INSERT INTO po_tracker_permissions (id, user_id, resource_type, resource_id, permission, granted_by, created_at)
+          VALUES (?, ?, 'po', ?, 'admin', ?, ?)
+        `).run(uuidv4(), userId, id, userId, now);
+      }
     });
 
     auditLog(request, 'CREATE_PO_TRACKER', 'po_tracker_pos', id, null, { po_number, supplier_name });
@@ -508,11 +525,15 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
     const body = (request.body as any) || {};
     const now = new Date().toISOString();
 
+    const validStatuses = ['pending', 'confirmed', 'shipping', 'partial_received', 'received', 'cancelled', 'overdue'];
+    const newStatus = body.status && validStatuses.includes(body.status) ? body.status : existing.status;
+    const newDeliveryDate = body.actual_delivery_date ?? (newStatus === 'received' && !existing.actual_delivery_date ? now.split('T')[0] : existing.actual_delivery_date);
+
     await db.prepare(`
       UPDATE po_tracker_pos
       SET folder_id = ?, po_number = ?, po_date = ?, expected_delivery_date = ?,
           actual_delivery_date = ?, supplier_code = ?, supplier_name = ?,
-          warehouse = ?, total_value = ?, currency = ?, notes = ?, tags = ?,
+          warehouse = ?, status = ?, total_value = ?, currency = ?, notes = ?, tags = ?,
           pdf_file_name = ?, updated_at = ?
       WHERE id = ?
     `).run(
@@ -520,10 +541,11 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
       body.po_number ?? existing.po_number,
       body.po_date ?? existing.po_date,
       body.expected_delivery_date ?? existing.expected_delivery_date,
-      body.actual_delivery_date ?? existing.actual_delivery_date,
+      newDeliveryDate,
       body.supplier_code ?? existing.supplier_code,
       body.supplier_name ?? existing.supplier_name,
       body.warehouse ?? existing.warehouse,
+      newStatus,
       body.total_value != null ? Number(body.total_value) : existing.total_value,
       body.currency ?? existing.currency,
       body.notes ?? existing.notes,

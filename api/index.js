@@ -22,6 +22,31 @@ function base64UrlDecode(str) {
   return Buffer.from(base64, 'base64').toString('utf8');
 }
 
+function safeParseAIJson(text) {
+  if (!text || typeof text !== 'string') return {};
+  const trimmed = text.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch (_) {}
+
+  const codeBlockMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (codeBlockMatch && codeBlockMatch[1]) {
+    try {
+      return JSON.parse(codeBlockMatch[1].trim());
+    } catch (_) {}
+  }
+
+  const firstBrace = trimmed.indexOf('{');
+  const lastBrace = trimmed.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    try {
+      return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1));
+    } catch (_) {}
+  }
+
+  return {};
+}
+
 function verifyAuthToken(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -868,7 +893,10 @@ module.exports = async function handler(req, res, forcedPath) {
     if (pathname.startsWith('/po-tracker')) {
       // 11.0 PO Upload & AI Extraction (Vercel Serverless)
       if ((pathname === '/po-tracker/upload-pdf' || pathname === '/po-tracker/upload-file') && req.method === 'POST') {
-        const body = req.body || {};
+        let body = req.body || {};
+        if (typeof body === 'string') {
+          try { body = JSON.parse(body); } catch (_) { body = {}; }
+        }
         let base64Data = '';
         let mimeType = 'application/pdf';
         let fileName = body.fileName || 'po-document.pdf';
@@ -998,8 +1026,7 @@ Tên file: ${fileName}`;
 
               const resJson = await fetchRes.json();
               const text = resJson.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '{}';
-              const cleaned = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
-              const parsed = JSON.parse(cleaned);
+              const parsed = safeParseAIJson(text);
 
               return res.status(200).json({
                 success: true,
@@ -1111,7 +1138,10 @@ Tên file: ${fileName}`;
           list = list.filter((p) => p.folder_id === folder_id);
         }
 
-        if (status) {
+        const today = new Date().toISOString().split('T')[0];
+        if (status === 'overdue') {
+          list = list.filter((p) => p.status === 'overdue' || (!['received', 'cancelled'].includes(p.status) && p.expected_delivery_date && p.expected_delivery_date < today));
+        } else if (status) {
           list = list.filter((p) => p.status === status);
         }
 
@@ -1158,6 +1188,8 @@ Tên file: ${fileName}`;
             status: it.status || 'pending'
           })) : [],
           item_count: Array.isArray(body.items) ? body.items.length : 0,
+          total_ordered_qty: Array.isArray(body.items) ? body.items.reduce((s, i) => s + (Number(i.ordered_qty) || 0), 0) : 0,
+          total_received_qty: Array.isArray(body.items) ? body.items.reduce((s, i) => s + (Number(i.received_qty) || 0), 0) : 0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
@@ -1179,7 +1211,11 @@ Tên file: ${fileName}`;
         if (isStatusPatch && req.method === 'PATCH') {
           const { status, actual_delivery_date, notes } = req.body || {};
           if (status) target.status = status;
-          if (actual_delivery_date) target.actual_delivery_date = actual_delivery_date;
+          if (actual_delivery_date) {
+            target.actual_delivery_date = actual_delivery_date;
+          } else if (status === 'received' && !target.actual_delivery_date) {
+            target.actual_delivery_date = new Date().toISOString().split('T')[0];
+          }
           if (notes !== undefined) target.notes = notes;
           target.updated_at = new Date().toISOString();
           return res.status(200).json({ success: true, message: 'Đã cập nhật trạng thái đơn hàng' });
@@ -1198,6 +1234,14 @@ Tên file: ${fileName}`;
 
         if (req.method === 'PUT') {
           const body = req.body || {};
+          if (Array.isArray(body.items)) {
+            body.item_count = body.items.length;
+            body.total_ordered_qty = body.items.reduce((s, i) => s + (Number(i.ordered_qty) || 0), 0);
+            body.total_received_qty = body.items.reduce((s, i) => s + (Number(i.received_qty) || 0), 0);
+          }
+          if (body.status === 'received' && !body.actual_delivery_date && !target.actual_delivery_date) {
+            body.actual_delivery_date = new Date().toISOString().split('T')[0];
+          }
           Object.assign(target, {
             ...body,
             updated_at: new Date().toISOString()

@@ -24,8 +24,15 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
   onSelectFolder,
   collapsed = false,
 }) => {
-  const { folders, activeFolderId, setActiveFolderId, stats, removeFolderFromList } =
-    usePOTrackerStore();
+  const {
+    folders,
+    activeFolderId,
+    setActiveFolderId,
+    activeStatus,
+    setActiveStatus,
+    stats,
+    removeFolderFromList,
+  } = usePOTrackerStore();
   const [folderDrawerOpen, setFolderDrawerOpen] = useState(false);
   const [editingFolder, setEditingFolder] = useState<POFolderItem | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -54,6 +61,7 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
 
   const handleSelect = (id: string | null) => {
     setActiveFolderId(id);
+    setActiveStatus(null);
     onSelectFolder(id);
   };
 
@@ -116,12 +124,13 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
           {totalOverdue > 0 && (
             <button
               onClick={() => {
-                setActiveFolderId(null);
-                onSelectFolder(null);
+                setActiveStatus(activeStatus === 'overdue' ? null : 'overdue');
               }}
               className={cn(
                 'w-full flex items-center gap-2.5 px-3 h-10 rounded-xl text-[13px] font-semibold transition-all duration-150 cursor-pointer active:scale-[0.98] text-left select-none',
-                'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10'
+                activeStatus === 'overdue'
+                  ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 ring-1.5 ring-red-400/40 shadow-2xs font-bold'
+                  : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10'
               )}
             >
               <SFExclamationmarkTriangleFill size={16} className="shrink-0 text-red-500 animate-pulse" />

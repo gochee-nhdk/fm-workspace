@@ -201,11 +201,12 @@ export const POListTable: React.FC<POListTableProps> = ({
 
               {/* Col 5: Progress */}
               <div className="min-w-0">
-                {po.item_count ? (
+                {po.item_count || po.items ? (
                   <POProgressBar
+                    status={po.status}
                     items={po.items}
-                    received={po.items?.reduce((s, i) => s + (i.received_qty || 0), 0)}
-                    total={po.items?.reduce((s, i) => s + (i.ordered_qty || 0), 0)}
+                    received={po.total_received_qty ?? po.items?.reduce((s, i) => s + (i.received_qty || 0), 0)}
+                    total={po.total_ordered_qty ?? po.items?.reduce((s, i) => s + (i.ordered_qty || 0), 0)}
                     size="sm"
                   />
                 ) : (

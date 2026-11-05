@@ -573,6 +573,21 @@ async function initDb() {
   for (const setting of defaultSettings) {
     await insertSetting.run(uuidv4(), setting.key, setting.value, setting.category, now);
   }
+
+  // Insert default PO tracker folders
+  const defaultFolders = [
+    { id: 'f-default-1', name: 'Hàng kinh doanh', description: 'Các đơn hàng thu mua sản phẩm thương mại', color: 'blue', icon: 'shippingbox', sort_order: 1 },
+    { id: 'f-default-2', name: 'Vật tư & Bao bì', description: 'Bao bì đóng gói, tem nhãn', color: 'amber', icon: 'shippingbox', sort_order: 2 }
+  ];
+
+  const insertFolder = db.prepare(`
+    INSERT OR IGNORE INTO po_tracker_folders (id, name, description, color, icon, sort_order, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  for (const f of defaultFolders) {
+    await insertFolder.run(f.id, f.name, f.description, f.color, f.icon, f.sort_order, now, now);
+  }
   
   console.log('Database initialization complete.');
 }

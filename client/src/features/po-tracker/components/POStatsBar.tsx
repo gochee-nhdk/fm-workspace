@@ -150,10 +150,12 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
             icon={card.icon}
             color={card.color}
             bg={card.bg}
-            active={activeStatus === card.status && card.status !== null}
+            active={card.label === 'Tổng đơn PO' ? activeStatus === null : activeStatus === card.status}
             pulse={(card as any).pulse}
             onClick={
-              card.status
+              card.label === 'Tổng đơn PO'
+                ? () => onStatusFilter(null)
+                : card.status
                 ? () => onStatusFilter(activeStatus === card.status ? null : card.status)
                 : undefined
             }

@@ -236,6 +236,7 @@ export const POTrackerPage: React.FC = () => {
         onClose={() => setUploadDrawerOpen(false)}
         onSuccess={() => {
           fetchFoldersAndStats();
+          fetchPOs();
         }}
       />
 
@@ -247,6 +248,7 @@ export const POTrackerPage: React.FC = () => {
           setDetailDrawerOpen(false);
           setDetailPOId(null);
           fetchFoldersAndStats();
+          fetchPOs();
         }}
       />
     </div>

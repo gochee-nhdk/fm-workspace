@@ -1,6 +1,31 @@
 import { GoogleGenAI } from '@google/genai';
 import { getDb } from '../db/connection.js';
 
+function safeParseAIJson(text: string): any {
+  if (!text || typeof text !== 'string') return {};
+  const trimmed = text.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch (_) {}
+
+  const codeBlockMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (codeBlockMatch && codeBlockMatch[1]) {
+    try {
+      return JSON.parse(codeBlockMatch[1].trim());
+    } catch (_) {}
+  }
+
+  const firstBrace = trimmed.indexOf('{');
+  const lastBrace = trimmed.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    try {
+      return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1));
+    } catch (_) {}
+  }
+
+  return {};
+}
+
 export class GeminiService {
   private ai: GoogleGenAI | null = null;
   private model = 'gemini-2.5-flash';
@@ -185,8 +210,7 @@ Tên file: ${fileName}`;
         });
 
         const text = response.text || '{}';
-        const cleaned = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
-        return JSON.parse(cleaned);
+        return safeParseAIJson(text);
       } catch (err: any) {
         console.warn('GoogleGenAI SDK attempt error, trying fetch fallback:', err.message);
       }
@@ -218,8 +242,7 @@ Tên file: ${fileName}`;
           if (res.ok) {
             const data: any = await res.json();
             const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-            const cleaned = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
-            return JSON.parse(cleaned);
+            return safeParseAIJson(text);
           }
         } catch (_) {}
       }

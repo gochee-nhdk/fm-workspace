@@ -78,6 +78,8 @@ export interface POTrackerPO {
   extracted_data?: string | null;
   items?: POTrackerItemLine[];
   item_count?: number;
+  total_ordered_qty?: number;
+  total_received_qty?: number;
   days_overdue?: number;
   user_permission?: POPermission;
   permissions?: POPermissionRecord[];

@@ -19,6 +19,31 @@ const fileToDataUrl = (file: File): Promise<string> => {
   });
 };
 
+function safeParseAIJson(text: string): any {
+  if (!text || typeof text !== 'string') return {};
+  const trimmed = text.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch (_) {}
+
+  const codeBlockMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (codeBlockMatch && codeBlockMatch[1]) {
+    try {
+      return JSON.parse(codeBlockMatch[1].trim());
+    } catch (_) {}
+  }
+
+  const firstBrace = trimmed.indexOf('{');
+  const lastBrace = trimmed.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    try {
+      return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1));
+    } catch (_) {}
+  }
+
+  return {};
+}
+
 /**
  * Trực tiếp bóc tách PO qua Gemini phía trình duyệt trong trường hợp server không phản hồi
  */
@@ -123,8 +148,7 @@ Tên file: ${fileName}`;
 
         const resJson = await res.json();
         const text = resJson.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '{}';
-        const cleaned = text.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
-        return JSON.parse(cleaned);
+        return safeParseAIJson(text);
       } catch (err: any) {
         lastErr = err.message;
       }
@@ -191,9 +215,7 @@ export const poTrackerService = {
     }
   },
 
-  uploadPdf: function (file: File) {
-    return this.uploadPOFile(file);
-  },
+  uploadPdf: (file: File) => poTrackerService.uploadPOFile(file),
 
   // ─── Purchase Orders ───────────────────────────────────────────────────────
   getPOs: (params?: { folder_id?: string; status?: string; search?: string }) =>

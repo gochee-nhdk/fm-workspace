@@ -3,6 +3,7 @@ import { POTrackerItemLine } from '@/types/po-tracker';
 import { cn } from '@/lib/utils';
 
 interface POProgressBarProps {
+  status?: string;
   items?: POTrackerItemLine[];
   /** If no items, use these direct values */
   received?: number;
@@ -13,6 +14,7 @@ interface POProgressBarProps {
 }
 
 export const POProgressBar: React.FC<POProgressBarProps> = ({
+  status,
   items,
   received,
   total,
@@ -28,7 +30,10 @@ export const POProgressBar: React.FC<POProgressBarProps> = ({
     receivedQty = items.reduce((sum, i) => sum + (i.received_qty || 0), 0);
   }
 
-  const pct = totalQty > 0 ? Math.min(100, Math.round((receivedQty / totalQty) * 100)) : 0;
+  let pct = totalQty > 0 ? Math.min(100, Math.round((receivedQty / totalQty) * 100)) : 0;
+  if (status === 'received') {
+    pct = 100;
+  }
 
   const barColor =
     pct === 100
