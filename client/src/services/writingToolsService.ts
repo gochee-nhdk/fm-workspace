@@ -218,48 +218,89 @@ const callBackendWritingTool = async (
 /**
  * Call Gemini API directly from browser if key is set
 /**
- * Dynamically queries Google Gemini API to discover all available models authorized for this API key.
- * Strictly prioritizes modern Flash models (gemini-3.x-flash, gemini-2.5-flash, gemini-2.0-flash, gemini-1.5-flash, etc.)
- * and discards deprecated Pro models like gemini-2.5-pro.
+ * Sắp xếp danh sách mô hình Gemini theo thứ tự mới nhất (phiên bản cao nhất trước, ưu tiên Flash cho tốc độ)
+ */
+export const sortGeminiModelsNewestFirst = (models: string[]): string[] => {
+  return [...models].sort((a, b) => {
+    const extractVersion = (name: string): number => {
+      const match = name.match(/gemini-(\d+(?:\.\d+)?)/i) || name.match(/(\d+(?:\.\d+)?)/);
+      return match ? parseFloat(match[1]) : 0;
+    };
+    const verA = extractVersion(a);
+    const verB = extractVersion(b);
+    if (verB !== verA) {
+      return verB - verA; // Phiên bản cao hơn ưu tiên trước (VD: 2.5 > 2.0 > 1.5)
+    }
+    // Nếu cùng phiên bản, ưu tiên dòng Flash cho tác vụ thời gian thực
+    const isFlashA = a.toLowerCase().includes('flash') ? 1 : 0;
+    const isFlashB = b.toLowerCase().includes('flash') ? 1 : 0;
+    if (isFlashB !== isFlashA) {
+      return isFlashB - isFlashA;
+    }
+    return a.localeCompare(b);
+  });
+};
+
+const dynamicModelCache = new Map<string, { models: string[]; timestamp: number }>();
+
+/**
+ * Tự động truy vấn và nhận diện mô hình mới nhất của từng API Key từ Google ModelService,
+ * không ràng buộc vào bất kỳ model cố định nào.
  */
 export const discoverBestFlashModels = async (apiKey: string): Promise<string[]> => {
   const cleanKey = apiKey.trim();
+  if (!cleanKey || cleanKey.includes('••••')) {
+    return ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  }
+
+  // Tận dụng cache ngắn hạn (10 phút) tránh gọi thừa
+  const cached = dynamicModelCache.get(cleanKey);
+  if (cached && Date.now() - cached.timestamp < 10 * 60 * 1000) {
+    return cached.models;
+  }
+
   const fallbackFlashModels = [
+    'gemini-2.5-flash',
     'gemini-2.0-flash',
     'gemini-1.5-flash',
-    'gemini-1.5-flash-8b',
+    'gemini-2.0-flash-lite',
+    'gemini-2.5-pro',
     'gemini-1.5-pro',
   ];
 
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${cleanKey}`);
-    if (res.ok) {
-      const data = await res.json();
-      const models: any[] = data.models || [];
-      const supported = models
-        .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
-        .map((m) => m.name?.replace(/^models\//, ''))
-        .filter((name: string) => !name.toLowerCase().includes('2.5-pro'));
+    for (const apiVer of ['v1beta', 'v1']) {
+      const res = await fetch(`https://generativelanguage.googleapis.com/${apiVer}/models?key=${cleanKey}`);
+      if (res.ok) {
+        const data = await res.json();
+        const models: any[] = data.models || [];
+        const supported = models
+          .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
+          .map((m) => m.name?.replace(/^models\//, ''))
+          .filter(Boolean);
 
-      if (supported.length > 0) {
-        // Filter and sort Flash models first
-        const flashModels = supported
-          .filter((name: string) => name.toLowerCase().includes('flash'))
-          .sort((a: string, b: string) => {
-            const vA = parseFloat(a.match(/gemini-(\d+(\.\d+)?)/)?.[1] || '0');
-            const vB = parseFloat(b.match(/gemini-(\d+(\.\d+)?)/)?.[1] || '0');
-            return vB - vA;
-          });
-
-        const otherGenerative = supported.filter((name: string) => !name.toLowerCase().includes('flash'));
-        return Array.from(new Set([...flashModels, ...otherGenerative, ...fallbackFlashModels]));
+        if (supported.length > 0) {
+          const sorted = sortGeminiModelsNewestFirst(supported);
+          dynamicModelCache.set(cleanKey, { models: sorted, timestamp: Date.now() });
+          try {
+            if (sorted[0]) {
+              localStorage.setItem('gemini_preferred_model', sorted[0]);
+            }
+          } catch (_) {}
+          return sorted;
+        }
       }
     }
   } catch (_) {
     // Network or CORS fallback
   }
 
-  return fallbackFlashModels;
+  let preferred: string | null = null;
+  try {
+    preferred = localStorage.getItem('gemini_preferred_model');
+  } catch (_) {}
+
+  return preferred ? [preferred, ...fallbackFlashModels.filter((m) => m !== preferred)] : fallbackFlashModels;
 };
 
 /**
@@ -325,51 +366,8 @@ export const testGeminiApiKey = async (
     return { success: false, message: 'Vui lòng nhập Gemini API Key.' };
   }
 
-  // 1. First dynamically query Google ModelService to discover the exact models authorized for this key
-  let modelsToTry: string[] = [];
-  try {
-    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${cleanKey}`);
-    if (listRes.ok) {
-      const listData = await listRes.json();
-      const serverModels: any[] = listData.models || [];
-      const supported = serverModels
-        .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
-        .map((m) => m.name?.replace(/^models\//, ''))
-        .filter(Boolean);
-
-      if (supported.length > 0) {
-        // Prioritize Flash models
-        const flashModels = supported.filter((m) => m.toLowerCase().includes('flash'));
-        const otherModels = supported.filter((m) => !m.toLowerCase().includes('flash'));
-        modelsToTry = [...flashModels, ...otherModels];
-      }
-    } else {
-      const errJson = await listRes.json().catch(() => ({}));
-      const errMessage = errJson.error?.message || '';
-      if (listRes.status === 400 || listRes.status === 403) {
-        if (/api.?key.?not.?valid|invalid|expired/i.test(errMessage)) {
-          return {
-            success: false,
-            message: `Khóa API không hợp lệ hoặc đã hết hạn: ${errMessage}`,
-          };
-        }
-      }
-    }
-  } catch (_) {
-    // Network / CORS fallback
-  }
-
-  // Fallback candidate list if listModels didn't return (covering all active Google Gemini versions)
-  if (modelsToTry.length === 0) {
-    modelsToTry = [
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
-      'gemini-1.5-flash',
-      'gemini-2.0-flash-lite',
-      'gemini-2.5-pro',
-      'gemini-1.5-pro',
-    ];
-  }
+  // 1. Tự động truy vấn mô hình mới nhất theo quyền của API Key
+  const modelsToTry = await discoverBestFlashModels(cleanKey);
 
   let lastErr = '';
   for (const model of modelsToTry) {
@@ -1139,7 +1137,7 @@ export const extractTextFromImageDirect = async (
   const mimeType = dataUrlMatch[1];
   const base64Data = dataUrlMatch[2];
 
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  const models = await discoverBestFlashModels(apiKey);
   let lastErr = '';
 
   const ocrPrompt =

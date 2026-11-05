@@ -6,7 +6,7 @@ import {
   POTrackerStats,
   POPermission,
 } from '@/types/po-tracker';
-import { getStoredGeminiKey, getGeminiKeysPool } from './writingToolsService';
+import { getStoredGeminiKey, getGeminiKeysPool, discoverBestFlashModels } from './writingToolsService';
 
 type ApiResponse<T> = { success: boolean; data: T; message?: string };
 
@@ -124,44 +124,47 @@ Cấu trúc JSON cần trả về:
 }
 Tên file: ${fileName}`;
 
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
   let lastErr = '';
 
   for (const k of uniqueKeys) {
+    // Tự động nhận diện danh sách mô hình mới nhất của API Key
+    const models = await discoverBestFlashModels(k);
     for (const model of models) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${k}`;
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  { text: prompt },
-                  { inlineData: { mimeType, data: base64Data } },
-                ],
+      for (const apiVer of ['v1beta', 'v1']) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/${apiVer}/models/${model}:generateContent?key=${k}`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [
+                    { text: prompt },
+                    { inlineData: { mimeType, data: base64Data } },
+                  ],
+                },
+              ],
+              generationConfig: {
+                temperature: 0.0,
+                responseMimeType: 'application/json',
               },
-            ],
-            generationConfig: {
-              temperature: 0.0,
-              responseMimeType: 'application/json',
-            },
-          }),
-        });
+            }),
+          });
 
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          lastErr = errData.error?.message || `HTTP ${res.status}`;
-          if (res.status === 429) break;
-          continue;
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            lastErr = errData.error?.message || `HTTP ${res.status}`;
+            if (res.status === 429) break;
+            continue;
+          }
+
+          const resJson = await res.json();
+          const text = resJson.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '{}';
+          return safeParseAIJson(text);
+        } catch (err: any) {
+          lastErr = err.message;
         }
-
-        const resJson = await res.json();
-        const text = resJson.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '{}';
-        return safeParseAIJson(text);
-      } catch (err: any) {
-        lastErr = err.message;
       }
     }
   }

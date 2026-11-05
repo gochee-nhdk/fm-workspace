@@ -26,9 +26,74 @@ function safeParseAIJson(text: string): any {
   return {};
 }
 
+const serverModelCache = new Map<string, { models: string[]; timestamp: number }>();
+
+export function sortGeminiModelsNewestFirst(models: string[]): string[] {
+  return [...models].sort((a, b) => {
+    const extractVersion = (name: string): number => {
+      const match = name.match(/gemini-(\d+(?:\.\d+)?)/i) || name.match(/(\d+(?:\.\d+)?)/);
+      return match ? parseFloat(match[1]) : 0;
+    };
+    const verA = extractVersion(a);
+    const verB = extractVersion(b);
+    if (verB !== verA) {
+      return verB - verA; // Ưu tiên phiên bản cao nhất trước
+    }
+    const isFlashA = a.toLowerCase().includes('flash') ? 1 : 0;
+    const isFlashB = b.toLowerCase().includes('flash') ? 1 : 0;
+    if (isFlashB !== isFlashA) {
+      return isFlashB - isFlashA;
+    }
+    return a.localeCompare(b);
+  });
+}
+
+export async function discoverBestGeminiModels(apiKey: string): Promise<string[]> {
+  const cleanKey = apiKey.trim();
+  if (!cleanKey || cleanKey.includes('••••')) {
+    return ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  }
+
+  const cached = serverModelCache.get(cleanKey);
+  if (cached && Date.now() - cached.timestamp < 10 * 60 * 1000) {
+    return cached.models;
+  }
+
+  const fallback = [
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-2.5-pro',
+    'gemini-1.5-pro',
+  ];
+
+  try {
+    for (const apiVer of ['v1beta', 'v1']) {
+      const res = await fetch(`https://generativelanguage.googleapis.com/${apiVer}/models?key=${cleanKey}`);
+      if (res.ok) {
+        const data: any = await res.json();
+        const serverModels = (data.models || [])
+          .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+          .map((m: any) => m.name?.replace(/^models\//, ''))
+          .filter(Boolean);
+
+        if (serverModels.length > 0) {
+          const sorted = sortGeminiModelsNewestFirst(serverModels);
+          serverModelCache.set(cleanKey, { models: sorted, timestamp: Date.now() });
+          return sorted;
+        }
+      }
+    }
+  } catch (_) {}
+
+  return fallback;
+}
+
 export class GeminiService {
   private ai: GoogleGenAI | null = null;
-  private model = 'gemini-2.0-flash';
+  private currentApiKey: string | null = null;
+  private model = 'gemini-2.5-flash';
 
   constructor() {
     // Initial sync fallback with environment variable
@@ -66,18 +131,20 @@ export class GeminiService {
       }
 
       if (apiKey && apiKey.trim()) {
+        this.currentApiKey = apiKey.trim();
         this.ai = new GoogleGenAI({ apiKey: apiKey.trim() });
       }
-      if (modelSetting && modelSetting.value && modelSetting.value !== 'gemini-2.5-flash') {
+      if (modelSetting && modelSetting.value) {
         this.model = modelSetting.value;
       } else {
-        this.model = 'gemini-2.0-flash';
+        this.model = 'gemini-2.5-flash';
       }
     } catch {
       // Fallback to environment variable if system_settings table is not ready yet
       const apiKey = process.env.GEMINI_API_KEY;
       if (apiKey) {
         try {
+          this.currentApiKey = apiKey;
           this.ai = new GoogleGenAI({ apiKey });
         } catch (_) {}
       }
@@ -85,8 +152,10 @@ export class GeminiService {
   }
 
   async chat(userMessage: string, dataContext: any, clientApiKey?: string): Promise<string> {
+    const rawKey = clientApiKey || this.currentApiKey || process.env.GEMINI_API_KEY;
     if (clientApiKey && (clientApiKey.startsWith('AIzaSy') || clientApiKey.startsWith('AQ.') || (!clientApiKey.startsWith('sk-') && clientApiKey.length >= 20)) && !clientApiKey.includes('••••')) {
       try {
+        this.currentApiKey = clientApiKey.trim();
         this.ai = new GoogleGenAI({ apiKey: clientApiKey.trim() });
       } catch (_) {}
     } else if (!this.ai) {
@@ -131,21 +200,30 @@ export class GeminiService {
       ${userMessage}
     `;
 
-    try {
-      const response = await this.ai.models.generateContent({
-        model: this.model,
-        contents: prompt,
-        config: {
-          systemInstruction: systemPrompt,
-          temperature: 0.1 // Low temperature for factual precision
-        }
-      });
+    const effectiveKey = rawKey;
+    const candidateModels = effectiveKey ? await discoverBestGeminiModels(effectiveKey) : [this.model];
+    let lastError: any = null;
 
-      return response.text || 'Không có phản hồi được tạo ra.';
-    } catch (error: any) {
-      console.error('Gemini API Error:', error);
-      throw new Error(`AI generation failed: ${error.message}`);
+    for (const m of candidateModels) {
+      try {
+        const response = await this.ai.models.generateContent({
+          model: m,
+          contents: prompt,
+          config: {
+            systemInstruction: systemPrompt,
+            temperature: 0.1 // Low temperature for factual precision
+          }
+        });
+
+        if (response.text) return response.text;
+      } catch (error: any) {
+        lastError = error;
+        console.warn(`Gemini Chat error with ${m}:`, error.message);
+        if (error.status === 429) continue;
+      }
     }
+
+    throw new Error(`AI generation failed: ${lastError?.message || 'Không có phản hồi'}`);
   }
 
   async extractPOFromPdf(base64Data: string, fileName: string, mimeType = 'application/pdf', clientKeys: string[] = []): Promise<any> {
@@ -241,9 +319,47 @@ Cấu trúc JSON cần trả về:
 
 Tên file: ${fileName}`;
 
-    const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    // 1. Try dynamic models for each available key
+    for (const key of keys) {
+      if (!key || key.startsWith('sk-') || key.includes('••••')) continue;
+      const cleanKey = key.trim();
+      const discoveredModels = await discoverBestGeminiModels(cleanKey);
 
-    // 1. Try with GoogleGenAI instance first if available
+      for (const m of discoveredModels) {
+        for (const apiVer of ['v1beta', 'v1']) {
+          try {
+            const fetchUrl = `https://generativelanguage.googleapis.com/${apiVer}/models/${m}:generateContent?key=${cleanKey}`;
+            const res = await fetch(fetchUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [
+                    { text: prompt },
+                    { inlineData: { mimeType: effectiveMime, data: base64Data } }
+                  ]
+                }],
+                generationConfig: {
+                  temperature: 0.0,
+                  responseMimeType: 'application/json'
+                }
+              })
+            });
+
+            if (res.ok) {
+              const data: any = await res.json();
+              const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+              const parsed = safeParseAIJson(text);
+              if (parsed && (parsed.po_number || parsed.supplier_name || (parsed.items && parsed.items.length > 0))) {
+                return parsed;
+              }
+            }
+          } catch (_) {}
+        }
+      }
+    }
+
+    // 2. Try with GoogleGenAI instance if available
     if (this.ai) {
       try {
         const response = await this.ai.models.generateContent({
@@ -263,39 +379,7 @@ Tên file: ${fileName}`;
         const text = response.text || '{}';
         return safeParseAIJson(text);
       } catch (err: any) {
-        console.warn('GoogleGenAI SDK attempt error, trying fetch fallback:', err.message);
-      }
-    }
-
-    // 2. Multi-key & Multi-model REST fetch fallback
-    for (const key of keys) {
-      if (!key || key.startsWith('sk-') || key.includes('••••')) continue;
-      for (const m of models) {
-        try {
-          const fetchUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`;
-          const res = await fetch(fetchUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{
-                parts: [
-                  { text: prompt },
-                  { inlineData: { mimeType: effectiveMime, data: base64Data } }
-                ]
-              }],
-              generationConfig: {
-                temperature: 0.0,
-                responseMimeType: 'application/json'
-              }
-            })
-          });
-
-          if (res.ok) {
-            const data: any = await res.json();
-            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-            return safeParseAIJson(text);
-          }
-        } catch (_) {}
+        console.warn('GoogleGenAI SDK attempt error:', err.message);
       }
     }
 
