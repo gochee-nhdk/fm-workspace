@@ -446,6 +446,9 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
     const id = uuidv4();
     const now = new Date().toISOString();
 
+    const userRow = userId ? (await db.prepare('SELECT id FROM users WHERE id = ?').get(userId) as any) : null;
+    const validUserId = userRow ? userId : null;
+
     await db.transaction(async (tx: IDatabaseAdapter) => {
       await tx.prepare(`
         INSERT INTO po_tracker_pos (
@@ -462,14 +465,8 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
         tags ? JSON.stringify(tags) : null,
         extracted_data ? JSON.stringify(extracted_data) : null,
         pdf_file_name || null,
-        userId, now, now
+        validUserId, now, now
       );
-
-      // Auto-grant admin to creator
-      await tx.prepare(`
-        INSERT INTO po_tracker_permissions (id, user_id, resource_type, resource_id, permission, granted_by, created_at)
-        VALUES (?, ?, 'po', ?, 'admin', ?, ?)
-      `).run(uuidv4(), userId, id, userId, now);
 
       // Insert line items
       if (items.length > 0) {
@@ -491,12 +488,12 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
         }
       }
 
-      // Auto-grant admin permission to creator
-      if (userId) {
+      // Auto-grant admin permission to creator if valid user
+      if (validUserId) {
         await tx.prepare(`
           INSERT INTO po_tracker_permissions (id, user_id, resource_type, resource_id, permission, granted_by, created_at)
           VALUES (?, ?, 'po', ?, 'admin', ?, ?)
-        `).run(uuidv4(), userId, id, userId, now);
+        `).run(uuidv4(), validUserId, id, validUserId, now);
       }
     });
 

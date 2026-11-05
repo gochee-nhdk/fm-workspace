@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { POExtractedData, POTrackerPO } from '@/types/po-tracker';
 import { usePOTrackerStore } from '@/stores/po-tracker-store';
 import { poTrackerService, extractMetadataFromFileName } from '@/services/poTrackerService';
@@ -34,6 +34,11 @@ interface ItemRow {
   warehouse: string;
 }
 
+const formatVND = (num: number) => {
+  if (isNaN(num) || num === null || num === undefined) return '0 ₫';
+  return (num || 0).toLocaleString('vi-VN') + ' ₫';
+};
+
 export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
   isOpen,
   onClose,
@@ -60,6 +65,15 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
   const [items, setItems] = useState<ItemRow[]>([]);
   const [saving, setSaving] = useState(false);
 
+  // Calculated totals for summary bar
+  const totalItemCount = useMemo(() => {
+    return items.reduce((acc, it) => acc + (Number(it.ordered_qty) || 0), 0);
+  }, [items]);
+
+  const calculatedTotalAmount = useMemo(() => {
+    return items.reduce((acc, it) => acc + (Number(it.total_price) || (Number(it.ordered_qty || 0) * Number(it.unit_price || 0))), 0);
+  }, [items]);
+
   const resetForm = () => {
     setStep('upload');
     setFile(null);
@@ -82,11 +96,11 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
     const isImage = name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.png') || name.endsWith('.webp');
 
     if (!isPdf && !isImage) {
-      toast.error('Vui lòng chọn tệp định dạng PDF hoặc hình ảnh (PNG, JPG, WEBP).');
+      toast.error('Vui lòng chọn tệp định dạng PDF hoặc hình ảnh (PNG, JPG, WEBP).', { id: 'save-po-toast' });
       return;
     }
     if (selectedFile.size > 15 * 1024 * 1024) {
-      toast.error('Kích thước tệp không được vượt quá 15MB.');
+      toast.error('Kích thước tệp không được vượt quá 15MB.', { id: 'save-po-toast' });
       return;
     }
 
@@ -109,29 +123,36 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
       setSupplierCode(data.supplier_code || '');
       setSupplierName(finalSupplierName);
       setWarehouse(finalWarehouse);
-      setTotalValue(data.total_value || 0);
       setCurrency(data.currency || 'VND');
       setNotes(data.notes || '');
 
       if (Array.isArray(data.items) && data.items.length > 0) {
-        setItems(
-          data.items.map((it) => ({
+        const mappedItems: ItemRow[] = data.items.map((it) => {
+          const qty = Number(it.ordered_qty || 1);
+          const price = Number(it.unit_price || 0);
+          const lineTotal = Number(it.total_price) || (qty * price);
+          return {
             item_code: it.item_code || '',
             item_name: it.item_name || 'Hàng hóa',
-            unit: it.unit || 'Hộp',
-            ordered_qty: Number(it.ordered_qty || 1),
-            unit_price: Number(it.unit_price || 0),
-            total_price: Number(it.total_price || (Number(it.ordered_qty || 1) * Number(it.unit_price || 0))),
+            unit: it.unit || 'Gói',
+            ordered_qty: qty,
+            unit_price: price,
+            total_price: lineTotal,
             warehouse: it.warehouse || finalWarehouse || '',
-          }))
-        );
-        toast.success(`Đã bóc tách thành công ${data.items.length} mặt hàng từ đơn PO!`);
+          };
+        });
+
+        setItems(mappedItems);
+        const sum = mappedItems.reduce((s, it) => s + it.total_price, 0);
+        setTotalValue(sum > 0 ? sum : Number(data.total_value || 0));
+        toast.success(`Đã bóc tách thành công ${mappedItems.length} mặt hàng từ đơn PO!`, { id: 'save-po-toast' });
       } else {
         setItems([]);
+        setTotalValue(Number(data.total_value || 0));
         if (finalPoNumber) {
-          toast.success(`Đã nhận diện: ${finalPoNumber}${finalSupplierName ? ` — NCC: ${finalSupplierName}` : ''}`);
+          toast.success(`Đã nhận diện: ${finalPoNumber}${finalSupplierName ? ` — NCC: ${finalSupplierName}` : ''}`, { id: 'save-po-toast' });
         } else {
-          toast('Đã nạp file PO. Bạn có thể kiểm tra và hoàn tất thông tin.', { icon: 'ℹ️' });
+          toast('Đã nạp file PO. Bạn có thể kiểm tra và hoàn tất thông tin.', { icon: 'ℹ️', id: 'save-po-toast' });
         }
       }
 
@@ -143,18 +164,18 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
       if (fileHints.warehouse) setWarehouse(fileHints.warehouse);
       if (fileHints.supplier_name) setSupplierName(fileHints.supplier_name);
       setPoDate(new Date().toISOString().split('T')[0]);
-      toast.error(err.message || 'Không thể trích xuất tự động qua AI. Bạn có thể kiểm tra và tự điền thông tin.');
+      toast.error(err.message || 'Không thể trích xuất tự động qua AI. Bạn có thể kiểm tra và tự điền thông tin.', { id: 'save-po-toast' });
       setStep('confirm');
     }
   };
 
   const handleAddItem = () => {
-    setItems([
-      ...items,
+    setItems((prev) => [
+      ...prev,
       {
         item_code: '',
         item_name: '',
-        unit: 'thùng',
+        unit: 'Gói',
         ordered_qty: 1,
         unit_price: 0,
         total_price: 0,
@@ -178,18 +199,26 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
   };
 
   const handleRemoveItem = (index: number) => {
-    setItems((prev) => prev.filter((_, i) => i !== index));
+    setItems((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      const sum = next.reduce((s, it) => s + (it.total_price || 0), 0);
+      setTotalValue(sum);
+      return next;
+    });
   };
 
   const handleSavePO = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return; // Prevent double submit
+
     if (!poNumber.trim() && !supplierName.trim()) {
-      toast.error('Vui lòng nhập Số PO hoặc Tên Nhà cung cấp.');
+      toast.error('Vui lòng nhập Số PO hoặc Tên Nhà cung cấp.', { id: 'save-po-toast' });
       return;
     }
 
     setSaving(true);
     try {
+      const finalTotal = calculatedTotalAmount > 0 ? calculatedTotalAmount : Number(totalValue || 0);
       const res = await poTrackerService.createPO({
         folder_id: folderId || null,
         po_number: poNumber.trim() || undefined,
@@ -198,31 +227,34 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
         supplier_code: supplierCode.trim() || undefined,
         supplier_name: supplierName.trim() || undefined,
         warehouse: warehouse.trim() || undefined,
-        total_value: Number(totalValue) || 0,
+        total_value: finalTotal,
         currency,
         notes: notes.trim() || undefined,
         pdf_file_name: file?.name || undefined,
         items: items as any,
       });
 
-      const saved = res.data.data;
-      addPOToList(saved);
-      toast.success('Đã lưu và bắt đầu theo dõi đơn hàng!');
+      const saved = (res as any)?.data?.data || (res as any)?.data || res;
+      if (saved) {
+        addPOToList(saved);
+      }
+      toast.success('Đã lưu và bắt đầu theo dõi đơn hàng PO thành công!', { id: 'save-po-toast' });
       onSuccess(saved);
       onClose();
       resetForm();
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Lỗi khi lưu đơn hàng PO.');
+      console.error('Save PO error:', err);
+      toast.error(err.response?.data?.message || err.message || 'Lỗi khi lưu đơn hàng PO.', { id: 'save-po-toast' });
     } finally {
       setSaving(false);
     }
   };
 
   const drawerTitle =
-    step === 'confirm' ? 'Xác nhận thông tin đơn hàng' : 'Tải lên đơn hàng (PO)';
+    step === 'confirm' ? 'Xác nhận thông tin đơn hàng' : 'Thêm PO vào hệ thống';
   const drawerDesc =
     step === 'upload'
-      ? 'Chọn file PDF hoặc hình ảnh (PNG, JPG) để hệ thống tự động bóc tách số liệu PO'
+      ? 'Tải file PDF hóa đơn/PO để AI tự động trích xuất thông tin'
       : step === 'reading'
       ? 'Trí tuệ nhân tạo Gemini đang phân tích tài liệu PO...'
       : 'Kiểm tra và hiệu chỉnh lại dữ liệu trước khi lưu vào danh mục theo dõi';
@@ -240,7 +272,7 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
       description={drawerDesc}
       width="lg"
     >
-      <div className="space-y-5 font-sans">
+      <div className="space-y-5 font-sans relative">
         {step === 'upload' && (
           <div className="space-y-4">
             {/* Apple Drag & Drop Zone */}
@@ -280,18 +312,18 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
                 <SFArrowUpDocumentFill size={28} />
               </div>
               <p className="text-[16px] font-bold text-[#1d1d1f] dark:text-white">
-                Kéo & thả file PO hoặc hình ảnh vào đây
+                Kéo & thả file PDF PO vào đây
               </p>
               <p className="text-[13px] text-[#555558] dark:text-[#a1a1a6] mt-1.5 max-w-sm">
-                Hoặc nhấp chuột để chọn file từ máy tính (Hỗ trợ file PDF, ảnh scan/chụp JPG, PNG tối đa 15MB)
+                Hoặc bấm để chọn file từ máy tính (hỗ trợ file PDF scan, PO đặt hàng, tối đa 15MB)
               </p>
               <div className="mt-4 px-3.5 py-1.5 rounded-full bg-[#0088FF]/10 text-[#0088FF] dark:text-[#0091FF] text-[12px] font-semibold flex items-center gap-1.5">
                 <SFCheckmarkCircleFill size={13} />
-                <span>Tự động nhận diện: Số PO, Ngày giao, Nhà cung cấp, Hàng hóa, Kho nhận</span>
+                <span>Tự động đọc: Số PO, Ngày giao, NCC, Hàng hóa, Kho</span>
               </div>
             </div>
 
-            <div className="relative flex py-2 items-center">
+            <div className="relative flex py-1 items-center">
               <div className="flex-grow border-t border-black/10 dark:border-white/10" />
               <span className="flex-shrink mx-4 text-[11px] text-[#86868b] uppercase font-bold tracking-wider">
                 Hoặc
@@ -305,7 +337,7 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
               className="w-full h-11 rounded-2xl text-[13.5px] font-semibold text-[#1d1d1f] dark:text-white border-black/15 dark:border-white/15 hover:bg-black/5 dark:hover:bg-white/5 gap-2"
             >
               <SFPencil size={14} />
-              <span>Nhập thông tin thủ công</span>
+              <span>Nhập thủ công không dùng file PDF</span>
             </Button>
           </div>
         )}
@@ -331,19 +363,21 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
         )}
 
         {step === 'confirm' && (
-          <form id="po-confirm-form" onSubmit={handleSavePO} className="space-y-4 text-left">
+          <form id="po-confirm-form" onSubmit={handleSavePO} className="space-y-5 text-left pb-16">
             {file && (
-              <div className="p-3 px-4 rounded-2xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-between text-[13px]">
-                <div className="flex items-center gap-2 truncate">
-                  <SFDocument size={16} className="text-[#0088FF] shrink-0" />
-                  <span className="truncate font-semibold text-blue-900 dark:text-blue-300">
+              <div className="p-3 px-4 rounded-2xl bg-blue-50/80 dark:bg-blue-500/10 border border-blue-200/80 dark:border-blue-500/20 flex items-center justify-between text-[13px] shadow-2xs">
+                <div className="flex items-center gap-2.5 truncate">
+                  <div className="w-8 h-8 rounded-xl bg-[#0088FF]/10 text-[#0088FF] flex items-center justify-center shrink-0">
+                    <SFDocument size={16} />
+                  </div>
+                  <span className="truncate font-bold text-blue-950 dark:text-blue-200">
                     {file.name}
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={() => setStep('upload')}
-                  className="text-[#0088FF] hover:underline font-semibold text-[12px] shrink-0 ml-3 cursor-pointer"
+                  className="text-[#0088FF] dark:text-[#0091FF] hover:underline font-bold text-[12.5px] shrink-0 ml-3 cursor-pointer px-2.5 py-1 rounded-lg hover:bg-blue-100/50 dark:hover:bg-blue-500/20 transition-colors"
                 >
                   Đổi file khác
                 </button>
@@ -381,7 +415,7 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
                   value={poNumber}
                   onChange={(e) => setPoNumber(e.target.value)}
                   placeholder="VD: PO-118891"
-                  className="w-full h-10 px-3.5 rounded-xl bg-white dark:bg-[#1c1c20] border border-black/15 dark:border-white/15 text-[13.5px] font-bold text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs"
+                  className="w-full h-10 px-3.5 rounded-xl bg-white dark:bg-[#1c1c20] border border-black/15 dark:border-white/15 text-[13.5px] font-bold text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs font-mono"
                 />
               </div>
 
@@ -452,94 +486,128 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
             </div>
 
             {/* Items List */}
-            <div className="space-y-2.5 pt-2">
+            <div className="space-y-2.5 pt-1">
               <div className="flex items-center justify-between">
-                <label className="text-[13px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">
-                  Danh sách hàng hóa ({items.length})
-                </label>
+                <div className="flex items-center gap-2">
+                  <label className="text-[13px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">
+                    Danh sách hàng hóa ({items.length})
+                  </label>
+                  {items.length > 0 && (
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+                      Tổng {totalItemCount} sản phẩm
+                    </span>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={handleAddItem}
-                  className="text-[12.5px] font-bold text-[#0088FF] dark:text-[#0091FF] hover:underline cursor-pointer inline-flex items-center gap-1"
+                  className="text-[12.5px] font-bold text-[#0088FF] dark:text-[#0091FF] hover:underline cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
                 >
                   <SFPlus size={12} />
                   <span>Thêm dòng</span>
                 </button>
               </div>
 
-              <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1 scrollbar-none">
+              <div className="space-y-2.5 max-h-[290px] overflow-y-auto pr-1 scrollbar-none">
                 {items.length === 0 ? (
-                  <div className="py-5 px-4 rounded-xl border border-dashed border-black/15 dark:border-white/15 text-center bg-black/[0.01] dark:bg-white/[0.01]">
+                  <div className="py-6 px-4 rounded-2xl border border-dashed border-black/15 dark:border-white/15 text-center bg-black/[0.01] dark:bg-white/[0.01]">
                     <p className="text-[12.5px] font-medium text-slate-600 dark:text-zinc-400">
                       Chưa có mặt hàng nào. Bấm <b className="text-[#0088FF] dark:text-[#0091FF]">+ Thêm dòng</b> để nhập thủ công hoặc chọn file PO có bảng mặt hàng để hệ thống tự động bóc tách.
                     </p>
                   </div>
                 ) : (
-                  items.map((it, idx) => (
-                    <div
-                      key={idx}
-                      className="p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10 space-y-2.5 text-[12.5px]"
-                    >
-                      <div className="flex items-center gap-2">
-                        <input
-                          value={it.item_name}
-                          onChange={(e) => handleUpdateItem(idx, { item_name: e.target.value })}
-                          placeholder="Tên sản phẩm..."
-                          className="flex-1 h-8 px-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 font-semibold text-[#1d1d1f] dark:text-white"
-                        />
-                        <input
-                          value={it.item_code}
-                          onChange={(e) => handleUpdateItem(idx, { item_code: e.target.value })}
-                          placeholder="Mã SKU"
-                          className="w-28 h-8 px-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 text-[#555558] dark:text-[#a1a1a6] font-mono text-[11.5px]"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItem(idx)}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 cursor-pointer"
-                          title="Xóa dòng"
-                        >
-                          <SFTrash size={12} />
-                        </button>
+                  items.map((it, idx) => {
+                    const rowTotal = Number(it.ordered_qty || 0) * Number(it.unit_price || 0);
+                    return (
+                      <div
+                        key={idx}
+                        className="p-3 sm:p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18181c] border border-black/[0.07] dark:border-white/10 space-y-2.5 text-[12.5px] shadow-2xs hover:border-black/20 dark:hover:border-white/20 transition-all"
+                      >
+                        {/* Top: Name + SKU + Delete */}
+                        <div className="flex items-center gap-2">
+                          <input
+                            value={it.item_name}
+                            onChange={(e) => handleUpdateItem(idx, { item_name: e.target.value })}
+                            placeholder="Tên sản phẩm..."
+                            className="flex-1 h-9 px-3 rounded-xl bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 font-bold text-[#1d1d1f] dark:text-white placeholder:font-normal placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-[#0088FF]"
+                          />
+                          <input
+                            value={it.item_code}
+                            onChange={(e) => handleUpdateItem(idx, { item_code: e.target.value })}
+                            placeholder="Mã SKU / PLU"
+                            className="w-28 sm:w-32 h-9 px-2.5 rounded-xl bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 text-[#555558] dark:text-[#a1a1a6] font-mono text-[11.5px] focus:outline-none focus:ring-1 focus:ring-[#0088FF]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(idx)}
+                            className="w-8 h-8 rounded-xl flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 cursor-pointer shrink-0 transition-colors"
+                            title="Xóa dòng mặt hàng"
+                          >
+                            <SFTrash size={14} />
+                          </button>
+                        </div>
+
+                        {/* Bottom: SL, ĐVT, Đơn giá, Thành tiền */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-center">
+                          <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 rounded-xl px-2 py-1">
+                            <span className="text-[#86868b] text-[11px] font-semibold shrink-0">SL:</span>
+                            <input
+                              type="number"
+                              min="0"
+                              value={it.ordered_qty}
+                              onChange={(e) => handleUpdateItem(idx, { ordered_qty: Number(e.target.value) })}
+                              className="w-full bg-transparent tabular-nums font-bold text-[#1d1d1f] dark:text-white focus:outline-none"
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 rounded-xl px-2 py-1">
+                            <span className="text-[#86868b] text-[11px] font-semibold shrink-0">ĐVT:</span>
+                            <input
+                              value={it.unit}
+                              onChange={(e) => handleUpdateItem(idx, { unit: e.target.value })}
+                              placeholder="Gói"
+                              className="w-full bg-transparent font-medium text-[#1d1d1f] dark:text-white focus:outline-none"
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 rounded-xl px-2 py-1">
+                            <span className="text-[#86868b] text-[11px] font-semibold shrink-0">Giá:</span>
+                            <input
+                              type="number"
+                              min="0"
+                              value={it.unit_price}
+                              onChange={(e) => handleUpdateItem(idx, { unit_price: Number(e.target.value) })}
+                              className="w-full bg-transparent tabular-nums font-medium text-[#1d1d1f] dark:text-white focus:outline-none"
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between sm:justify-end gap-1 px-2 py-1 bg-blue-50/70 dark:bg-blue-500/10 rounded-xl border border-blue-200/50 dark:border-blue-500/20">
+                            <span className="text-[10.5px] font-semibold text-blue-700/80 dark:text-blue-300/80 sm:hidden">Thành tiền:</span>
+                            <span className="text-[12px] font-bold text-[#0088FF] dark:text-[#0091FF] tabular-nums truncate">
+                              {formatVND(rowTotal)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[#86868b] text-[11px] font-semibold">SL:</span>
-                          <input
-                            type="number"
-                            min="0"
-                            value={it.ordered_qty}
-                            onChange={(e) => handleUpdateItem(idx, { ordered_qty: Number(e.target.value) })}
-                            className="w-full h-8 px-2 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 tabular-nums font-bold text-[#1d1d1f] dark:text-white"
-                          />
-                        </div>
-
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[#86868b] text-[11px] font-semibold">ĐVT:</span>
-                          <input
-                            value={it.unit}
-                            onChange={(e) => handleUpdateItem(idx, { unit: e.target.value })}
-                            placeholder="thùng"
-                            className="w-full h-8 px-2 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 font-medium text-[#1d1d1f] dark:text-white"
-                          />
-                        </div>
-
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[#86868b] text-[11px] font-semibold">Đơn giá:</span>
-                          <input
-                            type="number"
-                            min="0"
-                            value={it.unit_price}
-                            onChange={(e) => handleUpdateItem(idx, { unit_price: Number(e.target.value) })}
-                            className="w-full h-8 px-2 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 tabular-nums font-medium text-[#1d1d1f] dark:text-white"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
+
+              {/* Items Summary Footer */}
+              {items.length > 0 && (
+                <div className="p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.06] dark:border-white/10 flex items-center justify-between text-[13px]">
+                  <span className="text-[#6e6e73] dark:text-[#a1a1a6] font-medium">
+                    Tổng cộng: <strong className="text-[#1d1d1f] dark:text-white font-bold">{items.length} mặt hàng</strong> ({totalItemCount} sp)
+                  </span>
+                  <div className="text-right">
+                    <span className="text-[#6e6e73] dark:text-[#a1a1a6] text-[11.5px] mr-1.5">Tổng tiền:</span>
+                    <span className="text-[15px] font-extrabold text-[#0088FF] dark:text-[#0091FF] tabular-nums">
+                      {formatVND(calculatedTotalAmount)}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Ghi chú */}
@@ -556,22 +624,29 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
               />
             </div>
 
-            {/* Footer Buttons */}
-            <div className="pt-4 flex gap-3 border-t border-black/[0.06] dark:border-white/10">
+            {/* Sticky Footer Action Bar */}
+            <div className="sticky -bottom-4 sm:-bottom-6 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3.5 bg-white/95 dark:bg-[#1c1c22]/95 backdrop-blur-md border-t border-black/[0.08] dark:border-white/10 flex items-center gap-3 z-30 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
               <button
                 type="button"
                 onClick={() => setStep('upload')}
                 disabled={saving}
-                className="h-11 px-5 rounded-full border border-black/15 dark:border-white/15 text-[13px] font-semibold text-[#555558] dark:text-[#a1a1a6] hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                className="h-11 px-5 rounded-full border border-black/15 dark:border-white/15 text-[13px] font-bold text-[#555558] dark:text-[#a1a1a6] hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer disabled:opacity-40"
               >
                 Quay lại
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="flex-1 h-11 rounded-full fm-primary-pill-surface text-[13.5px] font-bold text-white shadow-md hover:opacity-90 transition-all cursor-pointer disabled:opacity-40"
+                className="flex-1 h-11 rounded-full fm-primary-pill-surface text-[13.5px] font-bold text-white shadow-md hover:opacity-90 active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {saving ? 'Đang lưu vào hệ thống...' : 'Hoàn tất & Bắt đầu theo dõi PO'}
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                    <span>Đang lưu đơn hàng PO...</span>
+                  </>
+                ) : (
+                  <span>Hoàn tất & Bắt đầu theo dõi PO</span>
+                )}
               </button>
             </div>
           </form>

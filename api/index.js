@@ -416,15 +416,30 @@ module.exports = async function handler(req, res, forcedPath) {
   // Parse path from forcedPath, URL or catch-all query slug
   let pathname = forcedPath || '';
   if (!pathname) {
-    if (req.query && req.query.slug) {
-      pathname = Array.isArray(req.query.slug) ? '/' + req.query.slug.join('/') : '/' + req.query.slug;
+    const rawUrl = req.url || '';
+    const cleanUrl = rawUrl.split('?')[0].replace(/^\/api/, '');
+    if (cleanUrl && cleanUrl !== '/' && !cleanUrl.startsWith('/[...slug]')) {
+      pathname = cleanUrl;
+    } else if (req.query && req.query.slug) {
+      const slugPath = Array.isArray(req.query.slug) ? req.query.slug.join('/') : req.query.slug;
+      if (rawUrl.includes('/po-tracker') && !slugPath.startsWith('po-tracker')) {
+        pathname = `/po-tracker/${slugPath}`;
+      } else {
+        pathname = `/${slugPath}`;
+      }
     } else {
-      const rawUrl = req.url || '';
-      pathname = rawUrl.split('?')[0].replace(/^\/api/, '');
+      pathname = cleanUrl || '/';
     }
   }
   if (!pathname.startsWith('/')) {
     pathname = '/' + pathname;
+  }
+
+  // Parse string body if received as raw text
+  if (req.body && typeof req.body === 'string') {
+    try {
+      req.body = JSON.parse(req.body);
+    } catch (_) {}
   }
 
   try {
