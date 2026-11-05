@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { POExtractedData, POTrackerPO } from '@/types/po-tracker';
 import { usePOTrackerStore } from '@/stores/po-tracker-store';
-import { poTrackerService } from '@/services/poTrackerService';
+import { poTrackerService, extractMetadataFromFileName } from '@/services/poTrackerService';
 import { Drawer } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import {
@@ -95,15 +95,19 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
 
     try {
       const res = await poTrackerService.uploadPOFile(selectedFile);
-      const data: POExtractedData = res.data;
+      const data: POExtractedData = res.data || ({} as any);
+      const fileHints = extractMetadataFromFileName(selectedFile.name);
+
+      const finalPoNumber = data.po_number || fileHints.po_number || '';
+      const finalWarehouse = data.warehouse || fileHints.warehouse || '';
 
       // Auto-populate form
-      setPoNumber(data.po_number || '');
+      setPoNumber(finalPoNumber);
       setPoDate(data.po_date || new Date().toISOString().split('T')[0]);
       setExpectedDate(data.expected_delivery_date || '');
       setSupplierCode(data.supplier_code || '');
       setSupplierName(data.supplier_name || '');
-      setWarehouse(data.warehouse || '');
+      setWarehouse(finalWarehouse);
       setTotalValue(data.total_value || 0);
       setCurrency(data.currency || 'VND');
       setNotes(data.notes || '');
@@ -117,18 +121,27 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
             ordered_qty: Number(it.ordered_qty || 1),
             unit_price: Number(it.unit_price || 0),
             total_price: Number(it.total_price || (Number(it.ordered_qty || 1) * Number(it.unit_price || 0))),
-            warehouse: it.warehouse || data.warehouse || '',
+            warehouse: it.warehouse || finalWarehouse || '',
           }))
         );
+        toast.success(`Đã bóc tách thành công ${data.items.length} mặt hàng từ đơn PO!`);
       } else {
         setItems([]);
+        if (finalPoNumber) {
+          toast.success(`Đã nhận diện số PO: ${finalPoNumber}. Hãy kiểm tra và lưu đơn.`);
+        } else {
+          toast('Đã nạp file PO. Bạn có thể kiểm tra và hoàn tất thông tin.', { icon: 'ℹ️' });
+        }
       }
 
       setStep('confirm');
-      toast.success('Đã đọc và bóc tách thông tin PO thành công!');
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Không thể trích xuất tự động qua AI. Bạn có thể tự điền thông tin.');
+      const fileHints = extractMetadataFromFileName(selectedFile.name);
+      if (fileHints.po_number) setPoNumber(fileHints.po_number);
+      if (fileHints.warehouse) setWarehouse(fileHints.warehouse);
+      setPoDate(new Date().toISOString().split('T')[0]);
+      toast.error(err.message || 'Không thể trích xuất tự động qua AI. Bạn có thể kiểm tra và tự điền thông tin.');
       setStep('confirm');
     }
   };
