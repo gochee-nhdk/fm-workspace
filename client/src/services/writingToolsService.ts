@@ -325,60 +325,102 @@ export const testGeminiApiKey = async (
     return { success: false, message: 'Vui lòng nhập Gemini API Key.' };
   }
 
-  const modelsToTry = [
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-flash-8b',
-    'gemini-1.5-pro',
-  ];
+  // 1. First dynamically query Google ModelService to discover the exact models authorized for this key
+  let modelsToTry: string[] = [];
+  try {
+    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${cleanKey}`);
+    if (listRes.ok) {
+      const listData = await listRes.json();
+      const serverModels: any[] = listData.models || [];
+      const supported = serverModels
+        .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
+        .map((m) => m.name?.replace(/^models\//, ''))
+        .filter(Boolean);
+
+      if (supported.length > 0) {
+        // Prioritize Flash models
+        const flashModels = supported.filter((m) => m.toLowerCase().includes('flash'));
+        const otherModels = supported.filter((m) => !m.toLowerCase().includes('flash'));
+        modelsToTry = [...flashModels, ...otherModels];
+      }
+    } else {
+      const errJson = await listRes.json().catch(() => ({}));
+      const errMessage = errJson.error?.message || '';
+      if (listRes.status === 400 || listRes.status === 403) {
+        if (/api.?key.?not.?valid|invalid|expired/i.test(errMessage)) {
+          return {
+            success: false,
+            message: `Khóa API không hợp lệ hoặc đã hết hạn: ${errMessage}`,
+          };
+        }
+      }
+    }
+  } catch (_) {
+    // Network / CORS fallback
+  }
+
+  // Fallback candidate list if listModels didn't return (covering all active Google Gemini versions)
+  if (modelsToTry.length === 0) {
+    modelsToTry = [
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+      'gemini-2.0-flash-lite',
+      'gemini-2.5-pro',
+      'gemini-1.5-pro',
+    ];
+  }
 
   let lastErr = '';
   for (const model of modelsToTry) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cleanKey}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: 'Trả lời đúng 1 chữ: OK' }] }],
-          generationConfig: { maxOutputTokens: 10 },
-        }),
-      });
+    // Try v1beta then v1 endpoint
+    for (const apiVer of ['v1beta', 'v1']) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/${apiVer}/models/${model}:generateContent?key=${cleanKey}`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: 'Ping. Trả lời đúng 1 chữ: OK' }] }],
+            generationConfig: { maxOutputTokens: 10 },
+          }),
+        });
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        lastErr = errorData.error?.message || `Mã lỗi HTTP ${res.status}`;
-        if (res.status === 429) {
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          lastErr = errorData.error?.message || `Mã lỗi HTTP ${res.status}`;
+          if (res.status === 429) {
+            return {
+              success: false,
+              message: 'Hết hạn mức yêu cầu (Quota 429) — Vui lòng chờ hoặc dùng khóa dự phòng.',
+            };
+          }
+          if (res.status === 400 || res.status === 403) {
+            if (/not found/i.test(lastErr)) continue; // Try next version / model
+            return {
+              success: false,
+              message: lastErr || 'Khóa API không hợp lệ hoặc đã bị vô hiệu hóa.',
+            };
+          }
+          continue;
+        }
+
+        const data = await res.json();
+        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (reply) {
+          try {
+            localStorage.setItem('gemini_preferred_model', model);
+          } catch (_) {}
+
           return {
-            success: false,
-            message: 'Hết hạn mức yêu cầu (Quota 429) — Vui lòng chờ hoặc dùng khóa dự phòng.',
+            success: true,
+            message: `Khóa API hoạt động chính xác! (Model: ${model})`,
+            model,
           };
         }
-        if (res.status === 400 || res.status === 403) {
-          if (/not found/i.test(lastErr)) continue;
-          return {
-            success: false,
-            message: lastErr || 'Khóa API không hợp lệ hoặc đã bị vô hiệu hóa.',
-          };
-        }
-        continue;
+      } catch (err: any) {
+        lastErr = err.message || 'Lỗi kết nối tới máy chủ Google Gemini';
       }
-
-      const data = await res.json();
-      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (reply) {
-        try {
-          localStorage.setItem('gemini_preferred_model', model);
-        } catch (_) {}
-
-        return {
-          success: true,
-          message: `Khóa API hoạt động chính xác! (Model Flash: ${model})`,
-          model,
-        };
-      }
-    } catch (err: any) {
-      lastErr = err.message || 'Lỗi mạng khi kết nối tới máy chủ Google Gemini';
     }
   }
 
@@ -1097,7 +1139,7 @@ export const extractTextFromImageDirect = async (
   const mimeType = dataUrlMatch[1];
   const base64Data = dataUrlMatch[2];
 
-  const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
   let lastErr = '';
 
   const ocrPrompt =
@@ -1156,8 +1198,8 @@ export const extractTextFromImageWithFailover = async (
   const activeKeys = getActiveGeminiKeys();
   const rawKeyStrings = activeKeys.map((k) => k.key.trim()).filter(Boolean);
 
-  // Lọc các khóa hỗ trợ Vision (ưu tiên Gemini keys: AIzaSy hoặc provider gemini)
-  const visionCandidates = activeKeys.filter((k) => k.provider === 'gemini' || k.key.trim().startsWith('AIzaSy'));
+  // Lọc các khóa hỗ trợ Vision (ưu tiên Gemini keys: AIzaSy, AQ. hoặc provider gemini)
+  const visionCandidates = activeKeys.filter((k) => k.provider === 'gemini' || k.key.trim().startsWith('AIzaSy') || k.key.trim().startsWith('AQ.') || !k.key.trim().startsWith('sk-'));
   const candidateKeys = visionCandidates.length > 0 ? visionCandidates : activeKeys;
 
   let lastErr = '';
@@ -1166,7 +1208,7 @@ export const extractTextFromImageWithFailover = async (
   for (let i = 0; i < candidateKeys.length; i++) {
     const keyObj = candidateKeys[i];
     // Chỉ thử gọi Gemini Vision nếu khóa là Gemini
-    if (keyObj.provider === 'gemini' || keyObj.key.trim().startsWith('AIzaSy') || !keyObj.key.trim().startsWith('sk-')) {
+    if (keyObj.provider === 'gemini' || keyObj.key.trim().startsWith('AIzaSy') || keyObj.key.trim().startsWith('AQ.') || !keyObj.key.trim().startsWith('sk-')) {
       try {
         const text = await extractTextFromImageDirect(imageDataUrl, keyObj.key, signal);
         updateGeminiKey(keyObj.id, {

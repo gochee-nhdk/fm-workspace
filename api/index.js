@@ -547,7 +547,7 @@ module.exports = async function handler(req, res, forcedPath) {
 
       for (let kIdx = 0; kIdx < uniqueKeys.length; kIdx++) {
         const k = uniqueKeys[kIdx];
-        if (!k.startsWith('AIzaSy')) continue; // Skip non-Gemini keys for Gemini Vision
+        if (k.startsWith('sk-') || k.includes('••••')) continue; // Skip non-Gemini or masked keys
 
         for (const model of models) {
           try {
@@ -753,41 +753,76 @@ module.exports = async function handler(req, res, forcedPath) {
         }
       }
 
-      // Google Gemini (Default for AIzaSy or gemini)
+      // Google Gemini (Default for AIzaSy, AQ. or any Gemini key)
       try {
-        const testModels = model ? [model] : ['gemini-2.0-flash', 'gemini-1.5-flash'];
+        let testModels = model ? [model] : [];
+        if (testModels.length === 0) {
+          try {
+            const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${cleanKey}`);
+            if (listRes.ok) {
+              const listData = await listRes.json();
+              const serverModels = (listData.models || [])
+                .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
+                .map((m) => m.name?.replace(/^models\//, ''))
+                .filter(Boolean);
+              if (serverModels.length > 0) {
+                const flash = serverModels.filter((m) => m.toLowerCase().includes('flash'));
+                const others = serverModels.filter((m) => !m.toLowerCase().includes('flash'));
+                testModels = [...flash, ...others];
+              }
+            }
+          } catch (_) {}
+        }
+
+        if (testModels.length === 0) {
+          testModels = [
+            'gemini-2.5-flash',
+            'gemini-2.0-flash',
+            'gemini-1.5-flash',
+            'gemini-2.0-flash-lite',
+            'gemini-2.5-pro',
+            'gemini-1.5-pro',
+          ];
+        }
+
         let lastGErr = '';
         for (const geminiModel of testModels) {
-          const fetchRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${cleanKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: 'Ping. Trả lời đúng 1 chữ: OK' }] }],
-              generationConfig: { maxOutputTokens: 5 },
-            }),
-          });
+          for (const apiVer of ['v1beta', 'v1']) {
+            try {
+              const fetchRes = await fetch(`https://generativelanguage.googleapis.com/${apiVer}/models/${geminiModel}:generateContent?key=${cleanKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: 'Ping. Trả lời đúng 1 chữ: OK' }] }],
+                  generationConfig: { maxOutputTokens: 5 },
+                }),
+              });
 
-          if (fetchRes.ok) {
-            return res.status(200).json({
-              success: true,
-              provider: 'gemini',
-              model: geminiModel,
-              message: `Khóa API hoạt động chính xác với Google Gemini! (Model: ${geminiModel})`,
-            });
+              if (fetchRes.ok) {
+                return res.status(200).json({
+                  success: true,
+                  provider: 'gemini',
+                  model: geminiModel,
+                  message: `Khóa API hoạt động chính xác với Google Gemini! (Model: ${geminiModel})`,
+                });
+              }
+
+              if (fetchRes.status === 429) {
+                return res.status(200).json({
+                  success: false,
+                  status: 'quota_exceeded',
+                  provider: 'gemini',
+                  model: geminiModel,
+                  message: 'Hết hạn mức Gemini (429) — Sẵn sàng chuyển dự phòng.',
+                });
+              }
+
+              const errJson = await fetchRes.json().catch(() => ({}));
+              lastGErr = errJson.error?.message || `Mã lỗi ${fetchRes.status}`;
+            } catch (netErr) {
+              lastGErr = netErr.message;
+            }
           }
-
-          if (fetchRes.status === 429) {
-            return res.status(200).json({
-              success: false,
-              status: 'quota_exceeded',
-              provider: 'gemini',
-              model: geminiModel,
-              message: 'Hết hạn mức Gemini (429) — Sẵn sàng chuyển dự phòng.',
-            });
-          }
-
-          const errJson = await fetchRes.json().catch(() => ({}));
-          lastGErr = errJson.error?.message || `Mã lỗi ${fetchRes.status}`;
         }
 
         return res.status(400).json({
@@ -904,7 +939,7 @@ module.exports = async function handler(req, res, forcedPath) {
         ...globalGeminiKeysPool.map((k) => k.key),
         process.env.GEMINI_API_KEY,
       ];
-      const validKey = rawCandidateKeys.find((k) => typeof k === 'string' && k.startsWith('AIzaSy') && !k.includes('••••'));
+      const validKey = rawCandidateKeys.find((k) => typeof k === 'string' && (k.startsWith('AIzaSy') || k.startsWith('AQ.') || (!k.startsWith('sk-') && k.length >= 20)) && !k.includes('••••'));
       if (!validKey) {
         return res.status(200).json({
           success: true,
@@ -1047,7 +1082,7 @@ module.exports = async function handler(req, res, forcedPath) {
             rawKeys
               .filter((k) => typeof k === 'string' && k.trim().length > 0)
               .map((k) => k.trim())
-              .filter((k) => k.startsWith('AIzaSy') && !k.includes('••••'))
+              .filter((k) => (k.startsWith('AIzaSy') || k.startsWith('AQ.') || (!k.startsWith('sk-') && k.length >= 20)) && !k.includes('••••'))
           )
         );
 
@@ -1055,7 +1090,7 @@ module.exports = async function handler(req, res, forcedPath) {
           return res.status(400).json({
             success: false,
             needsApiKey: true,
-            message: 'Chưa cấu hình Gemini API Key hợp lệ. Vui lòng thêm khóa trong mục Cài đặt → API Key (bắt đầu bằng AIzaSy).',
+            message: 'Chưa cấu hình Gemini API Key hợp lệ. Vui lòng thêm khóa trong mục Cài đặt → API Key.',
           });
         }
 

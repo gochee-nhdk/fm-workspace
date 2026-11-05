@@ -85,7 +85,7 @@ export class GeminiService {
   }
 
   async chat(userMessage: string, dataContext: any, clientApiKey?: string): Promise<string> {
-    if (clientApiKey && clientApiKey.startsWith('AIzaSy') && !clientApiKey.includes('••••')) {
+    if (clientApiKey && (clientApiKey.startsWith('AIzaSy') || clientApiKey.startsWith('AQ.') || (!clientApiKey.startsWith('sk-') && clientApiKey.length >= 20)) && !clientApiKey.includes('••••')) {
       try {
         this.ai = new GoogleGenAI({ apiKey: clientApiKey.trim() });
       } catch (_) {}
@@ -175,7 +175,7 @@ export class GeminiService {
         rawKeys
           .filter((k): k is string => typeof k === 'string' && k.trim().length > 0)
           .map((k) => k.trim())
-          .filter((k) => k.startsWith('AIzaSy') && !k.includes('••••'))
+          .filter((k) => (k.startsWith('AIzaSy') || k.startsWith('AQ.') || (!k.startsWith('sk-') && k.length >= 20)) && !k.includes('••••'))
       )
     );
     
@@ -241,7 +241,7 @@ Cấu trúc JSON cần trả về:
 
 Tên file: ${fileName}`;
 
-    const models = ['gemini-2.0-flash', 'gemini-1.5-flash'];
+    const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
 
     // 1. Try with GoogleGenAI instance first if available
     if (this.ai) {
@@ -269,7 +269,7 @@ Tên file: ${fileName}`;
 
     // 2. Multi-key & Multi-model REST fetch fallback
     for (const key of keys) {
-      if (!key || !key.startsWith('AIzaSy')) continue;
+      if (!key || key.startsWith('sk-') || key.includes('••••')) continue;
       for (const m of models) {
         try {
           const fetchUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${key}`;

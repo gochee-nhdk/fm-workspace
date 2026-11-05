@@ -323,9 +323,38 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       }
     }
 
-    // 4. Google Gemini provider verification (Default for AIzaSy or gemini)
+    // 4. Google Gemini provider verification (Default for AIzaSy, AQ. or any Gemini key)
     try {
-      const geminiModels = model ? [model] : ['gemini-2.0-flash', 'gemini-1.5-flash'];
+      let geminiModels = model ? [model] : [];
+      if (geminiModels.length === 0) {
+        try {
+          const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${cleanKey}`);
+          if (listRes.ok) {
+            const listData: any = await listRes.json();
+            const serverModels = (listData.models || [])
+              .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+              .map((m: any) => m.name?.replace(/^models\//, ''))
+              .filter(Boolean);
+            if (serverModels.length > 0) {
+              const flash = serverModels.filter((m: string) => m.toLowerCase().includes('flash'));
+              const others = serverModels.filter((m: string) => !m.toLowerCase().includes('flash'));
+              geminiModels = [...flash, ...others];
+            }
+          }
+        } catch (_) {}
+      }
+
+      if (geminiModels.length === 0) {
+        geminiModels = [
+          'gemini-2.5-flash',
+          'gemini-2.0-flash',
+          'gemini-1.5-flash',
+          'gemini-2.0-flash-lite',
+          'gemini-2.5-pro',
+          'gemini-1.5-pro',
+        ];
+      }
+
       let lastGeminiErr = '';
       for (const gm of geminiModels) {
         try {
@@ -508,6 +537,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
 
     // Vision-capable model fallback chain (newest first)
     const models = [
+      'gemini-2.5-flash',
       'gemini-2.0-flash',
       'gemini-1.5-flash',
     ];

@@ -1955,7 +1955,7 @@ export const SettingsPage: React.FC = () => {
                   </div>
                   <div className="p-2.5 rounded-xl bg-white dark:bg-white/5 border border-black/5 dark:border-white/5 space-y-0.5">
                     <span className="font-semibold text-[#0071e3] dark:text-[#2997ff]">Bước 3:</span>
-                    <p>Sao chép mã khóa (bắt đầu bằng <strong>AIzaSy...</strong>), dán vào ô bên dưới và bấm <strong>Thêm khóa</strong>.</p>
+                    <p>Sao chép mã khóa từ Google AI Studio (bắt đầu bằng <strong>AIzaSy...</strong> hoặc <strong>AQ.Ab...</strong>), dán vào ô bên dưới và bấm <strong>Thêm khóa</strong>.</p>
                   </div>
                 </div>
               </div>
@@ -1969,7 +1969,7 @@ export const SettingsPage: React.FC = () => {
                     type="password"
                     value={newKeyInput}
                     onChange={(e) => setNewKeyInput(e.target.value)}
-                    placeholder="Dán mã Google Gemini API Key (bắt đầu bằng AIzaSy...)"
+                    placeholder="Dán mã Google Gemini API Key (AIzaSy... hoặc AQ.Ab...)"
                     className="w-full pl-9 pr-3.5 py-2 text-[13px] font-mono rounded-xl bg-white dark:bg-white/10 border border-black/15 dark:border-white/15 outline-none text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:border-[#0071e3] dark:focus:border-[#2997ff] transition-all"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
