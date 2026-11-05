@@ -6,6 +6,7 @@ import { POStatsBar } from './components/POStatsBar';
 import { POListTable } from './components/POListTable';
 import { POUploadDrawer } from './components/POUploadDrawer';
 import { PODetailDrawer } from './components/PODetailDrawer';
+import { PO_STATUS_CONFIG_MAP } from './components/POStatusPill';
 import { POTrackerPO } from '@/types/po-tracker';
 import { Button } from '@/components/ui/button';
 import {
@@ -187,24 +188,45 @@ export const POTrackerPage: React.FC = () => {
 
           {/* Active Filter Chips */}
           {(activeStatus || activeFolderId || search) && (
-            <div className="flex items-center gap-2 flex-wrap text-[12px] p-2 px-3 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05]">
-              <span className="text-[#86868b] font-medium">Bộ lọc:</span>
+            <div className="flex items-center gap-2 flex-wrap text-[12px] p-2.5 px-3.5 rounded-2xl bg-white/85 dark:bg-[#1a1a22]/85 backdrop-blur-md border border-black/[0.08] dark:border-white/10 shadow-2xs animate-in fade-in slide-in-from-top-2 duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
+              <span className="text-[#48484a] dark:text-[#a1a1a6] font-bold text-[12.5px] mr-1">Bộ lọc:</span>
               {activeStatus && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 font-semibold text-[11px]">
-                  Trạng thái: {activeStatus}
-                  <button onClick={() => setActiveStatus(null)} className="hover:opacity-75 cursor-pointer">✕</button>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0088FF]/10 text-[#0088FF] dark:text-[#0A84FF] border border-[#0088FF]/25 font-bold text-[12px] shadow-2xs">
+                  <span className="text-[#48484a] dark:text-[#a1a1a6] font-medium text-[11.5px]">Trạng thái:</span>
+                  <span>{PO_STATUS_CONFIG_MAP[activeStatus]?.label || activeStatus}</span>
+                  <button
+                    onClick={() => setActiveStatus(null)}
+                    className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-[#0088FF]/20 active:scale-90 transition-all cursor-pointer ml-0.5"
+                    title="Bỏ lọc trạng thái"
+                  >
+                    <SFXmark size={10} />
+                  </button>
                 </span>
               )}
               {activeFolderId && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 font-semibold text-[11px]">
-                  Nhóm: {currentFolder?.name || 'Chưa phân nhóm'}
-                  <button onClick={() => setActiveFolderId(null)} className="hover:opacity-75 cursor-pointer">✕</button>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25 font-bold text-[12px] shadow-2xs">
+                  <span className="text-[#48484a] dark:text-[#a1a1a6] font-medium text-[11.5px]">Nhóm:</span>
+                  <span>{currentFolder?.name || 'Chưa phân nhóm'}</span>
+                  <button
+                    onClick={() => setActiveFolderId(null)}
+                    className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-amber-500/20 active:scale-90 transition-all cursor-pointer ml-0.5"
+                    title="Bỏ lọc nhóm"
+                  >
+                    <SFXmark size={10} />
+                  </button>
                 </span>
               )}
               {search && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 font-semibold text-[11px]">
-                  Từ khóa: "{search}"
-                  <button onClick={() => setSearch('')} className="hover:opacity-75 cursor-pointer">✕</button>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.08] text-[#1d1d1f] dark:text-white border border-black/10 dark:border-white/10 font-bold text-[12px] shadow-2xs">
+                  <span className="text-[#48484a] dark:text-[#a1a1a6] font-medium text-[11.5px]">Từ khóa:</span>
+                  <span>"{search}"</span>
+                  <button
+                    onClick={() => setSearch('')}
+                    className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 active:scale-90 transition-all cursor-pointer ml-0.5"
+                    title="Xóa từ khóa tìm kiếm"
+                  >
+                    <SFXmark size={10} />
+                  </button>
                 </span>
               )}
               <button
@@ -213,9 +235,10 @@ export const POTrackerPage: React.FC = () => {
                   setActiveFolderId(null);
                   setSearch('');
                 }}
-                className="text-[#0088FF] hover:underline font-semibold text-[11.5px] cursor-pointer ml-auto"
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-bold text-[#0088FF] dark:text-[#0A84FF] hover:bg-[#0088FF]/10 active:scale-95 transition-all cursor-pointer ml-auto"
               >
-                Xóa bộ lọc
+                <SFXmark size={11} />
+                <span>Xóa bộ lọc</span>
               </button>
             </div>
           )}

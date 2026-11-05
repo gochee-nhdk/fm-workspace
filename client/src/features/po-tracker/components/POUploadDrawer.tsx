@@ -4,6 +4,7 @@ import { usePOTrackerStore } from '@/stores/po-tracker-store';
 import { poTrackerService, extractMetadataFromFileName } from '@/services/poTrackerService';
 import { Drawer } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
+import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import {
   SFArrowUpDocumentFill,
   SFFolderFill,
@@ -64,6 +65,7 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<ItemRow[]>([]);
   const [saving, setSaving] = useState(false);
+  const [itemToDeleteIndex, setItemToDeleteIndex] = useState<number | null>(null);
 
   // Calculated totals for summary bar
   const totalItemCount = useMemo(() => {
@@ -539,7 +541,7 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
                           />
                           <button
                             type="button"
-                            onClick={() => handleRemoveItem(idx)}
+                            onClick={() => setItemToDeleteIndex(idx)}
                             className="w-8 h-8 rounded-xl flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 cursor-pointer shrink-0 transition-colors"
                             title="Xóa dòng mặt hàng"
                           >
@@ -549,41 +551,41 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
 
                         {/* Bottom: SL, ĐVT, Đơn giá, Thành tiền */}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 items-center">
-                          <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 rounded-xl px-2 py-1">
-                            <span className="text-[#86868b] text-[11px] font-semibold shrink-0">SL:</span>
+                          <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 border border-black/15 dark:border-white/15 rounded-xl px-2.5 h-9 focus-within:ring-2 focus-within:ring-[#0088FF]/30 focus-within:border-[#0088FF]">
+                            <span className="text-[#48484a] dark:text-[#a1a1a6] text-[11.5px] font-bold shrink-0">SL:</span>
                             <input
                               type="number"
                               min="0"
                               value={it.ordered_qty}
                               onChange={(e) => handleUpdateItem(idx, { ordered_qty: Number(e.target.value) })}
-                              className="w-full bg-transparent tabular-nums font-bold text-[#1d1d1f] dark:text-white focus:outline-none"
+                              className="w-full bg-transparent tabular-nums font-bold text-[#1d1d1f] dark:text-white border-0 p-0 focus:ring-0 shadow-none text-[13px]"
                             />
                           </div>
 
-                          <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 rounded-xl px-2 py-1">
-                            <span className="text-[#86868b] text-[11px] font-semibold shrink-0">ĐVT:</span>
+                          <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 border border-black/15 dark:border-white/15 rounded-xl px-2.5 h-9 focus-within:ring-2 focus-within:ring-[#0088FF]/30 focus-within:border-[#0088FF]">
+                            <span className="text-[#48484a] dark:text-[#a1a1a6] text-[11.5px] font-bold shrink-0">ĐVT:</span>
                             <input
                               value={it.unit}
                               onChange={(e) => handleUpdateItem(idx, { unit: e.target.value })}
                               placeholder="Gói"
-                              className="w-full bg-transparent font-medium text-[#1d1d1f] dark:text-white focus:outline-none"
+                              className="w-full bg-transparent font-medium text-[#1d1d1f] dark:text-white border-0 p-0 focus:ring-0 shadow-none text-[13px]"
                             />
                           </div>
 
-                          <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 rounded-xl px-2 py-1">
-                            <span className="text-[#86868b] text-[11px] font-semibold shrink-0">Giá:</span>
+                          <div className="flex items-center gap-1.5 bg-white dark:bg-zinc-900 border border-black/15 dark:border-white/15 rounded-xl px-2.5 h-9 focus-within:ring-2 focus-within:ring-[#0088FF]/30 focus-within:border-[#0088FF]">
+                            <span className="text-[#48484a] dark:text-[#a1a1a6] text-[11.5px] font-bold shrink-0">Giá:</span>
                             <input
                               type="number"
                               min="0"
                               value={it.unit_price}
                               onChange={(e) => handleUpdateItem(idx, { unit_price: Number(e.target.value) })}
-                              className="w-full bg-transparent tabular-nums font-medium text-[#1d1d1f] dark:text-white focus:outline-none"
+                              className="w-full bg-transparent tabular-nums font-medium text-[#1d1d1f] dark:text-white border-0 p-0 focus:ring-0 shadow-none text-[13px]"
                             />
                           </div>
 
-                          <div className="flex items-center justify-between sm:justify-end gap-1 px-2 py-1 bg-blue-50/70 dark:bg-blue-500/10 rounded-xl border border-blue-200/50 dark:border-blue-500/20">
+                          <div className="flex items-center justify-between sm:justify-end gap-1 px-3 h-9 bg-blue-50/80 dark:bg-blue-500/15 rounded-xl border border-blue-200/60 dark:border-blue-500/30">
                             <span className="text-[10.5px] font-semibold text-blue-700/80 dark:text-blue-300/80 sm:hidden">Thành tiền:</span>
-                            <span className="text-[12px] font-bold text-[#0088FF] dark:text-[#0091FF] tabular-nums truncate">
+                            <span className="text-[12.5px] font-extrabold text-[#0088FF] dark:text-[#0091FF] tabular-nums truncate">
                               {formatVND(rowTotal)}
                             </span>
                           </div>
@@ -652,6 +654,23 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
           </form>
         )}
       </div>
+
+      {/* Confirm Delete Item Dialog */}
+      <ConfirmDeleteDialog
+        isOpen={itemToDeleteIndex !== null}
+        title="Xóa mặt hàng khỏi PO?"
+        itemLabel={itemToDeleteIndex !== null ? items[itemToDeleteIndex]?.item_name || 'Mặt hàng' : undefined}
+        message="Bạn có chắc chắn muốn xóa mặt hàng này khỏi danh sách đơn hàng PO?"
+        confirmText="Xác nhận xóa"
+        cancelText="Hủy bỏ"
+        onConfirm={() => {
+          if (itemToDeleteIndex !== null) {
+            handleRemoveItem(itemToDeleteIndex);
+            setItemToDeleteIndex(null);
+          }
+        }}
+        onClose={() => setItemToDeleteIndex(null)}
+      />
     </Drawer>
   );
 };

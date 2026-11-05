@@ -14,6 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { POFolderDrawer } from './POFolderDrawer';
+import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 
 interface POFolderSidebarProps {
   onSelectFolder: (id: string | null) => void;
@@ -36,20 +37,26 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
   const [folderDrawerOpen, setFolderDrawerOpen] = useState(false);
   const [editingFolder, setEditingFolder] = useState<POFolderItem | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [folderToDelete, setFolderToDelete] = useState<POFolderItem | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
-  const handleDelete = async (folder: POFolderItem, e: React.MouseEvent) => {
+  const handleDelete = (folder: POFolderItem, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm(`Xóa nhóm "${folder.name}"? Các PO trong nhóm sẽ được giữ lại.`)) return;
-    setDeletingId(folder.id);
+    setFolderToDelete(folder);
+  };
+
+  const executeDeleteFolder = async () => {
+    if (!folderToDelete) return;
+    setDeletingId(folderToDelete.id);
     try {
-      await poTrackerService.deleteFolder(folder.id);
-      removeFolderFromList(folder.id);
-      toast.success('Đã xóa nhóm.');
+      await poTrackerService.deleteFolder(folderToDelete.id);
+      removeFolderFromList(folderToDelete.id);
+      toast.success('Đã xóa nhóm thành công.');
     } catch {
       toast.error('Không thể xóa nhóm này.');
     } finally {
       setDeletingId(null);
+      setFolderToDelete(null);
     }
   };
 
@@ -251,6 +258,18 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
         isOpen={folderDrawerOpen}
         onClose={() => { setFolderDrawerOpen(false); setEditingFolder(null); }}
         editingFolder={editingFolder}
+      />
+
+      {/* Confirm Delete Folder Dialog */}
+      <ConfirmDeleteDialog
+        isOpen={Boolean(folderToDelete)}
+        title="Xóa nhóm PO?"
+        itemLabel={folderToDelete?.name}
+        message="Bạn có chắc chắn muốn xóa nhóm này? Toàn bộ đơn hàng PO trong nhóm sẽ được chuyển sang mục 'Chưa phân nhóm' và không bị mất dữ liệu."
+        confirmText="Xác nhận xóa nhóm"
+        cancelText="Hủy bỏ"
+        onConfirm={executeDeleteFolder}
+        onClose={() => setFolderToDelete(null)}
       />
     </>
   );

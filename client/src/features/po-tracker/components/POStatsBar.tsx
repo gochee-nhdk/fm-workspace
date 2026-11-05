@@ -32,24 +32,44 @@ const StatCard: React.FC<{
     onClick={onClick}
     type="button"
     className={cn(
-      'flex items-center gap-3 px-4 py-2.5 rounded-2xl border transition-all duration-180 cursor-pointer active:scale-[0.98] text-left select-none',
+      'group relative flex items-center gap-3 px-4 py-2.5 rounded-2xl border transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer select-none text-left',
       active
-        ? 'bg-white dark:bg-[#1e1e24] border-[#007AFF] dark:border-[#0A84FF] shadow-xs ring-2 ring-[#007AFF]/25 dark:ring-[#0A84FF]/30'
-        : 'bg-white/70 dark:bg-white/[0.04] border-black/[0.06] dark:border-white/[0.07] hover:bg-white dark:hover:bg-white/[0.08] hover:shadow-2xs',
+        ? 'bg-[#007AFF]/10 dark:bg-[#0A84FF]/15 border-[#007AFF]/50 dark:border-[#0A84FF]/50 shadow-[0_4px_16px_rgba(0,122,255,0.12)] -translate-y-0.5'
+        : 'bg-white/85 dark:bg-[#1a1a20]/80 border-black/[0.08] dark:border-white/10 hover:bg-white dark:hover:bg-[#202028] hover:border-black/15 dark:hover:border-white/15 hover:shadow-2xs hover:-translate-y-0.5 active:scale-[0.97]',
       !onClick && 'cursor-default pointer-events-none'
     )}
   >
-    <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-2xs', bg, pulse && 'animate-pulse')}>
+    <div
+      className={cn(
+        'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 shadow-2xs',
+        bg,
+        pulse && 'animate-pulse'
+      )}
+    >
       {icon}
     </div>
-    <div className="min-w-0">
-      <div className={cn('text-[20px] font-bold tracking-tight tabular-nums leading-none', active ? 'text-[#007AFF] dark:text-[#0A84FF]' : 'text-[#1d1d1f] dark:text-white')}>
+    <div className="min-w-0 pr-1">
+      <div
+        className={cn(
+          'text-[21px] font-black tracking-tight tabular-nums leading-none',
+          active ? 'text-[#007AFF] dark:text-[#0A84FF]' : 'text-[#1d1d1f] dark:text-white'
+        )}
+      >
         {value}
       </div>
-      <div className="text-[11.5px] font-medium text-[#555558] dark:text-[#a1a1a6] whitespace-nowrap mt-1">
+      <div
+        className={cn(
+          'text-[12px] font-semibold whitespace-nowrap mt-1 transition-colors',
+          active ? 'text-[#007AFF] dark:text-[#0A84FF]' : 'text-[#48484a] dark:text-[#d1d1d6]'
+        )}
+      >
         {label}
       </div>
     </div>
+    {/* Active subtle indicator dot */}
+    {active && (
+      <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#007AFF] dark:bg-[#0A84FF] shadow-[0_0_8px_rgba(0,122,255,0.6)] animate-pulse" />
+    )}
   </button>
 );
 

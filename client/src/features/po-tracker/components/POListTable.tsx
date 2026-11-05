@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import toast from 'react-hot-toast';
+import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 
 interface POListTableProps {
   pos: POTrackerPO[];
@@ -47,6 +48,7 @@ export const POListTable: React.FC<POListTableProps> = ({
   const { updatePOInList, removePOFromList } = usePOTrackerStore();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [poToDelete, setPoToDelete] = useState<POTrackerPO | null>(null);
   const [quickStatusPO, setQuickStatusPO] = useState<string | null>(null);
 
   const safePos = Array.isArray(pos) ? pos : [];
@@ -65,17 +67,22 @@ export const POListTable: React.FC<POListTableProps> = ({
     }
   };
 
-  const handleDelete = async (po: POTrackerPO) => {
-    if (!confirm(`Xóa PO "${po.po_number || 'không số'}"? Hành động này không thể hoàn tác.`)) return;
-    setDeletingId(po.id);
+  const handleDelete = (po: POTrackerPO) => {
+    setPoToDelete(po);
+  };
+
+  const executeDeletePO = async () => {
+    if (!poToDelete) return;
+    setDeletingId(poToDelete.id);
     try {
-      await poTrackerService.deletePO(po.id);
-      removePOFromList(po.id);
-      toast.success('Đã xóa đơn hàng.');
+      await poTrackerService.deletePO(poToDelete.id);
+      removePOFromList(poToDelete.id);
+      toast.success('Đã xóa đơn hàng PO thành công.');
     } catch {
       toast.error('Không thể xóa đơn hàng này.');
     } finally {
       setDeletingId(null);
+      setPoToDelete(null);
     }
   };
 
@@ -106,11 +113,11 @@ export const POListTable: React.FC<POListTableProps> = ({
   }
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-black/[0.08] dark:border-white/10 bg-white/70 dark:bg-[#16161c]/70 shadow-xs">
+    <div className="rounded-2xl border border-black/[0.08] dark:border-white/10 bg-white/70 dark:bg-[#16161c]/70 shadow-xs relative">
       {/* Table header */}
-      <div className="grid grid-cols-[2fr_1.5fr_1fr_1.2fr_1fr_1.4fr_52px] gap-3 px-4 py-3 border-b border-black/[0.06] dark:border-white/[0.06] bg-black/[0.02] dark:bg-white/[0.02]">
+      <div className="grid grid-cols-[2fr_1.5fr_1fr_1.2fr_1fr_1.4fr_52px] gap-3 px-4 py-3.5 rounded-t-2xl border-b border-black/[0.08] dark:border-white/10 bg-[#fbfbfd] dark:bg-[#1a1a20]">
         {['Số PO / Nhà CC', 'Hạn giao hàng', 'Kho nhận', 'Giá trị đơn', 'Tiến độ', 'Trạng thái', ''].map((h) => (
-          <div key={h} className="text-[11.5px] font-bold uppercase tracking-wider text-[#555558] dark:text-[#a1a1a6] truncate">
+          <div key={h} className="text-[12px] font-extrabold uppercase tracking-wide text-[#1d1d1f] dark:text-[#f5f5f7] truncate">
             {h}
           </div>
         ))}
@@ -230,7 +237,7 @@ export const POListTable: React.FC<POListTableProps> = ({
 
                 {/* Quick status dropdown */}
                 {quickStatusPO === po.id && canEdit && (
-                  <div className="absolute top-full mt-1 left-0 z-50 w-[190px] rounded-2xl bg-white dark:bg-[#1c1c22] border border-black/10 dark:border-white/15 shadow-2xl p-1 overflow-hidden po-status-enter">
+                  <div className="absolute top-full mt-1.5 left-0 z-[100] w-[200px] rounded-2xl bg-white dark:bg-[#1c1c22] border border-black/10 dark:border-white/15 shadow-[0_16px_48px_rgba(0,0,0,0.22)] p-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
                     {STATUS_FLOW.concat(['cancelled', 'overdue'] as POStatus[]).map((s) => {
                       const cfg = PO_STATUS_CONFIG_MAP[s];
                       return (
@@ -274,6 +281,18 @@ export const POListTable: React.FC<POListTableProps> = ({
       {quickStatusPO && (
         <div className="fixed inset-0 z-40" onClick={() => setQuickStatusPO(null)} />
       )}
+
+      {/* Confirm Delete PO Dialog */}
+      <ConfirmDeleteDialog
+        isOpen={Boolean(poToDelete)}
+        title="Xóa đơn hàng PO?"
+        itemLabel={poToDelete ? `${poToDelete.po_number || 'Đơn PO'} — ${poToDelete.supplier_name || 'Không rõ NCC'}` : undefined}
+        message="Hành động này không thể hoàn tác. Toàn bộ danh sách mặt hàng và lịch sử theo dõi tiến độ của đơn hàng này sẽ bị xóa khỏi hệ thống."
+        confirmText="Xác nhận xóa PO"
+        cancelText="Hủy bỏ"
+        onConfirm={executeDeletePO}
+        onClose={() => setPoToDelete(null)}
+      />
     </div>
   );
 };

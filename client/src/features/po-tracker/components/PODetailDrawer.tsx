@@ -9,6 +9,7 @@ import { poTrackerService } from '@/services/poTrackerService';
 import { POStatusPill, PO_STATUS_CONFIG_MAP } from './POStatusPill';
 import { POProgressBar } from './POProgressBar';
 import { Drawer } from '@/components/ui/drawer';
+import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import {
   SFShippingboxFill,
   SFCheckmarkCircleFill,
@@ -16,7 +17,8 @@ import {
   SFTray2Fill,
   SFDocument,
   SFPencil,
-  SFCalendar
+  SFCalendar,
+  SFTrash
 } from 'sf-symbols-lib';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -42,7 +44,7 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
   isOpen,
   onClose,
 }) => {
-  const { updatePOInList } = usePOTrackerStore();
+  const { updatePOInList, removePOFromList } = usePOTrackerStore();
   const [po, setPo] = useState<POTrackerPO | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'items' | 'permissions'>('info');
@@ -54,6 +56,11 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
   const [targetUserId, setTargetUserId] = useState('');
   const [selectedPerm, setSelectedPerm] = useState<POPermission>('view');
   const [granting, setGranting] = useState(false);
+
+  // Confirm delete dialog states
+  const [showDeletePODialog, setShowDeletePODialog] = useState(false);
+  const [deletingPO, setDeletingPO] = useState(false);
+  const [permToRevoke, setPermToRevoke] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     if (poId && isOpen) {
@@ -148,15 +155,33 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
     }
   };
 
-  const handleRevokePermission = async (permId: string) => {
-    if (!po) return;
+  const executeRevokePermission = async () => {
+    if (!po || !permToRevoke) return;
     try {
-      await poTrackerService.revokePermission(permId);
-      toast.success('Đã thu hồi quyền.');
+      await poTrackerService.revokePermission(permToRevoke.id);
+      toast.success('Đã thu hồi quyền thành công.');
       const res = await poTrackerService.getPO(po.id);
       setPo(res.data.data);
     } catch {
       toast.error('Không thể thu hồi quyền.');
+    } finally {
+      setPermToRevoke(null);
+    }
+  };
+
+  const executeDeletePO = async () => {
+    if (!po) return;
+    setDeletingPO(true);
+    try {
+      await poTrackerService.deletePO(po.id);
+      removePOFromList(po.id);
+      toast.success('Đã xóa đơn hàng PO thành công.');
+      setShowDeletePODialog(false);
+      onClose();
+    } catch {
+      toast.error('Không thể xóa đơn hàng này.');
+    } finally {
+      setDeletingPO(false);
     }
   };
 
@@ -265,44 +290,46 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
 
                 {/* Key Attributes Grid */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10 space-y-1">
-                    <span className="text-[11px] font-bold uppercase text-[#86868b]">Nhà cung cấp</span>
-                    <p className="text-[14px] font-bold text-[#1d1d1f] dark:text-white">
+                  <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18181c] border border-black/[0.08] dark:border-white/10 space-y-1.5 shadow-2xs">
+                    <span className="text-[12px] font-extrabold uppercase text-[#48484a] dark:text-[#d1d1d6] tracking-wide">Nhà cung cấp</span>
+                    <p className="text-[14.5px] font-bold text-[#1d1d1f] dark:text-white leading-snug">
                       {po.supplier_name || '—'}
                     </p>
                     {po.supplier_code && (
-                      <span className="text-[12px] font-medium text-[#0088FF]">Mã: {po.supplier_code}</span>
+                      <span className="inline-block text-[12px] font-semibold text-[#0088FF] dark:text-[#0A84FF] font-mono">
+                        Mã NCC: {po.supplier_code}
+                      </span>
                     )}
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10 space-y-1">
-                    <span className="text-[11px] font-bold uppercase text-[#86868b]">Kho tiếp nhận</span>
-                    <p className="text-[14px] font-bold text-[#1d1d1f] dark:text-white">
+                  <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18181c] border border-black/[0.08] dark:border-white/10 space-y-1.5 shadow-2xs">
+                    <span className="text-[12px] font-extrabold uppercase text-[#48484a] dark:text-[#d1d1d6] tracking-wide">Kho tiếp nhận</span>
+                    <p className="text-[14.5px] font-bold text-[#1d1d1f] dark:text-white leading-snug">
                       {po.warehouse || '—'}
                     </p>
-                    <span className="text-[12px] text-[#86868b]">
+                    <span className="inline-block text-[12px] font-medium text-[#6e6e73] dark:text-[#a1a1a6]">
                       Thư mục: {po.folder_name || 'Chưa phân nhóm'}
                     </span>
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10 space-y-1">
-                    <span className="text-[11px] font-bold uppercase text-[#86868b]">Hạn giao dự kiến</span>
-                    <p className="text-[14px] font-bold text-[#0088FF]">
+                  <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18181c] border border-black/[0.08] dark:border-white/10 space-y-1.5 shadow-2xs">
+                    <span className="text-[12px] font-extrabold uppercase text-[#48484a] dark:text-[#d1d1d6] tracking-wide">Hạn giao dự kiến</span>
+                    <p className="text-[15px] font-extrabold text-[#0088FF] dark:text-[#0A84FF]">
                       {po.expected_delivery_date
                         ? format(parseISO(po.expected_delivery_date), 'dd/MM/yyyy', { locale: vi })
                         : '—'}
                     </p>
-                    <span className="text-[12px] text-[#86868b]">
-                      Ngày tạo: {po.po_date || format(parseISO(po.created_at), 'dd/MM/yyyy')}
+                    <span className="inline-block text-[12px] font-medium text-[#6e6e73] dark:text-[#a1a1a6]">
+                      Ngày lập PO: {po.po_date ? format(parseISO(po.po_date), 'dd/MM/yyyy', { locale: vi }) : format(parseISO(po.created_at), 'dd/MM/yyyy')}
                     </span>
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10 space-y-1">
-                    <span className="text-[11px] font-bold uppercase text-[#86868b]">Tổng giá trị đơn</span>
-                    <p className="text-[14px] font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                  <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18181c] border border-black/[0.08] dark:border-white/10 space-y-1.5 shadow-2xs">
+                    <span className="text-[12px] font-extrabold uppercase text-[#48484a] dark:text-[#d1d1d6] tracking-wide">Tổng giá trị đơn</span>
+                    <p className="text-[15px] font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
                       {po.total_value ? `${Number(po.total_value).toLocaleString('vi-VN')} ${po.currency}` : '—'}
                     </p>
-                    <span className="text-[12px] text-[#86868b]">
+                    <span className="inline-block text-[12px] font-medium text-[#6e6e73] dark:text-[#a1a1a6]">
                       {po.items?.length || 0} dòng sản phẩm
                     </span>
                   </div>
@@ -310,19 +337,26 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
 
                 {/* Quick Status Bar */}
                 {canEdit && (
-                  <div className="p-4 rounded-2xl border border-black/[0.08] dark:border-white/10 space-y-3 bg-black/[0.01] dark:bg-white/[0.02]">
-                    <span className="text-[12px] font-bold text-[#1d1d1f] dark:text-white">
-                      Cập nhật trạng thái tiến độ giao
-                    </span>
+                  <div className="p-4 sm:p-5 rounded-2xl border border-black/[0.08] dark:border-white/10 space-y-3.5 bg-black/[0.01] dark:bg-white/[0.02]">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] font-extrabold text-[#1d1d1f] dark:text-white">
+                        Cập nhật trạng thái tiến độ giao
+                      </span>
+                      {updatingStatus && (
+                        <span className="text-[11.5px] font-bold text-[#0088FF] animate-pulse">
+                          Đang lưu thay đổi...
+                        </span>
+                      )}
+                    </div>
 
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 gap-2.5">
                       {(['shipping', 'partial_received', 'received'] as POStatus[]).map((st) => (
                         <button
                           key={st}
                           onClick={() => handleUpdateStatus(st)}
                           disabled={updatingStatus}
                           className={cn(
-                            'h-10 rounded-xl text-[12.5px] font-bold border transition-all duration-150 cursor-pointer active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5',
+                            'h-11 rounded-xl text-[12.5px] font-bold border transition-all duration-150 cursor-pointer active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-2xs',
                             po.status === st
                               ? 'bg-[#0088FF] text-white border-[#0088FF] shadow-xs'
                               : 'bg-white dark:bg-zinc-800 text-[#1d1d1f] dark:text-white border-black/10 dark:border-white/10 hover:border-[#0088FF]'
@@ -334,20 +368,66 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                       ))}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                      <input
-                        type="date"
-                        value={actualDate}
-                        onChange={(e) => setActualDate(e.target.value)}
-                        className="h-9 px-3 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 text-[12.5px] font-medium"
-                      />
-                      <input
-                        value={statusNotes}
-                        onChange={(e) => setStatusNotes(e.target.value)}
-                        placeholder="Ghi chú điều phối / số xe nhận..."
-                        className="h-9 px-3 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/10 text-[12.5px] font-medium"
-                      />
+                    {/* Labeled Inputs for Delivery Details */}
+                    <div className="pt-2 border-t border-black/[0.06] dark:border-white/10 space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">
+                            Ngày giao hàng thực tế
+                          </label>
+                          <input
+                            type="date"
+                            value={actualDate}
+                            onChange={(e) => setActualDate(e.target.value)}
+                            className="w-full h-10 px-3 rounded-xl bg-white dark:bg-zinc-800 border border-black/15 dark:border-white/15 text-[13px] font-semibold text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">
+                            Ghi chú điều phối / Người nhận hàng
+                          </label>
+                          <input
+                            value={statusNotes}
+                            onChange={(e) => setStatusNotes(e.target.value)}
+                            placeholder="VD: Nguyễn Hùng Tiến, xe tải 51C..."
+                            className="w-full h-10 px-3 rounded-xl bg-white dark:bg-zinc-800 border border-black/15 dark:border-white/15 text-[13px] font-medium text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateStatus(po.status)}
+                          disabled={updatingStatus}
+                          className="h-9 px-4 rounded-full bg-[#0088FF]/10 hover:bg-[#0088FF]/20 text-[#0088FF] dark:text-[#0A84FF] text-[12.5px] font-bold transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1.5"
+                        >
+                          <SFCheckmarkCircleFill size={13} />
+                          <span>{updatingStatus ? 'Đang lưu...' : 'Lưu ghi chú & Ngày nhận'}</span>
+                        </button>
+                      </div>
                     </div>
+                  </div>
+                )}
+
+                {/* Manage PO / Delete PO Action */}
+                {canEdit && (
+                  <div className="pt-3 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-between">
+                    <div>
+                      <span className="text-[12.5px] font-bold text-[#1d1d1f] dark:text-white block">
+                        Vùng nguy hiểm
+                      </span>
+                      <span className="text-[11.5px] text-[#6e6e73] dark:text-[#a1a1a6]">
+                        Xóa vĩnh viễn đơn PO này khỏi hệ thống theo dõi
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeletePODialog(true)}
+                      className="px-4 py-2 rounded-full text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 text-[12.5px] font-bold transition-colors cursor-pointer flex items-center gap-1.5 border border-red-200 dark:border-red-500/20 shadow-2xs"
+                    >
+                      <SFTrash size={13} />
+                      <span>Xóa đơn PO</span>
+                    </button>
                   </div>
                 )}
               </div>
@@ -474,8 +554,8 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                         </div>
                         <button
                           type="button"
-                          onClick={() => handleRevokePermission(perm.id)}
-                          className="text-red-500 hover:text-red-700 font-semibold text-[12px] cursor-pointer"
+                          onClick={() => setPermToRevoke({ id: perm.id, name: perm.user_name || perm.email })}
+                          className="px-3 py-1 rounded-full text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 font-bold text-[12px] cursor-pointer transition-colors"
                         >
                           Thu hồi
                         </button>
@@ -492,6 +572,32 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
           </>
         )}
       </div>
+
+      {/* Confirm Delete PO Dialog */}
+      <ConfirmDeleteDialog
+        isOpen={showDeletePODialog}
+        title="Xóa đơn hàng PO?"
+        itemLabel={po ? `${po.po_number || 'Đơn PO'} — ${po.supplier_name || 'Không rõ NCC'}` : undefined}
+        message="Bạn có chắc chắn muốn xóa đơn hàng này? Toàn bộ danh sách mặt hàng và lịch sử theo dõi sẽ bị xóa khỏi hệ thống."
+        confirmText="Xác nhận xóa PO"
+        cancelText="Hủy bỏ"
+        isLoading={deletingPO}
+        onConfirm={executeDeletePO}
+        onClose={() => setShowDeletePODialog(false)}
+      />
+
+      {/* Confirm Revoke Permission Dialog */}
+      <ConfirmDeleteDialog
+        isOpen={Boolean(permToRevoke)}
+        title="Thu hồi quyền truy cập?"
+        itemLabel={permToRevoke?.name}
+        message="Người dùng này sẽ không còn quyền xem hoặc chỉnh sửa đơn hàng PO này nữa."
+        confirmText="Thu hồi quyền"
+        cancelText="Hủy bỏ"
+        variant="warning"
+        onConfirm={executeRevokePermission}
+        onClose={() => setPermToRevoke(null)}
+      />
     </Drawer>
   );
 };

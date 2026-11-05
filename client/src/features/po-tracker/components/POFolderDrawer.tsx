@@ -3,6 +3,7 @@ import { POFolderItem, FolderColor, FOLDER_COLOR_CONFIG } from '@/types/po-track
 import { usePOTrackerStore } from '@/stores/po-tracker-store';
 import { poTrackerService } from '@/services/poTrackerService';
 import { Drawer } from '@/components/ui/drawer';
+import { SFCheckmark } from 'sf-symbols-lib';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
@@ -105,23 +106,26 @@ export const POFolderDrawer: React.FC<POFolderDrawerProps> = ({
           <label className="text-[13px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">
             Màu sắc nhận diện
           </label>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-2.5">
             {COLOR_OPTIONS.map((c) => {
               const cfg = FOLDER_COLOR_CONFIG[c];
+              const isSelected = color === c;
               return (
                 <button
                   key={c}
                   type="button"
                   onClick={() => setColor(c)}
                   className={cn(
-                    'h-10 rounded-xl flex items-center justify-center gap-2 text-[12px] font-semibold border-2 transition-all duration-150 cursor-pointer active:scale-95',
-                    color === c
-                      ? `${cfg.bg} ${cfg.text} border-current shadow-xs scale-105`
-                      : 'bg-black/[0.02] dark:bg-white/[0.04] border-transparent text-[#555558] dark:text-[#a1a1a6] hover:bg-black/[0.05] dark:hover:bg-white/[0.08]'
+                    'h-10 px-2 rounded-2xl flex items-center justify-center gap-2 text-[12px] font-semibold transition-all duration-200 cursor-pointer select-none active:scale-95',
+                    isSelected
+                      ? `${cfg.bg} ${cfg.text} ring-2 ring-offset-2 ring-black/20 dark:ring-white/30 dark:ring-offset-[#1c1c22] shadow-xs scale-[1.02]`
+                      : 'bg-black/[0.03] dark:bg-white/[0.04] text-[#555558] dark:text-[#a1a1a6] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] border border-black/[0.06] dark:border-white/[0.08]'
                   )}
                 >
-                  <span className={cn('w-3 h-3 rounded-full shrink-0', cfg.dot)} />
-                  <span className="text-[11px] truncate">{COLOR_LABELS[c]}</span>
+                  <span className={cn('w-3.5 h-3.5 rounded-full shrink-0 flex items-center justify-center transition-transform', cfg.dot, isSelected && 'scale-110 shadow-xs')}>
+                    {isSelected && <SFCheckmark size={9} className="text-white stroke-[2.5]" />}
+                  </span>
+                  <span className="text-[11.5px] font-medium truncate">{COLOR_LABELS[c]}</span>
                 </button>
               );
             })}
