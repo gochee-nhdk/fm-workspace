@@ -49,8 +49,6 @@ import {
   SFGearshape,
   SFArrowUpLeftAndArrowDownRight,
   SFArrowDownRightAndArrowUpLeft,
-  SFUnderline,
-  SFStrikethrough,
   SFScissors,
   SFEye,
   SFEyeSlash,
@@ -5318,27 +5316,36 @@ export const QuickNoteWindow: React.FC = () => {
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleApplyFormat('underline')}
-                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center underline text-[12.5px] transition-all cursor-pointer ${
+                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-all cursor-pointer ${
                       activeFormats.underline
                         ? 'bg-[#0071e3] text-white shadow-xs'
                         : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/6 dark:hover:bg-white/10'
                     }`}
-                    title="Gạch chân (Underline)"
+                    title="Gạch chân (Underline) - (Ctrl+U)"
+                    aria-label="Gạch chân"
                   >
-                    U
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M6 3.5v7a6 6 0 0 0 12 0v-7" />
+                      <line x1="4" y1="21" x2="20" y2="21" />
+                    </svg>
                   </button>
                   <button
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleApplyFormat('strike')}
-                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center line-through text-[12.5px] transition-all cursor-pointer ${
+                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-all cursor-pointer ${
                       activeFormats.strike
                         ? 'bg-[#0071e3] text-white shadow-xs'
                         : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/6 dark:hover:bg-white/10'
                     }`}
                     title="Gạch ngang (Strikethrough)"
+                    aria-label="Gạch ngang"
                   >
-                    S
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M16 4H9a3 3 0 0 0-2.83 4" />
+                      <path d="M14 12a4 4 0 0 1 0 8H6" />
+                      <line x1="4" y1="12" x2="20" y2="12" />
+                    </svg>
                   </button>
                   <button
                     type="button"
@@ -6044,22 +6051,25 @@ export const QuickNoteWindow: React.FC = () => {
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleApplyFormat('underline')}
-                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-all cursor-pointer text-xs ${
+                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-all cursor-pointer ${
                             activeFormats.underline
                               ? 'bg-[#0071e3] text-white shadow-xs'
                               : 'text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
                           }`}
-                          title="Gạch chân (Underline)"
+                          title="Gạch chân (Underline) - (Ctrl+U)"
                           aria-label="Gạch chân"
                         >
-                          <SFUnderline size={13} />
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M6 3.5v7a6 6 0 0 0 12 0v-7" />
+                            <line x1="4" y1="21" x2="20" y2="21" />
+                          </svg>
                         </button>
 
                         <button
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleApplyFormat('strike')}
-                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-all cursor-pointer text-xs ${
+                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-all cursor-pointer ${
                             activeFormats.strike
                               ? 'bg-[#0071e3] text-white shadow-xs'
                               : 'text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
@@ -6067,7 +6077,11 @@ export const QuickNoteWindow: React.FC = () => {
                           title="Gạch ngang (Strikethrough)"
                           aria-label="Gạch ngang"
                         >
-                          <SFStrikethrough size={13} />
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M16 4H9a3 3 0 0 0-2.83 4" />
+                            <path d="M14 12a4 4 0 0 1 0 8H6" />
+                            <line x1="4" y1="12" x2="20" y2="12" />
+                          </svg>
                         </button>
                       </div>
 
