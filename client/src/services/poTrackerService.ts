@@ -71,11 +71,14 @@ export function cleanVietnameseNumber(val: any): number {
  */
 export function cleanVietnameseDate(val: any): string | null {
   if (!val || typeof val !== 'string') return null;
-  const str = val.trim();
+  let str = val.trim();
+  // Loại bỏ các tiền tố ngày phổ biến
+  str = str.replace(/^(ngày\s*chứng\s*từ|ngày\s*giao\s*hàng|ngày|date|hạn\s*giao)[\s:]+/i, '').trim();
+
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
 
-  // D/M/YYYY hoặc DD/MM/YYYY
-  const dmyMatch = str.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+  // D/M/YYYY hoặc DD/MM/YYYY (ví dụ: "2/11/2026", "05/11/2026", "5-11-2026")
+  const dmyMatch = str.match(/(?:^|\b)(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})(?:\b|$)/);
   if (dmyMatch) {
     const day = dmyMatch[1].padStart(2, '0');
     const month = dmyMatch[2].padStart(2, '0');
@@ -83,14 +86,14 @@ export function cleanVietnameseDate(val: any): string | null {
     return `${year}-${month}-${day}`;
   }
 
-  // DD-MMM-YYYY (VD: 05-Nov-2026)
+  // DD-MMM-YYYY (VD: 05-Nov-2026, 2-Nov-2026)
   const monthMap: Record<string, string> = {
     jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
     jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
     thg1: '01', thg2: '02', thg3: '03', thg4: '04', thg5: '05', thg6: '06',
     thg7: '07', thg8: '08', thg9: '09', thg10: '10', thg11: '11', thg12: '12'
   };
-  const namedMatch = str.match(/^(\d{1,2})[\s\-\/]([a-zA-Z0-9]+)[\s\-\/](\d{4})$/);
+  const namedMatch = str.match(/(?:^|\b)(\d{1,2})[\s\-\/]([a-zA-Z0-9]+)[\s\-\/](\d{4})(?:\b|$)/);
   if (namedMatch) {
     const day = namedMatch[1].padStart(2, '0');
     const mName = namedMatch[2].toLowerCase();
@@ -236,34 +239,77 @@ export function safeParseAIJson(text: string, fileName?: string): any {
   }
 
   // 6. Chuẩn hóa sâu toàn bộ các trường dữ liệu (Ngày tháng, số tiền, định dạng mã)
-  const normalized: any = {
-    ...rawParsed,
-    po_date: cleanVietnameseDate(rawParsed.po_date),
-    expected_delivery_date: cleanVietnameseDate(rawParsed.expected_delivery_date),
-    total_value: cleanVietnameseNumber(rawParsed.total_value),
-  };
-
-  // Bảo vệ: Nếu AI nhầm tên người mua "CÔNG TY TNHH THƯƠNG MẠI LARIA - FARMERS MARKET" làm NCC, xóa bỏ để lấy từ gợi ý
-  if (normalized.supplier_name && /LARIA|FARMERS.*MARKET/i.test(normalized.supplier_name)) {
-    normalized.supplier_name = '';
+  // Tự động tháo bỏ các vỏ bọc lồng nhau nếu AI trả về dạng { data: ... } hoặc { purchase_order: ... }
+  let dataObj = rawParsed;
+  if (dataObj && typeof dataObj === 'object') {
+    if (dataObj.data && typeof dataObj.data === 'object' && !Array.isArray(dataObj.data)) {
+      dataObj = { ...dataObj.data, ...dataObj };
+    }
+    if (dataObj.purchase_order && typeof dataObj.purchase_order === 'object') {
+      dataObj = { ...dataObj.purchase_order, ...dataObj };
+    }
+    if (dataObj.po && typeof dataObj.po === 'object') {
+      dataObj = { ...dataObj.po, ...dataObj };
+    }
+    if (dataObj.don_mua_hang && typeof dataObj.don_mua_hang === 'object') {
+      dataObj = { ...dataObj.don_mua_hang, ...dataObj };
+    }
   }
 
+  let poNum = String(
+    dataObj.po_number || dataObj.so_po || dataObj.so_hieu_chung_tu || dataObj.order_number || dataObj.po_code || ''
+  ).trim();
+  if (poNum && !/^PO/i.test(poNum) && /^\d{5,8}$/.test(poNum)) {
+    poNum = `PO-${poNum}`;
+  }
+
+  let suppName = String(
+    dataObj.supplier_name || dataObj.ten_ncc || dataObj.vendor_name || dataObj.nha_cung_cap || ''
+  ).trim();
+  // Bảo vệ: Nếu AI nhầm tên người mua "CÔNG TY TNHH THƯƠNG MẠI LARIA - FARMERS MARKET" làm NCC, xóa bỏ để lấy từ gợi ý
+  if (suppName && /LARIA|FARMERS.*MARKET/i.test(suppName)) {
+    suppName = '';
+  }
+
+  const rawItemsList =
+    dataObj.items || dataObj.products || dataObj.danh_sach_hang_hoa || dataObj.hang_hoa || dataObj.lines || [];
+
+  const normalized: any = {
+    po_number: poNum || null,
+    po_date: cleanVietnameseDate(dataObj.po_date || dataObj.ngay_chung_tu || dataObj.ngay_lap_po || dataObj.order_date),
+    expected_delivery_date: cleanVietnameseDate(
+      dataObj.expected_delivery_date || dataObj.ngay_giao_hang || dataObj.han_giao_hang || dataObj.delivery_date
+    ),
+    supplier_code: String(dataObj.supplier_code || dataObj.ma_ncc || dataObj.vendor_code || '').trim() || null,
+    supplier_name: suppName || null,
+    warehouse: String(dataObj.warehouse || dataObj.chi_nhanh_yeu_cau || dataObj.dia_chi_giao_hang || dataObj.kho_nhan || '').trim() || null,
+    total_value: cleanVietnameseNumber(dataObj.total_value || dataObj.tong_tien_hang || dataObj.tong_cong || dataObj.total_amount),
+    currency: dataObj.currency || 'VND',
+    notes: String(dataObj.notes || dataObj.nguoi_dat_hang || dataObj.ghi_chu || '').trim() || null,
+    items: [],
+  };
+
   // Chuẩn hóa từng dòng mặt hàng
-  if (Array.isArray(rawParsed.items)) {
-    normalized.items = rawParsed.items
+  if (Array.isArray(rawItemsList)) {
+    normalized.items = rawItemsList
       .map((it: any) => {
         if (!it || typeof it !== 'object') return null;
-        const ordered_qty = cleanVietnameseNumber(it.ordered_qty || 1);
-        const unit_price = cleanVietnameseNumber(it.unit_price || 0);
-        const total_price = cleanVietnameseNumber(it.total_price || (ordered_qty * unit_price));
+        const ordered_qty = cleanVietnameseNumber(it.ordered_qty || it.so_luong || it.qty || it.quantity || 1);
+        const unit_price = cleanVietnameseNumber(it.unit_price || it.don_gia || it.price || 0);
+        const total_price = cleanVietnameseNumber(it.total_price || it.thanh_tien || it.amount || (ordered_qty * unit_price));
+        const item_code = String(it.item_code || it.internal_code || it.barcode || it.sku || it.plu || '').trim();
+        const item_name = String(it.item_name || it.ten_hang || it.mat_hang || it.description || it.name || 'Sản phẩm').trim();
+        const unit = String(it.unit || it.dvt || it.don_vi_tinh || 'Gói').trim();
+        const wh = String(it.warehouse || it.kho || normalized.warehouse || '').trim();
+
         return {
-          item_code: String(it.item_code || it.internal_code || it.barcode || '').trim(),
-          item_name: String(it.item_name || it.description || 'Sản phẩm').trim(),
-          unit: String(it.unit || 'Hộp').trim(),
+          item_code: item_code || null,
+          item_name: item_name,
+          unit: unit || 'Gói',
           ordered_qty: ordered_qty > 0 ? ordered_qty : 1,
           unit_price: unit_price,
           total_price: total_price,
-          warehouse: String(it.warehouse || normalized.warehouse || '').trim(),
+          warehouse: wh || null,
         };
       })
       .filter((it: any) => it && (it.item_name || it.item_code));
@@ -284,7 +330,6 @@ function enrichWithFileNameHints(data: any, fileName?: string): any {
     supplier_name: data.supplier_name || hints.supplier_name || null,
   };
 }
-
 
 /**
  * Trực tiếp bóc tách PO qua Gemini Vision phía trình duyệt bằng mô hình đa phương thức mới nhất
@@ -315,7 +360,7 @@ async function clientSideGeminiExtract(
 
   const prompt = `Bạn là chuyên gia phân tích và bóc tách dữ liệu chứng từ Đơn mua hàng (PO - Purchase Order) của hệ thống siêu thị FARMERS MARKET (CÔNG TY TNHH THƯƠNG MẠI LARIA) và các chuỗi bán lẻ tại Việt Nam.
 
-Hãy phân tích toàn bộ nội dung tài liệu (PDF / Hình ảnh) được cung cấp và trích xuất đầy đủ, chính xác tất cả các thông tin sau theo cấu trúc JSON:
+Hãy phân tích toàn bộ nội dung tài liệu (PDF / Hình ảnh scan hoặc chụp) được cung cấp và trích xuất đầy đủ, chính xác tất cả các thông tin sau theo cấu trúc JSON:
 
 QUY TẮC BÓC TÁCH CHUẨN XÁC:
 1. "po_number" (Số hiệu PO / Mã đơn hàng):
@@ -326,26 +371,27 @@ QUY TẮC BÓC TÁCH CHUẨN XÁC:
 3. "supplier_code" (Mã Nhà cung cấp):
    - Lấy sau nhãn "Mã NCC:" (ví dụ: "V0001613", "V0001834").
 4. "po_date" (Ngày lập chứng từ PO):
-   - Lấy sau nhãn "Ngày chứng từ:" (ví dụ: "2/11/2026" chuẩn hóa thành "2026-11-02").
+   - Lấy sau nhãn "Ngày chứng từ:" (ví dụ: "2/11/2026" chuẩn hóa thành "2026-11-02", "05-Nov-2026" thành "2026-11-05").
 5. "expected_delivery_date" (Hạn giao hàng / Ngày giao dự kiến):
-   - Lấy sau nhãn "Ngày giao hàng:" (ví dụ: "5/11/2026" chuẩn hóa thành "2026-11-05").
+   - Lấy sau nhãn "Ngày giao hàng:" hoặc "Hạn giao:" (ví dụ: "5/11/2026" chuẩn hóa thành "2026-11-05").
 6. "warehouse" (Kho nhận hàng / Chi nhánh yêu cầu):
    - Lấy sau "Chi nhánh yêu cầu:" hoặc "Địa chỉ giao hàng:" (ví dụ: "DC01 - Nơ Trang Long, 204 Nơ Trang Long, Phường Bình Thạnh, TP.HCM").
 7. "total_value" (Tổng giá trị đơn hàng / Tổng thanh toán):
    - Lấy từ dòng "TỔNG TIỀN HÀNG" hoặc "TỔNG CỘNG TRƯỚC THUẾ VAT", là một số thực nguyên bản (bỏ các dấu phân cách chấm, phẩy). Ví dụ: 9021888 hoặc 8353600.
 8. "currency": Đơn vị tiền tệ, mặc định "VND".
-9. "notes": Người đặt hàng từ nhãn "Người đặt hàng:" (ví dụ: "Nguyễn Hùng Tiến").
+9. "notes": Người đặt hàng từ nhãn "Người đặt hàng:" (ví dụ: "Nguyễn Hùng Tiến") hoặc ghi chú đơn hàng.
 10. "items" (Danh sách toàn bộ các dòng mặt hàng trong bảng ĐƠN MUA HÀNG):
     Bóc tách ĐẦY ĐỦ TẤT CẢ các dòng sản phẩm trong bảng chi tiết, tuyệt đối không bỏ sót dòng nào:
     - "item_code": Cột "Internal Code" hoặc "Barcode/PLU" (ví dụ: "10015745").
-    - "item_name": Cột "Mặt hàng" (ví dụ: "Hạt dinh dưỡng Your SuperFood Mix nhiều loại hạt hũ 400 g").
-    - "ordered_qty": Cột "Số lượng" (kiểu số thực, ví dụ: 46).
+    - "item_name": Cột "Mặt hàng" (ví dụ: "Hạt dinh dưỡng Your SuperFood Mix nhiều loại hạt hũ 400 g", "Bánh mì hoa cúc Harrys 500 g").
+    - "ordered_qty": Cột "Số lượng" (kiểu số, chuyển "46,00" thành 46, "225" thành 225).
     - "unit": Cột "DVT" (ví dụ: "Hũ", "Hộp", "Thùng", "Kg", "Gói", "Chai", "Lon", "Túi", "Cái").
     - "unit_price": Cột "Đơn giá chưa VAT" hoặc "Đơn giá chưa VAT sau chiết khấu" (kiểu số, ví dụ: 181600).
     - "total_price": Cột "Thành tiền chưa VAT" (kiểu số, ví dụ: 8353600).
     - "warehouse": Kho nhận nếu có (ví dụ: "DC01 - Nơ Trang Long").
+11. Bóc tách toàn bộ các trang nếu tài liệu có nhiều trang ảnh.
 
-Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ, không bọc markdown fence, không kèm lời chào.`;
+Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ theo đúng cấu trúc trên, không bọc markdown fence, không kèm bất kỳ văn bản giải thích nào khác.`;
 
   // Chuẩn bị danh sách parts đa phương thức
   const contentParts: any[] = [{ text: prompt }];
@@ -364,18 +410,24 @@ Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ, không bọc markdown
   let lastErr = '';
 
   for (const k of uniqueKeys) {
-    const models = await discoverBestFlashModels(k);
-    // Ưu tiên các model đa phương thức mạnh nhất hiện nay
+    let keyExhausted = false;
+    const models = await discoverBestFlashModels(k).catch(() => []);
+    // Ưu tiên các model đa phương thức mạnh nhất hiện nay: Gemini 2.5 Flash trước
     const priorityModels = Array.from(new Set([
-      'gemini-2.0-flash',
       'gemini-2.5-flash',
+      'gemini-2.5-flash-preview-05-20',
+      'gemini-2.0-flash',
       ...models,
       'gemini-1.5-flash',
       'gemini-2.0-flash-lite',
     ])).filter((m) => !m.includes('pro')); // Tránh các model Pro cũ bị hạn chế quota/404
 
     for (const model of priorityModels) {
+      if (keyExhausted) break;
+
       for (const apiVer of ['v1beta', 'v1']) {
+        if (keyExhausted) break;
+
         try {
           const url = `https://generativelanguage.googleapis.com/${apiVer}/models/${model}:generateContent?key=${k}`;
           const isV1Beta = apiVer === 'v1beta';
@@ -386,9 +438,14 @@ Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ, không bọc markdown
             body: JSON.stringify({
               contents: [{ parts: contentParts }],
               generationConfig: {
-                temperature: 0.1,
-                maxOutputTokens: 8192,
-                ...(isV1Beta ? { responseMimeType: 'application/json' } : {}),
+                temperature: 0,
+                maxOutputTokens: 16384,
+                ...(isV1Beta
+                  ? {
+                      responseMimeType: 'application/json',
+                      thinkingConfig: { thinkingBudget: 0 },
+                    }
+                  : {}),
               },
             }),
           });
@@ -396,6 +453,19 @@ Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ, không bọc markdown
           if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
             lastErr = errData.error?.message || `HTTP ${res.status}`;
+            const isQuotaOrAuth =
+              res.status === 429 ||
+              res.status === 403 ||
+              res.status === 400 ||
+              errData.error?.status === 'RESOURCE_EXHAUSTED' ||
+              errData.error?.message?.toLowerCase().includes('quota') ||
+              errData.error?.message?.toLowerCase().includes('api key');
+
+            if (isQuotaOrAuth) {
+              console.warn(`Gemini API key ${k.slice(0, 8)}... quota/auth issue: ${lastErr}. Chuyển ngay khóa dự phòng tiếp theo.`);
+              keyExhausted = true;
+              break;
+            }
             continue;
           }
 
@@ -537,11 +607,11 @@ export const poTrackerService = {
       )
     );
 
-    // BƯỚC 1: Nếu là tệp PDF, chuyển đổi sang hình ảnh Canvas độ nét cao (2x DPI)
+    // BƯỚC 1: Nếu là tệp PDF, chuyển đổi sang hình ảnh Canvas độ nét cao (2x DPI, tối đa 4 trang)
     let renderedImages: string[] = [];
     if (isPdf) {
       try {
-        renderedImages = await convertPdfToImages(file, 2);
+        renderedImages = await convertPdfToImages(file, 4);
       } catch (pdfErr) {
         console.warn('Could not render PDF pages to images:', pdfErr);
       }

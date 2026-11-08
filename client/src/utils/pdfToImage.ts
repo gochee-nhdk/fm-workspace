@@ -3,7 +3,7 @@
  * Bằng cách này, Gemini Multimodal Vision có thể đọc 100% chính xác từng dòng bảng,
  * số lượng, đơn giá, mã nội bộ, mã vạch và thông tin nhà cung cấp mà không bị lỗi font hay định dạng PDF.
  */
-export async function convertPdfToImages(file: File, maxPages = 2): Promise<string[]> {
+export async function convertPdfToImages(file: File, maxPages = 4): Promise<string[]> {
   if (typeof window === 'undefined' || !file) return [];
   if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') return [];
 

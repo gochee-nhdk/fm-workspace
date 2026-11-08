@@ -41,6 +41,15 @@ export const POTrackerPage: React.FC = () => {
   const [detailPOId, setDetailPOId] = useState<string | null>(null);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+
+  // Debounce tìm kiếm 300ms để không spam API mỗi ký tự gõ
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   // Fetch folders and stats on mount
   const fetchFoldersAndStats = useCallback(async () => {
@@ -67,7 +76,7 @@ export const POTrackerPage: React.FC = () => {
       const res = await poTrackerService.getPOs({
         folder_id: activeFolderId || undefined,
         status: activeStatus || undefined,
-        search: search.trim() || undefined,
+        search: debouncedSearch.trim() || undefined,
       }).catch(() => ({ data: { data: [] } }));
       const poList = Array.isArray(res?.data?.data) ? res.data.data : [];
       setPos(poList);
@@ -77,7 +86,7 @@ export const POTrackerPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeFolderId, activeStatus, search, setLoading, setPos]);
+  }, [activeFolderId, activeStatus, debouncedSearch, setLoading, setPos]);
 
   useEffect(() => {
     fetchFoldersAndStats();

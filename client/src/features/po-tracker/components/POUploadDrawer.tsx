@@ -65,6 +65,8 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<ItemRow[]>([]);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [readingStatus, setReadingStatus] = useState('Đang khởi động phân tích chứng từ...');
   const [itemToDeleteIndex, setItemToDeleteIndex] = useState<number | null>(null);
 
   // Calculated totals for summary bar
@@ -108,9 +110,16 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
 
     setFile(selectedFile);
     setStep('reading');
+    setReadingStatus(isPdf ? 'Đang kết xuất các trang PDF sang ảnh độ phân giải cao...' : 'Đang xử lý hình ảnh chứng từ...');
 
     try {
+      // Cập nhật trạng thái người dùng
+      setTimeout(() => {
+        setReadingStatus('Mô hình Gemini 2.5 Flash đang đọc số PO, nhà cung cấp và bảng hàng hóa...');
+      }, 700);
+
       const res = await poTrackerService.uploadPOFile(selectedFile);
+      setReadingStatus('Đang chuẩn hóa dữ liệu và hoàn tất biểu mẫu...');
       const data: POExtractedData = res.data || ({} as any);
       const fileHints = extractMetadataFromFileName(selectedFile.name);
 
@@ -211,13 +220,14 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
 
   const handleSavePO = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (saving) return; // Prevent double submit
+    if (savingRef.current || saving) return; // Chặn double-submit triệt để cả ref và state
 
     if (!poNumber.trim() && !supplierName.trim()) {
       toast.error('Vui lòng nhập Số PO hoặc Tên Nhà cung cấp.', { id: 'save-po-toast' });
       return;
     }
 
+    savingRef.current = true;
     setSaving(true);
     try {
       const finalTotal = calculatedTotalAmount > 0 ? calculatedTotalAmount : Number(totalValue || 0);
@@ -248,6 +258,7 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
       console.error('Save PO error:', err);
       toast.error(err.response?.data?.message || err.message || 'Lỗi khi lưu đơn hàng PO.', { id: 'save-po-toast' });
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -345,22 +356,32 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
         )}
 
         {step === 'reading' && (
-          <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
-            <div className="relative w-16 h-16">
-              <div className="absolute inset-0 rounded-full border-4 border-[#0088FF]/20" />
+          <div className="py-16 flex flex-col items-center justify-center text-center space-y-5 animate-in fade-in duration-300">
+            {/* Apple fluid ring indicator */}
+            <div className="relative w-20 h-20">
+              <div className="absolute inset-0 rounded-full border-4 border-[#0088FF]/15 dark:border-[#0088FF]/20" />
               <div className="absolute inset-0 rounded-full border-4 border-[#0088FF] border-t-transparent animate-spin" />
-              <div className="absolute inset-0 flex items-center justify-center text-[#0088FF]">
-                <SFDocument size={24} />
+              <div className="absolute inset-0 flex items-center justify-center text-[#0088FF] scale-110">
+                <SFDocument size={28} />
               </div>
             </div>
-            <div>
-              <h3 className="text-[16px] font-bold text-[#1d1d1f] dark:text-white">
-                Trí tuệ nhân tạo đang quét nội dung PDF...
+            <div className="space-y-1.5 max-w-sm">
+              <h3 className="text-[17px] font-bold text-[#1d1d1f] dark:text-white tracking-tight">
+                AI đang quét và trích xuất dữ liệu PO...
               </h3>
-              <p className="text-[13px] text-[#555558] dark:text-[#a1a1a6] mt-1.5 max-w-sm">
-                Đang trích xuất số PO, nhà cung cấp, ngày giao hẹn và danh sách các mặt hàng...
+              <p className="text-[13px] font-medium text-[#0088FF] dark:text-[#0A84FF] transition-all duration-300">
+                {readingStatus}
+              </p>
+              <p className="text-[12px] text-[#86868b] dark:text-[#a1a1a6] mt-1">
+                Tự động nhận diện số PO, tên nhà cung cấp, hạn giao và từng dòng mặt hàng chi tiết
               </p>
             </div>
+            {file && (
+              <div className="px-3.5 py-1.5 rounded-full bg-blue-50 dark:bg-blue-500/10 border border-blue-200/60 dark:border-blue-500/20 text-[12px] font-semibold text-blue-900 dark:text-blue-300 flex items-center gap-2 max-w-xs truncate shadow-2xs">
+                <SFDocument size={13} className="text-[#0088FF] shrink-0" />
+                <span className="truncate">{file.name}</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -510,7 +531,7 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
                 </button>
               </div>
 
-              <div className="space-y-2.5 max-h-[290px] overflow-y-auto pr-1 scrollbar-none">
+              <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1 [scrollbar-width:thin] [scrollbar-color:#0088ff30_transparent]">
                 {items.length === 0 ? (
                   <div className="py-6 px-4 rounded-2xl border border-dashed border-black/15 dark:border-white/15 text-center bg-black/[0.01] dark:bg-white/[0.01]">
                     <p className="text-[12.5px] font-medium text-slate-600 dark:text-zinc-400">

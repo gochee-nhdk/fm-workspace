@@ -349,23 +349,35 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                       )}
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2.5">
-                      {(['shipping', 'partial_received', 'received'] as POStatus[]).map((st) => (
-                        <button
-                          key={st}
-                          onClick={() => handleUpdateStatus(st)}
-                          disabled={updatingStatus}
-                          className={cn(
-                            'h-11 rounded-xl text-[12.5px] font-bold border transition-all duration-150 cursor-pointer active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-2xs',
-                            po.status === st
-                              ? 'bg-[#0088FF] text-white border-[#0088FF] shadow-xs'
-                              : 'bg-white dark:bg-zinc-800 text-[#1d1d1f] dark:text-white border-black/10 dark:border-white/10 hover:border-[#0088FF]'
-                          )}
-                        >
-                          {PO_STATUS_CONFIG_MAP[st]?.icon}
-                          <span>{PO_STATUS_CONFIG_MAP[st]?.label}</span>
-                        </button>
-                      ))}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {([
+                        'pending',
+                        'confirmed',
+                        'shipping',
+                        'partial_received',
+                        'received',
+                        'cancelled',
+                        'overdue',
+                      ] as POStatus[]).map((st) => {
+                        const cfg = PO_STATUS_CONFIG_MAP[st];
+                        const isCurrent = po.status === st;
+                        return (
+                          <button
+                            key={st}
+                            onClick={() => handleUpdateStatus(st)}
+                            disabled={updatingStatus}
+                            className={cn(
+                              'h-10 px-2.5 rounded-xl text-[12px] font-bold border transition-all duration-150 cursor-pointer active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-2xs text-left truncate',
+                              isCurrent
+                                ? 'bg-[#0088FF] text-white border-[#0088FF] shadow-xs'
+                                : 'bg-white dark:bg-zinc-800 text-[#1d1d1f] dark:text-white border-black/10 dark:border-white/10 hover:border-[#0088FF]'
+                            )}
+                          >
+                            <span>{cfg?.icon}</span>
+                            <span className="truncate">{cfg?.label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
 
                     {/* Labeled Inputs for Delivery Details */}
@@ -414,18 +426,18 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                   <div className="pt-3 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-between">
                     <div>
                       <span className="text-[12.5px] font-bold text-[#1d1d1f] dark:text-white block">
-                        Vùng nguy hiểm
+                        Quản lý đơn hàng
                       </span>
                       <span className="text-[11.5px] text-[#6e6e73] dark:text-[#a1a1a6]">
-                        Xóa vĩnh viễn đơn PO này khỏi hệ thống theo dõi
+                        Gỡ bỏ đơn PO này khỏi danh sách theo dõi
                       </span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setShowDeletePODialog(true)}
-                      className="px-4 py-2 rounded-full text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 text-[12.5px] font-bold transition-colors cursor-pointer flex items-center gap-1.5 border border-red-200 dark:border-red-500/20 shadow-2xs"
+                      className="px-3.5 py-1.5 rounded-full text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 text-[12px] font-bold transition-colors cursor-pointer flex items-center gap-1.5 border border-red-200 dark:border-red-500/20 shadow-2xs"
                     >
-                      <SFTrash size={13} />
+                      <SFTrash size={12} />
                       <span>Xóa đơn PO</span>
                     </button>
                   </div>
