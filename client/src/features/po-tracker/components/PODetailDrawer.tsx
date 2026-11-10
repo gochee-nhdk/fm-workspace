@@ -24,7 +24,6 @@ import {
   SFBubbleLeftFill,
   SFCheckmarkShieldFill,
   SFPersonFill,
-  SFChevronDown,
   SFCheckmark
 } from 'sf-symbols-lib';
 import { cn } from '@/lib/utils';
@@ -58,14 +57,27 @@ const PERMISSION_ROLES: {
   { id: 'admin', label: 'Quản trị', description: 'Toàn quyền chỉnh sửa, phân quyền & xóa PO', icon: <SFCheckmarkShieldFill size={13} className="text-purple-500 shrink-0" /> },
 ];
 
+const MAIN_WORKFLOW_STATUSES: POStatus[] = [
+  'pending',
+  'confirmed',
+  'shipping',
+  'partial_received',
+  'received',
+];
+
+const EXCEPTION_STATUSES: POStatus[] = [
+  'cancelled',
+  'overdue',
+];
+
 const STATUS_ACTIVE_THEMES: Record<POStatus, string> = {
-  pending: 'bg-amber-500 text-white border-amber-500 shadow-sm shadow-amber-500/25 ring-2 ring-amber-500/20',
-  confirmed: 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/25 ring-2 ring-blue-500/20',
-  shipping: 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-500/25 ring-2 ring-indigo-500/20',
-  partial_received: 'bg-purple-600 text-white border-purple-600 shadow-sm shadow-purple-500/25 ring-2 ring-purple-500/20',
-  received: 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-500/25 ring-2 ring-emerald-500/20',
-  cancelled: 'bg-zinc-600 text-white border-zinc-600 shadow-sm shadow-zinc-500/25 ring-2 ring-zinc-500/20',
-  overdue: 'bg-rose-600 text-white border-rose-600 shadow-sm shadow-rose-500/25 ring-2 ring-rose-500/20',
+  pending: 'bg-amber-500/15 dark:bg-amber-500/25 text-amber-900 dark:text-amber-200 border-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.25)] ring-1 ring-amber-500/40',
+  confirmed: 'bg-blue-500/15 dark:bg-blue-500/25 text-blue-900 dark:text-blue-200 border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.25)] ring-1 ring-blue-500/40',
+  shipping: 'bg-indigo-500/15 dark:bg-indigo-500/25 text-indigo-900 dark:text-indigo-200 border-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.25)] ring-1 ring-indigo-500/40',
+  partial_received: 'bg-purple-500/15 dark:bg-purple-500/25 text-purple-900 dark:text-purple-200 border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.25)] ring-1 ring-purple-500/40',
+  received: 'bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-900 dark:text-emerald-200 border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.25)] ring-1 ring-emerald-500/40',
+  cancelled: 'bg-zinc-500/15 dark:bg-zinc-500/25 text-zinc-900 dark:text-zinc-200 border-zinc-500 shadow-[0_0_10px_rgba(113,113,122,0.25)] ring-1 ring-zinc-500/40',
+  overdue: 'bg-rose-500/15 dark:bg-rose-500/25 text-rose-900 dark:text-rose-200 border-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.25)] ring-1 ring-rose-500/40',
 };
 
 export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
@@ -84,10 +96,8 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
 
   const [targetUserId, setTargetUserId] = useState('');
   const [selectedPerm, setSelectedPerm] = useState<POPermission>('view');
-  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [assignableUsers, setAssignableUsers] = useState<Array<{ id: string; email: string; full_name?: string }>>([]);
   const [granting, setGranting] = useState(false);
-  const roleDropdownRef = useRef<HTMLDivElement>(null);
 
   // Confirm delete dialog states
   const [showDeletePODialog, setShowDeletePODialog] = useState(false);
@@ -120,21 +130,6 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
       setPo(null);
     }
   }, [poId, isOpen]);
-
-  // Click outside to close role dropdown
-  useEffect(() => {
-    const handleClickOutside = (ev: MouseEvent) => {
-      if (roleDropdownRef.current && !roleDropdownRef.current.contains(ev.target as Node)) {
-        setIsRoleDropdownOpen(false);
-      }
-    };
-    if (isRoleDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isRoleDropdownOpen]);
 
   const handleUpdateStatus = async (newStatus: POStatus) => {
     if (!po) return;
@@ -458,35 +453,56 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                       )}
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {([
-                        'pending',
-                        'confirmed',
-                        'shipping',
-                        'partial_received',
-                        'received',
-                        'cancelled',
-                        'overdue',
-                      ] as POStatus[]).map((st) => {
-                        const cfg = PO_STATUS_CONFIG_MAP[st];
-                        const isCurrent = po.status === st;
-                        return (
-                          <button
-                            key={st}
-                            onClick={() => handleUpdateStatus(st)}
-                            disabled={updatingStatus}
-                            className={cn(
-                              'h-10 px-2.5 rounded-xl text-[12px] font-bold border transition-all duration-150 cursor-pointer active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-2xs text-left truncate',
-                              isCurrent
-                                ? STATUS_ACTIVE_THEMES[st]
-                                : 'bg-white dark:bg-zinc-800 text-[#1d1d1f] dark:text-[#f5f5f7] border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20'
-                            )}
-                          >
-                            <span>{cfg?.icon}</span>
-                            <span className="truncate">{cfg?.label}</span>
-                          </button>
-                        );
-                      })}
+                    <div className="space-y-2">
+                      {/* Main workflow stages: 5 steps across full width */}
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                        {MAIN_WORKFLOW_STATUSES.map((st) => {
+                          const cfg = PO_STATUS_CONFIG_MAP[st];
+                          const isCurrent = po.status === st;
+                          return (
+                            <button
+                              key={st}
+                              type="button"
+                              onClick={() => handleUpdateStatus(st)}
+                              disabled={updatingStatus}
+                              className={cn(
+                                'h-10 px-2 rounded-xl text-[12px] font-bold border transition-all duration-150 cursor-pointer active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 text-center truncate select-none',
+                                isCurrent
+                                  ? STATUS_ACTIVE_THEMES[st]
+                                  : 'bg-white dark:bg-zinc-800 text-[#1d1d1f] dark:text-[#f5f5f7] border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 hover:bg-black/[0.02] dark:hover:bg-white/[0.04]'
+                              )}
+                            >
+                              <span className="shrink-0">{cfg?.icon}</span>
+                              <span className="truncate">{cfg?.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Exception / Terminal states: 2 steps sharing 50/50 width */}
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {EXCEPTION_STATUSES.map((st) => {
+                          const cfg = PO_STATUS_CONFIG_MAP[st];
+                          const isCurrent = po.status === st;
+                          return (
+                            <button
+                              key={st}
+                              type="button"
+                              onClick={() => handleUpdateStatus(st)}
+                              disabled={updatingStatus}
+                              className={cn(
+                                'h-9 px-3 rounded-xl text-[12px] font-bold border transition-all duration-150 cursor-pointer active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 text-center truncate select-none',
+                                isCurrent
+                                  ? STATUS_ACTIVE_THEMES[st]
+                                  : 'bg-white dark:bg-zinc-800 text-[#1d1d1f] dark:text-[#f5f5f7] border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 hover:bg-black/[0.02] dark:hover:bg-white/[0.04]'
+                              )}
+                            >
+                              <span className="shrink-0">{cfg?.icon}</span>
+                              <span className="truncate">{cfg?.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     {/* Labeled Inputs for Delivery Details */}
@@ -631,71 +647,55 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                   Quản lý quyền truy cập đơn hàng: Chỉ người dùng được cấp phép mới có thể xem hoặc chỉnh sửa PO này.
                 </div>
 
-                <form onSubmit={handleGrantPermission} className="space-y-2">
-                  <div className="flex gap-2 relative">
-                    <div className="relative flex-1">
-                      <input
-                        value={targetUserId}
-                        onChange={(e) => setTargetUserId(e.target.value)}
-                        placeholder="Nhập Email hoặc Tên người dùng..."
-                        required
-                        className="w-full h-10 px-3.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[13px] font-medium text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all"
-                      />
-                    </div>
-
-                    {/* Apple Custom Role Select Menu */}
-                    <div className="relative" ref={roleDropdownRef}>
-                      <button
-                        type="button"
-                        onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-                        className="h-10 px-3 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[12.5px] font-bold flex items-center gap-1.5 hover:bg-black/[0.07] dark:hover:bg-white/[0.1] transition-all cursor-pointer text-[#1d1d1f] dark:text-white shrink-0"
-                      >
-                        {PERMISSION_ROLES.find((r) => r.id === selectedPerm)?.icon}
-                        <span>{PERMISSION_ROLES.find((r) => r.id === selectedPerm)?.label}</span>
-                        <SFChevronDown
-                          size={10}
-                          className={cn('text-[#86868b] transition-transform duration-200', isRoleDropdownOpen && 'rotate-180')}
-                        />
-                      </button>
-
-                      {isRoleDropdownOpen && (
-                        <div className="absolute right-0 top-full mt-1.5 w-60 p-1.5 rounded-2xl bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-xl border border-black/10 dark:border-white/10 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
-                          {PERMISSION_ROLES.map((r) => (
-                            <button
-                              key={r.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedPerm(r.id);
-                                setIsRoleDropdownOpen(false);
-                              }}
-                              className={cn(
-                                'w-full px-2.5 py-2 rounded-xl text-left flex items-start gap-2.5 transition-all cursor-pointer',
-                                selectedPerm === r.id
-                                  ? 'bg-[#0088FF]/10 text-[#0088FF] dark:text-[#0A84FF]'
-                                  : 'text-[#1d1d1f] dark:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
-                              )}
-                            >
-                              <div className="pt-0.5">{r.icon}</div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[12.5px] font-bold">{r.label}</span>
-                                  {selectedPerm === r.id && <SFCheckmark size={12} className="text-[#0088FF]" />}
-                                </div>
-                                <p className="text-[11px] text-[#86868b] truncate leading-tight mt-0.5">{r.description}</p>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
+                <form onSubmit={handleGrantPermission} className="space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      value={targetUserId}
+                      onChange={(e) => setTargetUserId(e.target.value)}
+                      placeholder="Nhập Email hoặc Tên người dùng..."
+                      required
+                      className="flex-1 h-10 px-3.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[13px] font-medium text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all"
+                    />
                     <button
                       type="submit"
                       disabled={granting || !targetUserId.trim()}
-                      className="h-10 px-4 rounded-xl fm-primary-pill-surface text-white text-[12.5px] font-bold cursor-pointer disabled:opacity-40 shrink-0"
+                      className="h-10 px-4 rounded-xl fm-primary-pill-surface text-white text-[12.5px] font-bold cursor-pointer disabled:opacity-40 shrink-0 shadow-xs"
                     >
                       {granting ? '...' : '+ Thêm'}
                     </button>
+                  </div>
+
+                  {/* Apple Segmented Role Picker */}
+                  <div className="space-y-1.5">
+                    <div className="text-[11.5px] font-bold text-[#86868b]">Vai trò cấp quyền:</div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-2xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.08] dark:border-white/10">
+                      {PERMISSION_ROLES.map((r) => {
+                        const isSelected = selectedPerm === r.id;
+                        return (
+                          <button
+                            key={r.id}
+                            type="button"
+                            onClick={() => setSelectedPerm(r.id)}
+                            className={cn(
+                              'h-9 px-2 rounded-xl text-[12px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer select-none',
+                              isSelected
+                                ? 'bg-white dark:bg-zinc-800 text-[#0088FF] dark:text-[#0A84FF] shadow-xs border border-black/10 dark:border-white/15'
+                                : 'text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.02] dark:hover:bg-white/[0.04]'
+                            )}
+                          >
+                            <span className="shrink-0">{r.icon}</span>
+                            <span className="truncate">{r.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* Role description display */}
+                    <div className="text-[11px] text-[#86868b] px-1 flex items-center gap-1">
+                      <span className="font-semibold text-[#1d1d1f] dark:text-white">
+                        {PERMISSION_ROLES.find((r) => r.id === selectedPerm)?.label}:
+                      </span>
+                      <span>{PERMISSION_ROLES.find((r) => r.id === selectedPerm)?.description}</span>
+                    </div>
                   </div>
 
                   {/* Quick User Suggestions */}

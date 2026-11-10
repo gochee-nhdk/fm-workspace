@@ -73,7 +73,7 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
   };
 
   const totalOverdue = stats
-    ? (stats.actually_overdue || 0) + (stats.overdue || 0)
+    ? (stats.overdue ?? stats.actually_overdue ?? 0)
     : 0;
 
   const safeFolders = Array.isArray(folders) ? folders : [];

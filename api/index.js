@@ -1585,6 +1585,10 @@ Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ, không bọc markdown
         const today = new Date().toISOString().split('T')[0];
         const next7 = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
 
+        const overdueCount = filtered.filter(
+          (p) => p.status === 'overdue' || (!['received', 'cancelled'].includes(p.status) && p.expected_delivery_date && p.expected_delivery_date < today)
+        ).length;
+
         const stats = {
           total: filtered.length,
           pending: filtered.filter((p) => p.status === 'pending').length,
@@ -1593,8 +1597,8 @@ Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ, không bọc markdown
           partial_received: filtered.filter((p) => p.status === 'partial_received').length,
           received: filtered.filter((p) => p.status === 'received').length,
           cancelled: filtered.filter((p) => p.status === 'cancelled').length,
-          overdue: filtered.filter((p) => p.status === 'overdue').length,
-          actually_overdue: filtered.filter((p) => !['received', 'cancelled'].includes(p.status) && p.expected_delivery_date && p.expected_delivery_date < today).length,
+          overdue: overdueCount,
+          actually_overdue: overdueCount,
           upcoming_7_days: filtered.filter((p) => !['received', 'cancelled'].includes(p.status) && p.expected_delivery_date && p.expected_delivery_date >= today && p.expected_delivery_date <= next7).length,
           total_value: filtered.reduce((s, p) => s + (Number(p.total_value) || 0), 0)
         };
