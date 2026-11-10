@@ -835,6 +835,18 @@ export const poTrackerService = {
             p.status === 'overdue' ||
             (p.status !== 'received' && p.status !== 'cancelled' && p.expected_delivery_date && p.expected_delivery_date < todayStr)
         );
+      } else if (params.status === 'upcoming_7_days') {
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 3600 * 1000).toISOString().split('T')[0];
+        filtered = filtered.filter(
+          (p) =>
+            p.status !== 'received' &&
+            p.status !== 'cancelled' &&
+            p.expected_delivery_date &&
+            p.expected_delivery_date >= todayStr &&
+            p.expected_delivery_date <= sevenDaysLater
+        );
       } else {
         filtered = filtered.filter((p) => p.status === params.status);
       }
@@ -996,17 +1008,19 @@ export const poTrackerService = {
       cancelled: pos.filter((p) => p.status === 'cancelled').length,
       overdue: pos.filter(
         (p) =>
-          p.status !== 'received' &&
-          p.status !== 'cancelled' &&
-          p.expected_delivery_date &&
-          p.expected_delivery_date < todayStr
+          p.status === 'overdue' ||
+          (p.status !== 'received' &&
+            p.status !== 'cancelled' &&
+            p.expected_delivery_date &&
+            p.expected_delivery_date < todayStr)
       ).length,
       actually_overdue: pos.filter(
         (p) =>
-          p.status !== 'received' &&
-          p.status !== 'cancelled' &&
-          p.expected_delivery_date &&
-          p.expected_delivery_date < todayStr
+          p.status === 'overdue' ||
+          (p.status !== 'received' &&
+            p.status !== 'cancelled' &&
+            p.expected_delivery_date &&
+            p.expected_delivery_date < todayStr)
       ).length,
       upcoming_7_days: pos.filter(
         (p) =>

@@ -7,7 +7,7 @@ import { POListTable } from './components/POListTable';
 import { POUploadDrawer } from './components/POUploadDrawer';
 import { PODetailDrawer } from './components/PODetailDrawer';
 import { PO_STATUS_CONFIG_MAP } from './components/POStatusPill';
-import { POTrackerPO } from '@/types/po-tracker';
+import { POTrackerPO, POStatus } from '@/types/po-tracker';
 import { Button } from '@/components/ui/button';
 import {
   SFArrowUpDocumentFill,
@@ -200,12 +200,21 @@ export const POTrackerPage: React.FC = () => {
             <div className="flex items-center gap-2 flex-wrap text-[12px] p-2.5 px-3.5 rounded-2xl bg-white/85 dark:bg-[#1a1a22]/85 backdrop-blur-md border border-black/[0.08] dark:border-white/10 shadow-2xs animate-in fade-in slide-in-from-top-2 duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]">
               <span className="text-[#48484a] dark:text-[#a1a1a6] font-bold text-[12.5px] mr-1">Bộ lọc:</span>
               {activeStatus && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#0088FF]/10 text-[#0088FF] dark:text-[#0A84FF] border border-[#0088FF]/25 font-bold text-[12px] shadow-2xs">
-                  <span className="text-[#48484a] dark:text-[#a1a1a6] font-medium text-[11.5px]">Trạng thái:</span>
-                  <span>{PO_STATUS_CONFIG_MAP[activeStatus]?.label || activeStatus}</span>
+                <span className={cn(
+                  'inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-bold text-[12px] shadow-2xs',
+                  activeStatus === 'upcoming_7_days'
+                    ? 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/25'
+                    : 'bg-[#0088FF]/10 text-[#0088FF] dark:text-[#0A84FF] border border-[#0088FF]/25'
+                )}>
+                  <span className="text-[#48484a] dark:text-[#a1a1a6] font-medium text-[11.5px]">Bộ lọc:</span>
+                  <span>
+                    {activeStatus === 'upcoming_7_days'
+                      ? 'Hạn 7 ngày tới'
+                      : (PO_STATUS_CONFIG_MAP[activeStatus as POStatus]?.label || activeStatus)}
+                  </span>
                   <button
                     onClick={() => setActiveStatus(null)}
-                    className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-[#0088FF]/20 active:scale-90 transition-all cursor-pointer ml-0.5"
+                    className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 active:scale-90 transition-all cursor-pointer ml-0.5"
                     title="Bỏ lọc trạng thái"
                   >
                     <SFXmark size={10} />

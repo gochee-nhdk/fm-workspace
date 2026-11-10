@@ -11,6 +11,8 @@ export type POStatus =
   | 'cancelled'         // Đã hủy
   | 'overdue';          // Quá hạn giao
 
+export type POFilterStatus = POStatus | 'upcoming_7_days';
+
 export type POPermission = 'view' | 'comment' | 'edit' | 'admin';
 
 export type FolderColor = 'blue' | 'amber' | 'emerald' | 'rose' | 'purple' | 'gray' | 'orange' | 'cyan';

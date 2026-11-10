@@ -351,6 +351,12 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
     if (status === 'overdue') {
       query += " AND (p.status = 'overdue' OR (p.status NOT IN ('received', 'cancelled') AND p.expected_delivery_date IS NOT NULL AND p.expected_delivery_date < ?))";
       params.push(new Date().toISOString().split('T')[0]);
+    } else if (status === 'upcoming_7_days') {
+      const now = new Date();
+      const today = now.toISOString().split('T')[0];
+      const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      query += " AND (p.status NOT IN ('received', 'cancelled') AND p.expected_delivery_date IS NOT NULL AND p.expected_delivery_date BETWEEN ? AND ?)";
+      params.push(today, in7Days);
     } else if (status) {
       query += ' AND p.status = ?';
       params.push(status);
@@ -822,8 +828,8 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
         SUM(CASE WHEN status = 'partial_received' THEN 1 ELSE 0 END) as partial_received,
         SUM(CASE WHEN status = 'received' THEN 1 ELSE 0 END) as received,
         SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled,
-        SUM(CASE WHEN status = 'overdue' THEN 1 ELSE 0 END) as overdue,
-        SUM(CASE WHEN status NOT IN ('received','cancelled') AND expected_delivery_date < ? THEN 1 ELSE 0 END) as actually_overdue,
+        SUM(CASE WHEN status = 'overdue' OR (status NOT IN ('received','cancelled') AND expected_delivery_date IS NOT NULL AND expected_delivery_date < ?) THEN 1 ELSE 0 END) as overdue,
+        SUM(CASE WHEN status = 'overdue' OR (status NOT IN ('received','cancelled') AND expected_delivery_date IS NOT NULL AND expected_delivery_date < ?) THEN 1 ELSE 0 END) as actually_overdue,
         SUM(CASE WHEN status NOT IN ('received','cancelled') AND expected_delivery_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as upcoming_7_days,
         COALESCE(SUM(total_value), 0) as total_value
       FROM po_tracker_pos p

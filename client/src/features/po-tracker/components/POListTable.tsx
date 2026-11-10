@@ -32,12 +32,9 @@ const formatDate = (d?: string | null) => {
   try { return format(parseISO(d), 'dd/MM/yyyy', { locale: vi }); } catch { return d; }
 };
 
-const formatVND = (v?: number | null) => {
-  if (!v) return '—';
-  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1)}B`;
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
-  return Number(v).toLocaleString('vi-VN');
+const formatExactVND = (v?: number | null) => {
+  if (v === null || v === undefined || isNaN(Number(v))) return '—';
+  return Math.round(Number(v)).toLocaleString('vi-VN') + ' ₫';
 };
 
 export const POListTable: React.FC<POListTableProps> = ({
@@ -142,14 +139,28 @@ export const POListTable: React.FC<POListTableProps> = ({
   }
 
   return (
-    <div className="rounded-2xl border border-black/[0.08] dark:border-white/10 bg-white/70 dark:bg-[#16161c]/70 shadow-xs relative">
+    <div className="rounded-2xl border border-black/[0.08] dark:border-white/10 bg-white/70 dark:bg-[#16161c]/70 shadow-xs relative overflow-hidden">
       {/* Table header */}
-      <div className="grid grid-cols-[2fr_1.5fr_1fr_1.2fr_1fr_1.4fr_52px] gap-3 px-4 py-3.5 rounded-t-2xl border-b border-black/[0.08] dark:border-white/10 bg-[#fbfbfd] dark:bg-[#1a1a20]">
-        {['Số PO / Nhà CC', 'Hạn giao hàng', 'Kho nhận', 'Giá trị đơn', 'Tiến độ', 'Trạng thái', ''].map((h) => (
-          <div key={h} className="text-[12px] font-extrabold uppercase tracking-wide text-[#1d1d1f] dark:text-[#f5f5f7] truncate">
-            {h}
-          </div>
-        ))}
+      <div className="grid grid-cols-[2.5fr_1.3fr_1.4fr_1.3fr_1.1fr_1.4fr_40px] gap-3.5 px-4 py-3.5 rounded-t-2xl border-b border-black/[0.08] dark:border-white/10 bg-[#fbfbfd] dark:bg-[#1a1a20]">
+        <div className="text-[12px] font-extrabold uppercase tracking-wide text-[#1d1d1f] dark:text-[#f5f5f7] truncate">
+          Số PO / Nhà cung cấp
+        </div>
+        <div className="text-[12px] font-extrabold uppercase tracking-wide text-[#1d1d1f] dark:text-[#f5f5f7] truncate">
+          Hạn giao hàng
+        </div>
+        <div className="text-[12px] font-extrabold uppercase tracking-wide text-[#1d1d1f] dark:text-[#f5f5f7] truncate">
+          Kho tiếp nhận
+        </div>
+        <div className="text-[12px] font-extrabold uppercase tracking-wide text-[#1d1d1f] dark:text-[#f5f5f7] truncate text-right pr-2">
+          Giá trị đơn
+        </div>
+        <div className="text-[12px] font-extrabold uppercase tracking-wide text-[#1d1d1f] dark:text-[#f5f5f7] truncate">
+          Tiến độ
+        </div>
+        <div className="text-[12px] font-extrabold uppercase tracking-wide text-[#1d1d1f] dark:text-[#f5f5f7] truncate">
+          Trạng thái
+        </div>
+        <div />
       </div>
 
       {/* Rows */}
@@ -174,35 +185,37 @@ export const POListTable: React.FC<POListTableProps> = ({
             <div
               key={po.id}
               className={cn(
-                'grid grid-cols-[2fr_1.5fr_1fr_1.2fr_1fr_1.4fr_52px] gap-3 px-4 py-3.5 items-center group hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors duration-150 po-row-enter cursor-pointer select-none',
-                isOverdue && 'bg-red-50/50 dark:bg-red-500/[0.03]',
-                isUrgent && !isOverdue && 'bg-amber-50/50 dark:bg-amber-500/[0.03]',
+                'grid grid-cols-[2.5fr_1.3fr_1.4fr_1.3fr_1.1fr_1.4fr_40px] gap-3.5 px-4 py-3.5 items-center group hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors duration-150 po-row-enter cursor-pointer select-none',
+                isOverdue && 'bg-red-50/40 dark:bg-red-500/[0.03]',
+                isUrgent && !isOverdue && 'bg-amber-50/40 dark:bg-amber-500/[0.03]',
                 quickStatusPO === po.id ? 'relative z-30 ring-1 ring-[#0088FF]/30 dark:ring-[#0A84FF]/30 shadow-xs' : 'relative z-1'
               )}
               style={{ animationDelay: `${idx * 20}ms` }}
               onClick={() => onViewDetail(po)}
             >
               {/* Col 1: PO number + supplier */}
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
+              <div className="min-w-0 pr-2">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[13.5px] font-extrabold text-[#1d1d1f] dark:text-white tracking-tight">
+                    {po.po_number || <span className="text-[#86868b] italic font-normal">Chưa có số PO</span>}
+                  </span>
                   {isOverdue && (
-                    <span className="text-red-500 shrink-0" title="Đã quá hạn giao hàng">
-                      <SFExclamationmarkTriangleFill size={13} className="animate-pulse" />
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 text-[10.5px] font-bold">
+                      <SFExclamationmarkTriangleFill size={10} className="animate-pulse" />
+                      <span>Trễ hạn</span>
                     </span>
                   )}
                   {isUrgent && !isOverdue && (
-                    <span className="text-amber-500 shrink-0" title="Sắp đến hạn giao hàng">
-                      <SFClockFill size={13} />
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 text-[10.5px] font-bold">
+                      <SFClockFill size={10} />
+                      <span>Sắp tới</span>
                     </span>
                   )}
-                  <span className="text-[13.5px] font-bold text-[#1d1d1f] dark:text-white truncate">
-                    {po.po_number || <span className="text-[#999] italic font-normal">Chưa có số PO</span>}
-                  </span>
                 </div>
-                <div className="text-[12px] font-medium text-[#555558] dark:text-[#a1a1a6] truncate mt-0.5">
+                <div className="text-[12px] font-medium text-[#555558] dark:text-[#a1a1a6] truncate mt-0.5" title={po.supplier_name || ''}>
                   {po.supplier_name || po.supplier_code || '—'}
                   {po.supplier_code && po.supplier_name && (
-                    <span className="text-[#999] ml-1">({po.supplier_code})</span>
+                    <span className="text-[#86868b] font-mono text-[11px] ml-1 font-normal">[{po.supplier_code}]</span>
                   )}
                 </div>
               </div>
@@ -210,15 +223,15 @@ export const POListTable: React.FC<POListTableProps> = ({
               {/* Col 2: Delivery date */}
               <div className="min-w-0">
                 <div className={cn(
-                  'text-[12.5px] font-semibold tabular-nums',
-                  isOverdue ? 'text-red-600 dark:text-red-400 font-bold' : isUrgent ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-[#1d1d1f] dark:text-white'
+                  'text-[12.5px] font-bold tabular-nums',
+                  isOverdue ? 'text-rose-600 dark:text-rose-400' : isUrgent ? 'text-amber-600 dark:text-amber-400' : 'text-[#1d1d1f] dark:text-white'
                 )}>
                   {formatDate(po.expected_delivery_date)}
                 </div>
                 {daysLeft !== null && !['received', 'cancelled'].includes(po.status) && (
                   <div className={cn(
-                    'text-[11px] font-medium mt-0.5',
-                    isOverdue ? 'text-red-500 dark:text-red-400' : isUrgent ? 'text-amber-500 dark:text-amber-400' : 'text-[#86868b]'
+                    'text-[11px] font-semibold mt-0.5',
+                    isOverdue ? 'text-rose-500 dark:text-rose-400' : isUrgent ? 'text-amber-600 dark:text-amber-400' : 'text-[#86868b]'
                   )}>
                     {isOverdue ? `Trễ ${Math.abs(daysLeft)} ngày` : daysLeft === 0 ? 'Hôm nay' : `Còn ${daysLeft} ngày`}
                   </div>
@@ -226,18 +239,31 @@ export const POListTable: React.FC<POListTableProps> = ({
               </div>
 
               {/* Col 3: Warehouse */}
-              <div className="text-[12.5px] font-medium text-[#1d1d1f] dark:text-white truncate">
-                {po.warehouse || '—'}
+              <div className="min-w-0 pr-1">
+                <div className="text-[12.5px] font-semibold text-[#1d1d1f] dark:text-white truncate" title={po.warehouse || ''}>
+                  {po.warehouse || '—'}
+                </div>
+                {po.folder_name && (
+                  <div className="text-[11px] font-medium text-[#86868b] truncate mt-0.5">
+                    {po.folder_name}
+                  </div>
+                )}
               </div>
 
-              {/* Col 4: Total value */}
-              <div className="text-[12.5px] font-bold text-[#1d1d1f] dark:text-white tabular-nums">
-                {po.total_value ? formatVND(po.total_value) : '—'}
-                {po.total_value && <span className="text-[10px] text-[#86868b] ml-1 font-normal">{po.currency}</span>}
+              {/* Col 4: Total value (full exact amount) */}
+              <div className="text-right pr-2 min-w-0">
+                <div className="text-[13px] font-extrabold text-[#1d1d1f] dark:text-white tabular-nums tracking-tight">
+                  {po.total_value ? formatExactVND(po.total_value) : '—'}
+                </div>
+                {po.items && po.items.length > 0 && (
+                  <div className="text-[11px] font-medium text-[#86868b] mt-0.5">
+                    {po.items.length} mặt hàng
+                  </div>
+                )}
               </div>
 
               {/* Col 5: Progress */}
-              <div className="min-w-0">
+              <div className="min-w-0 pr-2">
                 {po.item_count || po.items ? (
                   <POProgressBar
                     status={po.status}

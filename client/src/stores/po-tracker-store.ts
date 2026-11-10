@@ -4,6 +4,7 @@ import {
   POFolderItem,
   POTrackerStats,
   POStatus,
+  POFilterStatus,
 } from '@/types/po-tracker';
 
 interface POTrackerState {
@@ -11,7 +12,7 @@ interface POTrackerState {
   pos: POTrackerPO[];
   stats: POTrackerStats | null;
   activeFolderId: string | null; // null = "Tất cả"
-  activeStatus: POStatus | null;
+  activeStatus: POFilterStatus | null;
   search: string;
   loading: boolean;
   detailPO: POTrackerPO | null;
@@ -22,7 +23,7 @@ interface POTrackerState {
   setPos: (pos: POTrackerPO[]) => void;
   setStats: (stats: POTrackerStats) => void;
   setActiveFolderId: (id: string | null) => void;
-  setActiveStatus: (status: POStatus | null) => void;
+  setActiveStatus: (status: POFilterStatus | null) => void;
   setSearch: (q: string) => void;
   setLoading: (v: boolean) => void;
   setDetailPO: (po: POTrackerPO | null) => void;
