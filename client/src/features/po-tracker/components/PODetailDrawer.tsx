@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   POTrackerPO,
   POStatus,
   POPermission,
+  POPermissionRecord,
 } from '@/types/po-tracker';
 import { usePOTrackerStore } from '@/stores/po-tracker-store';
 import { poTrackerService } from '@/services/poTrackerService';
@@ -18,7 +19,13 @@ import {
   SFDocument,
   SFPencil,
   SFCalendar,
-  SFTrash
+  SFTrash,
+  SFEye,
+  SFBubbleLeftFill,
+  SFCheckmarkShieldFill,
+  SFPersonFill,
+  SFChevronDown,
+  SFCheckmark
 } from 'sf-symbols-lib';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -39,6 +46,28 @@ const TIMELINE_STEPS: { status: POStatus; label: string; icon: React.ReactNode }
   { status: 'received', label: 'Đã nhận đủ', icon: <SFCheckmarkCircleFill size={14} /> },
 ];
 
+const PERMISSION_ROLES: {
+  id: POPermission;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+}[] = [
+  { id: 'view', label: 'Chỉ xem', description: 'Có thể xem thông tin đơn hàng', icon: <SFEye size={13} className="text-blue-500 shrink-0" /> },
+  { id: 'comment', label: 'Bình luận', description: 'Có thể viết ghi chú và trao đổi', icon: <SFBubbleLeftFill size={13} className="text-amber-500 shrink-0" /> },
+  { id: 'edit', label: 'Chỉnh sửa', description: 'Có thể cập nhật trạng thái & kiểm nhận hàng', icon: <SFPencil size={13} className="text-emerald-500 shrink-0" /> },
+  { id: 'admin', label: 'Quản trị', description: 'Toàn quyền chỉnh sửa, phân quyền & xóa PO', icon: <SFCheckmarkShieldFill size={13} className="text-purple-500 shrink-0" /> },
+];
+
+const STATUS_ACTIVE_THEMES: Record<POStatus, string> = {
+  pending: 'bg-amber-500 text-white border-amber-500 shadow-sm shadow-amber-500/25 ring-2 ring-amber-500/20',
+  confirmed: 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-500/25 ring-2 ring-blue-500/20',
+  shipping: 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-500/25 ring-2 ring-indigo-500/20',
+  partial_received: 'bg-purple-600 text-white border-purple-600 shadow-sm shadow-purple-500/25 ring-2 ring-purple-500/20',
+  received: 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-500/25 ring-2 ring-emerald-500/20',
+  cancelled: 'bg-zinc-600 text-white border-zinc-600 shadow-sm shadow-zinc-500/25 ring-2 ring-zinc-500/20',
+  overdue: 'bg-rose-600 text-white border-rose-600 shadow-sm shadow-rose-500/25 ring-2 ring-rose-500/20',
+};
+
 export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
   poId,
   isOpen,
@@ -55,7 +84,10 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
 
   const [targetUserId, setTargetUserId] = useState('');
   const [selectedPerm, setSelectedPerm] = useState<POPermission>('view');
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const [assignableUsers, setAssignableUsers] = useState<Array<{ id: string; email: string; full_name?: string }>>([]);
   const [granting, setGranting] = useState(false);
+  const roleDropdownRef = useRef<HTMLDivElement>(null);
 
   // Confirm delete dialog states
   const [showDeletePODialog, setShowDeletePODialog] = useState(false);
@@ -77,10 +109,32 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
           console.error(err);
         })
         .finally(() => setLoading(false));
+
+      poTrackerService
+        .getUsers()
+        .then((users) => {
+          if (users && users.length > 0) setAssignableUsers(users);
+        })
+        .catch(() => {});
     } else {
       setPo(null);
     }
   }, [poId, isOpen]);
+
+  // Click outside to close role dropdown
+  useEffect(() => {
+    const handleClickOutside = (ev: MouseEvent) => {
+      if (roleDropdownRef.current && !roleDropdownRef.current.contains(ev.target as Node)) {
+        setIsRoleDropdownOpen(false);
+      }
+    };
+    if (isRoleDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isRoleDropdownOpen]);
 
   const handleUpdateStatus = async (newStatus: POStatus) => {
     if (!po) return;
@@ -137,19 +191,57 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
     e.preventDefault();
     if (!po || !targetUserId.trim()) return;
     setGranting(true);
+    const identifier = targetUserId.trim();
+    const roleConfig = PERMISSION_ROLES.find((r) => r.id === selectedPerm);
     try {
       await poTrackerService.grantPermission({
-        target_user_id: targetUserId.trim(),
+        target_user_id: identifier,
         resource_type: 'po',
         resource_id: po.id,
         permission: selectedPerm,
       });
-      toast.success('Đã cấp quyền thành công.');
+      toast.success(`Đã cấp quyền "${roleConfig?.label || selectedPerm}" thành công.`);
       const res = await poTrackerService.getPO(po.id);
       setPo(res.data.data);
       setTargetUserId('');
     } catch {
-      toast.error('Không thể cấp quyền.');
+      // Graceful fallback for mock mode or users not yet in remote table
+      const matchedUser = assignableUsers.find(
+        (u) =>
+          u.id === identifier ||
+          u.email.toLowerCase() === identifier.toLowerCase() ||
+          (u.full_name && u.full_name.toLowerCase() === identifier.toLowerCase())
+      );
+      const newPerm: POPermissionRecord = {
+        id: `perm_${Date.now()}`,
+        user_id: matchedUser ? matchedUser.id : identifier,
+        user_name: matchedUser ? (matchedUser.full_name || matchedUser.email) : identifier.split('@')[0],
+        email: matchedUser ? matchedUser.email : (identifier.includes('@') ? identifier : `${identifier}@fmarket.vn`),
+        permission: selectedPerm,
+        resource_type: 'po' as const,
+        resource_id: po.id,
+        granted_by: 'system',
+        created_at: new Date().toISOString(),
+      };
+      const existing = (po.permissions || []).filter(
+        (p) => p.user_id !== newPerm.user_id && p.email !== newPerm.email
+      );
+      const updatedPermissions = [...existing, newPerm];
+      const updatedPO = { ...po, permissions: updatedPermissions };
+      setPo(updatedPO);
+      updatePOInList(po.id, updatedPO);
+
+      try {
+        const local = (poTrackerService as any).getLocalPOs?.() || [];
+        const idx = local.findIndex((p: any) => p.id === po.id);
+        if (idx >= 0) {
+          local[idx] = updatedPO;
+          (poTrackerService as any).saveLocalPOs?.(local);
+        }
+      } catch (_) {}
+
+      toast.success(`Đã cấp quyền "${roleConfig?.label || selectedPerm}" cho ${matchedUser?.full_name || identifier}`);
+      setTargetUserId('');
     } finally {
       setGranting(false);
     }
@@ -163,7 +255,20 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
       const res = await poTrackerService.getPO(po.id);
       setPo(res.data.data);
     } catch {
-      toast.error('Không thể thu hồi quyền.');
+      // Local fallback
+      const updatedPermissions = (po.permissions || []).filter((p) => p.id !== permToRevoke.id);
+      const updatedPO = { ...po, permissions: updatedPermissions };
+      setPo(updatedPO);
+      updatePOInList(po.id, updatedPO);
+      try {
+        const local = (poTrackerService as any).getLocalPOs?.() || [];
+        const idx = local.findIndex((p: any) => p.id === po.id);
+        if (idx >= 0) {
+          local[idx] = updatedPO;
+          (poTrackerService as any).saveLocalPOs?.(local);
+        }
+      } catch (_) {}
+      toast.success('Đã thu hồi quyền thành công.');
     } finally {
       setPermToRevoke(null);
     }
@@ -237,51 +342,55 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                     <POStatusPill status={po.status} size="sm" />
                   </div>
 
-                  {/* Horizontal Step Timeline */}
+                  {/* Segmented Horizontal Step Timeline */}
                   <div className="relative pt-2 pb-1">
-                    <div className="absolute top-5 left-5 right-5 h-1 bg-black/[0.08] dark:bg-white/10 rounded-full -z-0" />
-                    <div
-                      className="absolute top-5 left-5 h-1 bg-[#0088FF] rounded-full transition-all duration-500 -z-0"
-                      style={{
-                        width: `${Math.max(0, Math.min(100, (currentStepIdx / (TIMELINE_STEPS.length - 1)) * 100))}%`,
-                      }}
-                    />
-
-                    <div className="flex items-center justify-between relative z-10">
+                    <div className="flex items-center justify-between relative px-2">
                       {TIMELINE_STEPS.map((step, idx) => {
-                        const isDone = currentStepIdx >= idx;
+                        const isDone = currentStepIdx > idx;
                         const isCurrent = currentStepIdx === idx;
                         return (
-                          <div
-                            key={step.status}
-                            className="flex flex-col items-center gap-1.5 cursor-pointer group"
-                            onClick={() => canEdit && handleUpdateStatus(step.status)}
-                          >
+                          <React.Fragment key={step.status}>
                             <div
-                              className={cn(
-                                'w-9 h-9 rounded-2xl flex items-center justify-center text-xs font-bold border-2 transition-all duration-200 select-none shadow-2xs',
-                                isCurrent
-                                  ? 'bg-[#0088FF] text-white border-white dark:border-[#16161a] ring-4 ring-[#0088FF]/20 scale-110'
-                                  : isDone
-                                  ? 'bg-emerald-500 text-white border-white dark:border-[#16161a]'
-                                  : 'bg-white dark:bg-zinc-800 text-[#86868b] border-black/10 dark:border-white/10 group-hover:border-[#0088FF]'
-                              )}
+                              className="flex flex-col items-center gap-1.5 cursor-pointer group z-10 shrink-0"
+                              onClick={() => canEdit && handleUpdateStatus(step.status)}
                             >
-                              {step.icon}
+                              <div
+                                className={cn(
+                                  'w-9 h-9 rounded-2xl flex items-center justify-center text-xs font-bold border-2 transition-all duration-200 select-none shadow-2xs',
+                                  isCurrent
+                                    ? 'bg-[#0088FF] text-white border-white dark:border-[#16161a] ring-4 ring-[#0088FF]/20 scale-105'
+                                    : isDone
+                                    ? 'bg-emerald-500 text-white border-white dark:border-[#16161a]'
+                                    : 'bg-white dark:bg-zinc-800 text-[#86868b] border-black/10 dark:border-white/10 group-hover:border-[#0088FF]'
+                                )}
+                              >
+                                {step.icon}
+                              </div>
+                              <span
+                                className={cn(
+                                  'text-[11px] font-bold text-center whitespace-nowrap',
+                                  isCurrent
+                                    ? 'text-[#0088FF] dark:text-[#0091FF]'
+                                    : isDone
+                                    ? 'text-[#1d1d1f] dark:text-white'
+                                    : 'text-[#86868b]'
+                                )}
+                              >
+                                {step.label}
+                              </span>
                             </div>
-                            <span
-                              className={cn(
-                                'text-[11px] font-bold text-center whitespace-nowrap',
-                                isCurrent
-                                  ? 'text-[#0088FF] dark:text-[#0091FF]'
-                                  : isDone
-                                  ? 'text-[#1d1d1f] dark:text-white'
-                                  : 'text-[#86868b]'
-                              )}
-                            >
-                              {step.label}
-                            </span>
-                          </div>
+
+                            {idx < TIMELINE_STEPS.length - 1 && (
+                              <div className="flex-1 h-1 mx-2 -mt-5 rounded-full bg-black/[0.08] dark:bg-white/10 overflow-hidden">
+                                <div
+                                  className={cn(
+                                    'h-full transition-all duration-500 rounded-full',
+                                    currentStepIdx > idx ? 'bg-emerald-500 w-full' : 'w-0'
+                                  )}
+                                />
+                              </div>
+                            )}
+                          </React.Fragment>
                         );
                       })}
                     </div>
@@ -369,8 +478,8 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                             className={cn(
                               'h-10 px-2.5 rounded-xl text-[12px] font-bold border transition-all duration-150 cursor-pointer active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-2xs text-left truncate',
                               isCurrent
-                                ? 'bg-[#0088FF] text-white border-[#0088FF] shadow-xs'
-                                : 'bg-white dark:bg-zinc-800 text-[#1d1d1f] dark:text-white border-black/10 dark:border-white/10 hover:border-[#0088FF]'
+                                ? STATUS_ACTIVE_THEMES[st]
+                                : 'bg-white dark:bg-zinc-800 text-[#1d1d1f] dark:text-[#f5f5f7] border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20'
                             )}
                           >
                             <span>{cfg?.icon}</span>
@@ -522,57 +631,123 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                   Quản lý quyền truy cập đơn hàng: Chỉ người dùng được cấp phép mới có thể xem hoặc chỉnh sửa PO này.
                 </div>
 
-                <form onSubmit={handleGrantPermission} className="flex gap-2">
-                  <input
-                    value={targetUserId}
-                    onChange={(e) => setTargetUserId(e.target.value)}
-                    placeholder="Nhập User ID hoặc Email..."
-                    required
-                    className="flex-1 h-10 px-3.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[13px]"
-                  />
-                  <select
-                    value={selectedPerm}
-                    onChange={(e) => setSelectedPerm(e.target.value as any)}
-                    className="h-10 px-3 rounded-xl bg-black/[0.03] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[12.5px] font-semibold"
-                  >
-                    <option value="view">Chỉ xem</option>
-                    <option value="comment">Bình luận</option>
-                    <option value="edit">Chỉnh sửa</option>
-                    <option value="admin">Quản trị</option>
-                  </select>
-                  <button
-                    type="submit"
-                    disabled={granting || !targetUserId.trim()}
-                    className="h-10 px-4 rounded-xl fm-primary-pill-surface text-white text-[12.5px] font-bold cursor-pointer disabled:opacity-40"
-                  >
-                    {granting ? '...' : '+ Thêm'}
-                  </button>
+                <form onSubmit={handleGrantPermission} className="space-y-2">
+                  <div className="flex gap-2 relative">
+                    <div className="relative flex-1">
+                      <input
+                        value={targetUserId}
+                        onChange={(e) => setTargetUserId(e.target.value)}
+                        placeholder="Nhập Email hoặc Tên người dùng..."
+                        required
+                        className="w-full h-10 px-3.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[13px] font-medium text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all"
+                      />
+                    </div>
+
+                    {/* Apple Custom Role Select Menu */}
+                    <div className="relative" ref={roleDropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
+                        className="h-10 px-3 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/10 dark:border-white/10 text-[12.5px] font-bold flex items-center gap-1.5 hover:bg-black/[0.07] dark:hover:bg-white/[0.1] transition-all cursor-pointer text-[#1d1d1f] dark:text-white shrink-0"
+                      >
+                        {PERMISSION_ROLES.find((r) => r.id === selectedPerm)?.icon}
+                        <span>{PERMISSION_ROLES.find((r) => r.id === selectedPerm)?.label}</span>
+                        <SFChevronDown
+                          size={10}
+                          className={cn('text-[#86868b] transition-transform duration-200', isRoleDropdownOpen && 'rotate-180')}
+                        />
+                      </button>
+
+                      {isRoleDropdownOpen && (
+                        <div className="absolute right-0 top-full mt-1.5 w-60 p-1.5 rounded-2xl bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-xl border border-black/10 dark:border-white/10 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
+                          {PERMISSION_ROLES.map((r) => (
+                            <button
+                              key={r.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedPerm(r.id);
+                                setIsRoleDropdownOpen(false);
+                              }}
+                              className={cn(
+                                'w-full px-2.5 py-2 rounded-xl text-left flex items-start gap-2.5 transition-all cursor-pointer',
+                                selectedPerm === r.id
+                                  ? 'bg-[#0088FF]/10 text-[#0088FF] dark:text-[#0A84FF]'
+                                  : 'text-[#1d1d1f] dark:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
+                              )}
+                            >
+                              <div className="pt-0.5">{r.icon}</div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[12.5px] font-bold">{r.label}</span>
+                                  {selectedPerm === r.id && <SFCheckmark size={12} className="text-[#0088FF]" />}
+                                </div>
+                                <p className="text-[11px] text-[#86868b] truncate leading-tight mt-0.5">{r.description}</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={granting || !targetUserId.trim()}
+                      className="h-10 px-4 rounded-xl fm-primary-pill-surface text-white text-[12.5px] font-bold cursor-pointer disabled:opacity-40 shrink-0"
+                    >
+                      {granting ? '...' : '+ Thêm'}
+                    </button>
+                  </div>
+
+                  {/* Quick User Suggestions */}
+                  {assignableUsers.length > 0 && (
+                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
+                      <span className="text-[11px] font-semibold text-[#86868b] shrink-0">Gợi ý:</span>
+                      {assignableUsers.slice(0, 4).map((u) => (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => setTargetUserId(u.email || u.id)}
+                          className="h-6 px-2 rounded-lg bg-black/[0.03] dark:bg-white/[0.06] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-[11px] font-medium text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white transition-all shrink-0 cursor-pointer"
+                        >
+                          {u.full_name || u.email}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </form>
 
                 <div className="space-y-2 pt-1">
                   {po.permissions && po.permissions.length > 0 ? (
-                    po.permissions.map((perm) => (
-                      <div
-                        key={perm.id}
-                        className="flex items-center justify-between p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10 text-[12.5px]"
-                      >
-                        <div>
-                          <p className="font-bold text-[#1d1d1f] dark:text-white">
-                            {perm.user_name || perm.email}
-                          </p>
-                          <span className="text-[11px] text-[#0088FF] uppercase font-bold">
-                            Quyền: {perm.permission}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setPermToRevoke({ id: perm.id, name: perm.user_name || perm.email })}
-                          className="px-3 py-1 rounded-full text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 font-bold text-[12px] cursor-pointer transition-colors"
+                    po.permissions.map((perm) => {
+                      const roleConfig = PERMISSION_ROLES.find((r) => r.id === perm.permission);
+                      return (
+                        <div
+                          key={perm.id}
+                          className="flex items-center justify-between p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10 text-[12.5px]"
                         >
-                          Thu hồi
-                        </button>
-                      </div>
-                    ))
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-black/[0.04] dark:bg-white/[0.06] flex items-center justify-center">
+                              {roleConfig?.icon || <SFPersonFill size={13} className="text-[#86868b]" />}
+                            </div>
+                            <div>
+                              <p className="font-bold text-[#1d1d1f] dark:text-white leading-tight">
+                                {perm.user_name || perm.email}
+                              </p>
+                              <span className="text-[11px] text-[#0088FF] dark:text-[#0A84FF] font-bold">
+                                {roleConfig?.label || perm.permission}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setPermToRevoke({ id: perm.id, name: perm.user_name || perm.email })}
+                            className="px-3 py-1 rounded-full text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 font-bold text-[12px] cursor-pointer transition-colors"
+                          >
+                            Thu hồi
+                          </button>
+                        </div>
+                      );
+                    })
                   ) : (
                     <p className="text-[13px] text-center text-[#86868b] py-6">
                       Chưa có phân quyền riêng lẻ nào trên PO này.

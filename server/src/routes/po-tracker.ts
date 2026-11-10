@@ -674,6 +674,15 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
   });
 
   /**
+   * GET /users — List assignable active users for permissions
+   */
+  fastify.get('/users', async (request: any, reply) => {
+    const db = getDb();
+    const users = await db.prepare('SELECT id, email, full_name, role FROM users WHERE is_active = 1 ORDER BY full_name ASC').all() as any[];
+    return { success: true, data: users };
+  });
+
+  /**
    * POST /permissions — Grant permission to a user
    */
   fastify.post('/permissions', async (request: any, reply) => {
@@ -701,16 +710,27 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
       }
     }
 
-    // Verify target user exists
-    const targetUser = await db.prepare('SELECT id FROM users WHERE id = ?').get(target_user_id);
-    if (!targetUser) return reply.code(404).send({ success: false, message: 'Không tìm thấy người dùng.' });
+    // Verify target user exists by ID, email or full name
+    const cleanTarget = String(target_user_id).trim();
+    const targetUser = await db.prepare(`
+      SELECT id, email, full_name FROM users
+      WHERE id = ? OR LOWER(email) = LOWER(?) OR LOWER(full_name) = LOWER(?)
+    `).get(cleanTarget, cleanTarget, cleanTarget) as any;
 
+    if (!targetUser) {
+      return reply.code(404).send({
+        success: false,
+        message: `Không tìm thấy tài khoản với "${cleanTarget}". Hãy đảm bảo người dùng đã tạo tài khoản.`
+      });
+    }
+
+    const actualTargetId = targetUser.id;
     const now = new Date().toISOString();
 
     // Upsert: if permission exists, update it
     const existing = await db.prepare(`
       SELECT id FROM po_tracker_permissions WHERE user_id = ? AND resource_type = ? AND resource_id IS ?
-    `).get(target_user_id, resource_type, resource_id || null) as any;
+    `).get(actualTargetId, resource_type, resource_id || null) as any;
 
     if (existing) {
       await db.prepare(`UPDATE po_tracker_permissions SET permission = ?, granted_by = ?, created_at = ? WHERE id = ?`).run(permission, userId, now, existing.id);
@@ -718,10 +738,10 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
       await db.prepare(`
         INSERT INTO po_tracker_permissions (id, user_id, resource_type, resource_id, permission, granted_by, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(uuidv4(), target_user_id, resource_type, resource_id || null, permission, userId, now);
+      `).run(uuidv4(), actualTargetId, resource_type, resource_id || null, permission, userId, now);
     }
 
-    return { success: true, message: 'Đã cấp quyền thành công.' };
+    return { success: true, message: `Đã cấp quyền cho ${targetUser.full_name || targetUser.email} thành công.` };
   });
 
   /**
