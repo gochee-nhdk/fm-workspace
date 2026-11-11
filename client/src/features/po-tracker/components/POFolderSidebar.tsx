@@ -9,7 +9,7 @@ import {
   SFPencil,
   SFTrash,
   SFShippingbox,
-  SFListBullet
+  SFArchiveboxFill
 } from 'sf-symbols-lib';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -86,42 +86,43 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
     <>
       <aside
         className={cn(
-          'flex flex-col h-full bg-white/60 dark:bg-[#16161c]/60 backdrop-blur-2xl border-r border-black/[0.08] dark:border-white/10 transition-[width] duration-200 ease-spring shrink-0 z-10',
+          'flex flex-col h-full glass-material border-r border-black/5 dark:border-white/10 transition-[width] duration-200 ease-spring shrink-0 z-10',
           collapsed ? 'w-[68px]' : 'w-[230px]'
         )}
       >
         {/* Header */}
         {!collapsed && (
-          <div className="px-4 pt-4 pb-2 shrink-0">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white">
-              Nhóm PO
+          <div className="px-4 pt-4 pb-2.5 shrink-0 flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#86868b] dark:text-[#a1a1a6]">
+              Nhóm đơn PO
             </span>
           </div>
         )}
 
         {/* Navigation list */}
-        <nav className="flex-1 overflow-y-auto px-2 py-1 space-y-1 scrollbar-none">
+        <nav className="flex-1 overflow-y-auto px-2 py-1.5 space-y-1 scrollbar-none">
           {/* "Tất cả" */}
           <button
             onClick={() => handleSelect(null)}
             className={cn(
-              'w-full flex items-center gap-2.5 px-3 h-10 rounded-xl text-[13px] font-semibold transition-all duration-150 cursor-pointer active:scale-[0.98] text-left select-none',
+              'w-full flex items-center gap-2.5 px-3 h-10 rounded-xl text-[13px] font-medium transition-all duration-150 cursor-pointer active:scale-[0.98] text-left select-none',
               activeFolderId === null
-                ? 'bg-[#007AFF]/12 dark:bg-[#0A84FF]/20 text-[#007AFF] dark:text-[#0A84FF]'
+                ? 'bg-[#0066cc]/10 dark:bg-[#0066cc]/20 text-[#0066cc] dark:text-[#2997ff] font-semibold border border-[#0066cc]/20 shadow-2xs'
                 : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
             )}
+            title={collapsed ? 'Tất cả đơn PO' : undefined}
           >
-            <SFShippingbox size={16} className={cn('shrink-0', activeFolderId === null ? 'text-[#007AFF] dark:text-[#0A84FF]' : 'text-[#76767b] dark:text-[#8e8e93]')} />
+            <SFShippingbox size={16} className={cn('shrink-0', activeFolderId === null ? 'text-[#0066cc] dark:text-[#2997ff]' : 'text-[#76767b] dark:text-[#8e8e93]')} />
             {!collapsed && (
               <>
                 <span className="flex-1 truncate">Tất cả đơn PO</span>
                 {stats && (
                   <span
                     className={cn(
-                      'text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center tabular-nums',
+                      'rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums min-w-[20px] text-center transition-colors',
                       activeFolderId === null
-                        ? 'bg-[#007AFF]/20 text-[#007AFF] dark:text-[#0A84FF]'
-                        : 'bg-black/[0.06] dark:bg-white/[0.08] text-[#555558] dark:text-[#a1a1a6]'
+                        ? 'bg-[#0066cc]/15 text-[#0066cc] dark:text-[#2997ff]'
+                        : 'bg-black/5 dark:bg-white/10 text-[#86868b] dark:text-[#a1a1a6]'
                     )}
                   >
                     {stats.total}
@@ -138,17 +139,18 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
                 setActiveStatus(activeStatus === 'overdue' ? null : 'overdue');
               }}
               className={cn(
-                'w-full flex items-center gap-2.5 px-3 h-10 rounded-xl text-[13px] font-semibold transition-all duration-150 cursor-pointer active:scale-[0.98] text-left select-none',
+                'w-full flex items-center gap-2.5 px-3 h-10 rounded-xl text-[13px] font-medium transition-all duration-150 cursor-pointer active:scale-[0.98] text-left select-none',
                 activeStatus === 'overdue'
-                  ? 'bg-red-50 dark:bg-red-500/20 text-red-600 dark:text-red-400 ring-1.5 ring-red-400/40 shadow-2xs font-bold'
-                  : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10'
+                  ? 'bg-rose-500/10 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-semibold border border-rose-500/30 shadow-2xs'
+                  : 'text-rose-600 dark:text-rose-400 hover:bg-rose-500/10'
               )}
+              title={collapsed ? `Quá hạn (${totalOverdue})` : undefined}
             >
-              <SFExclamationmarkTriangleFill size={16} className="shrink-0 text-red-500 animate-pulse" />
+              <SFExclamationmarkTriangleFill size={16} className="shrink-0 text-rose-500 animate-pulse" />
               {!collapsed && (
                 <>
-                  <span className="flex-1 truncate">Quá hạn</span>
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-500/15 text-red-600 dark:text-red-400 min-w-[20px] text-center tabular-nums">
+                  <span className="flex-1 truncate font-medium">Quá hạn</span>
+                  <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums min-w-[20px] text-center bg-rose-500/15 text-rose-600 dark:text-rose-400">
                     {totalOverdue}
                   </span>
                 </>
@@ -158,7 +160,7 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
 
           {/* Divider */}
           {!collapsed && safeFolders.length > 0 && (
-            <div className="h-px bg-black/[0.06] dark:border-white/10 mx-2 my-1.5" />
+            <div className="h-px bg-black/[0.06] dark:bg-white/[0.08] mx-2 my-1.5" />
           )}
 
           {/* Folder list */}
@@ -177,9 +179,9 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
                 <button
                   onClick={() => handleSelect(folder.id)}
                   className={cn(
-                    'w-full flex items-center gap-2.5 px-3 h-10 rounded-xl text-[13px] font-semibold transition-all duration-150 cursor-pointer active:scale-[0.98] text-left select-none',
+                    'w-full flex items-center gap-2.5 px-3 h-10 rounded-xl text-[13px] font-medium transition-all duration-150 cursor-pointer active:scale-[0.98] text-left select-none',
                     isActive
-                      ? `${cfg.bg} ${cfg.text} ring-1.5 ${cfg.ring} shadow-2xs`
+                      ? `${cfg.bg} ${cfg.text} font-semibold ring-1.5 ${cfg.ring} shadow-2xs`
                       : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
                   )}
                   title={collapsed ? folder.name : undefined}
@@ -190,8 +192,8 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
                       <span className="flex-1 truncate">{folder.name}</span>
                       <span
                         className={cn(
-                          'text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center tabular-nums',
-                          isActive ? `${cfg.bg} ${cfg.text}` : 'bg-black/[0.06] dark:bg-white/[0.08] text-[#555558] dark:text-[#a1a1a6]'
+                          'rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums min-w-[20px] text-center transition-colors',
+                          isActive ? `${cfg.bg} ${cfg.text}` : 'bg-black/5 dark:bg-white/10 text-[#86868b] dark:text-[#a1a1a6]'
                         )}
                       >
                         {folder.po_count ?? 0}
@@ -202,10 +204,10 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
 
                 {/* Quick actions (edit/delete) on hover */}
                 {!collapsed && isHovered && (
-                  <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex gap-1 po-status-enter bg-white dark:bg-zinc-800 p-0.5 rounded-lg shadow-xs border border-black/10 dark:border-white/10">
+                  <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex gap-1 po-status-enter glass-material p-0.5 rounded-lg shadow-xs border border-black/5 dark:border-white/10">
                     <button
                       onClick={(e) => handleEdit(folder, e)}
-                      className="w-6 h-6 rounded-md flex items-center justify-center text-[#555558] dark:text-[#a1a1a6] hover:bg-black/[0.08] dark:hover:bg-white/[0.1] hover:text-[#1d1d1f] dark:hover:text-white transition-colors cursor-pointer"
+                      className="w-6 h-6 rounded-md flex items-center justify-center text-[#555558] dark:text-[#a1a1a6] hover:bg-black/5 dark:hover:bg-white/10 hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-colors cursor-pointer"
                       title="Chỉnh sửa nhóm"
                     >
                       <SFPencil size={11} />
@@ -213,7 +215,7 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
                     <button
                       onClick={(e) => handleDelete(folder, e)}
                       disabled={deletingId === folder.id}
-                      className="w-6 h-6 rounded-md flex items-center justify-center text-[#555558] dark:text-[#a1a1a6] hover:bg-red-50 dark:hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer disabled:opacity-40"
+                      className="w-6 h-6 rounded-md flex items-center justify-center text-[#555558] dark:text-[#a1a1a6] hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer disabled:opacity-40"
                       title="Xóa nhóm"
                     >
                       <SFTrash size={11} />
@@ -231,22 +233,22 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
               'w-full flex items-center gap-2.5 px-3 h-9 rounded-xl text-[12.5px] transition-all duration-150 cursor-pointer active:scale-[0.98] text-left select-none',
               collapsed && 'justify-center px-0',
               activeFolderId === 'unassigned'
-                ? 'bg-[#007AFF]/12 dark:bg-[#0A84FF]/20 text-[#007AFF] dark:text-[#0A84FF] font-semibold'
-                : 'text-[#555558] dark:text-[#a1a1a6] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium'
+                ? 'bg-[#0066cc]/10 dark:bg-[#0066cc]/20 text-[#0066cc] dark:text-[#2997ff] font-semibold border border-[#0066cc]/20 shadow-2xs'
+                : 'text-[#86868b] dark:text-[#a1a1a6] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium'
             )}
             title={collapsed ? `Chưa phân nhóm (${unassignedCount})` : undefined}
           >
-            <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', activeFolderId === 'unassigned' ? 'bg-[#007AFF] dark:bg-[#0A84FF]' : 'bg-zinc-400 dark:bg-zinc-600')} />
+            <SFArchiveboxFill size={14} className={cn('shrink-0', activeFolderId === 'unassigned' ? 'text-[#0066cc] dark:text-[#2997ff]' : 'text-zinc-400 dark:text-zinc-500')} />
             {!collapsed && (
               <>
                 <span className="flex-1 truncate">Chưa phân nhóm</span>
                 {stats && (
                   <span
                     className={cn(
-                      'text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center tabular-nums',
+                      'rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums min-w-[20px] text-center transition-colors',
                       activeFolderId === 'unassigned'
-                        ? 'bg-[#007AFF]/20 text-[#007AFF] dark:text-[#0A84FF]'
-                        : 'bg-black/[0.06] dark:bg-white/[0.08] text-[#555558] dark:text-[#a1a1a6]'
+                        ? 'bg-[#0066cc]/15 text-[#0066cc] dark:text-[#2997ff]'
+                        : 'bg-black/5 dark:bg-white/10 text-[#86868b] dark:text-[#a1a1a6]'
                     )}
                   >
                     {unassignedCount}
@@ -258,16 +260,16 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
         </nav>
 
         {/* Add Folder Button */}
-        <div className="p-2.5 border-t border-black/[0.08] dark:border-white/10 shrink-0">
+        <div className="p-2.5 border-t border-black/5 dark:border-white/10 shrink-0">
           <button
             onClick={() => { setEditingFolder(null); setFolderDrawerOpen(true); }}
             className={cn(
-              'w-full flex items-center gap-2 px-3 h-10 rounded-xl text-[12.5px] font-semibold text-[#0088FF] dark:text-[#0091FF] hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors cursor-pointer active:scale-[0.98]',
+              'w-full flex items-center gap-2 px-3 h-10 rounded-xl text-[13px] font-medium text-[#0066cc] dark:text-[#2997ff] glass-material hover:bg-white/80 dark:hover:bg-white/10 border border-black/5 dark:border-white/10 transition-all cursor-pointer active:scale-[0.98] shadow-2xs',
               collapsed && 'justify-center px-0'
             )}
             title={collapsed ? 'Thêm nhóm' : undefined}
           >
-            <SFPlus size={14} className="shrink-0" />
+            <SFPlus size={14} className="shrink-0 text-[#0066cc] dark:text-[#2997ff]" />
             {!collapsed && <span>Thêm nhóm</span>}
           </button>
         </div>

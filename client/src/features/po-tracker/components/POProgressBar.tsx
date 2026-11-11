@@ -35,27 +35,34 @@ export const POProgressBar: React.FC<POProgressBarProps> = ({
     pct = 100;
   }
 
-  const barColor =
+  // Smooth Apple gradients for Liquid Bar
+  const gradientClass =
     pct === 100
-      ? 'bg-emerald-500'
-      : pct >= 50
-      ? 'bg-blue-500'
+      ? 'bg-gradient-to-r from-emerald-500 to-teal-400 shadow-[0_1px_4px_rgba(16,185,129,0.3)]'
       : pct > 0
-      ? 'bg-amber-500'
-      : 'bg-zinc-300 dark:bg-zinc-600';
+      ? 'bg-gradient-to-r from-[#007AFF] via-[#0088FF] to-[#00C7BE] shadow-[0_1px_4px_rgba(0,122,255,0.25)]'
+      : 'bg-zinc-300 dark:bg-zinc-700';
 
-  const heightClass = size === 'sm' ? 'h-1' : 'h-1.5';
+  const heightClass = size === 'sm' ? 'h-2' : 'h-2.5';
 
   return (
-    <div className={cn('flex items-center gap-2', className)}>
-      <div className={cn('flex-1 rounded-full bg-black/[0.06] dark:bg-white/10 overflow-hidden', heightClass)}>
+    <div className={cn('flex items-center gap-2.5', className)}>
+      <div
+        className={cn(
+          'flex-1 rounded-full bg-black/[0.06] dark:bg-white/[0.08] backdrop-blur-xs p-[0.5px] overflow-hidden',
+          heightClass
+        )}
+      >
         <div
-          className={cn('h-full rounded-full transition-all duration-500 ease-out', barColor)}
+          className={cn(
+            'h-full rounded-full transition-all duration-500 ease-out',
+            gradientClass
+          )}
           style={{ width: `${pct}%` }}
         />
       </div>
       {showLabel && (
-        <span className="text-[11px] font-semibold tabular-nums text-[#555558] dark:text-[#a1a1a6] shrink-0 w-9 text-right">
+        <span className="text-[11.5px] font-semibold tabular-nums text-[#48484a] dark:text-[#a1a1a6] shrink-0 w-9 text-right">
           {pct}%
         </span>
       )}

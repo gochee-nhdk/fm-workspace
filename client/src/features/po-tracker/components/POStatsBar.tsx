@@ -22,27 +22,24 @@ const StatCard: React.FC<{
   value: number | string;
   icon: React.ReactNode;
   bg: string;
-  activeBorderColor: string;
-  activeTextColor: string;
-  activeGlow: string;
   onClick?: () => void;
   active?: boolean;
   pulse?: boolean;
-}> = ({ label, value, icon, bg, activeBorderColor, activeTextColor, activeGlow, onClick, active, pulse }) => (
+}> = ({ label, value, icon, bg, onClick, active, pulse }) => (
   <button
     onClick={onClick}
     type="button"
     className={cn(
-      'group relative flex items-center gap-3 px-4 py-2.5 rounded-2xl border-2 transition-all duration-200 ease-out cursor-pointer select-none text-left min-w-[145px]',
+      'group relative flex items-center gap-3 px-4 py-2.5 rounded-2xl transition-all duration-200 ease-out cursor-pointer select-none text-left min-w-[150px]',
       active
-        ? cn('bg-white dark:bg-[#1f1f26]', activeBorderColor, activeGlow, 'ring-2 ring-offset-1 ring-black/10 dark:ring-white/20 dark:ring-offset-[#16161c]')
-        : 'bg-white/80 dark:bg-[#1a1a20]/80 border-black/[0.08] dark:border-white/10 hover:bg-white dark:hover:bg-[#202028] hover:border-black/20 dark:hover:border-white/20 active:scale-[0.98]',
+        ? 'glass-material bg-white/95 dark:bg-[#1f1f26]/95 border-[#0066cc] dark:border-[#2997ff] ring-2 ring-[#0066cc]/30 dark:ring-[#2997ff]/40 ring-offset-1 ring-offset-white dark:ring-offset-[#16161c] shadow-[0_4px_20px_rgba(0,102,204,0.18)]'
+        : 'glass-material hover:bg-white/90 dark:hover:bg-white/10 border-black/5 dark:border-white/10 hover:border-black/15 dark:hover:border-white/20 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] shadow-xs',
       !onClick && 'cursor-default pointer-events-none'
     )}
   >
     <div
       className={cn(
-        'w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 shadow-2xs',
+        'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105 shadow-2xs',
         bg,
         pulse && 'animate-pulse'
       )}
@@ -52,16 +49,16 @@ const StatCard: React.FC<{
     <div className="min-w-0 pr-1">
       <div
         className={cn(
-          'text-[21px] font-black tracking-tight tabular-nums leading-none',
-          active ? activeTextColor : 'text-[#1d1d1f] dark:text-white'
+          'text-[22px] font-bold tracking-tight tabular-nums leading-none',
+          active ? 'text-[#0066cc] dark:text-[#2997ff]' : 'text-[#1d1d1f] dark:text-white'
         )}
       >
         {value}
       </div>
       <div
         className={cn(
-          'text-[12px] font-bold whitespace-nowrap mt-1 transition-colors',
-          active ? activeTextColor : 'text-[#555558] dark:text-[#a1a1a6]'
+          'text-[11.5px] font-medium whitespace-nowrap mt-1.5 transition-colors',
+          active ? 'text-[#0066cc] dark:text-[#2997ff] font-semibold' : 'text-[#86868b] dark:text-[#a1a1a6]'
         )}
       >
         {label}
@@ -78,11 +75,11 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
 }) => {
   if (loading && !stats) {
     return (
-      <div className="flex gap-2.5 overflow-x-auto scrollbar-none pb-1">
+      <div className="flex gap-2.5 overflow-x-auto scrollbar-none pb-1.5 pt-0.5">
         {[...Array(6)].map((_, i) => (
           <div
             key={i}
-            className="shrink-0 w-[145px] h-[64px] rounded-2xl bg-white/40 dark:bg-white/[0.04] border-2 border-black/[0.06] dark:border-white/[0.07] animate-pulse"
+            className="shrink-0 w-[150px] h-[66px] rounded-2xl glass-material border border-black/5 dark:border-white/10 animate-pulse"
           />
         ))}
       </div>
@@ -112,9 +109,6 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
     value: number;
     icon: React.ReactNode;
     bg: string;
-    activeBorderColor: string;
-    activeTextColor: string;
-    activeGlow: string;
     status: POFilterStatus | null;
     pulse?: boolean;
   }[] = [
@@ -122,11 +116,8 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
       key: 'all',
       label: 'Tổng đơn PO',
       value: s.total || 0,
-      icon: <SFShippingbox size={18} className="text-[#0088FF]" />,
-      bg: 'bg-blue-50 dark:bg-blue-500/10',
-      activeBorderColor: 'border-[#0088FF] dark:border-[#0A84FF]',
-      activeTextColor: 'text-[#0088FF] dark:text-[#0A84FF]',
-      activeGlow: 'shadow-[0_0_12px_rgba(0,136,255,0.18)]',
+      icon: <SFShippingbox size={18} className="text-[#0066cc] dark:text-[#2997ff]" />,
+      bg: 'bg-[#0066cc]/10 dark:bg-[#0066cc]/20',
       status: null,
     },
     {
@@ -134,10 +125,7 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
       label: 'Chờ xác nhận',
       value: s.pending || 0,
       icon: <SFClockFill size={18} className="text-amber-500" />,
-      bg: 'bg-amber-50 dark:bg-amber-500/10',
-      activeBorderColor: 'border-amber-500 dark:border-amber-400',
-      activeTextColor: 'text-amber-700 dark:text-amber-400',
-      activeGlow: 'shadow-[0_0_12px_rgba(245,158,11,0.18)]',
+      bg: 'bg-amber-500/10 dark:bg-amber-500/20',
       status: 'pending',
     },
     {
@@ -145,10 +133,7 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
       label: 'Đang giao hàng',
       value: s.shipping || 0,
       icon: <SFTray2Fill size={18} className="text-indigo-500" />,
-      bg: 'bg-indigo-50 dark:bg-indigo-500/10',
-      activeBorderColor: 'border-indigo-500 dark:border-indigo-400',
-      activeTextColor: 'text-indigo-700 dark:text-indigo-400',
-      activeGlow: 'shadow-[0_0_12px_rgba(99,102,241,0.18)]',
+      bg: 'bg-indigo-500/10 dark:bg-indigo-500/20',
       status: 'shipping',
     },
     {
@@ -156,10 +141,7 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
       label: 'Quá hạn giao',
       value: totalOverdue,
       icon: <SFExclamationmarkTriangleFill size={18} className="text-rose-500" />,
-      bg: 'bg-rose-50 dark:bg-rose-500/10',
-      activeBorderColor: 'border-rose-500 dark:border-rose-400',
-      activeTextColor: 'text-rose-600 dark:text-rose-400',
-      activeGlow: 'shadow-[0_0_12px_rgba(244,63,94,0.18)]',
+      bg: 'bg-rose-500/10 dark:bg-rose-500/20',
       status: 'overdue',
       pulse: totalOverdue > 0,
     },
@@ -168,10 +150,7 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
       label: 'Đã nhận đủ',
       value: s.received || 0,
       icon: <SFCheckmarkCircleFill size={18} className="text-emerald-500" />,
-      bg: 'bg-emerald-50 dark:bg-emerald-500/10',
-      activeBorderColor: 'border-emerald-500 dark:border-emerald-400',
-      activeTextColor: 'text-emerald-700 dark:text-emerald-400',
-      activeGlow: 'shadow-[0_0_12px_rgba(16,185,129,0.18)]',
+      bg: 'bg-emerald-500/10 dark:bg-emerald-500/20',
       status: 'received',
     },
     {
@@ -179,16 +158,13 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
       label: 'Hạn 7 ngày tới',
       value: s.upcoming_7_days || 0,
       icon: <SFCalendar size={18} className="text-purple-500" />,
-      bg: 'bg-purple-50 dark:bg-purple-500/10',
-      activeBorderColor: 'border-purple-500 dark:border-purple-400',
-      activeTextColor: 'text-purple-700 dark:text-purple-400',
-      activeGlow: 'shadow-[0_0_12px_rgba(168,85,247,0.18)]',
+      bg: 'bg-purple-500/10 dark:bg-purple-500/20',
       status: 'upcoming_7_days',
     },
   ];
 
   return (
-    <div className="flex gap-2.5 overflow-x-auto scrollbar-none pb-1">
+    <div className="flex gap-2.5 overflow-x-auto scrollbar-none pb-1.5 pt-0.5">
       {cards.map((card) => {
         const isCurrentActive =
           card.status === null
@@ -202,9 +178,6 @@ export const POStatsBar: React.FC<POStatsBarProps> = ({
               value={card.value}
               icon={card.icon}
               bg={card.bg}
-              activeBorderColor={card.activeBorderColor}
-              activeTextColor={card.activeTextColor}
-              activeGlow={card.activeGlow}
               active={isCurrentActive}
               pulse={card.pulse}
               onClick={() => {

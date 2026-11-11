@@ -266,11 +266,11 @@ export const POListTable: React.FC<POListTableProps> = ({
       {/* ============================================================== */}
       <div className="hidden lg:block overflow-visible">
         {/* Table header */}
-        <div className="grid grid-cols-[2.4fr_1.3fr_1.3fr_1.3fr_1.1fr_1.4fr_75px] gap-3 px-4 py-3 rounded-t-2xl border-b border-black/[0.08] dark:border-white/10 bg-[#fbfbfd] dark:bg-[#1a1a20]">
+        <div className="grid grid-cols-[2.4fr_1.3fr_1.3fr_1.3fr_1.2fr_1.4fr_80px] gap-3 px-4.5 py-3 rounded-t-2xl border-b border-black/[0.06] dark:border-white/10 bg-[#fbfbfd]/80 dark:bg-[#1a1a20]/80 backdrop-blur-md">
           <button
             type="button"
             onClick={() => handleSort('po_number')}
-            className="flex items-center text-[12px] font-extrabold uppercase tracking-wide text-[#1d1d1f] dark:text-[#f5f5f7] cursor-pointer group/header text-left select-none"
+            className="flex items-center text-[11.5px] font-semibold uppercase tracking-wider text-[#86868b] dark:text-[#98989d] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors cursor-pointer group/header text-left select-none"
           >
             <span>Số PO / Nhà cung cấp</span>
             {renderSortIndicator('po_number')}
@@ -279,7 +279,7 @@ export const POListTable: React.FC<POListTableProps> = ({
           <button
             type="button"
             onClick={() => handleSort('expected_delivery_date')}
-            className="flex items-center text-[12px] font-extrabold uppercase tracking-wide text-[#1d1d1f] dark:text-[#f5f5f7] cursor-pointer group/header text-left select-none"
+            className="flex items-center text-[11.5px] font-semibold uppercase tracking-wider text-[#86868b] dark:text-[#98989d] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors cursor-pointer group/header text-left select-none"
           >
             <span>Hạn giao hàng</span>
             {renderSortIndicator('expected_delivery_date')}
@@ -288,7 +288,7 @@ export const POListTable: React.FC<POListTableProps> = ({
           <button
             type="button"
             onClick={() => handleSort('warehouse')}
-            className="flex items-center text-[12px] font-extrabold uppercase tracking-wide text-[#1d1d1f] dark:text-[#f5f5f7] cursor-pointer group/header text-left select-none"
+            className="flex items-center text-[11.5px] font-semibold uppercase tracking-wider text-[#86868b] dark:text-[#98989d] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors cursor-pointer group/header text-left select-none"
           >
             <span>Kho tiếp nhận</span>
             {renderSortIndicator('warehouse')}
@@ -297,7 +297,7 @@ export const POListTable: React.FC<POListTableProps> = ({
           <button
             type="button"
             onClick={() => handleSort('total_value')}
-            className="flex items-center justify-end text-[12px] font-extrabold uppercase tracking-wide text-[#1d1d1f] dark:text-[#f5f5f7] cursor-pointer group/header text-right select-none pr-2"
+            className="flex items-center justify-end text-[11.5px] font-semibold uppercase tracking-wider text-[#86868b] dark:text-[#98989d] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors cursor-pointer group/header text-right select-none pr-2"
           >
             <span>Giá trị đơn</span>
             {renderSortIndicator('total_value')}
@@ -306,7 +306,7 @@ export const POListTable: React.FC<POListTableProps> = ({
           <button
             type="button"
             onClick={() => handleSort('progress')}
-            className="flex items-center text-[12px] font-extrabold uppercase tracking-wide text-[#1d1d1f] dark:text-[#f5f5f7] cursor-pointer group/header text-left select-none"
+            className="flex items-center text-[11.5px] font-semibold uppercase tracking-wider text-[#86868b] dark:text-[#98989d] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors cursor-pointer group/header text-left select-none"
           >
             <span>Tiến độ</span>
             {renderSortIndicator('progress')}
@@ -315,13 +315,13 @@ export const POListTable: React.FC<POListTableProps> = ({
           <button
             type="button"
             onClick={() => handleSort('status')}
-            className="flex items-center text-[12px] font-extrabold uppercase tracking-wide text-[#1d1d1f] dark:text-[#f5f5f7] cursor-pointer group/header text-left select-none"
+            className="flex items-center text-[11.5px] font-semibold uppercase tracking-wider text-[#86868b] dark:text-[#98989d] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors cursor-pointer group/header text-left select-none"
           >
             <span>Trạng thái</span>
             {renderSortIndicator('status')}
           </button>
 
-          <div className="text-[12px] font-extrabold uppercase tracking-wide text-[#6e6e73] dark:text-[#8e8e93] text-right pr-1">
+          <div className="text-[11.5px] font-semibold uppercase tracking-wider text-[#86868b] dark:text-[#98989d] text-right pr-2 select-none">
             Thao tác
           </div>
         </div>
@@ -349,10 +349,10 @@ export const POListTable: React.FC<POListTableProps> = ({
               <div
                 key={po.id}
                 className={cn(
-                  'grid grid-cols-[2.4fr_1.3fr_1.3fr_1.3fr_1.1fr_1.4fr_75px] gap-3 px-4 py-3.5 items-center group hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors duration-150 cursor-pointer select-none',
+                  'grid grid-cols-[2.4fr_1.3fr_1.3fr_1.3fr_1.2fr_1.4fr_80px] gap-3 px-4.5 py-3.5 items-center group hover:bg-black/[0.025] dark:hover:bg-white/[0.035] transition-all duration-150 cursor-pointer select-none',
                   isOverdue && 'bg-red-50/40 dark:bg-red-500/[0.03]',
                   isUrgent && !isOverdue && 'bg-amber-50/40 dark:bg-amber-500/[0.03]',
-                  quickStatusPO === po.id ? 'relative z-30 ring-1 ring-[#0088FF]/30 dark:ring-[#0A84FF]/30 shadow-xs' : 'relative z-1'
+                  quickStatusPO === po.id ? 'relative z-30 ring-1 ring-[#007AFF]/25 dark:ring-[#0A84FF]/25 shadow-xs' : 'relative z-1'
                 )}
                 onClick={() => onViewDetail(po)}
               >
@@ -472,79 +472,88 @@ export const POListTable: React.FC<POListTableProps> = ({
                     disabled={!canEdit || updatingId === po.id}
                     className={cn(
                       'transition-all duration-150 cursor-pointer active:scale-95 disabled:cursor-not-allowed group/pill',
-                      canEdit && 'hover:opacity-90'
+                      canEdit && 'hover:opacity-85'
                     )}
                     title={canEdit ? 'Nhấp để đổi trạng thái nhanh' : 'Bạn không có quyền cập nhật'}
                   >
                     <POStatusPill status={po.status} expectedDate={po.expected_delivery_date} size="sm" />
                   </button>
 
-                  {/* Quick status dropdown with safe positioning */}
+                  {/* Quick status dropdown with Apple popover styling */}
                   {quickStatusPO === po.id && canEdit && (
                     <div
                       ref={dropdownRef}
                       className={cn(
-                        'absolute left-0 z-[120] w-[210px] rounded-2xl bg-white dark:bg-[#1c1c22] border border-black/10 dark:border-white/15 shadow-[0_16px_48px_rgba(0,0,0,0.22)] p-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-150',
-                        isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+                        'absolute left-0 z-[120] w-[218px] backdrop-blur-2xl bg-white/90 dark:bg-[#1e1e24]/90 rounded-2xl shadow-2xl border border-black/5 dark:border-white/10 p-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-150 select-none',
+                        isNearBottom ? 'bottom-full mb-2' : 'top-full mt-2'
                       )}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="px-2.5 py-1 text-[10.5px] font-bold uppercase text-[#86868b] tracking-wider border-b border-black/[0.05] dark:border-white/[0.05] mb-1">
-                        Chuyển trạng thái
+                      <div className="px-3 py-1.5 text-[10.5px] font-semibold uppercase text-[#86868b] dark:text-[#98989d] tracking-wider border-b border-black/5 dark:border-white/5 mb-1 flex items-center justify-between">
+                        <span>Chuyển trạng thái</span>
                       </div>
-                      {STATUS_FLOW.concat(['cancelled', 'overdue'] as POStatus[]).map((s) => {
-                        const cfg = PO_STATUS_CONFIG_MAP[s];
-                        return (
-                          <button
-                            key={s}
-                            type="button"
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleQuickStatus(po, s);
-                            }}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleQuickStatus(po, s);
-                            }}
-                            className={cn(
-                              'w-full flex items-center gap-2 px-3 py-1.5 text-[12px] font-semibold rounded-xl hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors cursor-pointer text-left',
-                              po.status === s && 'bg-blue-50 dark:bg-blue-500/10 text-[#0088FF]'
-                            )}
-                          >
-                            {cfg.icon}
-                            <span className={cfg.color}>{cfg.label}</span>
-                            {po.status === s && <SFCheckmark size={12} className="ml-auto text-[#0088FF]" />}
-                          </button>
-                        );
-                      })}
+                      <div className="space-y-0.5">
+                        {STATUS_FLOW.concat(['cancelled', 'overdue'] as POStatus[]).map((s) => {
+                          const cfg = PO_STATUS_CONFIG_MAP[s];
+                          const isSelected = po.status === s;
+                          return (
+                            <button
+                              key={s}
+                              type="button"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleQuickStatus(po, s);
+                              }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleQuickStatus(po, s);
+                              }}
+                              className={cn(
+                                'w-full flex items-center gap-2.5 px-3 py-2 text-[12px] font-medium rounded-xl transition-all duration-150 cursor-pointer text-left',
+                                isSelected
+                                  ? 'bg-blue-500/10 dark:bg-blue-500/20 text-[#007AFF] dark:text-[#0A84FF] font-semibold'
+                                  : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/5'
+                              )}
+                            >
+                              <span className="shrink-0 flex items-center justify-center w-4 h-4">
+                                {cfg.icon}
+                              </span>
+                              <span className="flex-1 truncate">{cfg.label}</span>
+                              {isSelected && (
+                                <SFCheckmark size={12} className="ml-auto text-[#007AFF] dark:text-[#0A84FF] shrink-0 font-bold" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
 
                 {/* Col 7: Actions */}
                 <div
-                  className="flex items-center justify-end gap-1"
+                  className="flex items-center justify-end gap-1.5"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
                     type="button"
                     onClick={() => onViewDetail(po)}
-                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[#6e6e73] hover:text-[#0088FF] hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors cursor-pointer"
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#007AFF] dark:hover:text-[#0A84FF] hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
                     title="Xem chi tiết PO"
                   >
-                    <SFEye size={13} />
+                    <SFEye size={14} />
                   </button>
                   {canDelete && (
                     <button
                       type="button"
                       onClick={(e) => handleDelete(po, e)}
                       disabled={deletingId === po.id}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-[#86868b] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer disabled:opacity-40"
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-[#86868b] dark:text-[#8e8e93] hover:text-rose-600 dark:hover:text-rose-400 hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all cursor-pointer disabled:opacity-40"
                       title="Xóa PO"
                     >
-                      <SFTrash size={13} />
+                      <SFTrash size={14} />
                     </button>
                   )}
                 </div>
@@ -660,18 +669,18 @@ export const POListTable: React.FC<POListTableProps> = ({
                   <button
                     type="button"
                     onClick={() => onViewDetail(po)}
-                    className="h-7 px-2.5 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-[#0088FF] text-[11.5px] font-bold hover:bg-blue-100 flex items-center gap-1"
+                    className="h-8 px-3 rounded-full bg-blue-500/10 dark:bg-blue-500/20 text-[#007AFF] dark:text-[#0A84FF] text-[12px] font-semibold hover:bg-blue-500/15 flex items-center gap-1.5 active:scale-95 transition-all"
                   >
-                    <SFEye size={12} />
+                    <SFEye size={13} />
                     <span>Chi tiết</span>
                   </button>
                   {canDelete && (
                     <button
                       type="button"
                       onClick={(e) => handleDelete(po, e)}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-[#86868b] hover:text-red-500 hover:bg-red-50"
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-[#86868b] dark:text-[#8e8e93] hover:text-rose-600 dark:hover:text-rose-400 hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all"
                     >
-                      <SFTrash size={12} />
+                      <SFTrash size={13} />
                     </button>
                   )}
                 </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   POTrackerPO,
   POStatus,
@@ -559,7 +560,7 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
                 <button
                   type="button"
                   onClick={() => setShowMailModal(true)}
-                  className="h-8 px-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/15 dark:hover:bg-blue-500/25 border border-blue-200 dark:border-blue-500/30 text-[11.5px] font-bold text-[#0088FF] dark:text-[#0A84FF] transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                  className="h-8 px-3 rounded-full bg-blue-500/10 hover:bg-blue-500/20 text-[#0066cc] dark:text-[#0A84FF] border border-blue-500/20 text-[12px] font-semibold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs active:scale-95"
                   title="Tạo / Gửi Mail xác nhận NCC theo mẫu MAIL PO"
                 >
                   <SFEnvelope size={12} />
@@ -568,22 +569,24 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
                 <button
                   type="button"
                   onClick={handleCopySummary}
-                  className="h-8 px-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/15 text-[11.5px] font-bold text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                  className="h-8 px-3 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15 border border-black/10 dark:border-white/15 text-[12px] font-semibold text-[#1d1d1f] dark:text-white transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs active:scale-95"
                   title="Sao chép toàn bộ tóm tắt đơn PO để gửi Zalo / Slack"
                 >
-                  <SFDocumentOnDocument size={12} className="text-[#0088FF]" />
+                  <SFDocumentOnDocument size={12} className="text-[#0066cc] dark:text-[#0A84FF]" />
                   <span>Sao chép tóm tắt</span>
                 </button>
               </div>
             </div>
 
-            {/* Alert Banner for Overdue or Cancelled */}
+            {/* Alert Banner for Overdue or Cancelled - Refined Apple Frosted Glass */}
             {isOverdue && (
-              <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-500/15 border border-rose-300 dark:border-rose-500/30 flex items-start gap-3 text-rose-900 dark:text-rose-200">
+              <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-700 dark:text-rose-400 backdrop-blur-md flex items-start gap-3">
                 <SFExclamationmarkTriangleFill size={18} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5 animate-pulse" />
-                <div className="space-y-0.5 text-[12.5px]">
-                  <p className="font-extrabold">Đơn hàng này đã quá hạn giao {Math.abs(daysLeft!)} ngày!</p>
-                  <p className="text-rose-700 dark:text-rose-300">
+                <div className="space-y-0.5 text-[12.5px] leading-relaxed">
+                  <p className="font-bold text-[13px] text-rose-800 dark:text-rose-300">
+                    Đơn hàng này đã quá hạn giao {Math.abs(daysLeft!)} ngày!
+                  </p>
+                  <p className="text-rose-700/90 dark:text-rose-300/90 text-[12px]">
                     Hạn giao cam kết là ngày <b>{format(parseISO(po.expected_delivery_date!), 'dd/MM/yyyy')}</b>. Vui lòng liên hệ nhà cung cấp để đốc thúc giao hoặc cập nhật ngày nhận mới.
                   </p>
                 </div>
@@ -591,14 +594,14 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
             )}
 
             {po.status === 'cancelled' && (
-              <div className="p-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center gap-2.5 text-zinc-700 dark:text-zinc-300 text-[12.5px]">
+              <div className="p-3 rounded-2xl bg-zinc-500/10 dark:bg-zinc-500/20 border border-zinc-500/20 flex items-center gap-2.5 text-zinc-700 dark:text-zinc-300 text-[12.5px]">
                 <SFXmark size={14} className="text-zinc-500" />
                 <span>Đơn hàng đã được đánh dấu hủy giao dịch.</span>
               </div>
             )}
 
-            {/* Segmented Tab Bar */}
-            <div className="flex gap-1.5 p-1 rounded-2xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.06]">
+            {/* Apple Segmented Control Tab Bar */}
+            <div className="flex gap-1 p-1 rounded-full bg-black/5 dark:bg-white/10 border border-black/5 dark:border-white/10 backdrop-blur-md">
               {[
                 { id: 'info', label: 'Tiến độ & Chi tiết' },
                 { id: 'items', label: `Kiểm nhận hàng (${po.items?.length || 0})` },
@@ -608,10 +611,10 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
                   className={cn(
-                    'flex-1 py-1.5 rounded-xl text-[12.5px] font-bold transition-all duration-150 cursor-pointer',
+                    'flex-1 py-1.5 px-3 rounded-full text-[12.5px] font-semibold transition-all duration-150 cursor-pointer text-center',
                     activeTab === tab.id
-                      ? 'bg-white dark:bg-zinc-800 text-[#0088FF] dark:text-[#0091FF] shadow-xs'
-                      : 'text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white'
+                      ? 'bg-white dark:bg-zinc-800 text-[#0066cc] dark:text-[#0A84FF] shadow-xs font-bold'
+                      : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white'
                   )}
                 >
                   {tab.label}
@@ -907,7 +910,7 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
                           type="button"
                           onClick={handleMarkAllReceived}
                           disabled={updatingItems}
-                          className="h-8 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[11.5px] flex items-center gap-1 shadow-2xs active:scale-95 transition-all cursor-pointer disabled:opacity-40"
+                          className="h-8 px-3.5 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 backdrop-blur-md font-semibold text-[12px] flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer disabled:opacity-40"
                           title="Tự động điền số lượng đã nhận bằng 100% số lượng đặt cho mọi mặt hàng"
                         >
                           <SFCheckmark size={12} />
@@ -917,7 +920,7 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
                           type="button"
                           onClick={handleResetAllReceived}
                           disabled={updatingItems}
-                          className="h-8 px-2.5 rounded-xl border border-black/15 dark:border-white/15 text-[#6e6e73] hover:text-red-600 hover:bg-red-50 font-bold text-[11.5px] active:scale-95 transition-all cursor-pointer disabled:opacity-40"
+                          className="h-8 px-3 rounded-full bg-black/5 dark:bg-white/10 hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 border border-black/10 dark:border-white/10 text-[#6e6e73] dark:text-[#a1a1a6] font-semibold text-[12px] active:scale-95 transition-all cursor-pointer disabled:opacity-40"
                           title="Đặt lại toàn bộ số lượng đã nhận về 0"
                         >
                           Đặt lại về 0
@@ -936,8 +939,8 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
                   />
                 </div>
 
-                {/* Items List */}
-                <div className="space-y-2.5 max-h-[460px] overflow-y-auto pr-1 [scrollbar-width:thin]">
+                {/* Items List - Fixed overflow clip with padding top/bottom */}
+                <div className="space-y-3 max-h-[480px] overflow-y-auto pt-1.5 pb-2 px-0.5 [scrollbar-width:thin]">
                   {po.items && po.items.length > 0 ? (
                     po.items.map((it, idx) => {
                       const ordered = Number(it.ordered_qty || 0);
@@ -950,23 +953,23 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
                         <div
                           key={it.id || idx}
                           className={cn(
-                            'p-3.5 rounded-2xl border transition-all space-y-2 shadow-2xs',
+                            'p-4 rounded-2xl border transition-all space-y-3 shadow-2xs',
                             isFull
-                              ? 'bg-emerald-50/50 dark:bg-emerald-500/[0.04] border-emerald-300/80 dark:border-emerald-500/30'
+                              ? 'bg-emerald-50/40 dark:bg-emerald-500/[0.04] border-emerald-300/70 dark:border-emerald-500/25'
                               : isPartial
-                              ? 'bg-amber-50/50 dark:bg-amber-500/[0.04] border-amber-300/80 dark:border-amber-500/30'
+                              ? 'bg-amber-50/40 dark:bg-amber-500/[0.04] border-amber-300/70 dark:border-amber-500/25'
                               : 'bg-white dark:bg-[#18181c] border-black/[0.08] dark:border-white/10'
                           )}
                         >
                           {/* Top: Name, SKU, Status Pill */}
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <span className="text-[13.5px] font-bold text-[#1d1d1f] dark:text-white leading-snug block">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[14px] font-bold text-[#1d1d1f] dark:text-white leading-normal block">
                                 {it.item_name}
                               </span>
-                              <div className="flex items-center gap-2 mt-0.5 text-[11px] text-[#6e6e73] dark:text-[#a1a1a6]">
+                              <div className="flex items-center gap-2 mt-1 text-[11.5px] text-[#6e6e73] dark:text-[#a1a1a6]">
                                 {it.item_code && (
-                                  <span className="font-mono font-semibold px-1.5 py-0.2 rounded bg-black/5 dark:bg-white/5">
+                                  <span className="font-mono font-semibold px-2 py-0.5 rounded-md bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
                                     {it.item_code}
                                   </span>
                                 )}
@@ -978,14 +981,14 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
 
                             <span
                               className={cn(
-                                'text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 tabular-nums',
+                                'text-[11px] font-bold px-2.5 py-0.5 rounded-full shrink-0 tabular-nums border',
                                 received > ordered
-                                  ? 'bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300'
+                                  ? 'bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-300/50'
                                   : isFull
-                                  ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                                  ? 'bg-emerald-100/80 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-300/50'
                                   : isPartial
-                                  ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300'
-                                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                                  ? 'bg-amber-100/80 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-300/50'
+                                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-black/5 dark:border-white/5'
                               )}
                             >
                               {received > ordered
@@ -998,8 +1001,8 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
                             </span>
                           </div>
 
-                          {/* Bottom: Ordered vs Received + Quick Controls */}
-                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-black/[0.04] dark:border-white/[0.04] flex-wrap">
+                          {/* Bottom: Ordered vs Received + Apple Pill Segmented Control */}
+                          <div className="flex items-center justify-between gap-2 pt-2 border-t border-black/[0.04] dark:border-white/[0.04] flex-wrap">
                             <div className="text-[12px] text-[#555558] dark:text-[#a1a1a6]">
                               Đặt: <b className="text-[#1d1d1f] dark:text-white font-extrabold">{ordered} {it.unit}</b>
                               {missing > 0 && (
@@ -1009,31 +1012,41 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
                               )}
                             </div>
 
-                            {/* Quick Receive Controls */}
-                            <div className="flex items-center gap-1.5">
+                            {/* Apple Pill Segmented Control for Quantity */}
+                            <div className="inline-flex items-center p-1 rounded-full bg-black/[0.03] dark:bg-white/[0.06] border border-black/[0.08] dark:border-white/10 gap-1.5">
                               {canEdit && (
                                 <>
                                   <button
                                     type="button"
-                                    onClick={() => handleUpdateItemReceived(idx, ordered)}
-                                    className="h-7 px-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:hover:bg-emerald-500/25 text-[11px] font-bold transition-all cursor-pointer"
-                                    title="Nhận đủ số lượng đặt"
+                                    onClick={() => handleUpdateItemReceived(idx, 0)}
+                                    className={cn(
+                                      "h-7 px-2.5 rounded-full text-[11.5px] font-semibold transition-all cursor-pointer active:scale-95",
+                                      received === 0
+                                        ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 font-bold"
+                                        : "text-[#86868b] hover:text-rose-600 hover:bg-rose-500/10"
+                                    )}
+                                    title="Đặt số lượng nhận về 0"
                                   >
-                                    Đủ ({ordered})
+                                    0
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => handleUpdateItemReceived(idx, 0)}
-                                    className="h-7 px-1.5 rounded-lg border border-black/10 dark:border-white/10 hover:bg-black/5 text-[#86868b] text-[11px] font-semibold transition-all cursor-pointer"
-                                    title="Đặt về 0"
+                                    onClick={() => handleUpdateItemReceived(idx, ordered)}
+                                    className={cn(
+                                      "h-7 px-3 rounded-full text-[11.5px] font-semibold transition-all cursor-pointer active:scale-95",
+                                      isFull
+                                        ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/30"
+                                        : "bg-black/5 dark:bg-white/10 text-[#1d1d1f] dark:text-white hover:bg-emerald-500/15 hover:text-emerald-600"
+                                    )}
+                                    title={`Nhận đủ ${ordered} ${it.unit}`}
                                   >
-                                    0
+                                    Đủ ({ordered})
                                   </button>
                                 </>
                               )}
 
-                              <div className="flex items-center gap-1 ml-1 bg-black/[0.02] dark:bg-white/[0.04] rounded-xl px-2 py-0.5 border border-black/10 dark:border-white/10">
-                                <span className="text-[11px] font-bold text-[#6e6e73]">Nhận:</span>
+                              <div className="flex items-center gap-1 pl-2 pr-2.5 py-0.5 bg-white dark:bg-zinc-800 rounded-full border border-black/10 dark:border-white/10 shadow-2xs">
+                                <span className="text-[11px] font-semibold text-[#86868b]">Nhận:</span>
                                 <input
                                   type="number"
                                   min="0"
@@ -1041,7 +1054,7 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
                                   value={received}
                                   disabled={!canEdit}
                                   onChange={(e) => handleUpdateItemReceived(idx, Number(e.target.value))}
-                                  className="w-16 h-7 text-center rounded-lg bg-white dark:bg-zinc-800 border border-black/15 dark:border-white/15 text-[12.5px] font-bold tabular-nums focus:outline-none focus:ring-1 focus:ring-[#0088FF]"
+                                  className="w-14 h-6 text-center bg-transparent text-[12.5px] font-bold text-[#1d1d1f] dark:text-white tabular-nums focus:outline-none"
                                 />
                                 <span className="text-[11.5px] text-[#86868b] font-medium">{it.unit}</span>
                               </div>
@@ -1200,43 +1213,62 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
         onClose={() => setPermToRevoke(null)}
       />
 
-      {/* BUG-018: Supplier Mail Preview & Creation Modal */}
-      {showMailModal && po && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-[#1e1e24] rounded-3xl p-6 max-w-2xl w-full shadow-2xl border border-black/10 dark:border-white/10 space-y-4 text-left max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between pb-2 border-b border-black/10 dark:border-white/10 shrink-0">
-              <div className="flex items-center gap-2 text-[#0088FF] dark:text-[#0A84FF]">
-                <SFEnvelope size={20} />
-                <h3 className="text-[17px] font-black text-[#1d1d1f] dark:text-white">
-                  Soạn Mail xác nhận Nhà cung cấp (MAIL PO)
-                </h3>
+      {/* BUG-018: Supplier Mail Preview & Creation Modal (Apple Sheet Standard) */}
+      {showMailModal && po && typeof document !== 'undefined' && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in select-none"
+          onClick={() => setShowMailModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-2xl bg-white/95 dark:bg-[#1c1c22]/95 backdrop-blur-2xl rounded-2xl sm:rounded-[24px] shadow-[0_24px_80px_rgba(0,0,0,0.3),inset_0_1.5px_1px_rgba(255,255,255,0.9)] border border-black/10 dark:border-white/15 p-6 flex flex-col max-h-[90vh] space-y-4 text-left animate-in zoom-in-95 duration-150"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-black/[0.08] dark:border-white/10 shrink-0">
+              <div className="flex items-center gap-2.5 text-[#0066cc] dark:text-[#0A84FF]">
+                <div className="w-8 h-8 rounded-full bg-[#0066cc]/10 dark:bg-[#0A84FF]/15 flex items-center justify-center">
+                  <SFEnvelope size={16} />
+                </div>
+                <div>
+                  <h3 className="text-[16px] sm:text-[17px] font-bold text-[#1d1d1f] dark:text-white leading-tight">
+                    Soạn Mail xác nhận Nhà cung cấp (MAIL PO)
+                  </h3>
+                  <p className="text-[12px] text-[#86868b]">
+                    Đơn hàng: {po.po_number || 'N/A'} • {po.supplier_name || 'NCC'}
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setShowMailModal(false)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 cursor-pointer"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white bg-black/5 dark:bg-white/10 hover:bg-black/10 transition-colors cursor-pointer"
+                title="Đóng"
               >
                 <SFXmark size={14} />
               </button>
             </div>
 
-            <div className="space-y-3 flex-1 overflow-y-auto pr-1">
-              <div>
-                <label className="text-[12px] font-bold text-[#86868b]">Tiêu đề thư:</label>
-                <div className="p-2.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/10 dark:border-white/10 text-[13px] font-bold text-[#1d1d1f] dark:text-white">
+            {/* Content */}
+            <div className="space-y-3.5 flex-1 overflow-y-auto pr-1 [scrollbar-width:thin]">
+              <div className="space-y-1">
+                <label className="text-[11.5px] font-bold uppercase tracking-wider text-[#86868b]">Tiêu đề email:</label>
+                <div className="p-3 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/10 dark:border-white/10 text-[13px] font-semibold text-[#1d1d1f] dark:text-white select-text">
                   {generateMailDraft().subject}
                 </div>
               </div>
 
-              <div>
-                <label className="text-[12px] font-bold text-[#86868b]">Nội dung gửi đối tác:</label>
-                <pre className="p-3.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/10 dark:border-white/10 text-[12.5px] font-mono whitespace-pre-wrap text-[#1d1d1f] dark:text-white max-h-[300px] overflow-y-auto leading-relaxed">
+              <div className="space-y-1">
+                <label className="text-[11.5px] font-bold uppercase tracking-wider text-[#86868b]">Nội dung gửi đối tác:</label>
+                <pre className="p-3.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/10 dark:border-white/10 text-[12.5px] font-mono whitespace-pre-wrap text-[#1d1d1f] dark:text-white max-h-[300px] overflow-y-auto leading-relaxed select-text [scrollbar-width:thin]">
                   {generateMailDraft().bodyText}
                 </pre>
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-3 pt-3 border-t border-black/10 dark:border-white/10 shrink-0 flex-wrap">
+            {/* Footer Buttons */}
+            <div className="flex items-center justify-between gap-3 pt-3 border-t border-black/[0.08] dark:border-white/10 shrink-0 flex-wrap">
               <button
                 type="button"
                 onClick={async () => {
@@ -1250,7 +1282,7 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
                   setShowMailModal(false);
                   toast.success('Đã tạo ghi chú mẫu MAIL PO trong Quick Note!');
                 }}
-                className="h-9 px-3.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 dark:text-amber-200 text-[12px] font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+                className="h-9 px-4 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-200 border border-amber-500/30 text-[12px] font-semibold flex items-center gap-1.5 cursor-pointer transition-all active:scale-95"
               >
                 <SFDocumentOnDocument size={13} />
                 <span>Lưu vào Quick Note (MAIL PO)</span>
@@ -1264,7 +1296,7 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
                     navigator.clipboard.writeText(draft.bodyText);
                     toast.success('Đã sao chép nội dung email vào clipboard!');
                   }}
-                  className="h-9 px-3.5 rounded-xl border border-black/15 dark:border-white/15 text-[12.5px] font-bold text-[#1d1d1f] dark:text-white hover:bg-black/5 cursor-pointer transition-all"
+                  className="h-9 px-4 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 border border-black/10 dark:border-white/15 text-[12.5px] font-semibold text-[#1d1d1f] dark:text-white cursor-pointer transition-all active:scale-95"
                 >
                   Sao chép Email
                 </button>
@@ -1274,7 +1306,7 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
                     const draft = generateMailDraft();
                     window.open(`mailto:?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.bodyText)}`);
                   }}
-                  className="h-9 px-4 rounded-xl fm-primary-pill-surface text-white text-[12.5px] font-bold flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  className="h-9 px-4.5 rounded-full bg-[#0066cc] hover:bg-[#0077ed] text-white text-[12.5px] font-semibold flex items-center gap-1.5 cursor-pointer shadow-sm transition-all active:scale-95"
                 >
                   <SFEnvelope size={13} />
                   <span>Mở ứng dụng Mail</span>
@@ -1282,7 +1314,8 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </Drawer>
   );

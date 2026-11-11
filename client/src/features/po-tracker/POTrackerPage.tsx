@@ -182,7 +182,7 @@ export const POTrackerPage: React.FC = () => {
     toast.success(`Đã xuất file báo cáo ${pos.length} đơn hàng PO thành công!`);
   };
 
-  // BUG-008: Export PO list to 2-sheet Excel file (.xlsx)
+  // Export PO list to 2-sheet Excel file (.xlsx)
   const [exportingExcel, setExportingExcel] = useState(false);
 
   const handleExportExcel = async () => {
@@ -314,106 +314,111 @@ export const POTrackerPage: React.FC = () => {
 
       {/* Main Tracking Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-transparent">
-        {/* Top Control Bar with Glass Effect */}
-        <div className="px-4 sm:px-5 py-3 border-b border-black/[0.06] dark:border-white/[0.08] bg-white/70 dark:bg-[#16161c]/70 backdrop-blur-2xl flex flex-wrap items-center justify-between gap-3 shrink-0 z-10 shadow-2xs">
+        {/* Top Control Bar with Apple Liquid Glass Style */}
+        <div className="px-4 sm:px-6 py-3 border-b border-black/5 dark:border-white/10 glass-material flex flex-wrap items-center justify-between gap-3 shrink-0 z-10 shadow-xs">
           {/* Title & Folder Breadcrumb */}
           <div className="flex items-center gap-2.5 min-w-0">
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="w-8 h-8 rounded-xl flex items-center justify-center text-[#555558] dark:text-[#a1a1a6] hover:text-[#0088FF] dark:hover:text-[#0091FF] hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all cursor-pointer shrink-0"
+              className="w-9 h-9 rounded-full glass-material border border-black/5 dark:border-white/10 flex items-center justify-center text-[#555558] dark:text-[#a1a1a6] hover:text-[#0066cc] dark:hover:text-[#2997ff] hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all cursor-pointer shrink-0 shadow-2xs"
               title={sidebarCollapsed ? 'Mở rộng thanh nhóm' : 'Thu gọn thanh nhóm'}
             >
               <SFSidebarLeft size={16} className={cn('transition-transform duration-200', sidebarCollapsed && 'rotate-180')} />
             </button>
             <div className="truncate">
-              <h1 className="text-[17px] sm:text-[19px] font-bold text-slate-900 dark:text-white flex items-center gap-2 truncate tracking-tight">
+              <h1 className="text-[17px] sm:text-[19px] font-bold text-[#1d1d1f] dark:text-white flex items-center gap-2 truncate tracking-tight">
                 <span>Theo dõi đơn hàng (PO Tracker)</span>
                 {currentFolder && (
-                  <span className="text-[12px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-500/20 text-[#0088FF] dark:text-[#0091FF] border border-blue-200/60 dark:border-blue-500/30 flex items-center gap-1">
+                  <span className="text-[12px] font-semibold px-2.5 py-0.5 rounded-full bg-[#0066cc]/10 dark:bg-[#0066cc]/20 text-[#0066cc] dark:text-[#2997ff] border border-[#0066cc]/20 flex items-center gap-1 shadow-2xs">
                     <SFFolderFill size={11} />
                     <span>{currentFolder.name}</span>
                   </span>
                 )}
                 {activeFolderId === 'unassigned' && (
-                  <span className="text-[11.5px] font-semibold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+                  <span className="text-[11.5px] font-semibold px-2.5 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-[#555558] dark:text-[#a1a1a6] border border-black/5 dark:border-white/10">
                     Chưa phân nhóm
                   </span>
                 )}
               </h1>
-              <p className="text-[12px] font-semibold text-slate-700 dark:text-zinc-200 truncate mt-0.5 tracking-normal">
+              <p className="text-[12px] font-normal text-[#86868b] dark:text-[#a1a1a6] truncate mt-0.5">
                 Tự động nhận diện dữ liệu PO từ file PDF / ảnh scan và giám sát tiến độ giao nhận kho
               </p>
             </div>
           </div>
 
-          {/* Actions & Search */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Search Input - Apple Spotlight Style with shortcut tooltip */}
-            <div className="relative flex items-center">
-              <div className="absolute left-3 text-[#0088FF] dark:text-[#0091FF] pointer-events-none flex items-center justify-center">
-                <SFMagnifyingglass size={13} />
-              </div>
+          {/* Unified Apple Liquid Glass Actions & Search Toolbar */}
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            {/* Search Input - Apple Spotlight Style with shortcut tooltip & full text visibility */}
+            <div className="relative w-56 sm:w-72 lg:w-80 group">
+              <SFMagnifyingglass
+                size={15}
+                className="text-[#76767b] dark:text-[#a1a1a6] group-focus-within:text-[#0066cc] dark:group-focus-within:text-[#2997ff] absolute left-3.5 top-3 pointer-events-none transition-colors"
+              />
               <input
                 ref={searchInputRef}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Tìm số PO, NCC, kho... (Nhấn /)"
-                className="w-44 sm:w-60 h-9 pl-8 pr-7 rounded-full bg-white dark:bg-[#1a1a1e] border border-black/15 dark:border-white/15 text-[12.5px] font-medium text-slate-900 dark:text-white placeholder-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs"
+                className="glass-input w-full h-[38px] text-[13px] rounded-full pl-9 pr-8 placeholder:text-[#86868b] dark:placeholder:text-[#6e6e73]"
               />
               {search && (
                 <button
                   onClick={() => setSearch('')}
-                  className="absolute right-2.5 text-xs text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white cursor-pointer"
+                  className="absolute right-3 top-2.5 text-xs text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white cursor-pointer"
                   title="Xóa từ khóa"
                 >
-                  <SFXmark size={11} />
+                  <SFXmark size={12} />
                 </button>
               )}
             </div>
 
             {/* Refresh Button */}
-            <button
-              type="button"
+            <Button
+              variant="liquiGlass"
+              size="sm"
+              className="h-[38px] w-[38px] p-0 rounded-full text-[#555558] dark:text-[#a1a1a6] hover:text-[#0066cc] dark:hover:text-[#2997ff]"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="w-9 h-9 rounded-full bg-white dark:bg-[#1a1a1e] border border-black/15 dark:border-white/15 flex items-center justify-center text-[#555558] dark:text-[#a1a1a6] hover:text-[#0088FF] hover:bg-black/5 transition-all cursor-pointer shadow-2xs active:scale-95"
               title="Làm mới danh sách PO"
-            >
-              <SFArrowClockwise size={13} className={cn(refreshing && 'animate-spin text-[#0088FF]')} />
-            </button>
+              icon={<SFArrowClockwise size={14} className={cn(refreshing && 'animate-spin text-[#0066cc] dark:text-[#2997ff]')} />}
+            />
 
-            {/* BUG-008: Export Excel PO (.xlsx) with 2 sheets */}
-            <button
-              type="button"
+            {/* Export Excel PO (.xlsx) with 2 sheets */}
+            <Button
+              variant="liquiGlass"
+              size="sm"
+              className="h-[38px] px-3.5 sm:px-4 rounded-full text-[13px] leading-none font-medium text-[#1d1d1f] dark:text-[#f5f5f7]"
               onClick={handleExportExcel}
               disabled={exportingExcel}
-              className="h-9 px-3.5 rounded-full bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-300 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-500/25 text-[12px] font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+              icon={<SFTablecells size={14} className="text-emerald-600 dark:text-emerald-400" />}
               title="Xuất file Excel gồm 2 sheets: Tổng hợp PO & Chi tiết dòng hàng PO"
             >
-              <SFTablecells size={13} className="text-emerald-600 dark:text-emerald-400" />
-              <span className="hidden sm:inline">Xuất Excel PO (.xlsx)</span>
+              <span className="hidden sm:inline">Xuất Excel</span>
               <span className="sm:hidden">Excel</span>
-            </button>
+            </Button>
 
             {/* Export CSV Button */}
-            <button
-              type="button"
+            <Button
+              variant="liquiGlass"
+              size="sm"
+              className="h-[38px] px-3.5 sm:px-4 rounded-full text-[13px] leading-none font-medium text-[#1d1d1f] dark:text-[#f5f5f7]"
               onClick={handleExportCSV}
-              className="h-9 px-3 rounded-full bg-white dark:bg-[#1a1a1e] border border-black/15 dark:border-white/15 text-[#555558] dark:text-[#a1a1a6] hover:text-[#0088FF] text-[12px] font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer"
+              icon={<SFArrowDownDocumentFill size={14} className="text-[#0066cc] dark:text-[#2997ff]" />}
               title="Xuất bảng Excel / CSV"
             >
-              <SFArrowDownDocumentFill size={12} className="text-[#0088FF]" />
               <span className="hidden sm:inline">Xuất CSV</span>
-            </button>
+              <span className="sm:hidden">CSV</span>
+            </Button>
 
-            {/* Nút "Tải lên PO" với icon SF Symbol chuẩn Apple */}
+            {/* Primary Action Button: "Tải lên PO" */}
             <Button
               variant="primary"
               size="sm"
               onClick={() => setUploadDrawerOpen(true)}
-              className="fm-primary-pill-surface shadow-xs text-white h-9 px-4 rounded-full font-bold text-[13px] gap-1.5 active:scale-95 transition-transform"
+              className="h-[38px] px-4 sm:px-5 rounded-full font-semibold text-[13px] leading-none shadow-sm flex items-center gap-1.5"
+              icon={<SFArrowUpDocumentFill size={15} />}
+              title="Tải lên hóa đơn / tệp PO mới"
             >
-              <SFArrowUpDocumentFill size={14} />
               <span>Tải lên PO</span>
             </Button>
           </div>
@@ -431,19 +436,19 @@ export const POTrackerPage: React.FC = () => {
 
           {/* Active Filter Chips */}
           {(activeStatus || activeFolderId || search) && (
-            <div className="flex items-center gap-2 flex-wrap text-[12px] p-2.5 px-3.5 rounded-2xl bg-white/85 dark:bg-[#1a1a22]/85 backdrop-blur-md border border-black/[0.08] dark:border-white/10 shadow-2xs animate-in fade-in slide-in-from-top-2 duration-300">
-              <span className="text-[#48484a] dark:text-[#a1a1a6] font-bold text-[12.5px] mr-1">Bộ lọc:</span>
+            <div className="flex items-center gap-2 flex-wrap text-[12px] p-2.5 px-4 rounded-[20px] glass-material border border-black/5 dark:border-white/10 shadow-xs animate-in fade-in slide-in-from-top-2 duration-300">
+              <span className="text-[#86868b] dark:text-[#a1a1a6] font-semibold text-[12px] mr-1">Bộ lọc:</span>
 
               {activeStatus && (
                 <span
                   className={cn(
-                    'inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-bold text-[12px] shadow-2xs',
+                    'inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-semibold text-[12px] shadow-2xs border',
                     activeStatus === 'upcoming_7_days'
-                      ? 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border border-purple-500/25'
-                      : 'bg-[#0088FF]/10 text-[#0088FF] dark:text-[#0A84FF] border border-[#0088FF]/25'
+                      ? 'bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20'
+                      : 'bg-[#0066cc]/10 text-[#0066cc] dark:text-[#2997ff] border-[#0066cc]/20'
                   )}
                 >
-                  <span className="text-[#48484a] dark:text-[#a1a1a6] font-medium text-[11.5px]">Trạng thái:</span>
+                  <span className="text-[#86868b] dark:text-[#a1a1a6] font-normal text-[11px]">Trạng thái:</span>
                   <span>
                     {activeStatus === 'upcoming_7_days'
                       ? 'Hạn 7 ngày tới'
@@ -460,8 +465,8 @@ export const POTrackerPage: React.FC = () => {
               )}
 
               {activeFolderId && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25 font-bold text-[12px] shadow-2xs">
-                  <span className="text-[#48484a] dark:text-[#a1a1a6] font-medium text-[11.5px]">Nhóm:</span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 font-semibold text-[12px] shadow-2xs">
+                  <span className="text-[#86868b] dark:text-[#a1a1a6] font-normal text-[11px]">Nhóm:</span>
                   <span>{currentFolder?.name || 'Chưa phân nhóm'}</span>
                   <button
                     onClick={() => setActiveFolderId(null)}
@@ -474,8 +479,8 @@ export const POTrackerPage: React.FC = () => {
               )}
 
               {search && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/[0.04] dark:bg-white/[0.08] text-[#1d1d1f] dark:text-white border border-black/10 dark:border-white/10 font-bold text-[12px] shadow-2xs">
-                  <span className="text-[#48484a] dark:text-[#a1a1a6] font-medium text-[11.5px]">Từ khóa:</span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/5 dark:bg-white/10 text-[#1d1d1f] dark:text-white border border-black/5 dark:border-white/10 font-semibold text-[12px] shadow-2xs">
+                  <span className="text-[#86868b] dark:text-[#a1a1a6] font-normal text-[11px]">Từ khóa:</span>
                   <span>"{search}"</span>
                   <button
                     onClick={() => setSearch('')}
@@ -493,10 +498,10 @@ export const POTrackerPage: React.FC = () => {
                   setActiveFolderId(null);
                   setSearch('');
                 }}
-                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-bold text-[#0088FF] dark:text-[#0A84FF] hover:bg-[#0088FF]/10 active:scale-95 transition-all cursor-pointer ml-auto"
+                className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-semibold text-[#0066cc] dark:text-[#2997ff] hover:bg-[#0066cc]/10 active:scale-95 transition-all cursor-pointer ml-auto"
               >
                 <SFXmark size={11} />
-                <span>Xóa bộ lọc</span>
+                <span>Xóa tất cả</span>
               </button>
             </div>
           )}
