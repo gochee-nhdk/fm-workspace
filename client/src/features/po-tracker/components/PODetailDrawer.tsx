@@ -8,6 +8,7 @@ import {
 } from '@/types/po-tracker';
 import { usePOTrackerStore } from '@/stores/po-tracker-store';
 import { poTrackerService } from '@/services/poTrackerService';
+import { useNoteStore } from '@/stores/note-store';
 import { POStatusPill, PO_STATUS_CONFIG_MAP } from './POStatusPill';
 import { POProgressBar } from './POProgressBar';
 import { Drawer } from '@/components/ui/drawer';
@@ -28,7 +29,8 @@ import {
   SFDocumentOnDocument,
   SFExclamationmarkTriangleFill,
   SFPlus,
-  SFXmark
+  SFXmark,
+  SFEnvelope
 } from 'sf-symbols-lib';
 import { cn } from '@/lib/utils';
 import { format, parseISO, differenceInDays } from 'date-fns';
@@ -108,6 +110,83 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
   const [showDeletePODialog, setShowDeletePODialog] = useState(false);
   const [deletingPO, setDeletingPO] = useState(false);
   const [permToRevoke, setPermToRevoke] = useState<{ id: string; name: string } | null>(null);
+  const [showMailModal, setShowMailModal] = useState(false);
+
+  const generateMailDraft = () => {
+    if (!po) return { subject: '', bodyText: '', htmlBody: '' };
+    const finalPoNum = po.po_number || 'PO-CHUA-CO-MA';
+    const finalSupplier = po.supplier_name || 'Quý Nhà cung cấp';
+    const finalTotal = po.total_value || 0;
+
+    const subject = `[Xác nhận đơn hàng PO] ${finalPoNum} - Farmers Market gửi ${finalSupplier}`;
+
+    const itemsText = po.items && po.items.length > 0
+      ? po.items.map((it, idx) => `  ${idx + 1}. ${it.item_name} (Mã: ${it.item_code || 'N/A'}) - SL đặt: ${it.ordered_qty} ${it.unit} (Đã nhận: ${it.received_qty || 0}) - Đơn giá: ${Math.round(it.unit_price).toLocaleString('vi-VN')} ₫`).join('\n')
+      : '  (Chưa có danh mục mặt hàng chi tiết)';
+
+    const bodyText = `Kính gửi Quý Nhà cung cấp ${finalSupplier},
+
+Công ty TNHH Thương mại Laria (Farmers Market) xin gửi thông tin xác nhận đơn đặt hàng PO:
+
+1. THÔNG TIN CHỨNG TỪ:
+- Số hiệu chứng từ PO: ${finalPoNum}
+- Ngày lập đơn hàng: ${po.po_date || 'Chưa cập nhật'}
+- Hạn giao hàng dự kiến: ${po.expected_delivery_date || 'Theo thỏa thuận'}
+- Kho tiếp nhận hàng: ${po.warehouse || 'Kho Farmers Market'}
+- Tổng giá trị đơn hàng: ${Math.round(finalTotal).toLocaleString('vi-VN')} ₫
+- Trạng thái hiện tại: ${PO_STATUS_CONFIG_MAP[po.status]?.label || po.status}
+
+2. CHI TIẾT DANH MỤC HÀNG HÓA:
+${itemsText}
+
+${po.notes ? `3. GHI CHÚ ĐIỀU PHỐI:\n${po.notes}\n\n` : ''}
+Kính đề nghị Quý NCC kiểm tra số lượng và phản hồi email này để xác nhận lịch giao hàng.
+
+Trân trọng cảm ơn sự hợp tác của Quý đối tác!
+Phòng Thu mua / Supply Chain - Farmers Market`;
+
+    const htmlBody = `<h3>[Xác nhận đơn hàng PO] ${finalPoNum} - Farmers Market gửi ${finalSupplier}</h3>
+<p>Kính gửi Quý Nhà cung cấp <b>${finalSupplier}</b>,</p>
+<p>Farmers Market xin gửi thông tin xác nhận đơn đặt hàng PO chi tiết:</p>
+<ul>
+  <li><b>Số PO:</b> ${finalPoNum}</li>
+  <li><b>Ngày lập đơn:</b> ${po.po_date || 'Chưa cập nhật'}</li>
+  <li><b>Hạn giao hàng dự kiến:</b> ${po.expected_delivery_date || 'Theo thỏa thuận'}</li>
+  <li><b>Kho tiếp nhận hàng:</b> ${po.warehouse || 'Kho Farmers Market'}</li>
+  <li><b>Tổng giá trị đơn:</b> ${Math.round(finalTotal).toLocaleString('vi-VN')} ₫</li>
+  <li><b>Trạng thái:</b> ${PO_STATUS_CONFIG_MAP[po.status]?.label || po.status}</li>
+</ul>
+<table border="1" cellpadding="6" style="border-collapse: collapse; width: 100%; margin: 12px 0;">
+  <thead>
+    <tr style="background-color: #f5f5f7;">
+      <th>STT</th>
+      <th>Mã hàng</th>
+      <th>Tên mặt hàng</th>
+      <th>ĐVT</th>
+      <th>SL đặt</th>
+      <th>Đã nhận</th>
+      <th>Đơn giá</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${(po.items || []).map((it, idx) => `
+      <tr>
+        <td style="text-align: center;">${idx + 1}</td>
+        <td>${it.item_code || ''}</td>
+        <td><b>${it.item_name}</b></td>
+        <td style="text-align: center;">${it.unit}</td>
+        <td style="text-align: right;">${it.ordered_qty}</td>
+        <td style="text-align: right; color: green;"><b>${it.received_qty || 0}</b></td>
+        <td style="text-align: right;">${Math.round(it.unit_price).toLocaleString('vi-VN')} ₫</td>
+      </tr>
+    `).join('')}
+  </tbody>
+</table>
+${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
+<p>Trân trọng cảm ơn sự hợp tác của Quý đối tác!<br/><b>Farmers Market Procurement Team</b></p>`;
+
+    return { subject, bodyText, htmlBody };
+  };
 
   useEffect(() => {
     if (poId && isOpen) {
@@ -189,9 +268,21 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
 
   const handleUpdateItemReceived = async (itemIndex: number, receivedQty: number) => {
     if (!po || !po.items) return;
+    if (receivedQty < 0) {
+      toast.error('Số lượng nhận không được là số âm.');
+    }
     const safeQty = Math.max(0, receivedQty);
     const nextItems = [...po.items];
     const item = { ...nextItems[itemIndex] };
+
+    // BUG-011: Warn if receivedQty exceeds ordered_qty
+    if (safeQty > item.ordered_qty) {
+      toast(`Cảnh báo: Số lượng nhận (${safeQty}) vượt quá số lượng đặt (${item.ordered_qty})!`, {
+        icon: '⚠️',
+        id: `over-receive-${item.id || itemIndex}`,
+      });
+    }
+
     item.received_qty = safeQty;
     item.status = safeQty >= item.ordered_qty ? 'received' : safeQty > 0 ? 'partial' : 'pending';
     nextItems[itemIndex] = item;
@@ -456,7 +547,7 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
             {/* Top Toolbar: Copy Summary & Status Pill */}
             <div className="flex items-center justify-between gap-2 p-2 px-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10">
               <div className="flex items-center gap-2 min-w-0">
-                <POStatusPill status={po.status} size="sm" />
+                <POStatusPill status={po.status} expectedDate={po.expected_delivery_date} size="sm" />
                 {po.folder_name && (
                   <span className="text-[11.5px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] truncate">
                     📁 {po.folder_name}
@@ -465,6 +556,15 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
               </div>
 
               <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowMailModal(true)}
+                  className="h-8 px-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-500/15 dark:hover:bg-blue-500/25 border border-blue-200 dark:border-blue-500/30 text-[11.5px] font-bold text-[#0088FF] dark:text-[#0A84FF] transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                  title="Tạo / Gửi Mail xác nhận NCC theo mẫu MAIL PO"
+                >
+                  <SFEnvelope size={12} />
+                  <span>Mail NCC</span>
+                </button>
                 <button
                   type="button"
                   onClick={handleCopySummary}
