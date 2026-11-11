@@ -35,7 +35,7 @@ const StatCard: React.FC<{
     className={cn(
       'group relative flex items-center gap-3 px-4 py-2.5 rounded-2xl border-2 transition-all duration-200 ease-out cursor-pointer select-none text-left min-w-[145px]',
       active
-        ? cn('bg-white dark:bg-[#1f1f26]', activeBorderColor, activeGlow)
+        ? cn('bg-white dark:bg-[#1f1f26]', activeBorderColor, activeGlow, 'ring-2 ring-offset-1 ring-black/10 dark:ring-white/20 dark:ring-offset-[#16161c]')
         : 'bg-white/80 dark:bg-[#1a1a20]/80 border-black/[0.08] dark:border-white/10 hover:bg-white dark:hover:bg-[#202028] hover:border-black/20 dark:hover:border-white/20 active:scale-[0.98]',
       !onClick && 'cursor-default pointer-events-none'
     )}

@@ -147,6 +147,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
 
   // Verify API key endpoint with multi-provider support (Gemini, DeepSeek, OpenAI, Claude)
   fastify.post('/verify-key', {
+    preHandler: verifyToken,
     config: {
       rateLimit: {
         max: 30,

@@ -74,6 +74,8 @@ async function getUserPermissionOnPO(
   return globalPerm?.permission || null;
 }
 
+const VALID_STATUSES = ['pending', 'confirmed', 'shipping', 'partial_received', 'received', 'cancelled', 'overdue'] as const;
+
 // ─── Route registration ──────────────────────────────────────────────────────
 
 export default async function poTrackerRoutes(fastify: FastifyInstance) {
@@ -89,21 +91,38 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
     let mimeType = 'application/pdf';
     let apiKeys: string[] = [];
 
-    // Check if body was sent as JSON (base64 DataURL)
+    // Check if body was sent as JSON (base64 DataURL or direct base64)
     if (request.body && typeof request.body === 'object') {
-      const { fileDataUrl, fileName: bFileName, mimeType: bMime, apiKeys: bKeys } = request.body;
-      if (fileDataUrl && typeof fileDataUrl === 'string') {
-        const match = fileDataUrl.match(/^data:([^;]+);base64,(.+)$/s);
-        if (match) {
-          mimeType = match[1];
-          base64Data = match[2];
+      const {
+        fileDataUrl,
+        dataUrl,
+        base64,
+        file,
+        fileName: bFileName,
+        mimeType: bMime,
+        apiKeys: bKeys
+      } = request.body;
+
+      const rawUrl = fileDataUrl || dataUrl || base64 || file;
+      if (rawUrl && typeof rawUrl === 'string') {
+        const commaIdx = rawUrl.indexOf(',');
+        if (commaIdx !== -1 && rawUrl.startsWith('data:')) {
+          const meta = rawUrl.slice(0, commaIdx);
+          const mimeMatch = meta.match(/data:([^;]+)/i);
+          if (mimeMatch && mimeMatch[1]) {
+            mimeType = mimeMatch[1].trim();
+          }
+          base64Data = rawUrl.slice(commaIdx + 1);
         } else {
-          base64Data = fileDataUrl;
+          base64Data = rawUrl;
         }
-        if (bFileName) fileName = bFileName;
-        if (bMime) mimeType = bMime;
-        if (Array.isArray(bKeys)) apiKeys = bKeys;
+        // Eliminate whitespace and newlines that break decoding
+        base64Data = base64Data.replace(/\s+/g, '');
       }
+
+      if (bFileName) fileName = bFileName;
+      if (bMime) mimeType = bMime;
+      if (Array.isArray(bKeys)) apiKeys = bKeys;
     }
 
     // Fall back to multipart streaming if not JSON
@@ -170,9 +189,8 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
         ORDER BY f.sort_order ASC, f.created_at ASC
       `).all() as any[];
     } else {
-      // Only folders where user has explicit permission or created by them
       folders = await db.prepare(`
-        SELECT DISTINCT f.*,
+        SELECT f.*,
                COUNT(DISTINCT p.id) as po_count,
                u.full_name as creator_name
         FROM po_tracker_folders f
@@ -210,16 +228,18 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
     const now = new Date().toISOString();
     const userId = request.user?.id;
 
-    await db.prepare(`
-      INSERT INTO po_tracker_folders (id, name, description, color, icon, sort_order, created_by, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, name.trim(), description || null, color || 'blue', icon || 'shippingbox', sort_order ?? 0, userId, now, now);
+    await db.transaction(async (tx: IDatabaseAdapter) => {
+      await tx.prepare(`
+        INSERT INTO po_tracker_folders (id, name, description, color, icon, sort_order, created_by, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, name.trim(), description || null, color || 'blue', icon || 'shippingbox', sort_order ?? 0, userId, now, now);
 
-    // Auto-grant admin permission to creator
-    await db.prepare(`
-      INSERT INTO po_tracker_permissions (id, user_id, resource_type, resource_id, permission, granted_by, created_at)
-      VALUES (?, ?, 'folder', ?, 'admin', ?, ?)
-    `).run(uuidv4(), userId, id, userId, now);
+      // Auto-grant admin permission to creator
+      await tx.prepare(`
+        INSERT INTO po_tracker_permissions (id, user_id, resource_type, resource_id, permission, granted_by, created_at)
+        VALUES (?, ?, 'folder', ?, 'admin', ?, ?)
+      `).run(uuidv4(), userId, id, userId, now);
+    });
 
     auditLog(request, 'CREATE_PO_FOLDER', 'po_tracker_folders', id, null, { name });
 
@@ -253,7 +273,7 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
       WHERE id = ?
     `).run(
       name?.trim() || existing.name,
-      description ?? existing.description,
+      description !== undefined ? description : existing.description,
       color || existing.color,
       icon || existing.icon,
       sort_order ?? existing.sort_order,
@@ -283,11 +303,13 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
       return reply.code(403).send({ success: false, message: 'Bạn cần quyền Quản trị để xóa nhóm này.' });
     }
 
-    // Unlink POs from this folder (don't delete the POs)
-    await db.prepare('UPDATE po_tracker_pos SET folder_id = NULL WHERE folder_id = ?').run(id);
-    // Delete permissions for this folder
-    await db.prepare("DELETE FROM po_tracker_permissions WHERE resource_type = 'folder' AND resource_id = ?").run(id);
-    await db.prepare('DELETE FROM po_tracker_folders WHERE id = ?').run(id);
+    await db.transaction(async (tx: IDatabaseAdapter) => {
+      // Unlink POs from this folder (don't delete the POs)
+      await tx.prepare('UPDATE po_tracker_pos SET folder_id = NULL WHERE folder_id = ?').run(id);
+      // Delete permissions for this folder
+      await tx.prepare("DELETE FROM po_tracker_permissions WHERE resource_type = 'folder' AND resource_id = ?").run(id);
+      await tx.prepare('DELETE FROM po_tracker_folders WHERE id = ?').run(id);
+    });
 
     auditLog(request, 'DELETE_PO_FOLDER', 'po_tracker_folders', id, existing, null);
     return { success: true, message: 'Đã xóa nhóm. Các PO trong nhóm được giữ lại.' };
@@ -298,7 +320,7 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
   // ─────────────────────────────────────────────────────────
 
   /**
-   * GET /pos — List POs with filters
+   * GET /pos — List POs with filters & progress %
    */
   fastify.get('/pos', async (request: any, reply) => {
     const db = getDb();
@@ -313,7 +335,13 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
              COUNT(DISTINCT pi.id) as item_count,
              COALESCE(SUM(pi.ordered_qty), 0) as total_ordered_qty,
              COALESCE(SUM(pi.received_qty), 0) as total_received_qty,
-             CAST(julianday('now') - julianday(p.expected_delivery_date) AS INTEGER) as days_overdue
+             CASE
+               WHEN p.status IN ('received', 'cancelled') THEN 0
+               WHEN p.expected_delivery_date IS NULL THEN 0
+               WHEN date('now', 'localtime') > date(p.expected_delivery_date)
+                 THEN CAST(julianday(date('now', 'localtime')) - julianday(p.expected_delivery_date) AS INTEGER)
+               ELSE 0
+             END as days_overdue
       FROM po_tracker_pos p
       LEFT JOIN po_tracker_folders f ON p.folder_id = f.id
       LEFT JOIN users u ON p.created_by = u.id
@@ -343,7 +371,7 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
 
     if (folder_id === 'unassigned') {
       query += ' AND p.folder_id IS NULL';
-    } else if (folder_id) {
+    } else if (folder_id && folder_id !== 'all') {
       query += ' AND p.folder_id = ?';
       params.push(folder_id);
     }
@@ -357,32 +385,59 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
       const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       query += " AND (p.status NOT IN ('received', 'cancelled') AND p.expected_delivery_date IS NOT NULL AND p.expected_delivery_date BETWEEN ? AND ?)";
       params.push(today, in7Days);
-    } else if (status) {
+    } else if (status && status !== 'all') {
       query += ' AND p.status = ?';
       params.push(status);
     }
 
-    if (search) {
-      query += ' AND (p.po_number LIKE ? OR p.supplier_name LIKE ? OR p.supplier_code LIKE ? OR p.warehouse LIKE ?)';
-      const like = `%${search}%`;
-      params.push(like, like, like, like);
+    if (search && search.trim()) {
+      const trimmed = search.trim();
+      const like = `%${trimmed}%`;
+      query += ` AND (
+        p.po_number LIKE ?
+        OR p.supplier_name LIKE ?
+        OR p.supplier_code LIKE ?
+        OR p.warehouse LIKE ?
+        OR p.notes LIKE ?
+        OR EXISTS (
+          SELECT 1 FROM po_tracker_items pi2
+          WHERE pi2.po_id = p.id AND (pi2.item_code LIKE ? OR pi2.item_name LIKE ?)
+        )
+      )`;
+      params.push(like, like, like, like, like, like, like);
     }
 
     query += ' GROUP BY p.id ORDER BY p.created_at DESC';
 
     const records = await db.prepare(query).all(...params) as any[];
 
-    // Parse tags JSON
-    const data = records.map((r: any) => ({
-      ...r,
-      tags: r.tags ? JSON.parse(r.tags) : []
-    }));
+    // Parse tags JSON & calculate progress percentage
+    const data = records.map((r: any) => {
+      const ordered = Number(r.total_ordered_qty) || 0;
+      const received = Number(r.total_received_qty) || 0;
+      const progress = ordered > 0
+        ? Math.min(100, Math.round((received / ordered) * 100))
+        : (r.status === 'received' ? 100 : 0);
+
+      let parsedTags: string[] = [];
+      if (r.tags) {
+        try {
+          parsedTags = typeof r.tags === 'string' ? JSON.parse(r.tags) : r.tags;
+        } catch (_) {}
+      }
+
+      return {
+        ...r,
+        progress,
+        tags: parsedTags
+      };
+    });
 
     return { success: true, data };
   });
 
   /**
-   * GET /pos/:id — Get PO detail with items
+   * GET /pos/:id — Get PO detail with items & calculated progress
    */
   fastify.get('/pos/:id', async (request: any, reply) => {
     const db = getDb();
@@ -413,12 +468,40 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
       WHERE perm.resource_type = 'po' AND perm.resource_id = ?
     `).all(id) : [];
 
+    const totalOrdered = items.reduce((s, it) => s + (Number(it.ordered_qty) || 0), 0);
+    const totalReceived = items.reduce((s, it) => s + (Number(it.received_qty) || 0), 0);
+    const progress = totalOrdered > 0
+      ? Math.min(100, Math.round((totalReceived / totalOrdered) * 100))
+      : (po.status === 'received' ? 100 : 0);
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    let daysOverdue = 0;
+    if (po.expected_delivery_date && !['received', 'cancelled'].includes(po.status)) {
+      const expTime = new Date(po.expected_delivery_date).getTime();
+      const todayTime = new Date(todayStr).getTime();
+      if (todayTime > expTime) {
+        daysOverdue = Math.floor((todayTime - expTime) / (24 * 60 * 60 * 1000));
+      }
+    }
+
+    let parsedTags: string[] = [];
+    if (po.tags) {
+      try {
+        parsedTags = typeof po.tags === 'string' ? JSON.parse(po.tags) : po.tags;
+      } catch (_) {}
+    }
+
     return {
       success: true,
       data: {
         ...po,
-        tags: po.tags ? JSON.parse(po.tags) : [],
+        tags: parsedTags,
         items,
+        item_count: items.length,
+        total_ordered_qty: totalOrdered,
+        total_received_qty: totalReceived,
+        progress,
+        days_overdue: daysOverdue,
         permissions,
         user_permission: perm
       }
@@ -435,8 +518,8 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
     const body = (request.body as any) || {};
 
     const {
-      folder_id, po_number, po_date, expected_delivery_date,
-      supplier_code, supplier_name, warehouse,
+      folder_id, po_number, po_date, expected_delivery_date, actual_delivery_date,
+      supplier_code, supplier_name, warehouse, status: initialStatus,
       total_value, currency, notes, tags,
       extracted_data, pdf_file_name, items = []
     } = body;
@@ -455,41 +538,59 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
     const userRow = userId ? (await db.prepare('SELECT id FROM users WHERE id = ?').get(userId) as any) : null;
     const validUserId = userRow ? userId : null;
 
+    let computedTotalValue = total_value != null ? Number(total_value) : 0;
+    if (computedTotalValue === 0 && Array.isArray(items) && items.length > 0) {
+      computedTotalValue = items.reduce((sum: number, it: any) => {
+        const lineTotal = Number(it.total_price) || ((Number(it.ordered_qty) || 0) * (Number(it.unit_price) || 0));
+        return sum + lineTotal;
+      }, 0);
+    }
+
+    const validInitialStatus = initialStatus && VALID_STATUSES.includes(initialStatus) ? initialStatus : 'pending';
+    const finalDeliveryDate = actual_delivery_date || (validInitialStatus === 'received' ? now.split('T')[0] : null);
+
     await db.transaction(async (tx: IDatabaseAdapter) => {
       await tx.prepare(`
         INSERT INTO po_tracker_pos (
-          id, folder_id, po_number, po_date, expected_delivery_date,
+          id, folder_id, po_number, po_date, expected_delivery_date, actual_delivery_date,
           supplier_code, supplier_name, warehouse, status, total_value, currency,
           notes, tags, extracted_data, pdf_file_name, created_by, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id, folder_id || null, po_number || null, po_date || null,
-        expected_delivery_date || null, supplier_code || null,
+        expected_delivery_date || null, finalDeliveryDate, supplier_code || null,
         supplier_name || null, warehouse || null,
-        total_value ? Number(total_value) : 0,
+        validInitialStatus,
+        computedTotalValue,
         currency || 'VND', notes || null,
         tags ? JSON.stringify(tags) : null,
-        extracted_data ? JSON.stringify(extracted_data) : null,
+        extracted_data ? (typeof extracted_data === 'string' ? extracted_data : JSON.stringify(extracted_data)) : null,
         pdf_file_name || null,
         validUserId, now, now
       );
 
       // Insert line items
-      if (items.length > 0) {
+      if (Array.isArray(items) && items.length > 0) {
         for (const item of items) {
+          const ordQty = Number(item.ordered_qty || 0);
+          const recQty = Number(item.received_qty || 0);
+          const uPrice = Number(item.unit_price || 0);
+          const tPrice = Number(item.total_price || (ordQty * uPrice) || 0);
+          const itemStatus = item.status || (recQty >= ordQty && ordQty > 0 ? 'received' : recQty > 0 ? 'partial' : 'pending');
+
           await tx.prepare(`
             INSERT INTO po_tracker_items (id, po_id, item_code, item_name, unit, ordered_qty, received_qty, unit_price, total_price, warehouse, notes, status)
-            VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 'pending')
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
-            uuidv4(), id,
+            item.id || uuidv4(), id,
             item.item_code || null,
             item.item_name || '',
             item.unit || 'thùng',
-            Number(item.ordered_qty || 0),
-            Number(item.unit_price || 0),
-            Number(item.total_price || (item.ordered_qty * item.unit_price) || 0),
+            ordQty, recQty,
+            uPrice, tPrice,
             item.warehouse || null,
-            item.notes || null
+            item.notes || null,
+            itemStatus
           );
         }
       }
@@ -505,11 +606,21 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
 
     auditLog(request, 'CREATE_PO_TRACKER', 'po_tracker_pos', id, null, { po_number, supplier_name });
     const created = await db.prepare('SELECT * FROM po_tracker_pos WHERE id = ?').get(id) as any;
-    return { success: true, data: { ...created, tags: tags || [] } };
+    const insertedItems = await db.prepare('SELECT * FROM po_tracker_items WHERE po_id = ? ORDER BY rowid').all(id) as any[];
+
+    return {
+      success: true,
+      data: {
+        ...created,
+        tags: tags || [],
+        items: insertedItems,
+        item_count: insertedItems.length
+      }
+    };
   });
 
   /**
-   * PUT /pos/:id — Update PO metadata
+   * PUT /pos/:id — Update PO metadata and line items
    */
   fastify.put('/pos/:id', async (request: any, reply) => {
     const db = getDb();
@@ -528,59 +639,102 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
     const body = (request.body as any) || {};
     const now = new Date().toISOString();
 
-    const validStatuses = ['pending', 'confirmed', 'shipping', 'partial_received', 'received', 'cancelled', 'overdue'];
-    const newStatus = body.status && validStatuses.includes(body.status) ? body.status : existing.status;
-    const newDeliveryDate = body.actual_delivery_date ?? (newStatus === 'received' && !existing.actual_delivery_date ? now.split('T')[0] : existing.actual_delivery_date);
+    let newStatus = body.status && VALID_STATUSES.includes(body.status) ? body.status : existing.status;
+    let newDeliveryDate = existing.actual_delivery_date;
 
-    await db.prepare(`
-      UPDATE po_tracker_pos
-      SET folder_id = ?, po_number = ?, po_date = ?, expected_delivery_date = ?,
-          actual_delivery_date = ?, supplier_code = ?, supplier_name = ?,
-          warehouse = ?, status = ?, total_value = ?, currency = ?, notes = ?, tags = ?,
-          pdf_file_name = ?, updated_at = ?
-      WHERE id = ?
-    `).run(
-      body.folder_id ?? existing.folder_id,
-      body.po_number ?? existing.po_number,
-      body.po_date ?? existing.po_date,
-      body.expected_delivery_date ?? existing.expected_delivery_date,
-      newDeliveryDate,
-      body.supplier_code ?? existing.supplier_code,
-      body.supplier_name ?? existing.supplier_name,
-      body.warehouse ?? existing.warehouse,
-      newStatus,
-      body.total_value != null ? Number(body.total_value) : existing.total_value,
-      body.currency ?? existing.currency,
-      body.notes ?? existing.notes,
-      body.tags != null ? JSON.stringify(body.tags) : existing.tags,
-      body.pdf_file_name ?? existing.pdf_file_name,
-      now, id
-    );
-
-    // Handle items update if provided
-    if (Array.isArray(body.items)) {
-      await db.prepare('DELETE FROM po_tracker_items WHERE po_id = ?').run(id);
-      if (body.items.length > 0) {
-        for (const item of body.items) {
-          await db.prepare(`
-            INSERT INTO po_tracker_items (id, po_id, item_code, item_name, unit, ordered_qty, received_qty, unit_price, total_price, warehouse, notes, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `).run(
-            item.id || uuidv4(), id,
-            item.item_code || null, item.item_name || '',
-            item.unit || 'thùng',
-            Number(item.ordered_qty || 0), Number(item.received_qty || 0),
-            Number(item.unit_price || 0), Number(item.total_price || 0),
-            item.warehouse || null, item.notes || null,
-            item.status || 'pending'
-          );
-        }
-      }
+    if (body.actual_delivery_date !== undefined) {
+      newDeliveryDate = body.actual_delivery_date || null;
+    } else if (newStatus === 'received') {
+      newDeliveryDate = existing.actual_delivery_date || now.split('T')[0];
+    } else if (['pending', 'confirmed', 'shipping'].includes(newStatus) && existing.status === 'received') {
+      newDeliveryDate = null;
     }
+
+    await db.transaction(async (tx: IDatabaseAdapter) => {
+      // Handle items update if provided
+      if (Array.isArray(body.items)) {
+        await tx.prepare('DELETE FROM po_tracker_items WHERE po_id = ?').run(id);
+        if (body.items.length > 0) {
+          for (const item of body.items) {
+            const ordQty = Number(item.ordered_qty || 0);
+            const recQty = Number(item.received_qty || 0);
+            const uPrice = Number(item.unit_price || 0);
+            const tPrice = Number(item.total_price || (ordQty * uPrice) || 0);
+            const itemStat = item.status || (recQty >= ordQty && ordQty > 0 ? 'received' : recQty > 0 ? 'partial' : 'pending');
+
+            await tx.prepare(`
+              INSERT INTO po_tracker_items (id, po_id, item_code, item_name, unit, ordered_qty, received_qty, unit_price, total_price, warehouse, notes, status)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(
+              item.id || uuidv4(), id,
+              item.item_code || null, item.item_name || '',
+              item.unit || 'thùng',
+              ordQty, recQty,
+              uPrice, tPrice,
+              item.warehouse || null, item.notes || null,
+              itemStat
+            );
+          }
+
+          // Auto-adjust PO status based on items if body.status was not explicitly provided
+          if (!body.status) {
+            const allItemsRec = body.items.every((it: any) => Number(it.received_qty || 0) >= Number(it.ordered_qty || 0) && Number(it.ordered_qty || 0) > 0);
+            const someItemsRec = body.items.some((it: any) => Number(it.received_qty || 0) > 0);
+            if (allItemsRec) {
+              newStatus = 'received';
+              if (!newDeliveryDate) newDeliveryDate = now.split('T')[0];
+            } else if (someItemsRec && ['pending', 'confirmed', 'shipping'].includes(existing.status)) {
+              newStatus = 'partial_received';
+            }
+          }
+        }
+      } else if (newStatus === 'received' && existing.status !== 'received') {
+        // If items were not passed, but status changed to received, sync item received quantities
+        await tx.prepare(`
+          UPDATE po_tracker_items
+          SET received_qty = ordered_qty, status = 'received'
+          WHERE po_id = ? AND (received_qty = 0 OR received_qty < ordered_qty)
+        `).run(id);
+      }
+
+      await tx.prepare(`
+        UPDATE po_tracker_pos
+        SET folder_id = ?, po_number = ?, po_date = ?, expected_delivery_date = ?,
+            actual_delivery_date = ?, supplier_code = ?, supplier_name = ?,
+            warehouse = ?, status = ?, total_value = ?, currency = ?, notes = ?, tags = ?,
+            pdf_file_name = ?, updated_at = ?
+        WHERE id = ?
+      `).run(
+        body.folder_id !== undefined ? (body.folder_id || null) : existing.folder_id,
+        body.po_number ?? existing.po_number,
+        body.po_date ?? existing.po_date,
+        body.expected_delivery_date ?? existing.expected_delivery_date,
+        newDeliveryDate,
+        body.supplier_code ?? existing.supplier_code,
+        body.supplier_name ?? existing.supplier_name,
+        body.warehouse ?? existing.warehouse,
+        newStatus,
+        body.total_value != null ? Number(body.total_value) : existing.total_value,
+        body.currency ?? existing.currency,
+        body.notes ?? existing.notes,
+        body.tags != null ? (typeof body.tags === 'string' ? body.tags : JSON.stringify(body.tags)) : existing.tags,
+        body.pdf_file_name ?? existing.pdf_file_name,
+        now, id
+      );
+    });
 
     auditLog(request, 'UPDATE_PO_TRACKER', 'po_tracker_pos', id, existing, body);
     const updated = await db.prepare('SELECT * FROM po_tracker_pos WHERE id = ?').get(id) as any;
-    return { success: true, data: { ...updated, tags: updated.tags ? JSON.parse(updated.tags) : [] } };
+    const items = await db.prepare('SELECT * FROM po_tracker_items WHERE po_id = ? ORDER BY rowid').all(id) as any[];
+
+    return {
+      success: true,
+      data: {
+        ...updated,
+        tags: updated.tags ? (typeof updated.tags === 'string' ? JSON.parse(updated.tags) : updated.tags) : [],
+        items
+      }
+    };
   });
 
   /**
@@ -600,22 +754,138 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
       return reply.code(403).send({ success: false, message: 'Bạn không có quyền cập nhật trạng thái đơn hàng này.' });
     }
 
-    const { status, actual_delivery_date, notes } = (request.body as any) || {};
-    const validStatuses = ['pending', 'confirmed', 'shipping', 'partial_received', 'received', 'cancelled', 'overdue'];
-    if (!status || !validStatuses.includes(status)) {
-      return reply.code(400).send({ success: false, message: `Trạng thái không hợp lệ. Các giá trị: ${validStatuses.join(', ')}` });
+    const { status, actual_delivery_date, notes, sync_items } = (request.body as any) || {};
+    if (!status || !VALID_STATUSES.includes(status)) {
+      return reply.code(400).send({ success: false, message: `Trạng thái không hợp lệ. Các giá trị: ${VALID_STATUSES.join(', ')}` });
     }
 
     const now = new Date().toISOString();
     const updateNotes = notes != null ? notes : existing.notes;
-    const updateDelivery = actual_delivery_date || (status === 'received' ? now.split('T')[0] : existing.actual_delivery_date);
+    let updateDelivery = existing.actual_delivery_date;
 
-    await db.prepare(`
-      UPDATE po_tracker_pos SET status = ?, actual_delivery_date = ?, notes = ?, updated_at = ? WHERE id = ?
-    `).run(status, updateDelivery, updateNotes, now, id);
+    if (actual_delivery_date !== undefined) {
+      updateDelivery = actual_delivery_date || null;
+    } else if (status === 'received') {
+      updateDelivery = existing.actual_delivery_date || now.split('T')[0];
+    } else if (['pending', 'confirmed', 'shipping'].includes(status) && existing.status === 'received') {
+      updateDelivery = null;
+    }
+
+    await db.transaction(async (tx: IDatabaseAdapter) => {
+      await tx.prepare(`
+        UPDATE po_tracker_pos SET status = ?, actual_delivery_date = ?, notes = ?, updated_at = ? WHERE id = ?
+      `).run(status, updateDelivery, updateNotes, now, id);
+
+      // When marking PO as received, synchronize items unless sync_items is false
+      if (status === 'received' && sync_items !== false) {
+        await tx.prepare(`
+          UPDATE po_tracker_items
+          SET received_qty = ordered_qty, status = 'received'
+          WHERE po_id = ? AND (received_qty = 0 OR received_qty < ordered_qty)
+        `).run(id);
+      }
+    });
 
     auditLog(request, 'UPDATE_PO_STATUS', 'po_tracker_pos', id, { status: existing.status }, { status });
     return { success: true, message: `Đã cập nhật trạng thái PO sang "${status}".` };
+  });
+
+  /**
+   * PATCH /pos/:id/receive — Khớp số lượng giao hàng (delivery matching) & tự động chuyển trạng thái
+   */
+  fastify.patch('/pos/:id/receive', async (request: any, reply) => {
+    const db = getDb();
+    const { id } = request.params as any;
+    const userId = request.user?.id;
+    const userRole = request.user?.role;
+
+    const existing = await db.prepare('SELECT * FROM po_tracker_pos WHERE id = ?').get(id) as any;
+    if (!existing) return reply.code(404).send({ success: false, message: 'Không tìm thấy đơn hàng.' });
+
+    const perm = await getUserPermissionOnPO(db, userId, userRole, id, existing.folder_id);
+    if (!perm || !hasPermission(perm, 'edit')) {
+      return reply.code(403).send({ success: false, message: 'Bạn không có quyền cập nhật nhận hàng cho PO này.' });
+    }
+
+    const { items: receivedItems, receive_all, actual_delivery_date, notes } = (request.body as any) || {};
+    const now = new Date().toISOString();
+
+    await db.transaction(async (tx: IDatabaseAdapter) => {
+      if (receive_all) {
+        // Mark all items as fully received
+        await tx.prepare(`
+          UPDATE po_tracker_items
+          SET received_qty = ordered_qty, status = 'received'
+          WHERE po_id = ?
+        `).run(id);
+      } else if (Array.isArray(receivedItems)) {
+        for (const item of receivedItems) {
+          if (!item.id && !item.item_code) continue;
+          const currentItem = await tx.prepare(`
+            SELECT * FROM po_tracker_items WHERE po_id = ? AND (id = ? OR item_code = ?)
+          `).get(id, item.id || '', item.item_code || '') as any;
+
+          if (currentItem) {
+            const newRecQty = Number(item.received_qty != null ? item.received_qty : currentItem.ordered_qty);
+            const ordQty = Number(currentItem.ordered_qty || 0);
+            const itemStatus = newRecQty >= ordQty && ordQty > 0 ? 'received' : newRecQty > 0 ? 'partial' : 'pending';
+
+            await tx.prepare(`
+              UPDATE po_tracker_items
+              SET received_qty = ?, status = ?, notes = COALESCE(?, notes)
+              WHERE id = ?
+            `).run(newRecQty, itemStatus, item.notes || null, currentItem.id);
+          }
+        }
+      }
+
+      // Check overall progress
+      const allItems = await tx.prepare('SELECT * FROM po_tracker_items WHERE po_id = ?').all(id) as any[];
+      const totalOrdered = allItems.reduce((s, it) => s + (Number(it.ordered_qty) || 0), 0);
+      const totalReceived = allItems.reduce((s, it) => s + (Number(it.received_qty) || 0), 0);
+
+      const allFull = allItems.length > 0 && allItems.every(it => Number(it.received_qty) >= Number(it.ordered_qty) && Number(it.ordered_qty) > 0);
+      const someRec = totalReceived > 0;
+
+      let nextStatus = existing.status;
+      let deliveryDate = existing.actual_delivery_date;
+
+      if (receive_all || allFull) {
+        nextStatus = 'received';
+        deliveryDate = actual_delivery_date || now.split('T')[0];
+      } else if (someRec && ['pending', 'confirmed', 'shipping'].includes(existing.status)) {
+        nextStatus = 'partial_received';
+      }
+
+      await tx.prepare(`
+        UPDATE po_tracker_pos
+        SET status = ?, actual_delivery_date = ?, notes = COALESCE(?, notes), updated_at = ?
+        WHERE id = ?
+      `).run(nextStatus, deliveryDate, notes || null, now, id);
+    });
+
+    auditLog(request, 'RECEIVE_PO_ITEMS', 'po_tracker_pos', id, existing, request.body);
+
+    const updated = await db.prepare('SELECT * FROM po_tracker_pos WHERE id = ?').get(id) as any;
+    const items = await db.prepare('SELECT * FROM po_tracker_items WHERE po_id = ? ORDER BY rowid').all(id) as any[];
+    const totalOrdered = items.reduce((s, it) => s + (Number(it.ordered_qty) || 0), 0);
+    const totalReceived = items.reduce((s, it) => s + (Number(it.received_qty) || 0), 0);
+    const progress = totalOrdered > 0 ? Math.min(100, Math.round((totalReceived / totalOrdered) * 100)) : (updated.status === 'received' ? 100 : 0);
+
+    return {
+      success: true,
+      message: 'Cập nhật số lượng giao hàng thành công.',
+      data: {
+        ...updated,
+        tags: updated.tags ? (typeof updated.tags === 'string' ? JSON.parse(updated.tags) : updated.tags) : [],
+        items,
+        item_count: items.length,
+        total_ordered_qty: totalOrdered,
+        total_received_qty: totalReceived,
+        progress,
+        user_permission: perm
+      }
+    };
   });
 
   /**
@@ -635,9 +905,11 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
       return reply.code(403).send({ success: false, message: 'Bạn cần quyền Quản trị để xóa đơn hàng này.' });
     }
 
-    await db.prepare('DELETE FROM po_tracker_items WHERE po_id = ?').run(id);
-    await db.prepare("DELETE FROM po_tracker_permissions WHERE resource_type = 'po' AND resource_id = ?").run(id);
-    await db.prepare('DELETE FROM po_tracker_pos WHERE id = ?').run(id);
+    await db.transaction(async (tx: IDatabaseAdapter) => {
+      await tx.prepare('DELETE FROM po_tracker_items WHERE po_id = ?').run(id);
+      await tx.prepare("DELETE FROM po_tracker_permissions WHERE resource_type = 'po' AND resource_id = ?").run(id);
+      await tx.prepare('DELETE FROM po_tracker_pos WHERE id = ?').run(id);
+    });
 
     auditLog(request, 'DELETE_PO_TRACKER', 'po_tracker_pos', id, existing, null);
     return { success: true, message: 'Đã xóa đơn hàng thành công.' };
@@ -670,7 +942,7 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
       SELECT perm.*, u.full_name as user_name, u.email,
              gb.full_name as granted_by_name
       FROM po_tracker_permissions perm
-      JOIN users u ON perm.user_id = u.id
+      LEFT JOIN users u ON perm.user_id = u.id
       LEFT JOIN users gb ON perm.granted_by = gb.id
       WHERE perm.resource_type = ? AND perm.resource_id = ?
       ORDER BY perm.created_at DESC
@@ -684,7 +956,7 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/users', async (request: any, reply) => {
     const db = getDb();
-    const users = await db.prepare('SELECT id, email, full_name, role FROM users WHERE is_active = 1 ORDER BY full_name ASC').all() as any[];
+    const users = await db.prepare('SELECT id, email, full_name, role FROM users WHERE is_active = 1 OR is_active IS NULL ORDER BY full_name ASC').all() as any[];
     return { success: true, data: users };
   });
 
@@ -747,6 +1019,7 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
       `).run(uuidv4(), actualTargetId, resource_type, resource_id || null, permission, userId, now);
     }
 
+    auditLog(request, 'GRANT_PO_PERMISSION', 'po_tracker_permissions', actualTargetId, existing, { resource_type, resource_id, permission });
     return { success: true, message: `Đã cấp quyền cho ${targetUser.full_name || targetUser.email} thành công.` };
   });
 
@@ -772,6 +1045,7 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
     }
 
     await db.prepare('DELETE FROM po_tracker_permissions WHERE id = ?').run(id);
+    auditLog(request, 'REVOKE_PO_PERMISSION', 'po_tracker_permissions', id, perm, null);
     return { success: true, message: 'Đã thu hồi quyền thành công.' };
   });
 
@@ -811,7 +1085,7 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
 
     if (folder_id === 'unassigned') {
       baseFilter += ' AND p.folder_id IS NULL';
-    } else if (folder_id) {
+    } else if (folder_id && folder_id !== 'all') {
       baseFilter += ' AND p.folder_id = ?';
       params.push(folder_id);
     }
@@ -834,7 +1108,7 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
         COALESCE(SUM(total_value), 0) as total_value
       FROM po_tracker_pos p
       WHERE 1=1 ${baseFilter}
-    `).get(today, today, in7Days, ...params) as any;
+    `).get(today, today, today, in7Days, ...params) as any;
 
     return { success: true, data: rows || {} };
   });

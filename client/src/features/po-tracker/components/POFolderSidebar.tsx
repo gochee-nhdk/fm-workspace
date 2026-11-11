@@ -78,6 +78,10 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
 
   const safeFolders = Array.isArray(folders) ? folders : [];
 
+  const unassignedCount = stats
+    ? Math.max(0, (stats.total || 0) - safeFolders.reduce((sum, f) => sum + (f.po_count || 0), 0))
+    : 0;
+
   return (
     <>
       <aside
@@ -221,20 +225,36 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
           })}
 
           {/* Unassigned */}
-          {!collapsed && (
-            <button
-              onClick={() => handleSelect('unassigned')}
-              className={cn(
-                'w-full flex items-center gap-2.5 px-3 h-9 rounded-xl text-[12.5px] transition-all duration-150 cursor-pointer active:scale-[0.98] text-left select-none',
-                activeFolderId === 'unassigned'
-                  ? 'bg-[#007AFF]/12 dark:bg-[#0A84FF]/20 text-[#007AFF] dark:text-[#0A84FF] font-semibold'
-                  : 'text-[#555558] dark:text-[#a1a1a6] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium'
-              )}
-            >
-              <span className={cn('w-2 h-2 rounded-full shrink-0', activeFolderId === 'unassigned' ? 'bg-[#007AFF] dark:bg-[#0A84FF]' : 'bg-zinc-400 dark:bg-zinc-600')} />
-              <span className="flex-1 truncate">Chưa phân nhóm</span>
-            </button>
-          )}
+          <button
+            onClick={() => handleSelect('unassigned')}
+            className={cn(
+              'w-full flex items-center gap-2.5 px-3 h-9 rounded-xl text-[12.5px] transition-all duration-150 cursor-pointer active:scale-[0.98] text-left select-none',
+              collapsed && 'justify-center px-0',
+              activeFolderId === 'unassigned'
+                ? 'bg-[#007AFF]/12 dark:bg-[#0A84FF]/20 text-[#007AFF] dark:text-[#0A84FF] font-semibold'
+                : 'text-[#555558] dark:text-[#a1a1a6] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium'
+            )}
+            title={collapsed ? `Chưa phân nhóm (${unassignedCount})` : undefined}
+          >
+            <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', activeFolderId === 'unassigned' ? 'bg-[#007AFF] dark:bg-[#0A84FF]' : 'bg-zinc-400 dark:bg-zinc-600')} />
+            {!collapsed && (
+              <>
+                <span className="flex-1 truncate">Chưa phân nhóm</span>
+                {stats && (
+                  <span
+                    className={cn(
+                      'text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center tabular-nums',
+                      activeFolderId === 'unassigned'
+                        ? 'bg-[#007AFF]/20 text-[#007AFF] dark:text-[#0A84FF]'
+                        : 'bg-black/[0.06] dark:bg-white/[0.08] text-[#555558] dark:text-[#a1a1a6]'
+                    )}
+                  >
+                    {unassignedCount}
+                  </span>
+                )}
+              </>
+            )}
+          </button>
         </nav>
 
         {/* Add Folder Button */}

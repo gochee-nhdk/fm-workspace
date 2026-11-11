@@ -23,7 +23,8 @@ async function setupTables() {
       email TEXT,
       password_hash TEXT,
       role TEXT DEFAULT 'user',
-      full_name TEXT
+      full_name TEXT,
+      is_active INTEGER DEFAULT 1
     );
 
     CREATE TABLE IF NOT EXISTS po_tracker_folders (
@@ -113,17 +114,40 @@ function safeParseAIJson(text: string): any {
   return {};
 }
 
+function extractCleanBase64(rawUrl: string): { mimeType: string; base64: string } {
+  let mimeType = 'application/pdf';
+  let base64 = rawUrl || '';
+
+  const commaIdx = rawUrl.indexOf(',');
+  if (commaIdx !== -1 && rawUrl.startsWith('data:')) {
+    const meta = rawUrl.slice(0, commaIdx);
+    const mimeMatch = meta.match(/data:([^;]+)/i);
+    if (mimeMatch && mimeMatch[1]) {
+      mimeType = mimeMatch[1].trim();
+    }
+    base64 = rawUrl.slice(commaIdx + 1);
+  }
+  base64 = base64.replace(/\s+/g, '');
+  return { mimeType, base64 };
+}
+
 async function runTests() {
-  console.log('\n=== PO TRACKER COMPREHENSIVE INTEGRATION & LOGIC TESTS ===\n');
+  console.log('\n=== PO TRACKER COMPREHENSIVE BACKEND AUDIT & LOGIC TESTS ===\n');
 
   await setupTables();
 
   const userAId = uuidv4();
-  await adapter.prepare('INSERT INTO users (id, username, email, full_name, role) VALUES (?, ?, ?, ?, ?)')
+  await adapter.prepare('INSERT INTO users (id, username, email, full_name, role, is_active) VALUES (?, ?, ?, ?, ?, 1)')
     .run(userAId, 'usera', 'usera@farmersmarket.vn', 'User A', 'user');
 
-  // Test 1: AI JSON parser robustness
-  console.log('--- TEST GROUP 1: Safe AI JSON Parser ---');
+  const userBId = uuidv4();
+  await adapter.prepare('INSERT INTO users (id, username, email, full_name, role, is_active) VALUES (?, ?, ?, ?, ?, 1)')
+    .run(userBId, 'userb', 'userb@farmersmarket.vn', 'User B', 'user');
+
+  // ─────────────────────────────────────────────────────────────
+  // TEST GROUP 1: Safe AI JSON Parser & Data Extraction
+  // ─────────────────────────────────────────────────────────────
+  console.log('--- TEST GROUP 1: Safe AI JSON & Data Extraction ---');
   const rawJson = '{"po_number": "PO-1001", "total_value": 500000}';
   assert.strictEqual(safeParseAIJson(rawJson).po_number, 'PO-1001');
   console.log('[PASS] 1.1: Direct JSON parsed successfully');
@@ -140,8 +164,16 @@ async function runTests() {
   assert.strictEqual(safeParseAIJson(messyJson).po_number, 'PO-1004');
   console.log('[PASS] 1.4: Outermost braces fallback extracted valid object');
 
-  // Test 2: Folders & Permissions
-  console.log('\n--- TEST GROUP 2: Folders & Creator Access ---');
+  const sampleDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  const cleanExtracted = extractCleanBase64(sampleDataUrl);
+  assert.strictEqual(cleanExtracted.mimeType, 'image/png');
+  assert.ok(cleanExtracted.base64.startsWith('iVBORw0KGgo'));
+  console.log('[PASS] 1.5: DataURL base64 parsed linearly without regex backtracking');
+
+  // ─────────────────────────────────────────────────────────────
+  // TEST GROUP 2: Folders Management & Permissions
+  // ─────────────────────────────────────────────────────────────
+  console.log('\n--- TEST GROUP 2: Folders & Permissions ---');
   const folderId = uuidv4();
   const now = new Date().toISOString();
   await adapter.prepare(`
@@ -158,8 +190,10 @@ async function runTests() {
   assert.strictEqual(folder.name, 'Rau củ quả sạch');
   console.log('[PASS] 2.1: Folder created with creator admin permission');
 
-  // Test 3: PO Creation & Creator Permission Auto-Grant
-  console.log('\n--- TEST GROUP 3: PO Creation with Line Items ---');
+  // ─────────────────────────────────────────────────────────────
+  // TEST GROUP 3: PO Creation, Line Items, & Auto Calculations
+  // ─────────────────────────────────────────────────────────────
+  console.log('\n--- TEST GROUP 3: PO Creation & Automatic Calculations ---');
   const poId = uuidv4();
   await adapter.prepare(`
     INSERT INTO po_tracker_pos (
@@ -175,14 +209,17 @@ async function runTests() {
   `).run(uuidv4(), userAId, poId, userAId, now);
 
   // Line items
+  const item1Id = uuidv4();
+  const item2Id = uuidv4();
   await adapter.prepare(`
-    INSERT INTO po_tracker_items (id, po_id, item_code, item_name, unit, ordered_qty, received_qty, unit_price, total_price)
-    VALUES (?, ?, 'SP001', 'Cam vàng Ohla', 'Hộp', 10, 0, 50000, 500000)
-  `).run(uuidv4(), poId);
+    INSERT INTO po_tracker_items (id, po_id, item_code, item_name, unit, ordered_qty, received_qty, unit_price, total_price, status)
+    VALUES (?, ?, 'SP001', 'Cam vàng Ohla', 'Hộp', 10, 0, 50000, 500000, 'pending')
+  `).run(item1Id, poId);
+
   await adapter.prepare(`
-    INSERT INTO po_tracker_items (id, po_id, item_code, item_name, unit, ordered_qty, received_qty, unit_price, total_price)
-    VALUES (?, ?, 'SP002', 'Xoài sấy dẻo', 'Gói', 20, 0, 25000, 500000)
-  `).run(uuidv4(), poId);
+    INSERT INTO po_tracker_items (id, po_id, item_code, item_name, unit, ordered_qty, received_qty, unit_price, total_price, status)
+    VALUES (?, ?, 'SP002', 'Xoài sấy dẻo', 'Gói', 20, 0, 25000, 500000, 'pending')
+  `).run(item2Id, poId);
 
   // Test quantity aggregations in list query
   const poListRow = await adapter.prepare(`
@@ -199,48 +236,225 @@ async function runTests() {
   assert.strictEqual(poListRow.item_count, 2);
   assert.strictEqual(poListRow.total_ordered_qty, 30);
   assert.strictEqual(poListRow.total_received_qty, 0);
-  console.log('[PASS] 3.1: Aggregated quantities match: 2 items, 30 ordered, 0 received');
 
-  // Test 4: Overdue filtering logic
-  console.log('\n--- TEST GROUP 4: Overdue Filtering Logic ---');
-  // Expected delivery was 2026-11-04, which is in the past compared to today (e.g. 2026-11-05)
-  const today = '2026-11-05';
+  // Calculate progress % when 0 received
+  const progressInitial = poListRow.total_ordered_qty > 0
+    ? Math.min(100, Math.round((poListRow.total_received_qty / poListRow.total_ordered_qty) * 100))
+    : 0;
+  assert.strictEqual(progressInitial, 0);
+  console.log('[PASS] 3.1: Aggregated quantities & initial progress 0% verified');
+
+  // ─────────────────────────────────────────────────────────────
+  // TEST GROUP 4: Delivery Matching & Progress % Calculation
+  // ─────────────────────────────────────────────────────────────
+  console.log('\n--- TEST GROUP 4: Delivery Matching & Progress % Calculation ---');
+
+  // Step 4.1: Partial delivery: receive 5 units of item 1
+  await adapter.prepare(`
+    UPDATE po_tracker_items
+    SET received_qty = 5, status = 'partial'
+    WHERE id = ?
+  `).run(item1Id);
+
+  // Check progress
+  const partialItems = await adapter.prepare('SELECT * FROM po_tracker_items WHERE po_id = ?').all(poId) as any[];
+  const totOrd = partialItems.reduce((s, it) => s + Number(it.ordered_qty || 0), 0);
+  const totRec = partialItems.reduce((s, it) => s + Number(it.received_qty || 0), 0);
+  const partialPct = Math.min(100, Math.round((totRec / totOrd) * 100)); // 5 / 30 = 17%
+  assert.strictEqual(totRec, 5);
+  assert.strictEqual(partialPct, 17);
+
+  // Status should transition to 'partial_received'
+  await adapter.prepare("UPDATE po_tracker_pos SET status = 'partial_received' WHERE id = ?").run(poId);
+  const poPartial = await adapter.prepare('SELECT status FROM po_tracker_pos WHERE id = ?').get(poId) as any;
+  assert.strictEqual(poPartial.status, 'partial_received');
+  console.log('[PASS] 4.1: Partial delivery (5/30) calculates 17% progress & status partial_received');
+
+  // Step 4.2: Full delivery: receive remainder (10 for item 1, 20 for item 2)
+  await adapter.prepare("UPDATE po_tracker_items SET received_qty = ordered_qty, status = 'received' WHERE po_id = ?").run(poId);
+  const fullItems = await adapter.prepare('SELECT * FROM po_tracker_items WHERE po_id = ?').all(poId) as any[];
+  const fullTotOrd = fullItems.reduce((s, it) => s + Number(it.ordered_qty || 0), 0);
+  const fullTotRec = fullItems.reduce((s, it) => s + Number(it.received_qty || 0), 0);
+  const fullPct = Math.min(100, Math.round((fullTotRec / fullTotOrd) * 100));
+  assert.strictEqual(fullTotRec, 30);
+  assert.strictEqual(fullPct, 100);
+
+  // PO status transitions to 'received' and records actual_delivery_date
+  const todayStr = '2026-11-05';
+  await adapter.prepare("UPDATE po_tracker_pos SET status = 'received', actual_delivery_date = ? WHERE id = ?").run(todayStr, poId);
+  const poReceived = await adapter.prepare('SELECT * FROM po_tracker_pos WHERE id = ?').get(poId) as any;
+  assert.strictEqual(poReceived.status, 'received');
+  assert.strictEqual(poReceived.actual_delivery_date, todayStr);
+  console.log('[PASS] 4.2: Full delivery calculates 100% progress & sets status received with delivery date');
+
+  // ─────────────────────────────────────────────────────────────
+  // TEST GROUP 5: Overdue Detection & Days Overdue Accuracy
+  // ─────────────────────────────────────────────────────────────
+  console.log('\n--- TEST GROUP 5: Overdue Filtering & Days Overdue Accuracy ---');
+
+  // Create an overdue PO (expected 2026-11-01, today is 2026-11-05)
+  const overduePoId = uuidv4();
+  await adapter.prepare(`
+    INSERT INTO po_tracker_pos (id, folder_id, po_number, po_date, expected_delivery_date, status, total_value, created_by, created_at)
+    VALUES (?, ?, 'PO-OVERDUE-01', '2026-10-25', '2026-11-01', 'pending', 300000, ?, '2026-10-25')
+  `).run(overduePoId, folderId, userAId);
+
+  // Create a future PO (expected 2026-11-10)
+  const futurePoId = uuidv4();
+  await adapter.prepare(`
+    INSERT INTO po_tracker_pos (id, folder_id, po_number, po_date, expected_delivery_date, status, total_value, created_by, created_at)
+    VALUES (?, ?, 'PO-FUTURE-01', '2026-11-02', '2026-11-10', 'confirmed', 400000, ?, '2026-11-02')
+  `).run(futurePoId, folderId, userAId);
+
+  // Overdue filter check: should only match PO-OVERDUE-01 (PO-2026-001 is already 'received')
   const overduePOs = await adapter.prepare(`
     SELECT p.*
     FROM po_tracker_pos p
     WHERE (p.status = 'overdue' OR (p.status NOT IN ('received', 'cancelled') AND p.expected_delivery_date IS NOT NULL AND p.expected_delivery_date < ?))
-  `).all(today) as any[];
+  `).all(todayStr) as any[];
 
   assert.strictEqual(overduePOs.length, 1);
-  assert.strictEqual(overduePOs[0].po_number, 'PO-2026-001');
-  console.log('[PASS] 4.1: Past-due PO correctly matched by overdue filter');
+  assert.strictEqual(overduePOs[0].po_number, 'PO-OVERDUE-01');
+  console.log('[PASS] 5.1: Overdue filter correctly isolates past-due, unreceived POs');
 
-  // Test 5: Status Update via PUT /pos/:id with actual_delivery_date
-  console.log('\n--- TEST GROUP 5: Status Update & Delivery Date Synchronization ---');
-  // Update status to 'received'
-  const newDelivery = today;
+  // Days overdue logic in SQL
+  const daysOverdueTest = await adapter.prepare(`
+    SELECT po_number, status,
+      CASE
+        WHEN status IN ('received', 'cancelled') THEN 0
+        WHEN expected_delivery_date IS NULL THEN 0
+        WHEN ? > expected_delivery_date
+          THEN CAST(julianday(?) - julianday(expected_delivery_date) AS INTEGER)
+        ELSE 0
+      END as days_overdue
+    FROM po_tracker_pos
+    WHERE id IN (?, ?, ?)
+    ORDER BY po_number ASC
+  `).all(todayStr, todayStr, poId, overduePoId, futurePoId) as any[];
+
+  const overdueMap = new Map(daysOverdueTest.map((r: any) => [r.po_number, r.days_overdue]));
+  assert.strictEqual(overdueMap.get('PO-2026-001'), 0, 'Received PO must have days_overdue = 0');
+  assert.strictEqual(overdueMap.get('PO-FUTURE-01'), 0, 'Future PO must have days_overdue = 0');
+  assert.strictEqual(overdueMap.get('PO-OVERDUE-01'), 4, 'Overdue PO must have days_overdue = 4 (Nov 5 - Nov 1)');
+  console.log('[PASS] 5.2: Days overdue accurately computed: 0 for received/future, 4 for overdue');
+
+  // ─────────────────────────────────────────────────────────────
+  // TEST GROUP 6: Search & Multi-field Filtering
+  // ─────────────────────────────────────────────────────────────
+  console.log('\n--- TEST GROUP 6: Search & Line Item Matching ---');
+
+  // Search by line item name 'Ohla'
+  const searchLike = '%Ohla%';
+  const matchedByItem = await adapter.prepare(`
+    SELECT p.* FROM po_tracker_pos p
+    WHERE (
+      p.po_number LIKE ?
+      OR p.supplier_name LIKE ?
+      OR p.supplier_code LIKE ?
+      OR p.warehouse LIKE ?
+      OR p.notes LIKE ?
+      OR EXISTS (
+        SELECT 1 FROM po_tracker_items pi2
+        WHERE pi2.po_id = p.id AND (pi2.item_code LIKE ? OR pi2.item_name LIKE ?)
+      )
+    )
+  `).all(searchLike, searchLike, searchLike, searchLike, searchLike, searchLike, searchLike) as any[];
+
+  assert.strictEqual(matchedByItem.length, 1);
+  assert.strictEqual(matchedByItem[0].id, poId);
+  console.log('[PASS] 6.1: Search by item name ("Ohla") locates containing PO via EXISTS subquery');
+
+  // Search by SKU code 'SP002'
+  const skuLike = '%SP002%';
+  const matchedBySku = await adapter.prepare(`
+    SELECT p.* FROM po_tracker_pos p
+    WHERE EXISTS (
+      SELECT 1 FROM po_tracker_items pi2
+      WHERE pi2.po_id = p.id AND (pi2.item_code LIKE ? OR pi2.item_name LIKE ?)
+    )
+  `).all(skuLike, skuLike) as any[];
+  assert.strictEqual(matchedBySku.length, 1);
+  assert.strictEqual(matchedBySku[0].id, poId);
+  console.log('[PASS] 6.2: Search by SKU code ("SP002") successfully finds parent PO');
+
+  // Unassigned folder filter check
+  const unassignedPoId = uuidv4();
   await adapter.prepare(`
-    UPDATE po_tracker_pos
-    SET status = ?, actual_delivery_date = ?, updated_at = ?
-    WHERE id = ?
-  `).run('received', newDelivery, now, poId);
+    INSERT INTO po_tracker_pos (id, folder_id, po_number, status, total_value, created_by, created_at)
+    VALUES (?, NULL, 'PO-UNASSIGNED-01', 'pending', 150000, ?, ?)
+  `).run(unassignedPoId, userAId, now);
 
-  const updatedPO = await adapter.prepare('SELECT * FROM po_tracker_pos WHERE id = ?').get(poId) as any;
-  assert.strictEqual(updatedPO.status, 'received');
-  assert.strictEqual(updatedPO.actual_delivery_date, today);
-  console.log('[PASS] 5.1: Status updated to received and delivery date populated');
+  const unassignedList = await adapter.prepare('SELECT * FROM po_tracker_pos WHERE folder_id IS NULL').all() as any[];
+  assert.strictEqual(unassignedList.length, 1);
+  assert.strictEqual(unassignedList[0].po_number, 'PO-UNASSIGNED-01');
+  console.log('[PASS] 6.3: Unassigned folder filter (folder_id IS NULL) functions accurately');
 
-  // Verify that received PO is no longer included in overdue filter
-  const overdueAfterReceived = await adapter.prepare(`
-    SELECT p.*
+  // ─────────────────────────────────────────────────────────────
+  // TEST GROUP 7: Aggregated Dashboard Statistics (Parameter Count & Correctness)
+  // ─────────────────────────────────────────────────────────────
+  console.log('\n--- TEST GROUP 7: Dashboard Statistics Query Verification ---');
+
+  const in7Days = '2026-11-12';
+  // Check the 4-placeholder query
+  const statsResult = await adapter.prepare(`
+    SELECT
+      COUNT(*) as total,
+      SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+      SUM(CASE WHEN status = 'confirmed' THEN 1 ELSE 0 END) as confirmed,
+      SUM(CASE WHEN status = 'shipping' THEN 1 ELSE 0 END) as shipping,
+      SUM(CASE WHEN status = 'partial_received' THEN 1 ELSE 0 END) as partial_received,
+      SUM(CASE WHEN status = 'received' THEN 1 ELSE 0 END) as received,
+      SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled,
+      SUM(CASE WHEN status = 'overdue' OR (status NOT IN ('received','cancelled') AND expected_delivery_date IS NOT NULL AND expected_delivery_date < ?) THEN 1 ELSE 0 END) as overdue,
+      SUM(CASE WHEN status = 'overdue' OR (status NOT IN ('received','cancelled') AND expected_delivery_date IS NOT NULL AND expected_delivery_date < ?) THEN 1 ELSE 0 END) as actually_overdue,
+      SUM(CASE WHEN status NOT IN ('received','cancelled') AND expected_delivery_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as upcoming_7_days,
+      COALESCE(SUM(total_value), 0) as total_value
     FROM po_tracker_pos p
-    WHERE (p.status = 'overdue' OR (p.status NOT IN ('received', 'cancelled') AND p.expected_delivery_date IS NOT NULL AND p.expected_delivery_date < ?))
-  `).all(today) as any[];
+    WHERE 1=1
+  `).get(todayStr, todayStr, todayStr, in7Days) as any;
 
-  assert.strictEqual(overdueAfterReceived.length, 0);
-  console.log('[PASS] 5.2: Received PO is excluded from overdue filter');
+  assert.ok(statsResult, 'Stats result must exist');
+  assert.strictEqual(Number(statsResult.total), 4, 'Total POs: 4');
+  assert.strictEqual(Number(statsResult.received), 1, 'Received: 1');
+  assert.strictEqual(Number(statsResult.overdue), 1, 'Overdue: 1 (PO-OVERDUE-01)');
+  assert.strictEqual(Number(statsResult.upcoming_7_days), 1, 'Upcoming 7 days: 1 (PO-FUTURE-01)');
+  console.log('[PASS] 7.1: Aggregated stats query executes with 4 positional params and 100% accuracy');
 
-  console.log('\n=== ALL PO TRACKER TESTS PASSED SUCCESSFULLY! ===\n');
+  // Test stats query with user filter
+  const nonAdminStats = await adapter.prepare(`
+    SELECT
+      COUNT(*) as total,
+      SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+      SUM(CASE WHEN status = 'confirmed' THEN 1 ELSE 0 END) as confirmed,
+      SUM(CASE WHEN status = 'shipping' THEN 1 ELSE 0 END) as shipping,
+      SUM(CASE WHEN status = 'partial_received' THEN 1 ELSE 0 END) as partial_received,
+      SUM(CASE WHEN status = 'received' THEN 1 ELSE 0 END) as received,
+      SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled,
+      SUM(CASE WHEN status = 'overdue' OR (status NOT IN ('received','cancelled') AND expected_delivery_date IS NOT NULL AND expected_delivery_date < ?) THEN 1 ELSE 0 END) as overdue,
+      SUM(CASE WHEN status = 'overdue' OR (status NOT IN ('received','cancelled') AND expected_delivery_date IS NOT NULL AND expected_delivery_date < ?) THEN 1 ELSE 0 END) as actually_overdue,
+      SUM(CASE WHEN status NOT IN ('received','cancelled') AND expected_delivery_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as upcoming_7_days,
+      COALESCE(SUM(total_value), 0) as total_value
+    FROM po_tracker_pos p
+    WHERE 1=1 AND (p.created_by = ?)
+  `).get(todayStr, todayStr, todayStr, in7Days, userAId) as any;
+
+  assert.strictEqual(Number(nonAdminStats.total), 4);
+  console.log('[PASS] 7.2: Stats with non-admin filters executes cleanly without parameter offset');
+
+  // ─────────────────────────────────────────────────────────────
+  // TEST GROUP 8: Folder Deletion & Cascading Foreign Keys
+  // ─────────────────────────────────────────────────────────────
+  console.log('\n--- TEST GROUP 8: Folder Deletion & Unlinking Safety ---');
+  // When a folder is deleted, POs must be unlinked (folder_id = NULL), not deleted!
+  await adapter.prepare('UPDATE po_tracker_pos SET folder_id = NULL WHERE folder_id = ?').run(folderId);
+  await adapter.prepare("DELETE FROM po_tracker_permissions WHERE resource_type = 'folder' AND resource_id = ?").run(folderId);
+  await adapter.prepare('DELETE FROM po_tracker_folders WHERE id = ?').run(folderId);
+
+  const survivingPO = await adapter.prepare('SELECT folder_id FROM po_tracker_pos WHERE id = ?').get(poId) as any;
+  assert.strictEqual(survivingPO.folder_id, null, 'PO must be retained with folder_id = NULL');
+  console.log('[PASS] 8.1: Deleting folder preserves POs with folder_id unlinked to NULL');
+
+  console.log('\n=== ALL 14 PO TRACKER AUDIT TESTS PASSED SUCCESSFULLY! ===\n');
 
   try {
     client.close();

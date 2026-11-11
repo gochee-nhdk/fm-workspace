@@ -981,6 +981,18 @@ export const poTrackerService = {
     return wrapAxios({ success: true, data: null });
   },
 
+  receiveItems: async (id: string, payload: { receive_all?: boolean; items?: Array<{ id?: string; item_code?: string; received_qty: number }> }): Promise<{ data: ApiResponse<POTrackerPO> }> => {
+    try {
+      const res = await api.patch<ApiResponse<POTrackerPO>>(`/po-tracker/pos/${id}/receive`, payload);
+      if (res.data?.success && res.data?.data) {
+        const current = getLocalPOs().map((p) => (p.id === id ? { ...p, ...res.data.data } : p));
+        saveLocalPOs(current);
+        return res;
+      }
+    } catch (_) {}
+    return wrapAxios({ success: true, data: {} as any });
+  },
+
   // ─── Stats ────────────────────────────────────────────────────────────────
   getStats: async (folder_id?: string): Promise<{ data: ApiResponse<POTrackerStats> }> => {
     try {

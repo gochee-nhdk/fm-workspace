@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   POTrackerPO,
   POStatus,
   POPermission,
   POPermissionRecord,
+  POTrackerItemLine,
 } from '@/types/po-tracker';
 import { usePOTrackerStore } from '@/stores/po-tracker-store';
 import { poTrackerService } from '@/services/poTrackerService';
@@ -18,16 +19,19 @@ import {
   SFTray2Fill,
   SFDocument,
   SFPencil,
-  SFCalendar,
   SFTrash,
   SFEye,
   SFBubbleLeftFill,
   SFCheckmarkShieldFill,
   SFPersonFill,
-  SFCheckmark
+  SFCheckmark,
+  SFDocumentOnDocument,
+  SFExclamationmarkTriangleFill,
+  SFPlus,
+  SFXmark
 } from 'sf-symbols-lib';
 import { cn } from '@/lib/utils';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInDays } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 
@@ -91,6 +95,7 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
   const [activeTab, setActiveTab] = useState<'info' | 'items' | 'permissions'>('info');
 
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [updatingItems, setUpdatingItems] = useState(false);
   const [actualDate, setActualDate] = useState('');
   const [statusNotes, setStatusNotes] = useState('');
 
@@ -131,25 +136,50 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
     }
   }, [poId, isOpen]);
 
-  const handleUpdateStatus = async (newStatus: POStatus) => {
+  const handleUpdateStatus = async (newStatus: POStatus, autoReceiveAllItems = false) => {
     if (!po) return;
     setUpdatingStatus(true);
     try {
+      const today = new Date().toISOString().split('T')[0];
+      const nextActualDate = actualDate || (newStatus === 'received' ? today : po.actual_delivery_date);
+
+      let nextItems = po.items ? [...po.items] : [];
+      if (autoReceiveAllItems && nextItems.length > 0) {
+        nextItems = nextItems.map((it) => ({
+          ...it,
+          received_qty: it.ordered_qty,
+          status: 'received' as const,
+        }));
+      }
+
       await poTrackerService.updateStatus(
         po.id,
         newStatus,
-        actualDate || (newStatus === 'received' ? new Date().toISOString().split('T')[0] : undefined),
+        nextActualDate || undefined,
         statusNotes
       );
-      const updated = {
+
+      if (autoReceiveAllItems && nextItems.length > 0) {
+        await poTrackerService.updatePO(po.id, {
+          items: nextItems,
+          status: newStatus,
+          actual_delivery_date: nextActualDate || undefined,
+          notes: statusNotes,
+        });
+      }
+
+      const updated: POTrackerPO = {
         ...po,
         status: newStatus,
-        actual_delivery_date: actualDate || (newStatus === 'received' ? new Date().toISOString().split('T')[0] : po.actual_delivery_date),
+        actual_delivery_date: nextActualDate || null,
         notes: statusNotes,
+        items: nextItems,
+        total_received_qty: nextItems.reduce((s, i) => s + (i.received_qty || 0), 0),
       };
+
       setPo(updated);
       updatePOInList(po.id, updated);
-      toast.success(`Đã cập nhật trạng thái: ${PO_STATUS_CONFIG_MAP[newStatus]?.label || newStatus}`);
+      toast.success(`Đã cập nhật: ${PO_STATUS_CONFIG_MAP[newStatus]?.label || newStatus}`);
     } catch {
       toast.error('Lỗi cập nhật trạng thái đơn hàng.');
     } finally {
@@ -159,27 +189,134 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
 
   const handleUpdateItemReceived = async (itemIndex: number, receivedQty: number) => {
     if (!po || !po.items) return;
+    const safeQty = Math.max(0, receivedQty);
     const nextItems = [...po.items];
-    const item = nextItems[itemIndex];
-    item.received_qty = receivedQty;
-    item.status = receivedQty >= item.ordered_qty ? 'received' : receivedQty > 0 ? 'partial' : 'pending';
+    const item = { ...nextItems[itemIndex] };
+    item.received_qty = safeQty;
+    item.status = safeQty >= item.ordered_qty ? 'received' : safeQty > 0 ? 'partial' : 'pending';
+    nextItems[itemIndex] = item;
 
     const allReceived = nextItems.every((it) => it.received_qty >= it.ordered_qty);
-    const someReceived = nextItems.some((it) => it.received_qty > 0);
+    const someReceived = nextItems.some((it) => (it.received_qty || 0) > 0);
     const newStatus: POStatus = allReceived ? 'received' : someReceived ? 'partial_received' : po.status;
 
     try {
+      poTrackerService.receiveItems(po.id, {
+        items: [{ id: item.id, item_code: item.item_code || undefined, received_qty: safeQty }],
+      }).catch(() => {});
       await poTrackerService.updatePO(po.id, {
         items: nextItems,
         status: newStatus,
       });
-      const updated = { ...po, items: nextItems, status: newStatus };
+      const updated = {
+        ...po,
+        items: nextItems,
+        status: newStatus,
+        total_received_qty: nextItems.reduce((s, i) => s + (i.received_qty || 0), 0),
+      };
       setPo(updated);
       updatePOInList(po.id, updated);
-      toast.success('Đã cập nhật số lượng nhập kho.');
     } catch {
       toast.error('Không thể lưu số lượng đã nhận.');
     }
+  };
+
+  // Quick Action: Mark all items 100% received
+  const handleMarkAllReceived = async () => {
+    if (!po || !po.items || po.items.length === 0) return;
+    setUpdatingItems(true);
+    const nextItems: POTrackerItemLine[] = po.items.map((it) => ({
+      ...it,
+      received_qty: it.ordered_qty,
+      status: 'received' as const,
+    }));
+    const newStatus: POStatus = 'received';
+    const today = new Date().toISOString().split('T')[0];
+
+    try {
+      poTrackerService.receiveItems(po.id, { receive_all: true }).catch(() => {});
+      await poTrackerService.updatePO(po.id, {
+        items: nextItems,
+        status: newStatus,
+        actual_delivery_date: actualDate || today,
+      });
+      await poTrackerService.updateStatus(po.id, newStatus, actualDate || today, statusNotes);
+
+      const updated = {
+        ...po,
+        items: nextItems,
+        status: newStatus,
+        actual_delivery_date: actualDate || today,
+        total_received_qty: nextItems.reduce((s, i) => s + (i.ordered_qty || 0), 0),
+      };
+      setPo(updated);
+      setActualDate(today);
+      updatePOInList(po.id, updated);
+      toast.success('Đã đánh dấu nhận đủ 100% toàn bộ hàng hóa!');
+    } catch {
+      toast.error('Không thể cập nhật danh sách hàng hóa.');
+    } finally {
+      setUpdatingItems(false);
+    }
+  };
+
+  // Quick Action: Reset all items to 0
+  const handleResetAllReceived = async () => {
+    if (!po || !po.items || po.items.length === 0) return;
+    setUpdatingItems(true);
+    const nextItems: POTrackerItemLine[] = po.items.map((it) => ({
+      ...it,
+      received_qty: 0,
+      status: 'pending' as const,
+    }));
+
+    try {
+      await poTrackerService.updatePO(po.id, {
+        items: nextItems,
+        status: po.status === 'received' ? 'shipping' : po.status,
+      });
+
+      const updated = {
+        ...po,
+        items: nextItems,
+        status: (po.status === 'received' ? 'shipping' : po.status) as POStatus,
+        total_received_qty: 0,
+      };
+      setPo(updated);
+      updatePOInList(po.id, updated);
+      toast.success('Đã đặt lại số lượng nhận về 0.');
+    } catch {
+      toast.error('Lỗi khi đặt lại số lượng.');
+    } finally {
+      setUpdatingItems(false);
+    }
+  };
+
+  // Copy PO Summary
+  const handleCopySummary = () => {
+    if (!po) return;
+    const lines = [
+      `📦 ĐƠN HÀNG: ${po.po_number || 'Chưa có số PO'}`,
+      `🏢 Nhà cung cấp: ${po.supplier_name || '—'}${po.supplier_code ? ` [${po.supplier_code}]` : ''}`,
+      `📅 Hạn giao: ${po.expected_delivery_date ? format(parseISO(po.expected_delivery_date), 'dd/MM/yyyy') : '—'}`,
+      `📍 Kho nhận: ${po.warehouse || '—'}`,
+      `💰 Giá trị: ${po.total_value ? Number(po.total_value).toLocaleString('vi-VN') + ' ' + (po.currency || 'VND') : '—'}`,
+      `📊 Trạng thái: ${PO_STATUS_CONFIG_MAP[po.status]?.label || po.status}`,
+    ];
+    if (po.items && po.items.length > 0) {
+      lines.push(`📋 Mặt hàng (${po.items.length} món):`);
+      po.items.slice(0, 8).forEach((it, i) => {
+        lines.push(`  ${i + 1}. ${it.item_name}: Đã nhận ${it.received_qty || 0}/${it.ordered_qty} ${it.unit}`);
+      });
+      if (po.items.length > 8) {
+        lines.push(`  ... và ${po.items.length - 8} mặt hàng khác`);
+      }
+    }
+    if (po.notes) {
+      lines.push(`📝 Ghi chú: ${po.notes}`);
+    }
+    navigator.clipboard.writeText(lines.join('\n'));
+    toast.success('Đã sao chép tóm tắt đơn PO vào Clipboard!', { id: 'copy-po-summary' });
   };
 
   const handleGrantPermission = async (e: React.FormEvent) => {
@@ -200,7 +337,7 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
       setPo(res.data.data);
       setTargetUserId('');
     } catch {
-      // Graceful fallback for mock mode or users not yet in remote table
+      // Local fallback
       const matchedUser = assignableUsers.find(
         (u) =>
           u.id === identifier ||
@@ -250,7 +387,6 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
       const res = await poTrackerService.getPO(po.id);
       setPo(res.data.data);
     } catch {
-      // Local fallback
       const updatedPermissions = (po.permissions || []).filter((p) => p.id !== permToRevoke.id);
       const updatedPO = { ...po, permissions: updatedPermissions };
       setPo(updatedPO);
@@ -288,6 +424,19 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
   const currentStepIdx = po ? TIMELINE_STEPS.findIndex((s) => s.status === po.status) : 0;
   const canEdit = !po?.user_permission || ['edit', 'admin'].includes(po.user_permission);
 
+  const daysLeft = po?.expected_delivery_date
+    ? differenceInDays(parseISO(po.expected_delivery_date), new Date())
+    : null;
+  const isOverdue =
+    daysLeft !== null &&
+    daysLeft < 0 &&
+    !['received', 'cancelled'].includes(po?.status || '');
+
+  // Computed summary in items tab
+  const totalOrdered = po?.items ? po.items.reduce((s, i) => s + (i.ordered_qty || 0), 0) : 0;
+  const totalReceived = po?.items ? po.items.reduce((s, i) => s + (i.received_qty || 0), 0) : 0;
+  const overallPercentage = totalOrdered > 0 ? Math.min(100, Math.round((totalReceived / totalOrdered) * 100)) : 0;
+
   return (
     <Drawer
       isOpen={isOpen}
@@ -296,7 +445,7 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
       description={po?.supplier_name ? `Đối tác: ${po.supplier_name}` : 'Theo dõi tiến độ giao hàng & kiểm nhận'}
       width="lg"
     >
-      <div className="space-y-5 font-sans text-left">
+      <div className="space-y-4 font-sans text-left pb-6">
         {loading || !po ? (
           <div className="py-20 flex flex-col items-center justify-center space-y-3">
             <div className="w-8 h-8 border-2 border-[#0088FF] border-t-transparent rounded-full animate-spin" />
@@ -304,11 +453,55 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
           </div>
         ) : (
           <>
-            {/* Segmented Tab */}
+            {/* Top Toolbar: Copy Summary & Status Pill */}
+            <div className="flex items-center justify-between gap-2 p-2 px-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10">
+              <div className="flex items-center gap-2 min-w-0">
+                <POStatusPill status={po.status} size="sm" />
+                {po.folder_name && (
+                  <span className="text-[11.5px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6] truncate">
+                    📁 {po.folder_name}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleCopySummary}
+                  className="h-8 px-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-black/10 dark:border-white/15 text-[11.5px] font-bold text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                  title="Sao chép toàn bộ tóm tắt đơn PO để gửi Zalo / Slack"
+                >
+                  <SFDocumentOnDocument size={12} className="text-[#0088FF]" />
+                  <span>Sao chép tóm tắt</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Alert Banner for Overdue or Cancelled */}
+            {isOverdue && (
+              <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-500/15 border border-rose-300 dark:border-rose-500/30 flex items-start gap-3 text-rose-900 dark:text-rose-200">
+                <SFExclamationmarkTriangleFill size={18} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5 animate-pulse" />
+                <div className="space-y-0.5 text-[12.5px]">
+                  <p className="font-extrabold">Đơn hàng này đã quá hạn giao {Math.abs(daysLeft!)} ngày!</p>
+                  <p className="text-rose-700 dark:text-rose-300">
+                    Hạn giao cam kết là ngày <b>{format(parseISO(po.expected_delivery_date!), 'dd/MM/yyyy')}</b>. Vui lòng liên hệ nhà cung cấp để đốc thúc giao hoặc cập nhật ngày nhận mới.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {po.status === 'cancelled' && (
+              <div className="p-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center gap-2.5 text-zinc-700 dark:text-zinc-300 text-[12.5px]">
+                <SFXmark size={14} className="text-zinc-500" />
+                <span>Đơn hàng đã được đánh dấu hủy giao dịch.</span>
+              </div>
+            )}
+
+            {/* Segmented Tab Bar */}
             <div className="flex gap-1.5 p-1 rounded-2xl bg-black/[0.04] dark:bg-white/[0.06] border border-black/[0.04] dark:border-white/[0.06]">
               {[
                 { id: 'info', label: 'Tiến độ & Chi tiết' },
-                { id: 'items', label: `Hàng hóa (${po.items?.length || 0})` },
+                { id: 'items', label: `Kiểm nhận hàng (${po.items?.length || 0})` },
                 { id: 'permissions', label: 'Phân quyền' },
               ].map((tab) => (
                 <button
@@ -326,15 +519,20 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
               ))}
             </div>
 
+            {/* ============================================================== */}
+            {/* TAB 1: INFO & PROGRESS */}
+            {/* ============================================================== */}
             {activeTab === 'info' && (
-              <div className="space-y-5">
+              <div className="space-y-4">
                 {/* Visual Step Timeline */}
                 <div className="p-4 sm:p-5 rounded-3xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10 space-y-3.5">
                   <div className="flex items-center justify-between">
                     <span className="text-[12px] font-bold uppercase tracking-wider text-[#1d1d1f] dark:text-white">
-                      Tiến độ giao hàng
+                      Quy trình giao hàng
                     </span>
-                    <POStatusPill status={po.status} size="sm" />
+                    <span className="text-[12px] font-semibold text-[#6e6e73] dark:text-[#a1a1a6]">
+                      {po.status === 'received' ? 'Đã hoàn tất 100%' : `Tiến độ: ${overallPercentage}%`}
+                    </span>
                   </div>
 
                   {/* Segmented Horizontal Step Timeline */}
@@ -347,7 +545,16 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                           <React.Fragment key={step.status}>
                             <div
                               className="flex flex-col items-center gap-1.5 cursor-pointer group z-10 shrink-0"
-                              onClick={() => canEdit && handleUpdateStatus(step.status)}
+                              onClick={() => {
+                                if (canEdit) {
+                                  if (step.status === 'received' && po.items && po.items.length > 0) {
+                                    handleUpdateStatus('received', true);
+                                  } else {
+                                    handleUpdateStatus(step.status);
+                                  }
+                                }
+                              }}
+                              title={canEdit ? `Nhấp để chuyển sang: ${step.label}` : undefined}
                             >
                               <div
                                 className={cn(
@@ -394,67 +601,69 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
 
                 {/* Key Attributes Grid */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18181c] border border-black/[0.08] dark:border-white/10 space-y-1.5 shadow-2xs">
-                    <span className="text-[12px] font-extrabold uppercase text-[#48484a] dark:text-[#d1d1d6] tracking-wide">Nhà cung cấp</span>
-                    <p className="text-[14.5px] font-bold text-[#1d1d1f] dark:text-white leading-snug">
+                  <div className="p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18181c] border border-black/[0.08] dark:border-white/10 space-y-1 shadow-2xs">
+                    <span className="text-[11.5px] font-extrabold uppercase text-[#48484a] dark:text-[#d1d1d6] tracking-wide">Nhà cung cấp</span>
+                    <p className="text-[14px] font-bold text-[#1d1d1f] dark:text-white leading-snug truncate" title={po.supplier_name || ''}>
                       {po.supplier_name || '—'}
                     </p>
                     {po.supplier_code && (
-                      <span className="inline-block text-[12px] font-semibold text-[#0088FF] dark:text-[#0A84FF] font-mono">
+                      <span className="inline-block text-[11.5px] font-semibold text-[#0088FF] dark:text-[#0A84FF] font-mono">
                         Mã NCC: {po.supplier_code}
                       </span>
                     )}
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18181c] border border-black/[0.08] dark:border-white/10 space-y-1.5 shadow-2xs">
-                    <span className="text-[12px] font-extrabold uppercase text-[#48484a] dark:text-[#d1d1d6] tracking-wide">Kho tiếp nhận</span>
-                    <p className="text-[14.5px] font-bold text-[#1d1d1f] dark:text-white leading-snug">
+                  <div className="p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18181c] border border-black/[0.08] dark:border-white/10 space-y-1 shadow-2xs">
+                    <span className="text-[11.5px] font-extrabold uppercase text-[#48484a] dark:text-[#d1d1d6] tracking-wide">Kho tiếp nhận</span>
+                    <p className="text-[14px] font-bold text-[#1d1d1f] dark:text-white leading-snug truncate" title={po.warehouse || ''}>
                       {po.warehouse || '—'}
                     </p>
-                    <span className="inline-block text-[12px] font-medium text-[#6e6e73] dark:text-[#a1a1a6]">
+                    <span className="inline-block text-[11.5px] font-medium text-[#6e6e73] dark:text-[#a1a1a6]">
                       Thư mục: {po.folder_name || 'Chưa phân nhóm'}
                     </span>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18181c] border border-black/[0.08] dark:border-white/10 space-y-1.5 shadow-2xs">
-                    <span className="text-[12px] font-extrabold uppercase text-[#48484a] dark:text-[#d1d1d6] tracking-wide">Hạn giao dự kiến</span>
-                    <p className="text-[15px] font-extrabold text-[#0088FF] dark:text-[#0A84FF]">
+                  <div className="p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18181c] border border-black/[0.08] dark:border-white/10 space-y-1 shadow-2xs">
+                    <span className="text-[11.5px] font-extrabold uppercase text-[#48484a] dark:text-[#d1d1d6] tracking-wide">Hạn giao dự kiến</span>
+                    <p className={cn(
+                      'text-[14px] font-extrabold',
+                      isOverdue ? 'text-rose-600' : 'text-[#0088FF] dark:text-[#0A84FF]'
+                    )}>
                       {po.expected_delivery_date
                         ? format(parseISO(po.expected_delivery_date), 'dd/MM/yyyy', { locale: vi })
                         : '—'}
                     </p>
-                    <span className="inline-block text-[12px] font-medium text-[#6e6e73] dark:text-[#a1a1a6]">
+                    <span className="inline-block text-[11.5px] font-medium text-[#6e6e73] dark:text-[#a1a1a6]">
                       Ngày lập PO: {po.po_date ? format(parseISO(po.po_date), 'dd/MM/yyyy', { locale: vi }) : format(parseISO(po.created_at), 'dd/MM/yyyy')}
                     </span>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-[#fbfbfd] dark:bg-[#18181c] border border-black/[0.08] dark:border-white/10 space-y-1.5 shadow-2xs">
-                    <span className="text-[12px] font-extrabold uppercase text-[#48484a] dark:text-[#d1d1d6] tracking-wide">Tổng giá trị đơn</span>
-                    <p className="text-[15px] font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                      {po.total_value ? `${Number(po.total_value).toLocaleString('vi-VN')} ${po.currency}` : '—'}
+                  <div className="p-3.5 rounded-2xl bg-[#fbfbfd] dark:bg-[#18181c] border border-black/[0.08] dark:border-white/10 space-y-1 shadow-2xs">
+                    <span className="text-[11.5px] font-extrabold uppercase text-[#48484a] dark:text-[#d1d1d6] tracking-wide">Tổng giá trị đơn</span>
+                    <p className="text-[14.5px] font-black text-emerald-600 dark:text-emerald-400 tabular-nums">
+                      {po.total_value ? `${Math.round(Number(po.total_value)).toLocaleString('vi-VN')} ${po.currency || 'VND'}` : '—'}
                     </p>
-                    <span className="inline-block text-[12px] font-medium text-[#6e6e73] dark:text-[#a1a1a6]">
-                      {po.items?.length || 0} dòng sản phẩm
+                    <span className="inline-block text-[11.5px] font-medium text-[#6e6e73] dark:text-[#a1a1a6]">
+                      {po.items?.length || 0} dòng mặt hàng ({totalOrdered} sp)
                     </span>
                   </div>
                 </div>
 
                 {/* Quick Status Bar */}
                 {canEdit && (
-                  <div className="p-4 sm:p-5 rounded-2xl border border-black/[0.08] dark:border-white/10 space-y-3.5 bg-black/[0.01] dark:bg-white/[0.02]">
+                  <div className="p-4 rounded-2xl border border-black/[0.08] dark:border-white/10 space-y-3 bg-black/[0.01] dark:bg-white/[0.02]">
                     <div className="flex items-center justify-between">
                       <span className="text-[13px] font-extrabold text-[#1d1d1f] dark:text-white">
-                        Cập nhật trạng thái tiến độ giao
+                        Cập nhật trạng thái tiến độ
                       </span>
                       {updatingStatus && (
                         <span className="text-[11.5px] font-bold text-[#0088FF] animate-pulse">
-                          Đang lưu thay đổi...
+                          Đang lưu...
                         </span>
                       )}
                     </div>
 
                     <div className="space-y-2">
-                      {/* Main workflow stages: 5 steps across full width */}
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
                         {MAIN_WORKFLOW_STATUSES.map((st) => {
                           const cfg = PO_STATUS_CONFIG_MAP[st];
@@ -463,13 +672,19 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                             <button
                               key={st}
                               type="button"
-                              onClick={() => handleUpdateStatus(st)}
+                              onClick={() => {
+                                if (st === 'received' && po.items && po.items.length > 0 && po.status !== 'received') {
+                                  handleUpdateStatus('received', true);
+                                } else {
+                                  handleUpdateStatus(st);
+                                }
+                              }}
                               disabled={updatingStatus}
                               className={cn(
-                                'h-10 px-2 rounded-xl text-[12px] font-bold border transition-all duration-150 cursor-pointer active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 text-center truncate select-none',
+                                'h-9 px-2 rounded-xl text-[12px] font-bold border transition-all duration-150 cursor-pointer active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 text-center truncate select-none',
                                 isCurrent
                                   ? STATUS_ACTIVE_THEMES[st]
-                                  : 'bg-white dark:bg-zinc-800 text-[#1d1d1f] dark:text-[#f5f5f7] border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 hover:bg-black/[0.02] dark:hover:bg-white/[0.04]'
+                                  : 'bg-white dark:bg-zinc-800 text-[#1d1d1f] dark:text-[#f5f5f7] border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 hover:bg-black/[0.02]'
                               )}
                             >
                               <span className="shrink-0">{cfg?.icon}</span>
@@ -479,7 +694,6 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                         })}
                       </div>
 
-                      {/* Exception / Terminal states: 2 steps sharing 50/50 width */}
                       <div className="grid grid-cols-2 gap-1.5">
                         {EXCEPTION_STATUSES.map((st) => {
                           const cfg = PO_STATUS_CONFIG_MAP[st];
@@ -491,10 +705,10 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                               onClick={() => handleUpdateStatus(st)}
                               disabled={updatingStatus}
                               className={cn(
-                                'h-9 px-3 rounded-xl text-[12px] font-bold border transition-all duration-150 cursor-pointer active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 text-center truncate select-none',
+                                'h-8 px-3 rounded-xl text-[12px] font-bold border transition-all duration-150 cursor-pointer active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 text-center truncate select-none',
                                 isCurrent
                                   ? STATUS_ACTIVE_THEMES[st]
-                                  : 'bg-white dark:bg-zinc-800 text-[#1d1d1f] dark:text-[#f5f5f7] border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 hover:bg-black/[0.02] dark:hover:bg-white/[0.04]'
+                                  : 'bg-white dark:bg-zinc-800 text-[#1d1d1f] dark:text-[#f5f5f7] border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 hover:bg-black/[0.02]'
                               )}
                             >
                               <span className="shrink-0">{cfg?.icon}</span>
@@ -506,8 +720,8 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                     </div>
 
                     {/* Labeled Inputs for Delivery Details */}
-                    <div className="pt-2 border-t border-black/[0.06] dark:border-white/10 space-y-3">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="pt-2 border-t border-black/[0.06] dark:border-white/10 space-y-2.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <div className="space-y-1">
                           <label className="text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">
                             Ngày giao hàng thực tế
@@ -516,18 +730,18 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                             type="date"
                             value={actualDate}
                             onChange={(e) => setActualDate(e.target.value)}
-                            className="w-full h-10 px-3 rounded-xl bg-white dark:bg-zinc-800 border border-black/15 dark:border-white/15 text-[13px] font-semibold text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs"
+                            className="w-full h-9 px-3 rounded-xl bg-white dark:bg-zinc-800 border border-black/15 dark:border-white/15 text-[12.5px] font-semibold text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs"
                           />
                         </div>
                         <div className="space-y-1">
                           <label className="text-[12px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">
-                            Ghi chú điều phối / Người nhận hàng
+                            Ghi chú điều phối / Người nhận
                           </label>
                           <input
                             value={statusNotes}
                             onChange={(e) => setStatusNotes(e.target.value)}
-                            placeholder="VD: Nguyễn Hùng Tiến, xe tải 51C..."
-                            className="w-full h-10 px-3 rounded-xl bg-white dark:bg-zinc-800 border border-black/15 dark:border-white/15 text-[13px] font-medium text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs"
+                            placeholder="VD: Kiểm hàng đủ, tài xế anh Nam..."
+                            className="w-full h-9 px-3 rounded-xl bg-white dark:bg-zinc-800 border border-black/15 dark:border-white/15 text-[12.5px] font-medium text-[#1d1d1f] dark:text-white placeholder-[#86868b] focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs"
                           />
                         </div>
                       </div>
@@ -536,33 +750,33 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                           type="button"
                           onClick={() => handleUpdateStatus(po.status)}
                           disabled={updatingStatus}
-                          className="h-9 px-4 rounded-full bg-[#0088FF]/10 hover:bg-[#0088FF]/20 text-[#0088FF] dark:text-[#0A84FF] text-[12.5px] font-bold transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1.5"
+                          className="h-8 px-3.5 rounded-full bg-[#0088FF]/10 hover:bg-[#0088FF]/20 text-[#0088FF] dark:text-[#0A84FF] text-[12px] font-bold transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1.5"
                         >
-                          <SFCheckmarkCircleFill size={13} />
-                          <span>{updatingStatus ? 'Đang lưu...' : 'Lưu ghi chú & Ngày nhận'}</span>
+                          <SFCheckmarkCircleFill size={12} />
+                          <span>{updatingStatus ? 'Đang lưu...' : 'Lưu ghi chú & Ngày thực nhận'}</span>
                         </button>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Manage PO / Delete PO Action */}
+                {/* Manage PO / Delete */}
                 {canEdit && (
-                  <div className="pt-3 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-between">
+                  <div className="pt-2 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-between">
                     <div>
-                      <span className="text-[12.5px] font-bold text-[#1d1d1f] dark:text-white block">
-                        Quản lý đơn hàng
+                      <span className="text-[12px] font-bold text-[#1d1d1f] dark:text-white block">
+                        Xóa đơn hàng PO
                       </span>
-                      <span className="text-[11.5px] text-[#6e6e73] dark:text-[#a1a1a6]">
-                        Gỡ bỏ đơn PO này khỏi danh sách theo dõi
+                      <span className="text-[11px] text-[#6e6e73] dark:text-[#a1a1a6]">
+                        Gỡ đơn này khỏi danh sách theo dõi
                       </span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setShowDeletePODialog(true)}
-                      className="px-3.5 py-1.5 rounded-full text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 text-[12px] font-bold transition-colors cursor-pointer flex items-center gap-1.5 border border-red-200 dark:border-red-500/20 shadow-2xs"
+                      className="px-3 py-1 rounded-full text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 text-[11.5px] font-bold transition-colors cursor-pointer flex items-center gap-1 border border-red-200 dark:border-red-500/20"
                     >
-                      <SFTrash size={12} />
+                      <SFTrash size={11} />
                       <span>Xóa đơn PO</span>
                     </button>
                   </div>
@@ -570,77 +784,176 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
               </div>
             )}
 
+            {/* ============================================================== */}
+            {/* TAB 2: ITEMS CHECK-IN (STREAMLINED QUICK ACTIONS) */}
+            {/* ============================================================== */}
             {activeTab === 'items' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-[13px] font-bold text-[#1d1d1f] dark:text-white">
-                    Kiểm nhận số lượng hàng hóa
-                  </p>
-                  <span className="text-[11.5px] text-[#86868b]">
-                    Nhập số lượng thực nhận để cập nhật tiến độ
-                  </span>
+              <div className="space-y-3.5">
+                {/* Header Summary & Bulk Actions */}
+                <div className="p-3.5 rounded-2xl bg-black/[0.02] dark:bg-white/[0.03] border border-black/[0.06] dark:border-white/10 space-y-2.5">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <h4 className="text-[13px] font-bold text-[#1d1d1f] dark:text-white">
+                        Kiểm nhận số lượng hàng hóa
+                      </h4>
+                      <p className="text-[11.5px] text-[#6e6e73] dark:text-[#a1a1a6]">
+                        Đã nhận: <b className="text-emerald-600 dark:text-emerald-400 font-extrabold">{totalReceived}</b> / {totalOrdered} sản phẩm ({overallPercentage}%)
+                      </p>
+                    </div>
+
+                    {canEdit && po.items && po.items.length > 0 && (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={handleMarkAllReceived}
+                          disabled={updatingItems}
+                          className="h-8 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[11.5px] flex items-center gap-1 shadow-2xs active:scale-95 transition-all cursor-pointer disabled:opacity-40"
+                          title="Tự động điền số lượng đã nhận bằng 100% số lượng đặt cho mọi mặt hàng"
+                        >
+                          <SFCheckmark size={12} />
+                          <span>Nhận đủ 100% tất cả</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleResetAllReceived}
+                          disabled={updatingItems}
+                          className="h-8 px-2.5 rounded-xl border border-black/15 dark:border-white/15 text-[#6e6e73] hover:text-red-600 hover:bg-red-50 font-bold text-[11.5px] active:scale-95 transition-all cursor-pointer disabled:opacity-40"
+                          title="Đặt lại toàn bộ số lượng đã nhận về 0"
+                        >
+                          Đặt lại về 0
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Overall Item Progress Bar */}
+                  <POProgressBar
+                    status={po.status}
+                    items={po.items}
+                    received={totalReceived}
+                    total={totalOrdered}
+                    size="md"
+                  />
                 </div>
 
-                <div className="space-y-2">
+                {/* Items List */}
+                <div className="space-y-2.5 max-h-[460px] overflow-y-auto pr-1 [scrollbar-width:thin]">
                   {po.items && po.items.length > 0 ? (
                     po.items.map((it, idx) => {
-                      const isFull = (it.received_qty || 0) >= (it.ordered_qty || 0);
-                      const isPartial = (it.received_qty || 0) > 0 && !isFull;
+                      const ordered = Number(it.ordered_qty || 0);
+                      const received = Number(it.received_qty || 0);
+                      const isFull = received >= ordered && ordered > 0;
+                      const isPartial = received > 0 && !isFull;
+                      const missing = Math.max(0, ordered - received);
 
                       return (
                         <div
                           key={it.id || idx}
                           className={cn(
-                            'p-3.5 rounded-2xl border transition-colors space-y-2',
+                            'p-3.5 rounded-2xl border transition-all space-y-2 shadow-2xs',
                             isFull
-                              ? 'bg-emerald-50/50 dark:bg-emerald-500/[0.04] border-emerald-300/70 dark:border-emerald-500/30'
+                              ? 'bg-emerald-50/50 dark:bg-emerald-500/[0.04] border-emerald-300/80 dark:border-emerald-500/30'
                               : isPartial
-                              ? 'bg-amber-50/50 dark:bg-amber-500/[0.04] border-amber-300/70 dark:border-amber-500/30'
-                              : 'bg-black/[0.015] dark:bg-white/[0.02] border-black/[0.08] dark:border-white/10'
+                              ? 'bg-amber-50/50 dark:bg-amber-500/[0.04] border-amber-300/80 dark:border-amber-500/30'
+                              : 'bg-white dark:bg-[#18181c] border-black/[0.08] dark:border-white/10'
                           )}
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="text-[13.5px] font-bold text-[#1d1d1f] dark:text-white">
-                              {it.item_name}
-                            </span>
-                            {it.item_code && (
-                              <span className="text-[11.5px] font-mono text-[#86868b] px-2 py-0.5 rounded-md bg-black/5 dark:bg-white/5 font-semibold">
-                                {it.item_code}
+                          {/* Top: Name, SKU, Status Pill */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <span className="text-[13.5px] font-bold text-[#1d1d1f] dark:text-white leading-snug block">
+                                {it.item_name}
                               </span>
-                            )}
+                              <div className="flex items-center gap-2 mt-0.5 text-[11px] text-[#6e6e73] dark:text-[#a1a1a6]">
+                                {it.item_code && (
+                                  <span className="font-mono font-semibold px-1.5 py-0.2 rounded bg-black/5 dark:bg-white/5">
+                                    {it.item_code}
+                                  </span>
+                                )}
+                                {it.unit_price > 0 && (
+                                  <span>Đơn giá: {Math.round(it.unit_price).toLocaleString('vi-VN')} ₫</span>
+                                )}
+                              </div>
+                            </div>
+
+                            <span
+                              className={cn(
+                                'text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 tabular-nums',
+                                isFull
+                                  ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                                  : isPartial
+                                  ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300'
+                                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                              )}
+                            >
+                              {isFull ? 'Đủ 100%' : isPartial ? `Đạt ${Math.round((received / ordered) * 100)}%` : 'Chưa nhận'}
+                            </span>
                           </div>
 
-                          <div className="flex items-center justify-between text-[13px]">
-                            <span className="text-[#555558] dark:text-[#a1a1a6]">
-                              Đặt: <b className="text-[#1d1d1f] dark:text-white font-bold">{it.ordered_qty} {it.unit}</b>
-                            </span>
+                          {/* Bottom: Ordered vs Received + Quick Controls */}
+                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-black/[0.04] dark:border-white/[0.04] flex-wrap">
+                            <div className="text-[12px] text-[#555558] dark:text-[#a1a1a6]">
+                              Đặt: <b className="text-[#1d1d1f] dark:text-white font-extrabold">{ordered} {it.unit}</b>
+                              {missing > 0 && (
+                                <span className="text-amber-600 dark:text-amber-400 font-medium ml-2">
+                                  (thiếu {missing} {it.unit})
+                                </span>
+                              )}
+                            </div>
 
-                            <div className="flex items-center gap-2">
-                              <span className="text-[#555558] dark:text-[#a1a1a6] font-semibold text-[12px]">Đã nhận:</span>
-                              <input
-                                type="number"
-                                min="0"
-                                max={it.ordered_qty * 1.5}
-                                value={it.received_qty || 0}
-                                disabled={!canEdit}
-                                onChange={(e) => handleUpdateItemReceived(idx, Number(e.target.value))}
-                                className="w-20 h-8 px-2 text-center rounded-xl bg-white dark:bg-zinc-800 border border-black/15 dark:border-white/15 text-[13px] font-bold tabular-nums"
-                              />
-                              <span className="text-[12px] text-[#86868b] font-medium">{it.unit}</span>
+                            {/* Quick Receive Controls */}
+                            <div className="flex items-center gap-1.5">
+                              {canEdit && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateItemReceived(idx, ordered)}
+                                    className="h-7 px-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:hover:bg-emerald-500/25 text-[11px] font-bold transition-all cursor-pointer"
+                                    title="Nhận đủ số lượng đặt"
+                                  >
+                                    Đủ ({ordered})
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateItemReceived(idx, 0)}
+                                    className="h-7 px-1.5 rounded-lg border border-black/10 dark:border-white/10 hover:bg-black/5 text-[#86868b] text-[11px] font-semibold transition-all cursor-pointer"
+                                    title="Đặt về 0"
+                                  >
+                                    0
+                                  </button>
+                                </>
+                              )}
+
+                              <div className="flex items-center gap-1 ml-1 bg-black/[0.02] dark:bg-white/[0.04] rounded-xl px-2 py-0.5 border border-black/10 dark:border-white/10">
+                                <span className="text-[11px] font-bold text-[#6e6e73]">Nhận:</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={ordered * 2}
+                                  value={received}
+                                  disabled={!canEdit}
+                                  onChange={(e) => handleUpdateItemReceived(idx, Number(e.target.value))}
+                                  className="w-16 h-7 text-center rounded-lg bg-white dark:bg-zinc-800 border border-black/15 dark:border-white/15 text-[12.5px] font-bold tabular-nums focus:outline-none focus:ring-1 focus:ring-[#0088FF]"
+                                />
+                                <span className="text-[11.5px] text-[#86868b] font-medium">{it.unit}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
                       );
                     })
                   ) : (
-                    <p className="text-[13px] text-center text-[#86868b] py-8">
-                      Chưa có danh sách mặt hàng chi tiết.
-                    </p>
+                    <div className="text-center py-10 text-[#86868b] text-[13px] bg-black/[0.01] rounded-2xl border border-dashed border-black/10">
+                      Chưa có danh sách mặt hàng chi tiết trong đơn PO này.
+                    </div>
                   )}
                 </div>
               </div>
             )}
 
+            {/* ============================================================== */}
+            {/* TAB 3: PERMISSIONS */}
+            {/* ============================================================== */}
             {activeTab === 'permissions' && (
               <div className="space-y-4">
                 <div className="p-3.5 rounded-2xl bg-blue-50/60 dark:bg-blue-500/10 border border-blue-200/60 dark:border-blue-500/20 text-[12.5px] text-[#1d1d1f] dark:text-white leading-relaxed">
@@ -665,7 +978,7 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                     </button>
                   </div>
 
-                  {/* Apple Segmented Role Picker */}
+                  {/* Role Picker */}
                   <div className="space-y-1.5">
                     <div className="text-[11.5px] font-bold text-[#86868b]">Vai trò cấp quyền:</div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-2xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/[0.08] dark:border-white/10">
@@ -680,7 +993,7 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                               'h-9 px-2 rounded-xl text-[12px] font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer select-none',
                               isSelected
                                 ? 'bg-white dark:bg-zinc-800 text-[#0088FF] dark:text-[#0A84FF] shadow-xs border border-black/10 dark:border-white/15'
-                                : 'text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.02] dark:hover:bg-white/[0.04]'
+                                : 'text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.02]'
                             )}
                           >
                             <span className="shrink-0">{r.icon}</span>
@@ -689,16 +1002,9 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                         );
                       })}
                     </div>
-                    {/* Role description display */}
-                    <div className="text-[11px] text-[#86868b] px-1 flex items-center gap-1">
-                      <span className="font-semibold text-[#1d1d1f] dark:text-white">
-                        {PERMISSION_ROLES.find((r) => r.id === selectedPerm)?.label}:
-                      </span>
-                      <span>{PERMISSION_ROLES.find((r) => r.id === selectedPerm)?.description}</span>
-                    </div>
                   </div>
 
-                  {/* Quick User Suggestions */}
+                  {/* Suggestions */}
                   {assignableUsers.length > 0 && (
                     <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
                       <span className="text-[11px] font-semibold text-[#86868b] shrink-0">Gợi ý:</span>
@@ -707,7 +1013,7 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
                           key={u.id}
                           type="button"
                           onClick={() => setTargetUserId(u.email || u.id)}
-                          className="h-6 px-2 rounded-lg bg-black/[0.03] dark:bg-white/[0.06] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] text-[11px] font-medium text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white transition-all shrink-0 cursor-pointer"
+                          className="h-6 px-2 rounded-lg bg-black/[0.03] dark:bg-white/[0.06] hover:bg-black/[0.06] text-[11px] font-medium text-[#555558] dark:text-[#a1a1a6] transition-all shrink-0 cursor-pointer"
                         >
                           {u.full_name || u.email}
                         </button>
@@ -765,7 +1071,7 @@ export const PODetailDrawer: React.FC<PODetailDrawerProps> = ({
         isOpen={showDeletePODialog}
         title="Xóa đơn hàng PO?"
         itemLabel={po ? `${po.po_number || 'Đơn PO'} — ${po.supplier_name || 'Không rõ NCC'}` : undefined}
-        message="Bạn có chắc chắn muốn xóa đơn hàng này? Toàn bộ danh sách mặt hàng và lịch sử theo dõi sẽ bị xóa khỏi hệ thống."
+        message="Hành động này không thể hoàn tác. Toàn bộ danh sách mặt hàng và lịch sử theo dõi sẽ bị xóa khỏi hệ thống."
         confirmText="Xác nhận xóa PO"
         cancelText="Hủy bỏ"
         isLoading={deletingPO}
