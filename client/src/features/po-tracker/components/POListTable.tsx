@@ -476,7 +476,7 @@ export const POListTable: React.FC<POListTableProps> = ({
                     )}
                     title={canEdit ? 'Nhấp để đổi trạng thái nhanh' : 'Bạn không có quyền cập nhật'}
                   >
-                    <POStatusPill status={po.status} size="sm" />
+                    <POStatusPill status={po.status} expectedDate={po.expected_delivery_date} size="sm" />
                   </button>
 
                   {/* Quick status dropdown with safe positioning */}

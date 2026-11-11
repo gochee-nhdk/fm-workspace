@@ -16,7 +16,8 @@ import {
   SFFolderFill,
   SFXmark,
   SFArrowClockwise,
-  SFArrowDownDocumentFill
+  SFArrowDownDocumentFill,
+  SFTablecells
 } from 'sf-symbols-lib';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -181,6 +182,117 @@ export const POTrackerPage: React.FC = () => {
     toast.success(`Đã xuất file báo cáo ${pos.length} đơn hàng PO thành công!`);
   };
 
+  // BUG-008: Export PO list to 2-sheet Excel file (.xlsx)
+  const [exportingExcel, setExportingExcel] = useState(false);
+
+  const handleExportExcel = async () => {
+    if (!pos || pos.length === 0) {
+      toast.error('Không có dữ liệu PO để xuất báo cáo.');
+      return;
+    }
+
+    setExportingExcel(true);
+    toast.loading('Đang chuẩn bị file Excel 2 sheets...', { id: 'export-excel-toast' });
+    try {
+      const XLSX = await import('xlsx');
+
+      // 1. Sheet 1: Tổng hợp PO
+      const summaryRows = pos.map((p, idx) => {
+        const ordered = Number(p.total_ordered_qty) || p.items?.reduce((s: number, it: any) => s + (it.ordered_qty || 0), 0) || 0;
+        const received = Number(p.total_received_qty) || p.items?.reduce((s: number, it: any) => s + (it.received_qty || 0), 0) || 0;
+        const progressStr = ordered > 0
+          ? `${Math.min(100, Math.round((received / ordered) * 100))}% (${received}/${ordered})`
+          : (p.status === 'received' ? '100%' : '0%');
+
+        return {
+          'STT': idx + 1,
+          'Số PO': p.po_number || '',
+          'Nhà cung cấp': p.supplier_name || '',
+          'Mã NCC': p.supplier_code || '',
+          'Kho tiếp nhận': p.warehouse || '',
+          'Thư mục': p.folder_name || 'Chưa phân nhóm',
+          'Ngày lập PO': p.po_date || '',
+          'Hạn giao dự kiến': p.expected_delivery_date || '',
+          'Ngày giao thực tế': p.actual_delivery_date || '',
+          'Tổng giá trị đơn (VNĐ)': Number(p.total_value) || 0,
+          'Trạng thái': PO_STATUS_CONFIG_MAP[p.status]?.label || p.status,
+          'Tiến độ nhận hàng': progressStr,
+          'Ghi chú': p.notes || '',
+        };
+      });
+
+      // 2. Sheet 2: Chi tiết dòng hàng PO
+      const posWithItems = await Promise.all(
+        pos.map(async (p) => {
+          if (p.items && p.items.length > 0) return p;
+          try {
+            const res = await poTrackerService.getPO(p.id);
+            const detail = (res as any)?.data?.data || (res as any)?.data || res;
+            if (detail?.items) {
+              return { ...p, items: detail.items };
+            }
+          } catch (_) {}
+          return p;
+        })
+      );
+
+      const itemRows: any[] = [];
+      let itemStt = 1;
+
+      posWithItems.forEach((p) => {
+        if (p.items && p.items.length > 0) {
+          p.items.forEach((it: any) => {
+            const ordered = Number(it.ordered_qty || 0);
+            const received = Number(it.received_qty || 0);
+            const unitPrice = Number(it.unit_price || 0);
+            const lineTotal = Number(it.total_price || (ordered * unitPrice));
+            const lineStatus = received >= ordered && ordered > 0
+              ? 'Đã nhận đủ'
+              : received > 0
+              ? 'Nhận một phần'
+              : 'Chưa nhận';
+
+            itemRows.push({
+              'STT': itemStt++,
+              'Số PO': p.po_number || '',
+              'Nhà cung cấp': p.supplier_name || '',
+              'Mã hàng': it.item_code || '',
+              'Tên mặt hàng': it.item_name || '',
+              'ĐVT': it.unit || '',
+              'Số lượng đặt': ordered,
+              'Số lượng đã nhận': received,
+              'Đơn giá (VNĐ)': unitPrice,
+              'Thành tiền (VNĐ)': lineTotal,
+              'Kho nhận': it.warehouse || p.warehouse || '',
+              'Trạng thái dòng hàng': lineStatus,
+            });
+          });
+        }
+      });
+
+      const wb = XLSX.utils.book_new();
+
+      const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Tổng hợp PO');
+
+      const wsItems = XLSX.utils.json_to_sheet(
+        itemRows.length > 0
+          ? itemRows
+          : [{ 'Thông báo': 'Chưa có dữ liệu dòng hàng chi tiết' }]
+      );
+      XLSX.utils.book_append_sheet(wb, wsItems, 'Chi tiết dòng hàng PO');
+
+      const dateStr = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `Bao_Cao_PO_Tracker_${dateStr}.xlsx`);
+      toast.success(`Đã xuất Excel PO thành công (${pos.length} đơn, ${itemRows.length} mặt hàng)!`, { id: 'export-excel-toast' });
+    } catch (err: any) {
+      console.error('Export Excel PO error:', err);
+      toast.error('Lỗi khi xuất file Excel PO.', { id: 'export-excel-toast' });
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
   // Handler for row detail click
   const handleViewDetail = (po: POTrackerPO) => {
     setDetailPOId(po.id);
@@ -268,6 +380,19 @@ export const POTrackerPage: React.FC = () => {
               title="Làm mới danh sách PO"
             >
               <SFArrowClockwise size={13} className={cn(refreshing && 'animate-spin text-[#0088FF]')} />
+            </button>
+
+            {/* BUG-008: Export Excel PO (.xlsx) with 2 sheets */}
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              disabled={exportingExcel}
+              className="h-9 px-3.5 rounded-full bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-300 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-500/25 text-[12px] font-bold flex items-center gap-1.5 shadow-2xs active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+              title="Xuất file Excel gồm 2 sheets: Tổng hợp PO & Chi tiết dòng hàng PO"
+            >
+              <SFTablecells size={13} className="text-emerald-600 dark:text-emerald-400" />
+              <span className="hidden sm:inline">Xuất Excel PO (.xlsx)</span>
+              <span className="sm:hidden">Excel</span>
             </button>
 
             {/* Export CSV Button */}

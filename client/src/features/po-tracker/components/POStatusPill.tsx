@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 
 interface POStatusPillProps {
   status: POStatus;
+  expectedDate?: string | null;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   showIcon?: boolean;
@@ -77,11 +78,30 @@ export const PO_STATUS_CONFIG_MAP: Record<POStatus, {
 
 export const POStatusPill: React.FC<POStatusPillProps> = ({
   status,
+  expectedDate,
   size = 'md',
   className,
   showIcon = true,
 }) => {
-  const cfg = PO_STATUS_CONFIG_MAP[status] || PO_STATUS_CONFIG_MAP.pending;
+  const today = new Date().toISOString().split('T')[0];
+  const isOverdue =
+    status === 'overdue' ||
+    (status !== 'received' && status !== 'cancelled' && Boolean(expectedDate && expectedDate < today));
+
+  let overdueDays = 0;
+  if (isOverdue && expectedDate) {
+    const exp = new Date(expectedDate + 'T00:00:00').getTime();
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const diff = Math.floor((now.getTime() - exp) / (1000 * 60 * 60 * 24));
+    overdueDays = Math.max(1, diff);
+  }
+
+  const effectiveStatus: POStatus = isOverdue ? 'overdue' : status;
+  const cfg = PO_STATUS_CONFIG_MAP[effectiveStatus] || PO_STATUS_CONFIG_MAP.pending;
+  const displayLabel = isOverdue
+    ? (overdueDays > 0 ? `Quá hạn (Trễ ${overdueDays} ngày)` : 'Quá hạn')
+    : cfg.label;
 
   const sizeClasses = {
     sm: 'text-[11px] px-2 py-0.5 gap-1.5',
@@ -98,12 +118,12 @@ export const POStatusPill: React.FC<POStatusPillProps> = ({
         cfg.bg,
         cfg.border,
         sizeClasses[size],
-        status === 'overdue' && 'po-overdue-ring',
+        isOverdue && 'po-overdue-ring',
         className
       )}
     >
       {showIcon && cfg.icon}
-      <span>{cfg.label}</span>
+      <span>{displayLabel}</span>
     </span>
   );
 };

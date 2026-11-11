@@ -911,7 +911,7 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
                           title="Tự động điền số lượng đã nhận bằng 100% số lượng đặt cho mọi mặt hàng"
                         >
                           <SFCheckmark size={12} />
-                          <span>Nhận đủ 100% tất cả</span>
+                          <span>1-Click Nhận đủ 100% tất cả</span>
                         </button>
                         <button
                           type="button"
@@ -979,14 +979,22 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
                             <span
                               className={cn(
                                 'text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 tabular-nums',
-                                isFull
+                                received > ordered
+                                  ? 'bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300'
+                                  : isFull
                                   ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
                                   : isPartial
                                   ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300'
                                   : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
                               )}
                             >
-                              {isFull ? 'Đủ 100%' : isPartial ? `Đạt ${Math.round((received / ordered) * 100)}%` : 'Chưa nhận'}
+                              {received > ordered
+                                ? `Vượt đặt (+${received - ordered})`
+                                : isFull
+                                ? 'Đủ 100%'
+                                : isPartial
+                                ? `Đạt ${Math.round((received / ordered) * 100)}%`
+                                : 'Chưa nhận'}
                             </span>
                           </div>
 
@@ -1191,6 +1199,91 @@ ${po.notes ? `<p><b>Ghi chú điều phối:</b> ${po.notes}</p>` : ''}
         onConfirm={executeRevokePermission}
         onClose={() => setPermToRevoke(null)}
       />
+
+      {/* BUG-018: Supplier Mail Preview & Creation Modal */}
+      {showMailModal && po && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-[#1e1e24] rounded-3xl p-6 max-w-2xl w-full shadow-2xl border border-black/10 dark:border-white/10 space-y-4 text-left max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between pb-2 border-b border-black/10 dark:border-white/10 shrink-0">
+              <div className="flex items-center gap-2 text-[#0088FF] dark:text-[#0A84FF]">
+                <SFEnvelope size={20} />
+                <h3 className="text-[17px] font-black text-[#1d1d1f] dark:text-white">
+                  Soạn Mail xác nhận Nhà cung cấp (MAIL PO)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMailModal(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 cursor-pointer"
+              >
+                <SFXmark size={14} />
+              </button>
+            </div>
+
+            <div className="space-y-3 flex-1 overflow-y-auto pr-1">
+              <div>
+                <label className="text-[12px] font-bold text-[#86868b]">Tiêu đề thư:</label>
+                <div className="p-2.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/10 dark:border-white/10 text-[13px] font-bold text-[#1d1d1f] dark:text-white">
+                  {generateMailDraft().subject}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[12px] font-bold text-[#86868b]">Nội dung gửi đối tác:</label>
+                <pre className="p-3.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/10 dark:border-white/10 text-[12.5px] font-mono whitespace-pre-wrap text-[#1d1d1f] dark:text-white max-h-[300px] overflow-y-auto leading-relaxed">
+                  {generateMailDraft().bodyText}
+                </pre>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 pt-3 border-t border-black/10 dark:border-white/10 shrink-0 flex-wrap">
+              <button
+                type="button"
+                onClick={async () => {
+                  const draft = generateMailDraft();
+                  const newNote = await useNoteStore.getState().createNote('note', draft.htmlBody);
+                  await useNoteStore.getState().updateNote(newNote.id, {
+                    title: `[MAIL PO] ${po.po_number || 'PO'} - ${po.supplier_name || 'NCC'}`,
+                    tags: ['MAIL PO', 'Đơn hàng'],
+                  });
+                  useNoteStore.getState().openNote();
+                  setShowMailModal(false);
+                  toast.success('Đã tạo ghi chú mẫu MAIL PO trong Quick Note!');
+                }}
+                className="h-9 px-3.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 dark:text-amber-200 text-[12px] font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+              >
+                <SFDocumentOnDocument size={13} />
+                <span>Lưu vào Quick Note (MAIL PO)</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const draft = generateMailDraft();
+                    navigator.clipboard.writeText(draft.bodyText);
+                    toast.success('Đã sao chép nội dung email vào clipboard!');
+                  }}
+                  className="h-9 px-3.5 rounded-xl border border-black/15 dark:border-white/15 text-[12.5px] font-bold text-[#1d1d1f] dark:text-white hover:bg-black/5 cursor-pointer transition-all"
+                >
+                  Sao chép Email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const draft = generateMailDraft();
+                    window.open(`mailto:?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.bodyText)}`);
+                  }}
+                  className="h-9 px-4 rounded-xl fm-primary-pill-surface text-white text-[12.5px] font-bold flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <SFEnvelope size={13} />
+                  <span>Mở ứng dụng Mail</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </Drawer>
   );
 };

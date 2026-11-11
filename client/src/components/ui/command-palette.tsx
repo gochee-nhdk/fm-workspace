@@ -23,9 +23,12 @@ import {
   SFLocationFill,
   SFSquareStack3dUp,
   SFSquareAndPencil,
+  SFShippingbox,
 } from 'sf-symbols-lib';
 import { dataService } from '@/services/dataService';
+import { poTrackerService } from '@/services/poTrackerService';
 import { LinkItem, AccountItem, StoreItem } from '@/types/workspace';
+import { POTrackerPO } from '@/types/po-tracker';
 import { useUiStore } from '@/stores/ui-store';
 import { useNoteStore } from '@/stores/note-store';
 import { cn } from '@/lib/utils';
@@ -38,7 +41,7 @@ export interface CommandPaletteProps {
   onOpenImportModal?: () => void;
 }
 
-type FilterCategory = 'all' | 'link' | 'account' | 'store' | 'action' | 'nav';
+type FilterCategory = 'all' | 'po' | 'link' | 'account' | 'store' | 'action' | 'nav';
 
 // Helper component for highlighting matching search text
 const HighlightedText: React.FC<{ text: string; query: string; className?: string }> = ({
@@ -80,6 +83,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [stores, setStores] = useState<StoreItem[]>([]);
+  const [pos, setPos] = useState<POTrackerPO[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
@@ -137,6 +141,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       dataService.getLinks().then(setLinks).catch(() => {});
       dataService.getAccounts().then(setAccounts).catch(() => {});
       dataService.getStores().then(setStores).catch(() => {});
+      poTrackerService.getPOs().then((res) => {
+        const list = Array.isArray(res?.data?.data) ? res.data.data : [];
+        setPos(list);
+      }).catch(() => {});
 
       try {
         const saved = JSON.parse(localStorage.getItem('fm_spotlight_recent') || '[]');
@@ -374,6 +382,29 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   const { results, counts } = useMemo(() => {
     const q = query.trim().toLowerCase();
 
+    // BUG-010: Map and index PO Tracker orders for FM Spotlight
+    let matchedPOs = pos.map((p) => {
+      const itemsSnippet = (p.items || []).map((it) => it.item_name).filter(Boolean).slice(0, 3).join(', ');
+      const subParts = [
+        p.warehouse ? `Kho: ${p.warehouse}` : '',
+        p.total_value ? `${Math.round(p.total_value).toLocaleString('vi-VN')} ₫` : '',
+        itemsSnippet ? `Mặt hàng: ${itemsSnippet}` : '',
+      ].filter(Boolean);
+
+      return {
+        type: 'po' as const,
+        id: p.id,
+        label: `${p.po_number || 'Đơn PO'} — ${p.supplier_name || 'Nhà cung cấp'}`,
+        sub: subParts.join(' • ') || 'Theo dõi đơn hàng PO Tracker',
+        tag: p.po_number || 'PO',
+        po: p,
+        path: `/po-tracker?poId=${p.id}`,
+        icon: <SFShippingbox size={16} />,
+        iconBg: 'bg-blue-500/12 dark:bg-blue-500/20',
+        iconColor: 'text-[#0088FF] dark:text-[#0A84FF]',
+      };
+    });
+
     let matchedLinks = links.map((l) => ({
       type: 'link' as const,
       id: l.id,
@@ -415,6 +446,24 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     let matchedNav = navItems;
 
     if (q) {
+      matchedPOs = matchedPOs.filter((poItem) => {
+        const p = poItem.po;
+        const matchesHeader =
+          (p.po_number && p.po_number.toLowerCase().includes(q)) ||
+          (p.supplier_name && p.supplier_name.toLowerCase().includes(q)) ||
+          (p.supplier_code && p.supplier_code.toLowerCase().includes(q)) ||
+          (p.warehouse && p.warehouse.toLowerCase().includes(q)) ||
+          (p.notes && p.notes.toLowerCase().includes(q));
+
+        const matchesItem = (p.items || []).some(
+          (it) =>
+            (it.item_name && it.item_name.toLowerCase().includes(q)) ||
+            (it.item_code && it.item_code.toLowerCase().includes(q))
+        );
+
+        return Boolean(matchesHeader || matchesItem);
+      });
+
       matchedLinks = matchedLinks.filter(
         (l) =>
           l.label.toLowerCase().includes(q) ||
@@ -449,7 +498,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     }
 
     const countsObj = {
-      all: matchedLinks.length + matchedAccounts.length + matchedStores.length + matchedActions.length + matchedNav.length,
+      all: matchedPOs.length + matchedLinks.length + matchedAccounts.length + matchedStores.length + matchedActions.length + matchedNav.length,
+      po: matchedPOs.length,
       link: matchedLinks.length,
       account: matchedAccounts.length,
       store: matchedStores.length,
@@ -461,6 +511,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     if (activeCategory === 'all') {
       if (q) {
         list = [
+          ...matchedPOs.slice(0, 6),
           ...matchedActions.slice(0, 3),
           ...matchedLinks.slice(0, 8),
           ...matchedStores.slice(0, 6),
@@ -471,10 +522,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         list = [
           ...matchedNav,
           ...matchedActions,
+          ...matchedPOs.slice(0, 4),
           ...matchedLinks.slice(0, 4),
           ...matchedStores.slice(0, 3),
         ];
       }
+    } else if (activeCategory === 'po') {
+      list = matchedPOs;
     } else if (activeCategory === 'link') {
       list = matchedLinks;
     } else if (activeCategory === 'account') {
@@ -488,7 +542,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     }
 
     return { results: list, counts: countsObj };
-  }, [query, activeCategory, links, accounts, stores, systemActions, navItems]);
+  }, [query, activeCategory, pos, links, accounts, stores, systemActions, navItems]);
 
   // Popular search suggestions
   const popularTags = ['FM09', 'POS', 'Bravo', 'Kho Hub', 'Google Drive', 'Excel'];
@@ -506,7 +560,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         handleClose();
       } else if (e.key === 'Tab') {
         e.preventDefault();
-        const catKeys: FilterCategory[] = ['all', 'link', 'account', 'store', 'action', 'nav'];
+        const catKeys: FilterCategory[] = ['all', 'po', 'link', 'account', 'store', 'action', 'nav'];
         const currentIdx = catKeys.indexOf(activeCategory);
         if (e.shiftKey) {
           const nextIdx = (currentIdx - 1 + catKeys.length) % catKeys.length;
@@ -566,7 +620,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       return;
     }
 
-    if (item.type === 'link') {
+    if (item.type === 'po') {
+      navigate('/po-tracker');
+    } else if (item.type === 'link') {
       if (item.url && /^https?:\/\//i.test(item.url.trim())) {
         window.open(item.url.trim(), '_blank', 'noopener,noreferrer');
       } else {
@@ -656,6 +712,40 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
               title="Đóng tìm kiếm (Esc)"
             />
           </div>
+        </div>
+
+        {/* Category Filter Tabs */}
+        <div className="flex items-center gap-1.5 px-4 py-2 border-b border-black/[0.04] dark:border-white/[0.06] bg-black/[0.01] dark:bg-white/[0.02] overflow-x-auto scrollbar-none text-[12px]">
+          {[
+            { id: 'all' as FilterCategory, label: 'Tất cả', count: counts.all },
+            { id: 'po' as FilterCategory, label: 'Đơn hàng PO', count: counts.po, icon: <SFShippingbox size={12} /> },
+            { id: 'link' as FilterCategory, label: 'Quick Links', count: counts.link },
+            { id: 'account' as FilterCategory, label: 'Tài khoản', count: counts.account },
+            { id: 'store' as FilterCategory, label: 'Cửa hàng', count: counts.store },
+            { id: 'action' as FilterCategory, label: 'Tác vụ', count: counts.action },
+            { id: 'nav' as FilterCategory, label: 'Trang', count: counts.nav },
+          ].map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => setActiveCategory(cat.id)}
+              className={cn(
+                'px-2.5 py-1 rounded-full font-bold transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap text-[11.5px]',
+                activeCategory === cat.id
+                  ? 'bg-[#0088FF] text-white shadow-2xs'
+                  : 'bg-black/5 dark:bg-white/5 text-[#555558] dark:text-[#a1a1a6] hover:bg-black/10 dark:hover:bg-white/10 hover:text-[#1d1d1f] dark:hover:text-white'
+              )}
+            >
+              {cat.icon}
+              <span>{cat.label}</span>
+              <span className={cn(
+                'text-[10px] px-1 rounded-full',
+                activeCategory === cat.id ? 'bg-white/20 text-white' : 'text-[#86868b]'
+              )}>
+                {cat.count}
+              </span>
+            </button>
+          ))}
         </div>
 
         {/* Content Body */}
