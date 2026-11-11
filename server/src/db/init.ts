@@ -436,6 +436,10 @@ async function initDb() {
       supplier_name TEXT,
       warehouse TEXT,
       status TEXT DEFAULT 'pending',
+      sub_total_pre_vat REAL,
+      order_discount_amount REAL DEFAULT 0,
+      total_vat REAL,
+      grand_total REAL,
       total_value REAL DEFAULT 0,
       currency TEXT DEFAULT 'VND',
       notes TEXT,
@@ -454,11 +458,17 @@ async function initDb() {
       id TEXT PRIMARY KEY,
       po_id TEXT REFERENCES po_tracker_pos(id) ON DELETE CASCADE,
       item_code TEXT,
+      barcode TEXT,
       item_name TEXT,
       unit TEXT DEFAULT 'thùng',
       ordered_qty REAL DEFAULT 0,
       received_qty REAL DEFAULT 0,
       unit_price REAL DEFAULT 0,
+      discount_pct REAL DEFAULT 0,
+      vat_pct REAL DEFAULT 8,
+      line_pre_vat_total REAL,
+      line_vat_amount REAL,
+      line_gross_total REAL,
       total_price REAL DEFAULT 0,
       warehouse TEXT,
       notes TEXT,
@@ -490,6 +500,46 @@ async function initDb() {
     }
   } catch (err) {
     console.warn('[DB Migration] Notice on users table update:', err);
+  }
+
+  try {
+    const itemCols = (await db.prepare("PRAGMA table_info(po_tracker_items)").all()) as Array<{ name: string }>;
+    const itemColNames = itemCols.map((c) => c.name);
+    if (!itemColNames.includes('barcode')) {
+      await db.prepare("ALTER TABLE po_tracker_items ADD COLUMN barcode TEXT").run();
+    }
+    if (!itemColNames.includes('discount_pct')) {
+      await db.prepare("ALTER TABLE po_tracker_items ADD COLUMN discount_pct REAL DEFAULT 0").run();
+    }
+    if (!itemColNames.includes('vat_pct')) {
+      await db.prepare("ALTER TABLE po_tracker_items ADD COLUMN vat_pct REAL DEFAULT 8").run();
+    }
+    if (!itemColNames.includes('line_pre_vat_total')) {
+      await db.prepare("ALTER TABLE po_tracker_items ADD COLUMN line_pre_vat_total REAL").run();
+    }
+    if (!itemColNames.includes('line_vat_amount')) {
+      await db.prepare("ALTER TABLE po_tracker_items ADD COLUMN line_vat_amount REAL").run();
+    }
+    if (!itemColNames.includes('line_gross_total')) {
+      await db.prepare("ALTER TABLE po_tracker_items ADD COLUMN line_gross_total REAL").run();
+    }
+
+    const poCols = (await db.prepare("PRAGMA table_info(po_tracker_pos)").all()) as Array<{ name: string }>;
+    const poColNames = poCols.map((c) => c.name);
+    if (!poColNames.includes('sub_total_pre_vat')) {
+      await db.prepare("ALTER TABLE po_tracker_pos ADD COLUMN sub_total_pre_vat REAL").run();
+    }
+    if (!poColNames.includes('order_discount_amount')) {
+      await db.prepare("ALTER TABLE po_tracker_pos ADD COLUMN order_discount_amount REAL DEFAULT 0").run();
+    }
+    if (!poColNames.includes('total_vat')) {
+      await db.prepare("ALTER TABLE po_tracker_pos ADD COLUMN total_vat REAL").run();
+    }
+    if (!poColNames.includes('grand_total')) {
+      await db.prepare("ALTER TABLE po_tracker_pos ADD COLUMN grand_total REAL").run();
+    }
+  } catch (err) {
+    console.warn('[DB Migration] Notice on po_tracker tables update:', err);
   }
 
   await db.exec(`

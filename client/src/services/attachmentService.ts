@@ -1,4 +1,4 @@
-import { STORES, idbGetById, idbPut, idbDelete } from './storage/indexedDb';
+import { STORES, idbGetAll, idbGetById, idbPut, idbDelete } from './storage/indexedDb';
 import { formatFileSize } from './noteImageService';
 import { autoBackupManager } from './autoBackupManager';
 
@@ -9,18 +9,66 @@ export interface StoredAttachment {
   size: number;
   blob?: Blob;
   dataUrl?: string;
+  hash?: string;
   createdAt: string;
 }
 
 // In-memory URL cache for instantaneous zero-latency preview & download
 const objectUrlCache = new Map<string, string>();
 
+/**
+ * Computes SHA-256 checksum for a Blob or File using Web Crypto API.
+ */
+export async function computeBlobSha256(blob: Blob): Promise<string> {
+  try {
+    const buffer = await blob.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+  } catch (_) {
+    // Fallback pseudo-hash for non-crypto test environments
+    return `hash_${blob.size}_${blob.type || 'bin'}`;
+  }
+}
+
 export const attachmentService = {
   /**
    * Save a heavy file or blob directly into IndexedDB without blocking the main UI thread.
+   * BUG-012: Calculates SHA-256 hash to deduplicate files (e.g. FM_FOR WORK.xlsx uploaded multiple times).
    * Returns a lightweight ID and formatted size string to embed in HTML.
    */
   async saveAttachment(file: File | Blob, name: string): Promise<{ id: string; size: number; sizeStr: string; url: string }> {
+    const hash = await computeBlobSha256(file);
+
+    // BUG-012: Check if an identical attachment already exists in IndexedDB
+    try {
+      const existingAttachments = await idbGetAll<StoredAttachment>(STORES.ATTACHMENTS);
+      const duplicate = existingAttachments.find((a) => {
+        if (a.hash && a.hash === hash) return true;
+        if (a.size === file.size && a.name === name) return true;
+        return false;
+      });
+
+      if (duplicate) {
+        // Reuse the existing attachment record to avoid duplicate blob storage
+        let bUrl = objectUrlCache.get(duplicate.id);
+        if (!bUrl) {
+          try {
+            const rawBlob = duplicate.blob || file;
+            bUrl = URL.createObjectURL(rawBlob);
+            objectUrlCache.set(duplicate.id, bUrl);
+          } catch (_) {}
+        }
+
+        return {
+          id: duplicate.id,
+          size: duplicate.size,
+          sizeStr: formatFileSize(duplicate.size),
+          url: bUrl || '',
+        };
+      }
+    } catch (_) {}
+
     const id = 'att_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 8);
     const record: StoredAttachment = {
       id,
@@ -28,6 +76,7 @@ export const attachmentService = {
       type: file.type || 'application/octet-stream',
       size: file.size,
       blob: file,
+      hash,
       createdAt: new Date().toISOString(),
     };
 

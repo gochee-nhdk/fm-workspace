@@ -2,6 +2,9 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { POExtractedData, POTrackerPO } from '@/types/po-tracker';
 import { usePOTrackerStore } from '@/stores/po-tracker-store';
 import { poTrackerService, extractMetadataFromFileName } from '@/services/poTrackerService';
+import { dataService } from '@/services/dataService';
+import { useNoteStore } from '@/stores/note-store';
+import { StoreItem } from '@/types/workspace';
 import { Drawer } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
@@ -16,7 +19,10 @@ import {
   SFEye,
   SFDocumentOnDocument,
   SFXmark,
-  SFCalendar
+  SFCalendar,
+  SFExclamationmarkTriangleFill,
+  SFEnvelope,
+  SFShippingbox
 } from 'sf-symbols-lib';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -55,12 +61,16 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const { folders, activeFolderId, addPOToList } = usePOTrackerStore();
+  const { folders, activeFolderId, addPOToList, pos, updatePOInList } = usePOTrackerStore();
 
   const [step, setStep] = useState<Step>('upload');
   const [file, setFile] = useState<File | null>(null);
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
   const [showDocPreview, setShowDocPreview] = useState(false);
+  const [splitView, setSplitView] = useState(true);
+  const [showMailModal, setShowMailModal] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<POTrackerPO | null>(null);
+  const [stores, setStores] = useState<StoreItem[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -84,6 +94,17 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
   // Quick text/Excel bulk import modal
   const [showBulkPasteModal, setShowBulkPasteModal] = useState(false);
   const [bulkText, setBulkText] = useState('');
+
+  // Fetch 13 stores for warehouse combobox
+  useEffect(() => {
+    if (isOpen) {
+      dataService.getStores().then((res) => {
+        if (Array.isArray(res) && res.length > 0) {
+          setStores(res);
+        }
+      }).catch(() => {});
+    }
+  }, [isOpen]);
 
   // Manage file preview URL
   useEffect(() => {
@@ -308,8 +329,8 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
     }
   };
 
-  const handleSavePO = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSavePO = async (e?: React.FormEvent, forceUpdateExistingId?: string) => {
+    if (e) e.preventDefault();
     if (savingRef.current || saving) return;
 
     if (!poNumber.trim() && !supplierName.trim()) {
@@ -317,11 +338,42 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
       return;
     }
 
+    // BUG-015: Validate expectedDate >= poDate
+    if (poDate && expectedDate && expectedDate < poDate) {
+      toast.error('Ngày giao hàng dự kiến không được trước ngày lập PO.', { id: 'save-po-toast' });
+      return;
+    }
+
+    // BUG-016: Validate SL > 0 and Đơn giá >= 0
+    if (items.length > 0) {
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        if (Number(it.ordered_qty || 0) <= 0) {
+          toast.error(`Số lượng đặt hàng cho "${it.item_name || `Mặt hàng ${i + 1}`}" phải lớn hơn 0.`, { id: 'save-po-toast' });
+          return;
+        }
+        if (Number(it.unit_price || 0) < 0) {
+          toast.error(`Đơn giá cho "${it.item_name || `Mặt hàng ${i + 1}`}" không được là số âm.`, { id: 'save-po-toast' });
+          return;
+        }
+      }
+    }
+
+    // BUG-007: Check for duplicate po_number
+    if (!forceUpdateExistingId && poNumber.trim()) {
+      const trimmed = poNumber.trim().toLowerCase();
+      const existing = pos.find((p) => p.po_number && p.po_number.trim().toLowerCase() === trimmed);
+      if (existing) {
+        setDuplicateWarning(existing);
+        return;
+      }
+    }
+
     savingRef.current = true;
     setSaving(true);
     try {
       const finalTotal = calculatedTotalAmount > 0 ? calculatedTotalAmount : Number(totalValue || 0);
-      const res = await poTrackerService.createPO({
+      const payload = {
         folder_id: folderId || null,
         po_number: poNumber.trim() || undefined,
         po_date: poDate || undefined,
@@ -334,13 +386,24 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
         notes: notes.trim() || undefined,
         pdf_file_name: file?.name || undefined,
         items: items as any,
-      });
+      };
 
-      const saved = (res as any)?.data?.data || (res as any)?.data || res;
-      if (saved) {
-        addPOToList(saved);
+      let saved: POTrackerPO;
+      if (forceUpdateExistingId) {
+        const res = await poTrackerService.updatePO(forceUpdateExistingId, payload);
+        saved = (res as any)?.data?.data || (res as any)?.data || res;
+        updatePOInList(forceUpdateExistingId, saved);
+        toast.success(`Đã cập nhật đè đơn hàng [${poNumber.trim()}] thành công!`, { id: 'save-po-toast' });
+      } else {
+        const res = await poTrackerService.createPO(payload);
+        saved = (res as any)?.data?.data || (res as any)?.data || res;
+        if (saved) {
+          addPOToList(saved);
+        }
+        toast.success('Đã lưu và bắt đầu theo dõi đơn hàng PO thành công!', { id: 'save-po-toast' });
       }
-      toast.success('Đã lưu và bắt đầu theo dõi đơn hàng PO thành công!', { id: 'save-po-toast' });
+
+      setDuplicateWarning(null);
       onSuccess(saved);
       onClose();
       resetForm();
@@ -351,6 +414,79 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
       savingRef.current = false;
       setSaving(false);
     }
+  };
+
+  const generateMailDraft = () => {
+    const finalPoNum = poNumber.trim() || 'PO-CHUA-CO-MA';
+    const finalSupplier = supplierName.trim() || 'Quý Nhà cung cấp';
+    const finalTotal = calculatedTotalAmount > 0 ? calculatedTotalAmount : Number(totalValue || 0);
+
+    const subject = `[Xác nhận đơn hàng PO] ${finalPoNum} - Farmers Market gửi ${finalSupplier}`;
+
+    const itemsText = items.length > 0
+      ? items.map((it, idx) => `  ${idx + 1}. ${it.item_name} (Mã: ${it.item_code || 'N/A'}) - SL đặt: ${it.ordered_qty} ${it.unit} - Đơn giá: ${formatVND(it.unit_price)} - Thành tiền: ${formatVND(it.total_price)}`).join('\n')
+      : '  (Chưa có danh mục mặt hàng chi tiết)';
+
+    const bodyText = `Kính gửi Quý Nhà cung cấp ${finalSupplier},
+
+Công ty TNHH Thương mại Laria (Farmers Market) xin gửi thông tin xác nhận đơn đặt hàng PO:
+
+1. THÔNG TIN CHỨNG TỪ:
+- Số hiệu chứng từ PO: ${finalPoNum}
+- Ngày lập đơn hàng: ${poDate || 'Chưa cập nhật'}
+- Hạn giao hàng dự kiến: ${expectedDate || 'Theo thỏa thuận'}
+- Kho tiếp nhận hàng: ${warehouse || 'Kho Farmers Market'}
+- Tổng giá trị đơn hàng: ${formatVND(finalTotal)}
+
+2. CHI TIẾT DANH MỤC HÀNG HÓA ĐẶT MUA:
+${itemsText}
+
+${notes ? `3. GHI CHÚ ĐIỀU PHỐI:\n${notes}\n\n` : ''}
+Kính đề nghị Quý NCC kiểm tra số lượng, phản hồi email này để xác nhận thời gian giao hàng chính xác.
+
+Trân trọng cảm ơn sự hợp tác của Quý đối tác!
+Phòng Thu mua / Supply Chain - Farmers Market`;
+
+    const htmlBody = `<h3>[Xác nhận đơn hàng PO] ${finalPoNum} - Farmers Market gửi ${finalSupplier}</h3>
+<p>Kính gửi Quý Nhà cung cấp <b>${finalSupplier}</b>,</p>
+<p>Farmers Market xin gửi thông tin xác nhận đơn đặt hàng PO chi tiết:</p>
+<ul>
+  <li><b>Số PO:</b> ${finalPoNum}</li>
+  <li><b>Ngày lập đơn:</b> ${poDate || 'Chưa cập nhật'}</li>
+  <li><b>Hạn giao hàng dự kiến:</b> ${expectedDate || 'Theo thỏa thuận'}</li>
+  <li><b>Kho tiếp nhận hàng:</b> ${warehouse || 'Kho Farmers Market'}</li>
+  <li><b>Tổng giá trị đơn:</b> ${formatVND(finalTotal)}</li>
+</ul>
+<table border="1" cellpadding="6" style="border-collapse: collapse; width: 100%; margin: 12px 0;">
+  <thead>
+    <tr style="background-color: #f5f5f7;">
+      <th>STT</th>
+      <th>Mã hàng</th>
+      <th>Tên mặt hàng</th>
+      <th>ĐVT</th>
+      <th>SL đặt</th>
+      <th>Đơn giá</th>
+      <th>Thành tiền</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${items.map((it, idx) => `
+      <tr>
+        <td style="text-align: center;">${idx + 1}</td>
+        <td>${it.item_code || ''}</td>
+        <td><b>${it.item_name}</b></td>
+        <td style="text-align: center;">${it.unit}</td>
+        <td style="text-align: right;">${it.ordered_qty}</td>
+        <td style="text-align: right;">${formatVND(it.unit_price)}</td>
+        <td style="text-align: right;"><b>${formatVND(it.total_price)}</b></td>
+      </tr>
+    `).join('')}
+  </tbody>
+</table>
+${notes ? `<p><b>Ghi chú điều phối:</b> ${notes}</p>` : ''}
+<p>Trân trọng cảm ơn sự hợp tác của Quý đối tác!<br/><b>Farmers Market Procurement Team</b></p>`;
+
+    return { subject, bodyText, htmlBody };
   };
 
   const isPdf = file?.name?.toLowerCase().endsWith('.pdf');
@@ -372,7 +508,7 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
           ? 'Trí tuệ nhân tạo Gemini đang phân tích tài liệu PO...'
           : 'Kiểm tra và hoàn tất dữ liệu trước khi lưu vào danh mục theo dõi'
       }
-      width="lg"
+      width={step === 'confirm' && filePreviewUrl && splitView ? '2xl' : 'lg'}
     >
       <div className="space-y-4 font-sans relative pb-6 text-left">
         {/* ============================================================== */}
@@ -483,11 +619,11 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
         {/* ============================================================== */}
         {step === 'confirm' && (
           <form id="po-confirm-form" onSubmit={handleSavePO} className="space-y-4 text-left">
-            {/* File info bar + Document Preview Toggle */}
+            {/* File info bar + Split-View & Document Preview Toggle */}
             {file && (
               <div className="space-y-2">
-                <div className="p-3 px-4 rounded-2xl bg-blue-50/80 dark:bg-blue-500/10 border border-blue-200/80 dark:border-blue-500/20 flex items-center justify-between text-[13px] shadow-2xs">
-                  <div className="flex items-center gap-2.5 truncate">
+                <div className="p-3 px-4 rounded-2xl bg-blue-50/80 dark:bg-blue-500/10 border border-blue-200/80 dark:border-blue-500/20 flex items-center justify-between text-[13px] shadow-2xs flex-wrap gap-2">
+                  <div className="flex items-center gap-2.5 truncate min-w-0">
                     <div className="w-8 h-8 rounded-xl bg-[#0088FF]/10 text-[#0088FF] flex items-center justify-center shrink-0">
                       <SFDocument size={16} />
                     </div>
@@ -495,14 +631,34 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
                       {file.name}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                    {filePreviewUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSplitView((prev) => !prev);
+                          if (!splitView) setShowDocPreview(true);
+                        }}
+                        className={cn(
+                          'px-2.5 py-1 rounded-lg font-bold text-[12px] flex items-center gap-1.5 cursor-pointer transition-colors',
+                          splitView
+                            ? 'bg-[#0088FF] text-white shadow-2xs'
+                            : 'bg-blue-100/70 hover:bg-blue-100 dark:bg-blue-500/20 dark:hover:bg-blue-500/30 text-[#0088FF] dark:text-[#0A84FF]'
+                        )}
+                        title="Bật/Tắt chế độ Split-View chia đôi màn hình xem tài liệu PDF và biểu mẫu"
+                      >
+                        <SFEye size={12} />
+                        <span>{splitView ? 'Tắt Split-View' : 'Split-View PDF'}</span>
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={() => setShowDocPreview(!showDocPreview)}
+                      onClick={() => setShowMailModal(true)}
                       className="text-[#0088FF] hover:bg-blue-100/60 dark:hover:bg-blue-500/20 px-2.5 py-1 rounded-lg font-bold text-[12px] flex items-center gap-1 cursor-pointer transition-colors"
+                      title="Soạn mail gửi NCC theo mẫu MAIL PO"
                     >
-                      <SFEye size={12} />
-                      <span>{showDocPreview ? 'Ẩn xem trước' : 'Xem chứng từ gốc'}</span>
+                      <SFEnvelope size={12} />
+                      <span>Soạn Mail NCC</span>
                     </button>
                     <button
                       type="button"
@@ -514,8 +670,8 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
                   </div>
                 </div>
 
-                {/* Collapsible Document Viewer */}
-                {showDocPreview && filePreviewUrl && (
+                {/* Collapsible Document Viewer (used when not in splitView) */}
+                {!splitView && showDocPreview && filePreviewUrl && (
                   <div className="p-3 rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] space-y-2 animate-in fade-in duration-200">
                     <div className="flex items-center justify-between text-[12px] font-bold text-[#48484a]">
                       <span>Bản xem trước chứng từ (Đối chiếu số liệu)</span>
@@ -546,6 +702,42 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
                 )}
               </div>
             )}
+
+            {/* Main Form Fields — Wrapped in Responsive Split-view if enabled */}
+            <div className={cn(filePreviewUrl && splitView ? 'grid grid-cols-1 lg:grid-cols-12 gap-6 items-start' : 'space-y-4')}>
+              {/* Left Column: PDF / Image Viewer in Split Mode */}
+              {filePreviewUrl && splitView && (
+                <div className="lg:col-span-5 sticky top-0 rounded-2xl border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-3 space-y-2 h-[75vh] flex flex-col shadow-2xs">
+                  <div className="flex items-center justify-between text-[12px] font-bold text-[#48484a] dark:text-[#a1a1a6]">
+                    <span>Chứng từ gốc (Đối chiếu số liệu)</span>
+                    <button
+                      type="button"
+                      onClick={() => setSplitView(false)}
+                      className="text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white text-[11px] underline cursor-pointer"
+                    >
+                      Ẩn cột xem
+                    </button>
+                  </div>
+                  {isPdf ? (
+                    <iframe
+                      src={filePreviewUrl}
+                      className="w-full flex-1 rounded-xl border border-black/10 dark:border-white/10 bg-white"
+                      title="Xem trước PDF"
+                    />
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center overflow-auto rounded-xl bg-white/60 p-2 border border-black/10">
+                      <img
+                        src={filePreviewUrl}
+                        alt="Xem trước PO"
+                        className="max-h-full object-contain rounded-lg"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Right Column: All Form Controls */}
+              <div className={cn(filePreviewUrl && splitView ? 'lg:col-span-7 space-y-4' : 'space-y-4')}>
 
             {/* Folder Select */}
             <div className="space-y-1.5">
@@ -637,15 +829,46 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
               </div>
 
               <div className="space-y-1">
-                <label className="text-[12.5px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">
-                  Kho tiếp nhận
-                </label>
-                <input
-                  value={warehouse}
-                  onChange={(e) => setWarehouse(e.target.value)}
-                  placeholder="VD: DC01 - Nơ Trang Long, Kho Tổng..."
-                  className="w-full h-9 px-3.5 rounded-xl bg-white dark:bg-[#1c1c20] border border-black/15 dark:border-white/15 text-[13px] font-medium text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs"
-                />
+                <div className="flex items-center justify-between">
+                  <label className="text-[12.5px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">
+                    Kho tiếp nhận {stores.length > 0 && <span className="text-[#86868b] font-normal text-[11px]">({stores.length} kho/cửa hàng)</span>}
+                  </label>
+                </div>
+                <div className="relative">
+                  <input
+                    list="stores-po-datalist"
+                    value={warehouse}
+                    onChange={(e) => setWarehouse(e.target.value)}
+                    placeholder="VD: DC01 - 180 Nơ Trang Long..."
+                    className="w-full h-9 px-3.5 rounded-xl bg-white dark:bg-[#1c1c20] border border-black/15 dark:border-white/15 text-[13px] font-medium text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0088FF]/30 transition-all shadow-2xs"
+                  />
+                  <datalist id="stores-po-datalist">
+                    {stores.map((s) => (
+                      <option key={s.id} value={`${s.storeCode} - ${(s as any).storeName || s.address}`}>
+                        {s.storeCode} ({s.address || (s as any).storeName})
+                      </option>
+                    ))}
+                  </datalist>
+                </div>
+                {stores.length > 0 && (
+                  <div className="flex items-center gap-1 flex-wrap pt-0.5">
+                    {stores.slice(0, 6).map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setWarehouse(`${s.storeCode} - ${(s as any).storeName || s.address}`)}
+                        className={cn(
+                          'px-2 py-0.5 rounded-md text-[10.5px] font-bold transition-all cursor-pointer',
+                          warehouse.includes(s.storeCode)
+                            ? 'bg-[#0088FF] text-white shadow-2xs'
+                            : 'bg-black/5 dark:bg-white/5 text-[#555558] hover:bg-black/10 dark:hover:bg-white/10'
+                        )}
+                      >
+                        {s.storeCode}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -879,6 +1102,9 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
               />
             </div>
 
+              </div> {/* End Right Column */}
+            </div> {/* End Split Container */}
+
             {/* Sticky Action Footer */}
             <div className="sticky -bottom-4 sm:-bottom-6 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-white/95 dark:bg-[#1c1c22]/95 backdrop-blur-md border-t border-black/[0.08] dark:border-white/10 flex items-center gap-3 z-30 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
               <button
@@ -889,6 +1115,17 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
               >
                 Quay lại
               </button>
+
+              <button
+                type="button"
+                onClick={() => setShowMailModal(true)}
+                className="h-10 px-3.5 rounded-full border border-blue-300 dark:border-blue-500/30 bg-blue-50/70 hover:bg-blue-100 dark:bg-blue-500/15 dark:hover:bg-blue-500/25 text-[#0088FF] dark:text-[#0A84FF] text-[12.5px] font-bold flex items-center gap-1.5 cursor-pointer transition-all shrink-0"
+                title="Tạo / Gửi Mail xác nhận NCC theo mẫu MAIL PO"
+              >
+                <SFEnvelope size={14} />
+                <span className="hidden sm:inline">Mail NCC</span>
+              </button>
+
               <button
                 type="submit"
                 disabled={saving}
@@ -907,6 +1144,140 @@ export const POUploadDrawer: React.FC<POUploadDrawerProps> = ({
           </form>
         )}
       </div>
+
+      {/* BUG-007: Duplicate PO Number Warning Modal */}
+      {duplicateWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-[#1e1e24] rounded-3xl p-6 max-w-md w-full shadow-2xl border border-black/10 dark:border-white/10 space-y-4 text-left">
+            <div className="flex items-center gap-3 text-amber-600 dark:text-amber-400">
+              <SFExclamationmarkTriangleFill size={26} className="shrink-0" />
+              <h3 className="text-[17px] font-black text-[#1d1d1f] dark:text-white">
+                Cảnh báo trùng mã đơn hàng
+              </h3>
+            </div>
+            <p className="text-[14px] text-[#48484a] dark:text-[#a1a1a6] leading-relaxed">
+              Đơn hàng <b>[{duplicateWarning.po_number || poNumber}]</b> đã tồn tại trên hệ thống (NCC: {duplicateWarning.supplier_name || 'Chưa rõ'}).
+              <br /><br />
+              Bạn muốn <b>Cập nhật đè lên</b> hay <b>Xem đơn cũ</b>?
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const oldPo = duplicateWarning;
+                  setDuplicateWarning(null);
+                  onClose();
+                  onSuccess(oldPo);
+                }}
+                className="flex-1 py-2.5 px-3 rounded-xl border border-black/15 dark:border-white/15 text-[13px] font-bold text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-all cursor-pointer text-center"
+              >
+                Xem đơn cũ
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSavePO(undefined, duplicateWarning.id)}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-[#0088FF] text-white text-[13px] font-bold hover:bg-[#0077EE] transition-all cursor-pointer shadow-sm text-center"
+              >
+                Cập nhật đè lên
+              </button>
+            </div>
+            <div className="text-center pt-1">
+              <button
+                type="button"
+                onClick={() => setDuplicateWarning(null)}
+                className="text-[12px] text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white underline cursor-pointer"
+              >
+                Hủy bỏ (Đổi mã PO khác)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BUG-018: Supplier Mail Preview & Creation Modal */}
+      {showMailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-[#1e1e24] rounded-3xl p-6 max-w-2xl w-full shadow-2xl border border-black/10 dark:border-white/10 space-y-4 text-left max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between pb-2 border-b border-black/10 dark:border-white/10 shrink-0">
+              <div className="flex items-center gap-2 text-[#0088FF] dark:text-[#0A84FF]">
+                <SFEnvelope size={20} />
+                <h3 className="text-[17px] font-black text-[#1d1d1f] dark:text-white">
+                  Soạn Mail xác nhận Nhà cung cấp (MAIL PO)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMailModal(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 cursor-pointer"
+              >
+                <SFXmark size={14} />
+              </button>
+            </div>
+
+            <div className="space-y-3 flex-1 overflow-y-auto pr-1">
+              <div>
+                <label className="text-[12px] font-bold text-[#86868b]">Tiêu đề thư:</label>
+                <div className="p-2.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/10 dark:border-white/10 text-[13px] font-bold text-[#1d1d1f] dark:text-white">
+                  {generateMailDraft().subject}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[12px] font-bold text-[#86868b]">Nội dung gửi đối tác:</label>
+                <pre className="p-3.5 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/10 dark:border-white/10 text-[12.5px] font-mono whitespace-pre-wrap text-[#1d1d1f] dark:text-white max-h-[300px] overflow-y-auto leading-relaxed">
+                  {generateMailDraft().bodyText}
+                </pre>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 pt-3 border-t border-black/10 dark:border-white/10 shrink-0 flex-wrap">
+              <button
+                type="button"
+                onClick={async () => {
+                  const draft = generateMailDraft();
+                  const newNote = await useNoteStore.getState().createNote('note', draft.htmlBody);
+                  await useNoteStore.getState().updateNote(newNote.id, {
+                    title: `[MAIL PO] ${poNumber || 'PO'} - ${supplierName || 'NCC'}`,
+                    tags: ['MAIL PO', 'Đơn hàng'],
+                  });
+                  useNoteStore.getState().openNote();
+                  setShowMailModal(false);
+                  toast.success('Đã tạo ghi chú mẫu MAIL PO trong Quick Note!');
+                }}
+                className="h-9 px-3.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 dark:text-amber-200 text-[12px] font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+              >
+                <SFDocumentOnDocument size={13} />
+                <span>Lưu vào Quick Note (MAIL PO)</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const draft = generateMailDraft();
+                    navigator.clipboard.writeText(draft.bodyText);
+                    toast.success('Đã sao chép nội dung email vào clipboard!');
+                  }}
+                  className="h-9 px-3.5 rounded-xl border border-black/15 dark:border-white/15 text-[12.5px] font-bold text-[#1d1d1f] dark:text-white hover:bg-black/5 cursor-pointer transition-all"
+                >
+                  Sao chép Email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const draft = generateMailDraft();
+                    window.open(`mailto:?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.bodyText)}`);
+                  }}
+                  className="h-9 px-4 rounded-xl fm-primary-pill-surface text-white text-[12.5px] font-bold flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <SFEnvelope size={13} />
+                  <span>Mở ứng dụng Mail</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirm Delete Item Dialog */}
       <ConfirmDeleteDialog

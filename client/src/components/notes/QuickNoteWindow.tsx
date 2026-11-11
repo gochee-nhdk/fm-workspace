@@ -424,7 +424,15 @@ const ensureHtml = (content: string, noteImages?: NoteImageAttachment[]): string
             src = matchImg.url;
             img.setAttribute('src', src);
             modified = true;
+          } else if (src.startsWith('blob:')) {
+            // Strictly forbid persisting temporary blob: URLs
+            img.setAttribute('src', '');
+            modified = true;
           }
+        } else if (src.startsWith('blob:')) {
+          // Strictly forbid persisting temporary blob: URLs
+          img.setAttribute('src', '');
+          modified = true;
         }
 
         if (!img.closest('.apple-img-wrapper')) {

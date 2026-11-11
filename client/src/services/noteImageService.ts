@@ -19,8 +19,28 @@ export const formatFileSize = (bytes?: number): string => {
 };
 
 /**
+ * Convert File or Blob to permanent base64 data URL using FileReader
+ * Guarantees zero temporary blob: URLs are persisted in notes
+ */
+export const fileToDataUrl = (file: File | Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+      } else {
+        reject(new Error('Không thể đọc dữ liệu hình ảnh dạng Base64'));
+      }
+    };
+    reader.onerror = () => reject(reader.error || new Error('Lỗi FileReader khi đọc file'));
+    reader.readAsDataURL(file);
+  });
+};
+
+/**
  * Compress and resize an image file or blob to prevent browser memory bloat and save storage.
  * Uses native off-thread createImageBitmap for zero UI freezing on heavy images.
+ * Always resolves to a permanent data:image/...;base64 string (strictly NO blob: URLs).
  */
 export const compressImageFile = async (
   file: File | Blob,
@@ -64,12 +84,17 @@ export const compressImageFile = async (
       }
       bitmap.close();
     } catch (err) {
-      console.warn('createImageBitmap failed, falling back to ObjectURL:', err);
+      console.warn('createImageBitmap failed, falling back to FileReader / Canvas:', err);
     }
   }
 
-  // 2. Fast Fallback using URL.createObjectURL (avoids slow multi-megabyte base64 FileReader strings)
-  return new Promise((resolve, reject) => {
+  // 2. Safe Fallback using Image loading and FileReader fallback (strictly NO blob: URLs returned)
+  return new Promise(async (resolve, reject) => {
+    let base64Fallback = '';
+    try {
+      base64Fallback = await fileToDataUrl(file);
+    } catch (_) {}
+
     const objectUrl = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
@@ -90,7 +115,11 @@ export const compressImageFile = async (
       canvas.height = height;
       const ctx = canvas.getContext('2d');
       if (!ctx) {
-        resolve({ dataUrl: objectUrl, size: file.size });
+        if (base64Fallback) {
+          resolve({ dataUrl: base64Fallback, size: file.size });
+        } else {
+          fileToDataUrl(file).then((dUrl) => resolve({ dataUrl: dUrl, size: file.size })).catch(reject);
+        }
         return;
       }
 
@@ -107,7 +136,11 @@ export const compressImageFile = async (
     };
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      reject(new Error('Định dạng hình ảnh không hợp lệ hoặc không thể nạp'));
+      if (base64Fallback) {
+        resolve({ dataUrl: base64Fallback, size: file.size });
+      } else {
+        fileToDataUrl(file).then((dUrl) => resolve({ dataUrl: dUrl, size: file.size })).catch(reject);
+      }
     };
     img.src = objectUrl;
   });

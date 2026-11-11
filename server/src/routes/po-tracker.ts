@@ -555,18 +555,25 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
     const validInitialStatus = initialStatus && VALID_STATUSES.includes(initialStatus) ? initialStatus : 'pending';
     const finalDeliveryDate = actual_delivery_date || (validInitialStatus === 'received' ? now.split('T')[0] : null);
 
+    const subTotalPreVat = Number(body.subTotalPreVat || body.sub_total_pre_vat || computedTotalValue || 0);
+    const orderDiscountAmount = Number(body.orderDiscountAmount || body.order_discount_amount || 0);
+    const totalVat = Number(body.totalVat || body.total_vat || Math.round(subTotalPreVat * 0.08));
+    const grandTotal = Number(body.grandTotal || body.grand_total || (subTotalPreVat + totalVat));
+
     await db.transaction(async (tx: IDatabaseAdapter) => {
       await tx.prepare(`
         INSERT INTO po_tracker_pos (
           id, folder_id, po_number, po_date, expected_delivery_date, actual_delivery_date,
-          supplier_code, supplier_name, warehouse, status, total_value, currency,
+          supplier_code, supplier_name, warehouse, status, sub_total_pre_vat, order_discount_amount,
+          total_vat, grand_total, total_value, currency,
           notes, tags, extracted_data, pdf_file_name, created_by, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id, folder_id || null, po_number || null, po_date || null,
         expected_delivery_date || null, finalDeliveryDate, supplier_code || null,
         supplier_name || null, warehouse || null,
         validInitialStatus,
+        subTotalPreVat, orderDiscountAmount, totalVat, grandTotal,
         computedTotalValue,
         currency || 'VND', notes || null,
         tags ? JSON.stringify(tags) : null,
@@ -581,19 +588,29 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
           const ordQty = Number(item.ordered_qty || 0);
           const recQty = Number(item.received_qty || 0);
           const uPrice = Number(item.unit_price || 0);
-          const tPrice = Number(item.total_price || (ordQty * uPrice) || 0);
+          const discountPct = Number(item.discountPct ?? item.discount_pct ?? 0);
+          const vatPct = Number(item.vatPct ?? item.vat_pct ?? 8);
+          const tPrice = Number(item.total_price || (ordQty * uPrice * (1 - discountPct / 100)) || 0);
+          const linePreVat = Number(item.linePreVatTotal ?? item.line_pre_vat_total ?? tPrice);
+          const lineVat = Number(item.lineVatAmount ?? item.line_vat_amount ?? Math.round((linePreVat * vatPct) / 100));
+          const lineGross = Number(item.lineGrossTotal ?? item.line_gross_total ?? (linePreVat + lineVat));
           const itemStatus = item.status || (recQty >= ordQty && ordQty > 0 ? 'received' : recQty > 0 ? 'partial' : 'pending');
 
           await tx.prepare(`
-            INSERT INTO po_tracker_items (id, po_id, item_code, item_name, unit, ordered_qty, received_qty, unit_price, total_price, warehouse, notes, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO po_tracker_items (
+              id, po_id, item_code, barcode, item_name, unit, ordered_qty, received_qty,
+              unit_price, discount_pct, vat_pct, line_pre_vat_total, line_vat_amount, line_gross_total,
+              total_price, warehouse, notes, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
             item.id || uuidv4(), id,
             item.item_code || null,
+            item.barcode || null,
             item.item_name || '',
             item.unit || 'thùng',
             ordQty, recQty,
-            uPrice, tPrice,
+            uPrice, discountPct, vatPct, linePreVat, lineVat, lineGross,
+            tPrice,
             item.warehouse || null,
             item.notes || null,
             itemStatus
@@ -665,18 +682,29 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
             const ordQty = Number(item.ordered_qty || 0);
             const recQty = Number(item.received_qty || 0);
             const uPrice = Number(item.unit_price || 0);
-            const tPrice = Number(item.total_price || (ordQty * uPrice) || 0);
+            const discountPct = Number(item.discountPct ?? item.discount_pct ?? 0);
+            const vatPct = Number(item.vatPct ?? item.vat_pct ?? 8);
+            const tPrice = Number(item.total_price || (ordQty * uPrice * (1 - discountPct / 100)) || 0);
+            const linePreVat = Number(item.linePreVatTotal ?? item.line_pre_vat_total ?? tPrice);
+            const lineVat = Number(item.lineVatAmount ?? item.line_vat_amount ?? Math.round((linePreVat * vatPct) / 100));
+            const lineGross = Number(item.lineGrossTotal ?? item.line_gross_total ?? (linePreVat + lineVat));
             const itemStat = item.status || (recQty >= ordQty && ordQty > 0 ? 'received' : recQty > 0 ? 'partial' : 'pending');
 
             await tx.prepare(`
-              INSERT INTO po_tracker_items (id, po_id, item_code, item_name, unit, ordered_qty, received_qty, unit_price, total_price, warehouse, notes, status)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              INSERT INTO po_tracker_items (
+                id, po_id, item_code, barcode, item_name, unit, ordered_qty, received_qty,
+                unit_price, discount_pct, vat_pct, line_pre_vat_total, line_vat_amount, line_gross_total,
+                total_price, warehouse, notes, status
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
               item.id || uuidv4(), id,
-              item.item_code || null, item.item_name || '',
+              item.item_code || null,
+              item.barcode || null,
+              item.item_name || '',
               item.unit || 'thùng',
               ordQty, recQty,
-              uPrice, tPrice,
+              uPrice, discountPct, vatPct, linePreVat, lineVat, lineGross,
+              tPrice,
               item.warehouse || null, item.notes || null,
               itemStat
             );
@@ -703,11 +731,17 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
         `).run(id);
       }
 
+      const subTotalPreVat = body.subTotalPreVat !== undefined ? Number(body.subTotalPreVat) : (body.sub_total_pre_vat !== undefined ? Number(body.sub_total_pre_vat) : existing.sub_total_pre_vat);
+      const orderDiscountAmount = body.orderDiscountAmount !== undefined ? Number(body.orderDiscountAmount) : (body.order_discount_amount !== undefined ? Number(body.order_discount_amount) : existing.order_discount_amount);
+      const totalVat = body.totalVat !== undefined ? Number(body.totalVat) : (body.total_vat !== undefined ? Number(body.total_vat) : existing.total_vat);
+      const grandTotal = body.grandTotal !== undefined ? Number(body.grandTotal) : (body.grand_total !== undefined ? Number(body.grand_total) : existing.grand_total);
+
       await tx.prepare(`
         UPDATE po_tracker_pos
         SET folder_id = ?, po_number = ?, po_date = ?, expected_delivery_date = ?,
             actual_delivery_date = ?, supplier_code = ?, supplier_name = ?,
-            warehouse = ?, status = ?, total_value = ?, currency = ?, notes = ?, tags = ?,
+            warehouse = ?, status = ?, sub_total_pre_vat = ?, order_discount_amount = ?,
+            total_vat = ?, grand_total = ?, total_value = ?, currency = ?, notes = ?, tags = ?,
             pdf_file_name = ?, updated_at = ?
         WHERE id = ?
       `).run(
@@ -720,6 +754,7 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
         body.supplier_name ?? existing.supplier_name,
         body.warehouse ?? existing.warehouse,
         newStatus,
+        subTotalPreVat, orderDiscountAmount, totalVat, grandTotal,
         body.total_value != null ? Number(body.total_value) : existing.total_value,
         body.currency ?? existing.currency,
         body.notes ?? existing.notes,

@@ -18,6 +18,7 @@ import { noteService } from './noteService';
 import { cryptoService } from './cryptoService';
 import { api } from '@/lib/api';
 import { useNoteStore } from '@/stores/note-store';
+import DOMPurify from 'dompurify';
 import {
   LinkItem,
   AccountItem,
@@ -33,6 +34,8 @@ import {
   FM_BACKUP_APP_NAME,
   FM_BACKUP_VERSION,
 } from '@/types/workspace';
+import type { POTrackerPO, POFolderItem } from '@/types/po-tracker';
+import { saveLocalPOs, saveLocalFolders } from './poTrackerService';
 import { idbGetAll as idbGetAllTyped } from './storage/indexedDb';
 import type { StoredAttachment } from './attachmentService';
 
@@ -55,43 +58,71 @@ async function sha256Hex(text: string): Promise<string> {
 }
 
 // ──────────────────────────────────────────────
-// HTML SANITIZER (no external deps — pure regex)
-// Strips malicious content from imported Note HTML
+// HTML SANITIZER (DOMPurify + Fallback for Headless/Node environments)
+// Strips malicious content from imported and edited Note HTML
 // ──────────────────────────────────────────────
 export function sanitizeNoteHTML(dirty: string): string {
   if (!dirty || typeof dirty !== 'string') return '';
 
   let clean = dirty;
 
-  // 1. Remove entire <script> ... </script> blocks
-  clean = clean.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
+  // 1. First pass through DOMPurify if in DOM environment (Browser / jsdom)
+  if (typeof window !== 'undefined') {
+    try {
+      const purifier = typeof (DOMPurify as any)?.sanitize === 'function'
+        ? DOMPurify
+        : typeof (DOMPurify as any) === 'function'
+        ? (DOMPurify as any)(window)
+        : null;
 
-  // 2. Remove <style> ... </style> blocks
+      if (purifier && typeof purifier.sanitize === 'function') {
+        clean = purifier.sanitize(clean, {
+          ALLOWED_TAGS: [
+            'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'b', 'strong', 'i', 'em', 'u', 's', 'strike',
+            'ul', 'ol', 'li', 'blockquote', 'span', 'div', 'br', 'hr', 'a', 'img',
+            'table', 'tr', 'td', 'th', 'tbody', 'thead', 'tfoot', 'colgroup', 'col',
+            'svg', 'line', 'path', 'circle', 'rect', 'polyline', 'polygon', 'button', 'mark', 'code', 'pre'
+          ],
+          ALLOWED_ATTR: [
+            'href', 'target', 'rel', 'src', 'alt', 'title', 'class', 'style', 'width', 'height',
+            'contenteditable', 'data-media-type', 'data-checked', 'data-id', 'data-url', 'data-name', 'data-size',
+            'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'fill', 'viewBox', 'type'
+          ],
+          ALLOW_DATA_ATTR: true,
+          FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'base', 'meta', 'link'],
+          FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'formaction'],
+        });
+      }
+    } catch (_) {}
+  }
+
+  // 2. Headless/Server regex sanitizer pass to guarantee 100% defense even without DOM
+  // Strip <script> and <style>
+  clean = clean.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
   clean = clean.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '');
 
-  // 3. Remove dangerous tags entirely (iframe, object, embed, form, input, base, meta, link)
-  // NOTE: Keep <svg> (vector icons/badges) and <button> (interactive action triggers) safe
+  // Strip dangerous tags
   clean = clean.replace(
-    /<\/?(?:iframe|object|embed|form|input|select|textarea|base|meta|link|frame|frameset|applet)\b[^>]*>/gi,
+    /<\/?(?:script|style|iframe|object|embed|form|input|select|textarea|base|meta|link|frame|frameset|applet)\b[^>]*>/gi,
     ''
   );
 
-  // 4. Remove ALL on* event handler attributes (onclick, onload, onerror, etc.)
+  // Strip all on* attributes
   clean = clean.replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]*)/gi, '');
 
-  // 5. Remove javascript: and vbscript: in href/src/action/formaction
+  // Strip javascript: and vbscript: in href/src
   clean = clean.replace(
-    /(href|src|action|formaction|xlink:href)\s*=\s*["']?\s*(?:javascript|vbscript|data(?!:image\/[a-z]+;base64))[^"'\s>]*/gi,
+    /(href|src|action|formaction|xlink:href)\s*=\s*["']?\s*(?:javascript|vbscript|data(?!:image\/[a-z0-9+.-]+;base64))[^"'\s>]*/gi,
     '$1=""'
   );
 
-  // 6. Remove data: URIs that are NOT safe images (allow data:image/png, jpeg, gif, webp, svg+xml)
+  // Strip non-image data: URIs
   clean = clean.replace(
     /src\s*=\s*["']data:(?!image\/(?:png|jpeg|jpg|gif|webp|svg\+xml))[^"']*["']/gi,
     'src=""'
   );
 
-  // 7. Remove expression() in style attributes (CSS injection)
+  // Strip CSS expression()
   clean = clean.replace(/style\s*=\s*["'][^"']*expression\s*\([^"']*/gi, 'style=""');
 
   return clean;
@@ -123,20 +154,23 @@ async function exportFullBackup(options: BackupExportOptions = {}): Promise<void
   const { includeActivities = true } = options;
 
   // 1. Collect all data from IndexedDB & noteService in parallel (guarantees both IDB + localStorage cache)
-  const [links, accounts, stores, allNotes, rawActivities, rawAttachments] = await Promise.all([
+  const [links, accounts, stores, allNotes, rawActivities, rawAttachments, poOrders, poFolders] = await Promise.all([
     idbGetAll<LinkItem>(STORES.LINKS),
     idbGetAll<AccountItem>(STORES.ACCOUNTS),
     idbGetAll<StoreItem>(STORES.STORES),
     noteService.getAllNotes(),
     includeActivities ? idbGetAll<ActivityLogItem>(STORES.ACTIVITIES) : Promise.resolve([]),
     idbGetAll<StoredAttachment>(STORES.ATTACHMENTS),
+    idbGetAll<POTrackerPO>(STORES.POS),
+    idbGetAll<POFolderItem>(STORES.PO_FOLDERS),
   ]);
 
   const textNotes = allNotes.filter((n) => n.noteType !== 'checklist');
   const todoNotes = allNotes.filter((n) => n.noteType === 'checklist');
 
-  // 2. Serialize attachments: Blob → base64
+  // 2. Serialize attachments: Blob → base64 with BUG-012 SHA-256 deduplication
   const attachments: SerializedAttachment[] = [];
+  const seenAttachmentHashes = new Set<string>();
   for (const att of rawAttachments) {
     try {
       if (!att.blob && !att.dataUrl) continue;
@@ -149,12 +183,20 @@ async function exportFullBackup(options: BackupExportOptions = {}): Promise<void
         dataBase64 = parts[1] ?? '';
       }
       if (!dataBase64) continue;
+
+      const hash = att.hash || (await sha256Hex(dataBase64));
+      if (seenAttachmentHashes.has(hash)) {
+        continue; // BUG-012: Avoid duplicate attachment storage
+      }
+      seenAttachmentHashes.add(hash);
+
       attachments.push({
         id: att.id,
         name: att.name,
         type: att.type,
         size: att.size,
         dataBase64,
+        hash,
         createdAt: att.createdAt,
       });
     } catch (_) {
@@ -172,7 +214,7 @@ async function exportFullBackup(options: BackupExportOptions = {}): Promise<void
     }
   } catch (_) {}
 
-  // 4. Build payload
+  // 4. Build payload with PO Tracker data (v1.1)
   const payload: FMBackupPayload = {
     links,
     accounts, // passwords included — user's own data on their machine
@@ -180,6 +222,8 @@ async function exportFullBackup(options: BackupExportOptions = {}): Promise<void
     notes: allNotes,
     attachments,
     activities: rawActivities,
+    poOrders,
+    poFolders,
     settings: { theme },
   };
 
@@ -212,6 +256,8 @@ async function exportFullBackup(options: BackupExportOptions = {}): Promise<void
         notes: textNotes.length,
         todos: todoNotes.length,
         attachments: attachments.length,
+        poOrders: poOrders.length,
+        poFolders: poFolders.length,
       },
     },
     payload: finalPayloadStr,
@@ -275,8 +321,9 @@ async function validateBackupFile(file: File): Promise<BackupValidationResult> {
     return { valid: false, error: 'File không phải backup hợp lệ của FM Workspace.' };
   }
 
-  // Guard 5: version compatibility
-  if (h.version !== FM_BACKUP_VERSION) {
+  // Guard 5: version compatibility (100% backward compatible with v1.0 and v1.1)
+  const supportedVersions = ['1.0', '1.1'];
+  if (!supportedVersions.includes(h.version as any) && !String(h.version).startsWith('1.')) {
     return {
       valid: false,
       error: `Phiên bản backup (${h.version}) không tương thích với phiên bản hiện tại (${FM_BACKUP_VERSION}).`,
@@ -317,6 +364,8 @@ async function importFullBackup(
     notes: 0,
     todos: 0,
     attachments: 0,
+    poOrders: 0,
+    poFolders: 0,
     skipped: 0,
     errors: [],
   };
@@ -362,14 +411,23 @@ async function importFullBackup(
 
   // ── Step 3: Read existing data for conflict detection
   progress('Đang tải dữ liệu hiện tại để kiểm tra trùng lặp...');
-  const [existingLinks, existingAccounts, existingStores, existingNotes, existingAttachments] =
-    await Promise.all([
-      idbGetAll<LinkItem>(STORES.LINKS),
-      idbGetAll<AccountItem>(STORES.ACCOUNTS),
-      idbGetAll<StoreItem>(STORES.STORES),
-      noteService.getAllNotes(),
-      idbGetAll<StoredAttachment>(STORES.ATTACHMENTS),
-    ]);
+  const [
+    existingLinks,
+    existingAccounts,
+    existingStores,
+    existingNotes,
+    existingAttachments,
+    existingPoFolders,
+    existingPoOrders,
+  ] = await Promise.all([
+    idbGetAll<LinkItem>(STORES.LINKS),
+    idbGetAll<AccountItem>(STORES.ACCOUNTS),
+    idbGetAll<StoreItem>(STORES.STORES),
+    noteService.getAllNotes(),
+    idbGetAll<StoredAttachment>(STORES.ATTACHMENTS),
+    idbGetAll<POFolderItem>(STORES.PO_FOLDERS),
+    idbGetAll<POTrackerPO>(STORES.POS),
+  ]);
 
   const norm = (s: string) => (s || '').trim().toLowerCase();
 
@@ -495,11 +553,19 @@ async function importFullBackup(
     }
   }
 
-  // ── Step 8: Import Attachments (base64 → Blob)
+  // ── Step 8: Import Attachments (base64 → Blob) with BUG-012 SHA-256 deduplication
   progress('Đang nhập Tệp đính kèm...');
+  const importedAttachmentHashes = new Set<string>();
   for (const att of payload.attachments ?? []) {
     try {
-      const dup = existingAttachments.find((e) => e.id === att.id);
+      const hash = att.hash || (await sha256Hex(att.dataBase64));
+      if (importedAttachmentHashes.has(hash)) {
+        result.skipped++;
+        continue;
+      }
+      importedAttachmentHashes.add(hash);
+
+      const dup = existingAttachments.find((e) => e.id === att.id || (e.hash && e.hash === hash));
       if (dup) {
         if (conflictStrategy === 'skip') { result.skipped++; continue; }
         // overwrite/merge: restore the file
@@ -511,6 +577,7 @@ async function importFullBackup(
         type: att.type,
         size: att.size,
         blob,
+        hash,
         createdAt: att.createdAt,
       };
       await idbPut<StoredAttachment>(STORES.ATTACHMENTS, record);
@@ -519,6 +586,68 @@ async function importFullBackup(
       result.errors.push(`Tệp đính kèm "${att.name}": ${(e as Error).message}`);
     }
   }
+
+  // ── Step 8b: Import PO Folders (v1.1)
+  progress('Đang nhập Nhóm đơn hàng PO (Folders)...');
+  for (const folder of payload.poFolders ?? []) {
+    try {
+      const dup = existingPoFolders.find((e) => e.id === folder.id || norm(e.name) === norm(folder.name));
+      if (dup) {
+        if (conflictStrategy === 'skip') {
+          result.skipped++;
+          continue;
+        }
+        if (conflictStrategy === 'overwrite') {
+          await idbPut<POFolderItem>(STORES.PO_FOLDERS, { ...folder, id: dup.id, updated_at: now });
+          result.poFolders++;
+          continue;
+        }
+      }
+      const targetId = (conflictStrategy === 'merge' && existingPoFolders.some((f) => f.id === folder.id))
+        ? `folder-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+        : (folder.id || `folder-${Date.now()}`);
+      await idbPut<POFolderItem>(STORES.PO_FOLDERS, { ...folder, id: targetId, updated_at: now });
+      result.poFolders++;
+    } catch (e) {
+      result.errors.push(`Nhóm PO "${folder.name}": ${(e as Error).message}`);
+    }
+  }
+
+  // ── Step 8c: Import Purchase Orders (v1.1)
+  progress('Đang nhập Đơn mua hàng PO (Tracker)...');
+  for (const po of payload.poOrders ?? []) {
+    try {
+      const dup = existingPoOrders.find(
+        (e) => e.id === po.id || (po.po_number && e.po_number && norm(e.po_number) === norm(po.po_number))
+      );
+      if (dup) {
+        if (conflictStrategy === 'skip') {
+          result.skipped++;
+          continue;
+        }
+        if (conflictStrategy === 'overwrite') {
+          await idbPut<POTrackerPO>(STORES.POS, { ...po, id: dup.id, updated_at: now });
+          result.poOrders++;
+          continue;
+        }
+      }
+      const targetId = (conflictStrategy === 'merge' && existingPoOrders.some((p) => p.id === po.id))
+        ? `po-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+        : (po.id || `po-${Date.now()}`);
+      await idbPut<POTrackerPO>(STORES.POS, { ...po, id: targetId, updated_at: now });
+      result.poOrders++;
+    } catch (e) {
+      result.errors.push(`Đơn PO "${po.po_number}": ${(e as Error).message}`);
+    }
+  }
+
+  // ── Step 8d: Maintain bidirectional compatibility with localStorage
+  try {
+    const finalPos = await idbGetAll<POTrackerPO>(STORES.POS);
+    if (finalPos.length > 0) saveLocalPOs(finalPos);
+    const finalFolders = await idbGetAll<POFolderItem>(STORES.PO_FOLDERS);
+    if (finalFolders.length > 0) saveLocalFolders(finalFolders);
+  } catch (_) {}
 
   // ── Step 9: Restore settings (opt-in only)
   if (restoreSettings && payload.settings?.theme) {
@@ -542,7 +671,7 @@ async function importFullBackup(
   }
 
   result.success = result.errors.length === 0 || (
-    result.links + result.accounts + result.stores + result.notes + result.todos + result.attachments > 0
+    result.links + result.accounts + result.stores + result.notes + result.todos + result.attachments + result.poOrders + result.poFolders > 0
   );
 
   return result;
@@ -553,19 +682,22 @@ async function importFullBackup(
  * Used for automated background server sync.
  */
 async function generateBackupPayload(): Promise<{ payloadStr: string; checksum: string; itemCounts: any }> {
-  const [links, accounts, stores, allNotes, rawActivities, rawAttachments] = await Promise.all([
+  const [links, accounts, stores, allNotes, rawActivities, rawAttachments, poOrders, poFolders] = await Promise.all([
     idbGetAll<LinkItem>(STORES.LINKS),
     idbGetAll<AccountItem>(STORES.ACCOUNTS),
     idbGetAll<StoreItem>(STORES.STORES),
     noteService.getAllNotes(),
     idbGetAll<ActivityLogItem>(STORES.ACTIVITIES),
     idbGetAll<StoredAttachment>(STORES.ATTACHMENTS),
+    idbGetAll<POTrackerPO>(STORES.POS),
+    idbGetAll<POFolderItem>(STORES.PO_FOLDERS),
   ]);
 
   const textNotes = allNotes.filter((n) => n.noteType !== 'checklist');
   const todoNotes = allNotes.filter((n) => n.noteType === 'checklist');
 
   const attachments: SerializedAttachment[] = [];
+  const seenAttachmentHashes = new Set<string>();
   for (const att of rawAttachments) {
     try {
       if (!att.blob && !att.dataUrl) continue;
@@ -577,12 +709,16 @@ async function generateBackupPayload(): Promise<{ payloadStr: string; checksum: 
         dataBase64 = parts[1] ?? '';
       }
       if (!dataBase64) continue;
+      const hash = att.hash || (await sha256Hex(dataBase64));
+      if (seenAttachmentHashes.has(hash)) continue;
+      seenAttachmentHashes.add(hash);
       attachments.push({
         id: att.id,
         name: att.name,
         type: att.type,
         size: att.size,
         dataBase64,
+        hash,
         createdAt: att.createdAt,
       });
     } catch (_) {}
@@ -604,6 +740,8 @@ async function generateBackupPayload(): Promise<{ payloadStr: string; checksum: 
     notes: allNotes,
     attachments,
     activities: rawActivities,
+    poOrders,
+    poFolders,
     settings: { theme },
   };
 
@@ -620,6 +758,8 @@ async function generateBackupPayload(): Promise<{ payloadStr: string; checksum: 
       notes: textNotes.length,
       todos: todoNotes.length,
       attachments: attachments.length,
+      poOrders: poOrders.length,
+      poFolders: poFolders.length,
     },
   };
 }

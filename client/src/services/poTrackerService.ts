@@ -9,6 +9,7 @@ import {
 import { getStoredGeminiKey, getGeminiKeysPool, discoverBestFlashModels } from './writingToolsService';
 import { convertPdfToImages, extractPdfData } from '@/utils/pdfToImage';
 import { parseFastPOFromText, FastPOResult, FastMathIntegrity } from '@/utils/fastPoTableParser';
+import { STORES, idbGetAll, idbGetById, idbPut, idbBulkPut, idbDelete } from './storage/indexedDb';
 
 export { parseFastPOFromText, type FastPOResult, type FastMathIntegrity };
 
@@ -595,6 +596,7 @@ Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ theo đúng cấu trú
 
 const LOCAL_POS_KEY = 'po_tracker_local_pos_v2';
 const LOCAL_FOLDERS_KEY = 'po_tracker_local_folders_v2';
+const FM_PO_FOLDERS_KEY = 'fm_po_folders';
 
 const defaultLocalFolders: POFolderItem[] = [
   { id: 'f-default-1', name: 'Hàng kinh doanh', description: 'Các đơn hàng thu mua sản phẩm thương mại', color: 'blue', icon: 'shippingbox', sort_order: 1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
@@ -618,7 +620,7 @@ export function saveLocalPOs(pos: POTrackerPO[]): void {
 
 export function getLocalFolders(): POFolderItem[] {
   try {
-    const raw = localStorage.getItem(LOCAL_FOLDERS_KEY);
+    const raw = localStorage.getItem(LOCAL_FOLDERS_KEY) || localStorage.getItem(FM_PO_FOLDERS_KEY);
     return raw ? JSON.parse(raw) : defaultLocalFolders;
   } catch (_) {
     return defaultLocalFolders;
@@ -628,6 +630,7 @@ export function getLocalFolders(): POFolderItem[] {
 export function saveLocalFolders(folders: POFolderItem[]): void {
   try {
     localStorage.setItem(LOCAL_FOLDERS_KEY, JSON.stringify(folders));
+    localStorage.setItem(FM_PO_FOLDERS_KEY, JSON.stringify(folders));
   } catch (_) {}
 }
 
@@ -636,15 +639,35 @@ function wrapAxios<T>(payload: ApiResponse<T>): { data: ApiResponse<T> } {
 }
 
 export const poTrackerService = {
-  // ─── Folders ───────────────────────────────────────────────────────────────
+  // ─── Folders (IndexedDB v4 + LocalStorage Dual-Storage) ─────────────────────
   getFolders: async (): Promise<{ data: ApiResponse<POFolderItem[]> }> => {
     try {
       const res = await api.get<ApiResponse<POFolderItem[]>>('/po-tracker/folders');
       if (res.data?.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
+        try {
+          await idbBulkPut(STORES.PO_FOLDERS, res.data.data);
+        } catch (_) {}
         saveLocalFolders(res.data.data);
         return res;
       }
     } catch (_) {}
+
+    // Read directly from IndexedDB v4
+    try {
+      let idbFolders = await idbGetAll<POFolderItem>(STORES.PO_FOLDERS);
+      if (!idbFolders || idbFolders.length === 0) {
+        const localFolders = getLocalFolders();
+        if (localFolders.length > 0) {
+          await idbBulkPut(STORES.PO_FOLDERS, localFolders);
+          idbFolders = localFolders;
+        }
+      }
+      if (idbFolders && idbFolders.length > 0) {
+        saveLocalFolders(idbFolders);
+        return wrapAxios({ success: true, data: idbFolders });
+      }
+    } catch (_) {}
+
     return wrapAxios({ success: true, data: getLocalFolders() });
   },
 
@@ -659,16 +682,28 @@ export const poTrackerService = {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+
     try {
       const res = await api.post<ApiResponse<POFolderItem>>('/po-tracker/folders', data);
       if (res.data?.success && res.data?.data) {
-        const current = getLocalFolders().filter((f) => f.id !== res.data.data.id);
-        saveLocalFolders([...current, res.data.data]);
+        try {
+          await idbPut(STORES.PO_FOLDERS, res.data.data);
+          const all = await idbGetAll<POFolderItem>(STORES.PO_FOLDERS);
+          saveLocalFolders(all);
+        } catch (_) {}
         return res;
       }
     } catch (_) {}
-    const current = getLocalFolders();
-    saveLocalFolders([...current, newFolder]);
+
+    try {
+      await idbPut(STORES.PO_FOLDERS, newFolder);
+      const all = await idbGetAll<POFolderItem>(STORES.PO_FOLDERS);
+      saveLocalFolders(all.length > 0 ? all : [...getLocalFolders(), newFolder]);
+    } catch (_) {
+      const current = getLocalFolders();
+      saveLocalFolders([...current, newFolder]);
+    }
+
     return wrapAxios({ success: true, data: newFolder });
   },
 
@@ -676,14 +711,50 @@ export const poTrackerService = {
     try {
       const res = await api.put<ApiResponse<POFolderItem>>(`/po-tracker/folders/${id}`, data);
       if (res.data?.success && res.data?.data) {
-        const current = getLocalFolders().map((f) => (f.id === id ? { ...f, ...res.data.data } : f));
-        saveLocalFolders(current);
+        try {
+          await idbPut(STORES.PO_FOLDERS, res.data.data);
+          const all = await idbGetAll<POFolderItem>(STORES.PO_FOLDERS);
+          saveLocalFolders(all);
+        } catch (_) {}
         return res;
       }
     } catch (_) {}
-    const current = getLocalFolders().map((f) => (f.id === id ? { ...f, ...data, updated_at: new Date().toISOString() } : f));
-    saveLocalFolders(current);
-    const updated = current.find((f) => f.id === id) as POFolderItem;
+
+    let current: POFolderItem | null = null;
+    try {
+      current = await idbGetById<POFolderItem>(STORES.PO_FOLDERS, id);
+    } catch (_) {}
+    if (!current) {
+      current = getLocalFolders().find((f) => f.id === id) || null;
+    }
+
+    const updated: POFolderItem = {
+      ...(current || {
+        id,
+        name: data.name || 'Nhóm',
+        description: data.description || '',
+        color: (data.color || 'blue') as any,
+        icon: data.icon || 'shippingbox',
+        sort_order: data.sort_order || 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }),
+      ...data,
+      color: (data.color || current?.color || 'blue') as any,
+      icon: data.icon || current?.icon || 'shippingbox',
+      sort_order: data.sort_order ?? current?.sort_order ?? 0,
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      await idbPut(STORES.PO_FOLDERS, updated);
+      const all = await idbGetAll<POFolderItem>(STORES.PO_FOLDERS);
+      saveLocalFolders(all);
+    } catch (_) {
+      const currentLocal = getLocalFolders().map((f) => (f.id === id ? updated : f));
+      saveLocalFolders(currentLocal);
+    }
+
     return wrapAxios({ success: true, data: updated });
   },
 
@@ -691,8 +762,16 @@ export const poTrackerService = {
     try {
       await api.delete<ApiResponse<null>>(`/po-tracker/folders/${id}`);
     } catch (_) {}
-    const current = getLocalFolders().filter((f) => f.id !== id);
-    saveLocalFolders(current);
+
+    try {
+      await idbDelete(STORES.PO_FOLDERS, id);
+      const all = await idbGetAll<POFolderItem>(STORES.PO_FOLDERS);
+      saveLocalFolders(all);
+    } catch (_) {
+      const current = getLocalFolders().filter((f) => f.id !== id);
+      saveLocalFolders(current);
+    }
+
     return wrapAxios({ success: true, data: null });
   },
 
@@ -863,7 +942,7 @@ export const poTrackerService = {
 
   uploadPdf: (file: File) => poTrackerService.uploadPOFile(file),
 
-  // ─── Purchase Orders ───────────────────────────────────────────────────────
+  // ─── Purchase Orders (IndexedDB v4 + LocalStorage Dual-Storage) ────────────
   getPOs: async (params?: { folder_id?: string; status?: string; search?: string }): Promise<{ data: ApiResponse<POTrackerPO[]> }> => {
     let serverList: POTrackerPO[] = [];
     try {
@@ -873,13 +952,27 @@ export const poTrackerService = {
       }
     } catch (_) {}
 
-    const localList = getLocalPOs();
+    // 1. Read directly from IndexedDB v4
+    let idbList: POTrackerPO[] = [];
+    try {
+      idbList = await idbGetAll<POTrackerPO>(STORES.POS);
+    } catch (_) {}
+
+    // Fallback to localStorage if IDB is empty
+    if (idbList.length === 0) {
+      const localFallback = getLocalPOs();
+      if (localFallback.length > 0) {
+        idbList = localFallback;
+        try {
+          await idbBulkPut(STORES.POS, localFallback);
+        } catch (_) {}
+      }
+    }
+
     const map = new Map<string, POTrackerPO>();
-    // 1. Luôn nạp toàn bộ danh sách PO cục bộ đã lưu
-    for (const p of localList) {
+    for (const p of idbList) {
       if (p.id) map.set(p.id, p);
     }
-    // 2. Cập nhật hoặc bổ sung các PO từ máy chủ (nếu có)
     for (const p of serverList) {
       if (p.id) map.set(p.id, p);
     }
@@ -887,11 +980,13 @@ export const poTrackerService = {
     const allCombined = Array.from(map.values());
     allCombined.sort((a, b) => new Date(b.created_at || '').getTime() - new Date(a.created_at || '').getTime());
 
-    // CỨU CÁNH TOÀN DIỆN: LUÔN LƯU DANH SÁCH TỔNG ĐẦY ĐỦ VÀO LOCALSTORAGE!
-    // TUYỆT ĐỐI KHÔNG LƯU MẢNG ĐÃ QUA LỌC ĐỂ TRÁNH MẤT PO KHI BẤM LỌC TRẠNG THÁI/TÌM KIẾM!
+    // Persist full comprehensive list to both IndexedDB v4 and localStorage
+    try {
+      await idbBulkPut(STORES.POS, allCombined);
+    } catch (_) {}
     saveLocalPOs(allCombined);
 
-    // 3. Áp dụng bộ lọc cho mảng trả về giao diện mà không làm mất dữ liệu gốc
+    // 2. Apply filtering for presentation without altering stored dataset
     let filtered = allCombined;
     if (params?.folder_id) {
       if (params.folder_id === 'unassigned') {
@@ -941,9 +1036,18 @@ export const poTrackerService = {
     try {
       const res = await api.get<ApiResponse<POTrackerPO>>(`/po-tracker/pos/${id}`);
       if (res.data?.success && res.data.data) {
+        try {
+          await idbPut(STORES.POS, res.data.data);
+        } catch (_) {}
         return res;
       }
     } catch (_) {}
+
+    try {
+      const idbItem = await idbGetById<POTrackerPO>(STORES.POS, id);
+      if (idbItem) return wrapAxios({ success: true, data: idbItem });
+    } catch (_) {}
+
     const local = getLocalPOs().find((p) => p.id === id);
     if (local) return wrapAxios({ success: true, data: local });
     throw new Error('Không tìm thấy đơn hàng PO.');
@@ -990,6 +1094,11 @@ export const poTrackerService = {
     try {
       const res = await api.post<ApiResponse<POTrackerPO>>('/po-tracker/pos', data);
       if (res.data?.success && res.data?.data) {
+        try {
+          await idbPut(STORES.POS, res.data.data);
+          const all = await idbGetAll<POTrackerPO>(STORES.POS);
+          saveLocalPOs(all);
+        } catch (_) {}
         const current = getLocalPOs().filter((p) => p.id !== tempId && p.id !== res.data.data.id);
         saveLocalPOs([res.data.data, ...current]);
         return res;
@@ -998,8 +1107,15 @@ export const poTrackerService = {
       console.warn('Backend createPO unhandled, using local storage resilience:', err);
     }
 
-    const current = getLocalPOs().filter((p) => p.id !== tempId);
-    saveLocalPOs([localRecord, ...current]);
+    try {
+      await idbPut(STORES.POS, localRecord);
+      const all = await idbGetAll<POTrackerPO>(STORES.POS);
+      saveLocalPOs(all);
+    } catch (_) {
+      const current = getLocalPOs().filter((p) => p.id !== tempId);
+      saveLocalPOs([localRecord, ...current]);
+    }
+
     return wrapAxios({
       success: true,
       data: localRecord,
@@ -1011,14 +1127,47 @@ export const poTrackerService = {
     try {
       const res = await api.put<ApiResponse<POTrackerPO>>(`/po-tracker/pos/${id}`, data);
       if (res.data?.success && res.data?.data) {
-        const current = getLocalPOs().map((p) => (p.id === id ? { ...p, ...res.data.data } : p));
-        saveLocalPOs(current);
+        try {
+          await idbPut(STORES.POS, res.data.data);
+          const all = await idbGetAll<POTrackerPO>(STORES.POS);
+          saveLocalPOs(all);
+        } catch (_) {}
         return res;
       }
     } catch (_) {}
-    const current = getLocalPOs().map((p) => (p.id === id ? { ...p, ...data, updated_at: new Date().toISOString() } : p));
-    saveLocalPOs(current);
-    const updated = current.find((p) => p.id === id) as POTrackerPO;
+
+    let current: POTrackerPO | null = null;
+    try {
+      current = await idbGetById<POTrackerPO>(STORES.POS, id);
+    } catch (_) {}
+    if (!current) {
+      current = getLocalPOs().find((p) => p.id === id) || null;
+    }
+
+    const updated: POTrackerPO = {
+      ...(current || {
+        id,
+        po_number: data.po_number || 'PO',
+        status: (data.status || 'pending') as any,
+        total_value: Number(data.total_value || 0),
+        currency: data.currency || 'VND',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }),
+      ...data,
+      status: (data.status || current?.status || 'pending') as any,
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      await idbPut(STORES.POS, updated);
+      const all = await idbGetAll<POTrackerPO>(STORES.POS);
+      saveLocalPOs(all);
+    } catch (_) {
+      const currentLocal = getLocalPOs().map((p) => (p.id === id ? updated : p));
+      saveLocalPOs(currentLocal);
+    }
+
     return wrapAxios({ success: true, data: updated });
   },
 
@@ -1026,8 +1175,16 @@ export const poTrackerService = {
     try {
       await api.delete<ApiResponse<null>>(`/po-tracker/pos/${id}`);
     } catch (_) {}
-    const current = getLocalPOs().filter((p) => p.id !== id);
-    saveLocalPOs(current);
+
+    try {
+      await idbDelete(STORES.POS, id);
+      const all = await idbGetAll<POTrackerPO>(STORES.POS);
+      saveLocalPOs(all);
+    } catch (_) {
+      const current = getLocalPOs().filter((p) => p.id !== id);
+      saveLocalPOs(current);
+    }
+
     return wrapAxios({ success: true, data: null });
   },
 
@@ -1039,18 +1196,31 @@ export const poTrackerService = {
         notes,
       });
     } catch (_) {}
-    const current = getLocalPOs().map((p) =>
-      p.id === id
-        ? {
-            ...p,
-            status: status as any,
-            actual_delivery_date: actual_delivery_date || p.actual_delivery_date,
-            notes: notes !== undefined ? notes : p.notes,
-            updated_at: new Date().toISOString(),
-          }
-        : p
-    );
-    saveLocalPOs(current);
+
+    let current: POTrackerPO | null = null;
+    try {
+      current = await idbGetById<POTrackerPO>(STORES.POS, id);
+    } catch (_) {}
+    if (!current) current = getLocalPOs().find((p) => p.id === id) || null;
+
+    if (current) {
+      const updated: POTrackerPO = {
+        ...current,
+        status: status as any,
+        actual_delivery_date: actual_delivery_date || current.actual_delivery_date,
+        notes: notes !== undefined ? notes : current.notes,
+        updated_at: new Date().toISOString(),
+      };
+      try {
+        await idbPut(STORES.POS, updated);
+        const all = await idbGetAll<POTrackerPO>(STORES.POS);
+        saveLocalPOs(all);
+      } catch (_) {
+        const currentList = getLocalPOs().map((p) => (p.id === id ? updated : p));
+        saveLocalPOs(currentList);
+      }
+    }
+
     return wrapAxios({ success: true, data: null });
   },
 
@@ -1058,11 +1228,31 @@ export const poTrackerService = {
     try {
       const res = await api.patch<ApiResponse<POTrackerPO>>(`/po-tracker/pos/${id}/receive`, payload);
       if (res.data?.success && res.data?.data) {
-        const current = getLocalPOs().map((p) => (p.id === id ? { ...p, ...res.data.data } : p));
-        saveLocalPOs(current);
+        try {
+          await idbPut(STORES.POS, res.data.data);
+          const all = await idbGetAll<POTrackerPO>(STORES.POS);
+          saveLocalPOs(all);
+        } catch (_) {}
         return res;
       }
     } catch (_) {}
+
+    let current: POTrackerPO | null = null;
+    try {
+      current = await idbGetById<POTrackerPO>(STORES.POS, id);
+    } catch (_) {}
+    if (!current) current = getLocalPOs().find((p) => p.id === id) || null;
+
+    if (current) {
+      const updated = { ...current, updated_at: new Date().toISOString() };
+      try {
+        await idbPut(STORES.POS, updated);
+        const all = await idbGetAll<POTrackerPO>(STORES.POS);
+        saveLocalPOs(all);
+      } catch (_) {}
+      return wrapAxios({ success: true, data: updated });
+    }
+
     return wrapAxios({ success: true, data: {} as any });
   },
 
@@ -1077,8 +1267,17 @@ export const poTrackerService = {
       }
     } catch (_) {}
 
-    // Calculate stats locally from local POs
-    const pos = getLocalPOs().filter((p) => (!folder_id ? true : p.folder_id === folder_id));
+    // Calculate stats locally from IndexedDB v4 / localStorage
+    let pos: POTrackerPO[] = [];
+    try {
+      pos = await idbGetAll<POTrackerPO>(STORES.POS);
+    } catch (_) {}
+    if (pos.length === 0) {
+      pos = getLocalPOs();
+    }
+    if (folder_id) {
+      pos = pos.filter((p) => p.folder_id === folder_id);
+    }
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 3600 * 1000).toISOString().split('T')[0];

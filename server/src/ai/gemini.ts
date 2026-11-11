@@ -5,17 +5,48 @@ function cleanVietnameseNumber(val: any): number {
   if (typeof val === 'number') return isNaN(val) ? 0 : val;
   if (!val) return 0;
   let str = String(val).trim();
-  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(str)) {
-    str = str.replace(/\./g, '').replace(',', '.');
-  } else if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(str)) {
-    str = str.replace(/,/g, '');
-  } else {
-    if (/^\d+,\d+$/.test(str)) {
-      str = str.replace(',', '.');
+  if (!str) return 0;
+
+  str = str.replace(/[₫đ$VND\s]/gi, '').trim();
+
+  const lastDot = str.lastIndexOf('.');
+  const lastComma = str.lastIndexOf(',');
+
+  if (lastDot !== -1 && lastComma !== -1) {
+    if (lastComma > lastDot) {
+      str = str.replace(/\./g, '').replace(',', '.');
     } else {
-      str = str.replace(/[^\d.-]/g, '');
+      str = str.replace(/,/g, '');
+    }
+  } else if (lastComma !== -1) {
+    const commaCount = (str.match(/,/g) || []).length;
+    if (commaCount > 1) {
+      str = str.replace(/,/g, '');
+    } else {
+      const parts = str.split(',');
+      if (parts[1].length <= 2) {
+        str = parts[0] + '.' + parts[1];
+      } else if (parts[1].length === 3 && parts[0].length <= 3) {
+        str = parts[0] + parts[1];
+      } else {
+        str = str.replace(',', '.');
+      }
+    }
+  } else if (lastDot !== -1) {
+    const dotCount = (str.match(/\./g) || []).length;
+    if (dotCount > 1) {
+      str = str.replace(/\./g, '');
+    } else {
+      const parts = str.split('.');
+      if (parts[1].length <= 2) {
+        // Decimal dot e.g. 16.00
+      } else if (parts[1].length === 3) {
+        str = parts[0] + parts[1];
+      }
     }
   }
+
+  str = str.replace(/[^\d.-]/g, '');
   const num = parseFloat(str);
   return isNaN(num) ? 0 : num;
 }
@@ -182,11 +213,25 @@ function safeParseAIJson(text: string, fileName?: string): any {
     rawParsed = fallbackObj;
   }
 
+  // BUG-017: Nhận diện chứng từ trả hàng
+  const isPurchaseReturn = /phiếu\s*xuất\s*trả|purchase\s*return|xuất\s*trả\s*(?:nhà\s*cung\s*cấp|ncc)|phiếu\s*trả\s*hàng|return\s*to\s*vendor/i.test(trimmed);
+
+  const subTotalPreVat = cleanVietnameseNumber(rawParsed.subTotalPreVat || rawParsed.sub_total_pre_vat || rawParsed.total_value || 0);
+  const totalVat = cleanVietnameseNumber(rawParsed.totalVat || rawParsed.total_vat || Math.round(subTotalPreVat * 0.08));
+  const grandTotal = cleanVietnameseNumber(rawParsed.grandTotal || rawParsed.grand_total || (subTotalPreVat + totalVat));
+
   const normalized: any = {
     ...rawParsed,
     po_date: cleanVietnameseDate(rawParsed.po_date),
     expected_delivery_date: cleanVietnameseDate(rawParsed.expected_delivery_date),
-    total_value: cleanVietnameseNumber(rawParsed.total_value),
+    subTotalPreVat,
+    orderDiscountAmount: cleanVietnameseNumber(rawParsed.orderDiscountAmount || rawParsed.order_discount_amount || 0),
+    totalVat,
+    grandTotal,
+    total_value: subTotalPreVat || cleanVietnameseNumber(rawParsed.total_value),
+    isPurchaseReturn: Boolean(rawParsed.isPurchaseReturn || isPurchaseReturn),
+    documentType: (rawParsed.documentType || (isPurchaseReturn ? 'PURCHASE_RETURN' : 'PO')),
+    warningMessage: isPurchaseReturn ? '⚠️ Cảnh báo: Đây là chứng từ Phiếu Xuất Trả (Purchase Return), không phải Đơn Mua Hàng (PO). Vui lòng kiểm tra lại trước khi nhập kho.' : (rawParsed.warningMessage || null),
   };
 
   if (normalized.supplier_name && /LARIA|FARMERS.*MARKET/i.test(normalized.supplier_name)) {
@@ -199,13 +244,27 @@ function safeParseAIJson(text: string, fileName?: string): any {
         if (!it || typeof it !== 'object') return null;
         const ordered_qty = cleanVietnameseNumber(it.ordered_qty || 1);
         const unit_price = cleanVietnameseNumber(it.unit_price || 0);
-        const total_price = cleanVietnameseNumber(it.total_price || (ordered_qty * unit_price));
+        const discountPct = cleanVietnameseNumber(it.discountPct || it.discount_pct || 0);
+        const vatPct = cleanVietnameseNumber(it.vatPct || it.vat_pct || 8) || 8;
+        const linePreVatTotal = cleanVietnameseNumber(it.linePreVatTotal || it.line_pre_vat_total || it.total_price || (ordered_qty * unit_price * (1 - discountPct / 100)));
+        const lineVatAmount = cleanVietnameseNumber(it.lineVatAmount || it.line_vat_amount || Math.round((linePreVatTotal * vatPct) / 100));
+        const lineGrossTotal = cleanVietnameseNumber(it.lineGrossTotal || it.line_gross_total || (linePreVatTotal + lineVatAmount));
+        const total_price = linePreVatTotal;
+
+        const barcode = it.barcode ? String(it.barcode).trim() : (it.item_code && /^\d{12,14}$/.test(String(it.item_code).trim()) ? String(it.item_code).trim() : undefined);
+
         return {
           item_code: String(it.item_code || it.internal_code || it.barcode || '').trim(),
+          barcode,
           item_name: String(it.item_name || it.description || 'Sản phẩm').trim(),
-          unit: String(it.unit || 'Hộp').trim(),
+          unit: String(it.unit || 'Gói').trim(),
           ordered_qty: ordered_qty > 0 ? ordered_qty : 1,
           unit_price,
+          discountPct,
+          vatPct,
+          linePreVatTotal,
+          lineVatAmount,
+          lineGrossTotal,
           total_price,
           warehouse: String(it.warehouse || normalized.warehouse || '').trim(),
         };
@@ -491,18 +550,30 @@ QUY TẮC BÓC TÁCH CHUẨN XÁC:
    - Lấy sau nhãn "Ngày giao hàng:" hoặc "Hạn giao:" (ví dụ: "5/11/2026" chuẩn hóa thành "2026-11-05").
 6. "warehouse" (Kho nhận hàng / Chi nhánh yêu cầu):
    - Lấy sau "Chi nhánh yêu cầu:" hoặc "Địa chỉ giao hàng:" hoặc "Kho nhận:" (ví dụ: "DC01 - Nơ Trang Long, 204 Nơ Trang Long, Phường Bình Thạnh, TP.HCM").
-7. "total_value" (Tổng giá trị đơn hàng / Tổng thanh toán):
-   - Lấy từ dòng "TỔNG TIỀN HÀNG" hoặc "TỔNG CỘNG TRƯỚC THUẾ VAT", là một số thực nguyên bản (bỏ các dấu phân cách chấm, phẩy). Ví dụ: 9021888 hoặc 8353600.
-8. "currency": Đơn vị tiền tệ, mặc định "VND".
-9. "notes": Người đặt hàng từ nhãn "Người đặt hàng:" (ví dụ: "Nguyễn Hùng Tiến") hoặc ghi chú chứng từ.
-10. "items" (Danh sách toàn bộ các dòng mặt hàng trong bảng ĐƠN MUA HÀNG):
+7. "subTotalPreVat" (Tổng tiền trước thuế):
+   - Lấy từ dòng "TỔNG TIỀN HÀNG" hoặc "TỔNG CỘNG TRƯỚC THUẾ VAT". Ví dụ: 928896 hoặc 4475300.
+8. "totalVat" (Tiền thuế VAT):
+   - Lấy từ dòng "THUẾ VAT" hoặc "TIỀN THUẾ" (ví dụ: 74312 hoặc 358024).
+9. "grandTotal" (Tổng cộng thanh toán sau thuế):
+   - Lấy từ "TỔNG CỘNG THANH TOÁN" hoặc "TỔNG THANH TOÁN" (ví dụ: 1003208 hoặc 4833324).
+10. "total_value": Bằng subTotalPreVat.
+11. "isPurchaseReturn": true nếu chứng từ là "PHIẾU XUẤT TRẢ" hoặc "PURCHASE RETURN", ngược lại false.
+12. "currency": Đơn vị tiền tệ, mặc định "VND".
+13. "notes": Người đặt hàng từ nhãn "Người đặt hàng:" (ví dụ: "Nguyễn Hùng Tiến") hoặc ghi chú chứng từ.
+14. "items" (Danh sách toàn bộ các dòng mặt hàng trong bảng ĐƠN MUA HÀNG):
     Bóc tách ĐẦY ĐỦ TẤT CẢ các dòng sản phẩm trong bảng chi tiết, tuyệt đối không bỏ sót dòng nào:
-    - "item_code": Cột "Internal Code", "Barcode/PLU" hoặc mã SKU (ví dụ: "10015745").
-    - "item_name": Cột "Mặt hàng" hoặc "Tên sản phẩm" (ví dụ: "Hạt dinh dưỡng Your SuperFood Mix nhiều loại hạt hũ 400 g", "Bánh mì hoa cúc Harrys 500 g").
-    - "ordered_qty": Cột "Số lượng" (kiểu số thực, ví dụ: 46 hoặc 225).
-    - "unit": Cột "DVT" (ví dụ: "Hũ", "Hộp", "Thùng", "Kg", "Gói", "Chai", "Lon", "Túi", "Cái").
-    - "unit_price": Cột "Đơn giá chưa VAT" hoặc "Đơn giá chưa VAT sau chiết khấu" (kiểu số, ví dụ: 181600).
-    - "total_price": Cột "Thành tiền chưa VAT" (kiểu số, ví dụ: 8353600).
+    - "item_code": Cột "Internal Code" (ví dụ: "10015799", "10023401").
+    - "barcode": Cột "Barcode/PLU" (mã vạch 13 chữ số, ví dụ: "8936034090999").
+    - "item_name": Cột "Mặt hàng" hoặc "Tên sản phẩm", bao gồm đầy đủ mô tả nếu bị rớt dòng.
+    - "ordered_qty": Cột "Số lượng" (kiểu số thực, ví dụ: 16 hoặc 109).
+    - "unit": Cột "DVT" (ví dụ: "Túi", "Hũ", "Hộp", "Thùng", "Kg", "Gói", "Chai", "Lon", "Cái").
+    - "unit_price": Cột "Đơn giá chưa VAT" (kiểu số, ví dụ: 58056 hoặc 7700).
+    - "discountPct": Tỷ lệ chiết khấu % nếu có (mặc định 0).
+    - "vatPct": Tỷ lệ thuế VAT % (mặc định 8).
+    - "linePreVatTotal": Thành tiền chưa VAT (kiểu số, ví dụ: 928896 hoặc 839300).
+    - "lineVatAmount": Tiền thuế VAT (Math.round(linePreVatTotal * vatPct / 100), ví dụ: 74312).
+    - "lineGrossTotal": Thành tiền sau thuế (linePreVatTotal + lineVatAmount, ví dụ: 1003208).
+    - "total_price": Bằng linePreVatTotal.
     - "warehouse": Kho nhận nếu có (ví dụ: "DC01 - Nơ Trang Long").
 
 Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ theo đúng cấu trúc, không bọc markdown fence, không kèm lời chào hay giải thích.`;

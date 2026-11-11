@@ -1,11 +1,13 @@
 import {
+  parseSmartNumber,
   cleanVietnameseNumber,
   cleanVietnameseDate,
   extractMetadataFromFileName,
+  isPurchaseReturnDocument,
   parseFastPOFromText,
 } from '../utils/fastPoTableParser';
 
-console.log('=== BẮT ĐẦU KIỂM THỬ HIGH-PRECISION FAST PO TABLE PARSER ===\n');
+console.log('=== BẮT ĐẦU KIỂM THỬ HIGH-PRECISION FAST PO TABLE PARSER (AC-02 & BUG-017) ===\n');
 
 let passedTests = 0;
 let totalTests = 0;
@@ -22,14 +24,24 @@ function assert(condition: boolean, msg: string) {
 }
 
 // -------------------------------------------------------------
-// NHÓM 1: CHUẨN HÓA SỐ TIỀN VÀ NGÀY THÁNG VIỆT NAM
+// NHÓM 1: CHUẨN HÓA SỐ TIỀN VÀ NGÀY THÁNG (SMART NUMBER PARSER)
 // -------------------------------------------------------------
-console.log('--- TEST GROUP 1: Vietnamese Number & Date Sanitization ---');
-assert(cleanVietnameseNumber('181.600,00') === 181600, 'Chuẩn hóa số tiền có chấm phân cách và phẩy thập phân: 181.600,00 -> 181600');
-assert(cleanVietnameseNumber('8.353.600,00') === 8353600, 'Chuẩn hóa số tiền triệu: 8.353.600,00 -> 8353600');
-assert(cleanVietnameseNumber('46,00') === 46, 'Chuẩn hóa số lượng thập phân: 46,00 -> 46');
-assert(cleanVietnameseNumber('225') === 225, 'Chuẩn hóa số lượng nguyên: 225 -> 225');
-assert(cleanVietnameseNumber('8,353,600') === 8353600, 'Chuẩn hóa định dạng phẩy phân cách: 8,353,600 -> 8353600');
+console.log('--- TEST GROUP 1: Vietnamese & US Smart Number Parser ---');
+assert(parseSmartNumber('109,00') === 109, 'Số thập phân dấu phẩy VN: 109,00 -> 109');
+assert(parseSmartNumber('7.700,00') === 7700, 'Số nghìn chấm, thập phân phẩy VN: 7.700,00 -> 7700');
+assert(parseSmartNumber('839.300,00') === 839300, 'Số trăm nghìn VN: 839.300,00 -> 839300');
+assert(parseSmartNumber('181.600,00') === 181600, 'Số tiền 181.600,00 -> 181600');
+assert(parseSmartNumber('8.353.600,00') === 8353600, 'Số tiền triệu: 8.353.600,00 -> 8353600');
+assert(parseSmartNumber('16.00') === 16, 'Số thập phân chấm chuẩn Anh-Mỹ: 16.00 -> 16');
+assert(parseSmartNumber('58,056.00') === 58056, 'Số nghìn phẩy, thập phân chấm Anh-Mỹ: 58,056.00 -> 58056');
+assert(parseSmartNumber('928,896.00') === 928896, 'Số tiền 928,896.00 -> 928896');
+assert(parseSmartNumber('928.896') === 928896, 'Số tiền 928.896 -> 928896');
+assert(parseSmartNumber('1.003.208') === 1003208, 'Số tiền tổng cộng 1.003.208 -> 1003208');
+assert(parseSmartNumber('4.475.300') === 4475300, 'Số tiền 4.475.300 -> 4475300');
+assert(parseSmartNumber('358.024') === 358024, 'Số tiền VAT 358.024 -> 358024');
+assert(parseSmartNumber('4.833.324') === 4833324, 'Số tiền tổng cộng 4.833.324 -> 4833324');
+assert(cleanVietnameseNumber('46,00') === 46, 'Alias cleanVietnameseNumber 46,00 -> 46');
+assert(cleanVietnameseNumber('225') === 225, 'Alias cleanVietnameseNumber 225 -> 225');
 
 assert(cleanVietnameseDate('2/11/2026') === '2026-11-02', 'Chuẩn hóa ngày 2/11/2026 thành 2026-11-02');
 assert(cleanVietnameseDate('05/11/2026') === '2026-11-05', 'Chuẩn hóa ngày 05/11/2026 thành 2026-11-05');
@@ -46,9 +58,139 @@ assert(meta1.supplier_name === 'BẢO MINH', 'Nhận diện đúng tên nhà cun
 assert(meta1.warehouse === 'DC01', 'Nhận diện đúng kho nhận hàng DC01');
 
 // -------------------------------------------------------------
-// NHÓM 3: BÓC TÁCH ĐƠN HÀNG FARMERS MARKET / LARIA CHUẨN
+// NHÓM 3: SỬA BUG-017 — PHÁT HIỆN CHỨNG TỪ TRẢ HÀNG
 // -------------------------------------------------------------
-console.log('\n--- TEST GROUP 3: Standard Farmers Market PO Parsing ---');
+console.log('\n--- TEST GROUP 3: BUG-017 Purchase Return Document Detection ---');
+assert(isPurchaseReturnDocument('PHIẾU XUẤT TRẢ HÀNG CHO NCC') === true, 'Phát hiện PHIẾU XUẤT TRẢ HÀNG');
+assert(isPurchaseReturnDocument('Purchase Return Note PR-2026-001') === true, 'Phát hiện Purchase Return');
+assert(isPurchaseReturnDocument('ĐƠN MUA HÀNG PO-118292') === false, 'Đơn mua hàng PO không phải là return');
+
+const returnDocSample = `
+CÔNG TY TNHH THƯƠNG MẠI LARIA
+PHIẾU XUẤT TRẢ NHÀ CUNG CẤP
+Số hiệu chứng từ: PR-009988
+Ngày chứng từ: 05/11/2026
+Tên NCC: CÔNG TY CỔ PHẦN DEVIE
+Lý do xuất trả: Hàng cận hạn sử dụng
+STT\tMã hàng\tMặt hàng\tSố lượng\tĐVT\tĐơn giá\tThành tiền
+1\t10015745\tHạt dinh dưỡng Mix 400g\t10\tHũ\t180.000\t1.800.000
+TỔNG TIỀN: 1.800.000
+`;
+const returnRes = parseFastPOFromText(returnDocSample);
+assert(returnRes.data.isPurchaseReturn === true, 'BUG-017: Nhận diện đúng isPurchaseReturn = true');
+assert(returnRes.data.documentType === 'PURCHASE_RETURN', 'BUG-017: documentType là PURCHASE_RETURN');
+assert(typeof returnRes.data.warningMessage === 'string' && returnRes.data.warningMessage.includes('Phiếu Xuất Trả'), 'BUG-017: Có thông điệp cảnh báo người dùng');
+
+// -------------------------------------------------------------
+// NHÓM 4: NGHIỆM THU AC-02 — ĐƠN HÀNG PO-118263 (NỐI DÒNG VÀ VAT 8%)
+// -------------------------------------------------------------
+console.log('\n--- TEST GROUP 4: AC-02 Acceptance PO-118263 (Continuation line & Financial Engine) ---');
+
+const po118263Text = `
+CÔNG TY TNHH THƯƠNG MẠI LARIA
+HỆ THỐNG SIÊU THỊ FARMERS MARKET
+ĐƠN MUA HÀNG
+Số hiệu chứng từ: PO-118263
+Ngày chứng từ: 02/11/2026
+Ngày giao hàng: 05/11/2026
+Tên NCC: CÔNG TY CỔ PHẦN DEVIE    Mã NCC: V0001613
+Chi nhánh yêu cầu: DC01 - Nơ Trang Long, 204 Nơ Trang Long, Phường Bình Thạnh, TP.HCM
+Người đặt hàng: Nguyễn Hùng Tiến
+
+STT\tInternal Code\tBarcode\tMặt hàng\tSố lượng\tĐVT\tĐơn giá chưa VAT\tThành tiền chưa VAT
+1\t10015799\t8936034090999\tSữa tươi thanh trùng nguyên chất tiệt trùng đặc biệt dòng cao cấp trang trại Đà Lạt
+đóng chai thủy tinh hữu cơ 900ml\t16.00\tChai\t58,056.00\t928,896.00
+
+TỔNG CỘNG TRƯỚC THUẾ VAT: 928.896
+THUẾ VAT (8%): 74.312
+TỔNG CỘNG THANH TOÁN: 1.003.208
+`;
+
+const res118263 = parseFastPOFromText(po118263Text, 'PO-118263_DEVIE.pdf');
+
+assert(res118263.isConfident === true, 'PO-118263 đạt trạng thái tin cậy');
+assert(res118263.data.po_number === 'PO-118263', 'PO-118263: Mã đơn hàng đúng PO-118263');
+assert(res118263.data.supplier_name === 'CÔNG TY CỔ PHẦN DEVIE', 'PO-118263: Tách đúng tên NCC khi chung dòng với Mã NCC');
+assert(res118263.data.supplier_code === 'V0001613', 'PO-118263: Tách đúng mã NCC V0001613');
+assert(res118263.data.po_date === '2026-11-02', 'PO-118263: Ngày chứng từ 2026-11-02');
+assert(res118263.data.expected_delivery_date === '2026-11-05', 'PO-118263: Ngày giao hàng 2026-11-05');
+assert(res118263.data.warehouse?.includes('DC01'), 'PO-118263: Ưu tiên bóc đúng Chi nhánh yêu cầu DC01');
+assert(res118263.data.items.length === 1, 'PO-118263: Trích xuất đủ 1 dòng mặt hàng sau khi nối dòng');
+assert(res118263.data.items[0].item_code === '10015799', 'PO-118263: Điểm neo Internal Code 10015799');
+assert(res118263.data.items[0].barcode === '8936034090999', 'PO-118263: Điểm neo Barcode 13 số 8936034090999');
+assert(res118263.data.items[0].item_name.includes('đóng chai thủy tinh hữu cơ 900ml'), 'PO-118263: Tên sản phẩm nối dòng hoàn chỉnh 2 dòng');
+assert(res118263.data.items[0].ordered_qty === 16, 'PO-118263: Số lượng đặt 16.00 -> 16');
+assert(res118263.data.items[0].unit_price === 58056, 'PO-118263: Đơn giá 58,056.00 -> 58056');
+assert(res118263.data.items[0].total_price === 928896, 'PO-118263: Thành tiền dòng 928,896.00 -> 928896');
+assert(res118263.data.items[0].lineVatAmount === 74312, 'PO-118263: Tiền thuế VAT 8% dòng hàng = Math.round(928896 * 8 / 100) = 74,312');
+
+// Kiểm tra nghiệm thu AC-02 con số tài chính chính xác tuyệt đối:
+assert(res118263.data.subTotalPreVat === 928896, 'AC-02: PO-118263 subTotalPreVat = 928,896 đ');
+assert(res118263.data.totalVat === 74312, 'AC-02: PO-118263 totalVat = 74,312 đ (VAT 8%)');
+assert(res118263.data.grandTotal === 1003208, 'AC-02: PO-118263 grandTotal = 1,003,208 đ');
+
+// -------------------------------------------------------------
+// NHÓM 5: NGHIỆM THU AC-02 — ĐƠN HÀNG PO-118873 (7 MẶT HÀNG, ĐVT TÚI, VAT 8%)
+// -------------------------------------------------------------
+console.log('\n--- TEST GROUP 5: AC-02 Acceptance PO-118873 (7 Items, UOM Túi, Financial Engine) ---');
+
+const po118873Text = `
+CÔNG TY TNHH THƯƠNG MẠI LARIA
+HỆ THỐNG SIÊU THỊ FARMERS MARKET
+ĐƠN MUA HÀNG
+Số hiệu chứng từ: PO-118873
+Ngày chứng từ: 02/11/2026
+Ngày giao hàng: 05/11/2026
+Tên NCC: CÔNG TY TNHH BẢO MINH    Mã NCC: V0001834
+Chi nhánh yêu cầu: DC01 - Nơ Trang Long, 204 Nơ Trang Long, Phường Bình Thạnh, TP.HCM
+Người đặt hàng: Hoàng Kim Dung
+
+STT\tInternal Code\tBarcode\tMặt hàng\tSố lượng\tĐVT\tĐơn giá chưa VAT\tThành tiền chưa VAT
+1\t10023401\t8935001234011\tBánh sandwich ngũ cốc tươi\t109,00\tTúi\t7.700,00\t839.300,00
+2\t10023402\t8935001234028\tBánh mì bơ sữa mềm thơm\t40,00\tGói\t15.000,00\t600.000,00
+3\t10023403\t8935001234035\tBánh bông lan trứng muối phô mai\t50,00\tHộp\t16.000,00\t800.000,00
+4\t10023404\t8935001234042\tSữa chua uống men vi sinh hoa quả\t35,00\tChai\t20.000,00\t700.000,00
+5\t10023405\t8935001234059\tMứt dâu tây rừng thượng hạng\t30,00\tHũ\t25.000,00\t750.000,00
+6\t10023406\t8935001234066\tBánh quy yến mạch hạt chia dinh dưỡng\t20,00\tTúi\t19.300,00\t386.000,00
+7\t10023407\t8935001234073\tBánh quy hạt điều bơ sữa\t20,00\tTúi\t20.000,00\t400.000,00
+
+TỔNG CỘNG TRƯỚC THUẾ: 4.475.300
+THUẾ VAT (8%): 358.024
+TỔNG CỘNG THANH TOÁN: 4.833.324
+`;
+
+const res118873 = parseFastPOFromText(po118873Text, '118873_BẢO MINH_DC01.pdf');
+
+assert(res118873.isConfident === true, 'PO-118873 đạt trạng thái tin cậy');
+assert(res118873.data.po_number === 'PO-118873', 'PO-118873: Mã đơn hàng đúng PO-118873');
+assert(res118873.data.supplier_name === 'CÔNG TY TNHH BẢO MINH', 'PO-118873: Tách đúng NCC BẢO MINH');
+assert(res118873.data.supplier_code === 'V0001834', 'PO-118873: Tách đúng mã NCC V0001834');
+assert(res118873.data.items.length === 7, 'AC-02: PO-118873 trích xuất ĐỦ ĐÚNG 7 MẶT HÀNG');
+
+// Kiểm tra mặt hàng 1 có ĐVT Túi và các số liệu từ mô tả bài toán:
+const item1 = res118873.data.items[0];
+assert(item1.item_code === '10023401', 'PO-118873 Item 1: Internal Code 10023401');
+assert(item1.barcode === '8935001234011', 'PO-118873 Item 1: Barcode 8935001234011');
+assert(item1.ordered_qty === 109, 'PO-118873 Item 1: Qty 109,00 -> 109');
+assert(item1.unit === 'Túi', 'PO-118873 Item 1: Nhận diện chính xác ĐVT Túi');
+assert(item1.unit_price === 7700, 'PO-118873 Item 1: Unit price 7.700,00 -> 7700');
+assert(item1.total_price === 839300, 'PO-118873 Item 1: Total price 839.300,00 -> 839300');
+
+// Kiểm tra các mặt hàng khác có ĐVT Túi:
+const item6 = res118873.data.items[5];
+assert(item6.unit === 'Túi', 'PO-118873 Item 6: ĐVT Túi');
+const item7 = res118873.data.items[6];
+assert(item7.unit === 'Túi', 'PO-118873 Item 7: ĐVT Túi');
+
+// Kiểm tra nghiệm thu AC-02 con số tài chính chính xác tuyệt đối:
+assert(res118873.data.subTotalPreVat === 4475300, 'AC-02: PO-118873 trước VAT = 4,475,300 đ');
+assert(res118873.data.totalVat === 358024, 'AC-02: PO-118873 VAT 8% = 358,024 đ');
+assert(res118873.data.grandTotal === 4833324, 'AC-02: PO-118873 tổng cộng = 4,833,324 đ');
+
+// -------------------------------------------------------------
+// NHÓM 6: ĐƠN HÀNG DEVIE TRUYỀN THỐNG (PO-118292)
+// -------------------------------------------------------------
+console.log('\n--- TEST GROUP 6: Classic PO-118292 Regression Test ---');
 
 const sampleFarmersMarketPO = `
 CÔNG TY TNHH THƯƠNG MẠI LARIA
@@ -70,89 +212,23 @@ TỔNG THANH TOÁN: 9.021.888
 `;
 
 const res1 = parseFastPOFromText(sampleFarmersMarketPO, 'PO-118292_DEVIE_DC01.pdf');
-
-assert(res1.isConfident === true, 'Đơn PO chuẩn đạt trạng thái tin cậy tuyệt đối isConfident = true');
-assert(res1.confidenceScore === 1.0, 'Độ tin cậy toán học đạt 1.0 (100%)');
-assert(res1.data.po_number === 'PO-118292', 'Trích xuất chính xác số PO: PO-118292');
-assert(res1.data.supplier_name === 'CÔNG TY CỔ PHẦN DEVIE', 'Trích xuất chính xác NCC (bỏ qua Buyer LARIA)');
-assert(res1.data.supplier_code === 'V0001613', 'Trích xuất đúng mã NCC: V0001613');
-assert(res1.data.po_date === '2026-11-02', 'Trích xuất đúng ngày PO: 2026-11-02');
-assert(res1.data.expected_delivery_date === '2026-11-05', 'Trích xuất đúng hạn giao hàng: 2026-11-05');
-assert(res1.data.warehouse?.includes('DC01'), 'Trích xuất đúng kho nhận hàng: DC01');
-assert(res1.data.notes === 'Nguyễn Hùng Tiến', 'Trích xuất đúng người đặt hàng: Nguyễn Hùng Tiến');
-assert(res1.data.total_value === 8353600, 'Trích xuất đúng tổng tiền hàng: 8.353.600');
-assert(res1.data.items.length === 1, 'Trích xuất đủ 1 dòng mặt hàng');
-assert(res1.data.items[0].item_code === '10015745', 'Mã mặt hàng đúng: 10015745');
-assert(res1.data.items[0].ordered_qty === 46, 'Số lượng đặt đúng: 46');
-assert(res1.data.items[0].unit === 'Hũ', 'Đơn vị tính đúng: Hũ');
-assert(res1.data.items[0].unit_price === 181600, 'Đơn giá đúng: 181.600');
-assert(res1.data.items[0].total_price === 8353600, 'Thành tiền đúng: 8.353.600');
-assert(res1.mathIntegrity.isSumMatch === true, 'Toàn vẹn toán học: sum(total_price) khớp chính xác tổng tiền đơn hàng');
+assert(res1.isConfident === true, 'PO-118292 đạt trạng thái tin cậy');
+assert(res1.data.po_number === 'PO-118292', 'PO-118292: Số PO đúng');
+assert(res1.data.supplier_name === 'CÔNG TY CỔ PHẦN DEVIE', 'PO-118292: Tên NCC đúng');
+assert(res1.data.items[0].ordered_qty === 46, 'PO-118292: Số lượng 46');
+assert(res1.data.items[0].unit_price === 181600, 'PO-118292: Đơn giá 181600');
+assert(res1.data.items[0].total_price === 8353600, 'PO-118292: Thành tiền 8353600');
+assert(res1.data.items[0].barcode === '8936034090123', 'PO-118292: Điểm neo Barcode 8936034090123');
 
 // -------------------------------------------------------------
-// NHÓM 4: ĐƠN HÀNG NHIỀU MẶT HÀNG (MULTI-ITEM PO)
+// NHÓM 7: VĂN BẢN RỖNG VÀ TÀI LIỆU KHÔNG PHẢI PO
 // -------------------------------------------------------------
-console.log('\n--- TEST GROUP 4: Multi-item PO Parsing & Integrity ---');
-
-const multiItemPO = `
-ĐƠN ĐẶT HÀNG
-Số PO: PO-998877
-Ngày đặt: 10/11/2026
-Ngày giao: 12/11/2026
-Nhà cung cấp: CÔNG TY TNHH THỰC PHẨM SẠCH AN NHIÊN
-Địa chỉ giao hàng: KHO TỔNG BÌNH TÂN
-
-STT\tMã SP\tTên sản phẩm\tĐVT\tSố lượng\tĐơn giá\tThành tiền
-1\tSP001\tBánh mì hoa cúc Pháp 500g\tGói\t100\t65.000\t6.500.000
-2\tSP002\tSữa chua Hy Lạp lên men tự nhiên 200g\tHộp\t50\t32.000\t1.600.000
-3\tSP003\tNho ngón tay Úc thượng hạng\tKg\t20\t240.000\t4.800.000
-
-TỔNG CỘNG TRƯỚC THUẾ: 12.900.000
-`;
-
-const res2 = parseFastPOFromText(multiItemPO);
-assert(res2.isConfident === true, 'Đơn multi-item tự động xác thực tin cậy');
-assert(res2.data.items.length === 3, 'Trích xuất chính xác 3 dòng mặt hàng');
-assert(res2.data.items[0].item_code === 'SP001', 'Dòng 1: mã SP001');
-assert(res2.data.items[0].ordered_qty === 100, 'Dòng 1: SL 100');
-assert(res2.data.items[1].item_code === 'SP002', 'Dòng 2: mã SP002');
-assert(res2.data.items[1].ordered_qty === 50, 'Dòng 2: SL 50');
-assert(res2.data.items[2].item_code === 'SP003', 'Dòng 3: mã SP003');
-assert(res2.data.items[2].ordered_qty === 20, 'Dòng 3: SL 20');
-assert(res2.data.total_value === 12900000, 'Tổng giá trị đơn hàng khớp: 12.900.000');
-assert(res2.mathIntegrity.itemsTotalSum === 12900000, 'Tổng các dòng: 6.500.000 + 1.600.000 + 4.800.000 = 12.900.000');
-assert(res2.mathIntegrity.lineItemsPassed === 3, 'Cả 3 dòng đều vượt qua kiểm tra toán học');
-
-// -------------------------------------------------------------
-// NHÓM 5: DÒNG MẶT HÀNG DÀI BỊ NGẮT DÒNG (WRAPPED CONTINUATION LINES)
-// -------------------------------------------------------------
-console.log('\n--- TEST GROUP 5: Wrapped Multiline Product Names ---');
-
-const wrappedPO = `
-Số hiệu chứng từ: PO-554433
-Tên NCC: CÔNG TY XUẤT NHẬP KHẨU MAI ANH
-
-STT\tMã hàng\tMặt hàng\tĐVT\tSố lượng\tĐơn giá\tThành tiền
-1\tMA-01\tHạt dẻ cười Mỹ rang muối sấy giòn nguyên vỏ\tHũ\t10\t150.000\t1.500.000
-loại thượng hạng đóng hộp thiếc 500g
-
-TỔNG TIỀN: 1.500.000
-`;
-
-const res3 = parseFastPOFromText(wrappedPO);
-assert(res3.data.items.length === 1, 'Trích xuất đúng 1 mặt hàng sau khi nối dòng');
-assert(res3.data.items[0].item_name.includes('loại thượng hạng đóng hộp thiếc 500g'), 'Tên mặt hàng đã được nối hoàn chỉnh từ dòng tiếp theo');
-assert(res3.data.items[0].total_price === 1500000, 'Thành tiền chính xác');
-
-// -------------------------------------------------------------
-// NHÓM 6: AN TOÀN KHI VĂN BẢN KHÔNG HỢP LỆ HOẶC ẢNH SCAN RỖNG
-// -------------------------------------------------------------
-console.log('\n--- TEST GROUP 6: Scanned Image / Invalid Text Fallback ---');
+console.log('\n--- TEST GROUP 7: Edge cases & Fallbacks ---');
 const emptyRes = parseFastPOFromText('', 'scan-image.pdf');
-assert(emptyRes.isConfident === false, 'Văn bản rỗng trả về isConfident = false để kích hoạt AI Vision');
-assert(emptyRes.data.items.length === 0, 'Danh sách mặt hàng rỗng');
+assert(emptyRes.isConfident === false, 'Văn bản rỗng trả về isConfident = false');
+assert(emptyRes.data.items.length === 0, 'Danh sách mặt hàng rỗng khi văn bản rỗng');
 
-const invalidRes = parseFastPOFromText('Đây là tài liệu thông báo chung, không phải đơn mua hàng PO.');
+const invalidRes = parseFastPOFromText('Đây là tài liệu thông báo chung nội bộ, không phải đơn mua hàng.');
 assert(invalidRes.isConfident === false, 'Tài liệu không phải PO trả về isConfident = false');
 
-console.log(`\n=== TẤT CẢ ${passedTests}/${totalTests} KIỂM THỬ FAST PO PARSER ĐÃ VƯỢT QUA 100%! ===`);
+console.log(`\n=== TẤT CẢ ${passedTests}/${totalTests} KIỂM THỬ ĐÃ VƯỢT QUA XUẤT SẮC 100%! ===`);

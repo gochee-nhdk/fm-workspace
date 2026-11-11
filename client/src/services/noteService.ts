@@ -66,6 +66,13 @@ export const noteService = {
 
     const cached = getLocalStorageNotes();
 
+    // Trigger background self-healing migration for legacy blob: URLs on initial load
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        this.selfHealBlobImages().catch(() => {});
+      }, 500);
+    }
+
     // If IDB has notes, merge with cache so any note having fuller content in IDB or cache is preserved
     if (idbItems && idbItems.length > 0) {
       const mergedMap = new Map<string, QuickNoteItem>();
@@ -116,6 +123,103 @@ export const noteService = {
 
     // Fallback to cache if IDB is empty or offline
     return this.sortNotes(cached);
+  },
+
+  /**
+   * Self-Healing Migration: Automatically repairs legacy blob: URLs in notes & attachments.
+   * Converts raw Blobs from STORES.ATTACHMENTS into permanent base64 data URLs via FileReader,
+   * and replaces broken blob: URLs in note content and image attachments.
+   */
+  async selfHealBlobImages(): Promise<{ healedNotes: number; healedAttachments: number }> {
+    let healedNotes = 0;
+    let healedAttachments = 0;
+
+    if (typeof window === 'undefined') return { healedNotes, healedAttachments };
+
+    try {
+      // 1. Scan and heal STORES.ATTACHMENTS
+      const attachments = await idbGetAll<any>(STORES.ATTACHMENTS);
+      const attachmentMap = new Map<string, string>();
+
+      for (const att of attachments) {
+        let dataUrl = att.dataUrl;
+        if (!dataUrl && att.blob instanceof Blob) {
+          try {
+            dataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(att.blob);
+            });
+            att.dataUrl = dataUrl;
+            await idbPut(STORES.ATTACHMENTS, att);
+            healedAttachments++;
+          } catch (_) {}
+        }
+        if (dataUrl) {
+          if (att.id) attachmentMap.set(att.id, dataUrl);
+          if (att.name) attachmentMap.set(att.name, dataUrl);
+        }
+      }
+
+      // 2. Scan and heal STORES.NOTES
+      const notes = await idbGetAll<QuickNoteItem>(STORES.NOTES);
+      for (const note of notes) {
+        let changed = false;
+
+        // Heal images array
+        if (note.images && note.images.length > 0) {
+          const healedImages = note.images.map((img) => {
+            if (img.url && img.url.startsWith('blob:')) {
+              const found = attachmentMap.get(img.id) || (img.name ? attachmentMap.get(img.name) : undefined);
+              if (found) {
+                changed = true;
+                return { ...img, url: found };
+              }
+            }
+            return img;
+          });
+          note.images = healedImages;
+        }
+
+        // Heal inline img tags with blob: src in note.content
+        if (note.content && note.content.includes('blob:')) {
+          const fixedContent = note.content.replace(/src=["']blob:([^"']+)["']/gi, (match) => {
+            const matchedImg = note.images?.find((img) => img.url?.startsWith('data:image/'));
+            if (matchedImg?.url) {
+              changed = true;
+              return `src="${matchedImg.url}"`;
+            }
+            for (const [, dUrl] of attachmentMap) {
+              if (dUrl.startsWith('data:image/')) {
+                changed = true;
+                return `src="${dUrl}"`;
+              }
+            }
+            return match;
+          });
+
+          if (fixedContent !== note.content) {
+            note.content = fixedContent;
+            changed = true;
+          }
+        }
+
+        if (changed) {
+          await idbPut<QuickNoteItem>(STORES.NOTES, note);
+          healedNotes++;
+        }
+      }
+
+      if (healedNotes > 0) {
+        const updatedAll = await idbGetAll<QuickNoteItem>(STORES.NOTES);
+        saveLocalStorageNotes(updatedAll);
+      }
+    } catch (err) {
+      console.warn('selfHealBlobImages error:', err);
+    }
+
+    return { healedNotes, healedAttachments };
   },
 
   /**

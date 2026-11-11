@@ -31,15 +31,42 @@ export interface POFolderItem {
   updated_at: string;
 }
 
+export interface POLineItem {
+  id?: string;
+  po_id?: string;
+  item_code?: string | null;
+  barcode?: string;
+  item_name: string;
+  unit?: string | null;
+  ordered_qty: number;
+  received_qty?: number;
+  unit_price: number;
+  discountPct?: number;
+  vatPct?: number; // mặc định 8%
+  linePreVatTotal?: number;
+  lineVatAmount?: number;
+  lineGrossTotal?: number;
+  total_price?: number;
+  warehouse?: string | null;
+  notes?: string | null;
+  status?: 'pending' | 'partial' | 'received';
+}
+
 export interface POTrackerItemLine {
   id: string;
   po_id: string;
   item_code?: string | null;
+  barcode?: string | null;
   item_name: string;
   unit: string;
   ordered_qty: number;
   received_qty: number;
   unit_price: number;
+  discountPct?: number;
+  vatPct?: number;
+  linePreVatTotal?: number;
+  lineVatAmount?: number;
+  lineGrossTotal?: number;
   total_price: number;
   warehouse?: string | null;
   notes?: string | null;
@@ -70,8 +97,14 @@ export interface POTrackerPO {
   actual_delivery_date?: string | null;
   supplier_code?: string | null;
   supplier_name?: string | null;
+  vendor_code?: string | null;
+  vendor_name?: string | null;
   warehouse?: string | null;
   status: POStatus;
+  subTotalPreVat?: number;
+  orderDiscountAmount?: number;
+  totalVat?: number;
+  grandTotal?: number;
   total_value: number;
   currency: string;
   notes?: string | null;
@@ -91,23 +124,76 @@ export interface POTrackerPO {
   updated_at: string;
 }
 
+export interface PurchaseOrder {
+  id?: string;
+  folder_id?: string | null;
+  folder_name?: string | null;
+  folder_color?: FolderColor | null;
+  po_number?: string | null;
+  po_date?: string | null;
+  expected_delivery_date?: string | null;
+  actual_delivery_date?: string | null;
+  supplier_code?: string | null;
+  supplier_name?: string | null;
+  vendor_code?: string | null;
+  vendor_name?: string | null;
+  warehouse?: string | null;
+  status?: POStatus;
+  subTotalPreVat?: number;
+  orderDiscountAmount?: number;
+  totalVat?: number;
+  grandTotal?: number;
+  total_value?: number;
+  currency?: string;
+  notes?: string | null;
+  tags?: string[];
+  pdf_file_name?: string | null;
+  extracted_data?: string | null;
+  items?: POLineItem[];
+  item_count?: number;
+  total_ordered_qty?: number;
+  total_received_qty?: number;
+  days_overdue?: number;
+  user_permission?: POPermission;
+  permissions?: POPermissionRecord[];
+  creator_name?: string | null;
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface POExtractedData {
   po_number?: string | null;
   po_date?: string | null;
   expected_delivery_date?: string | null;
   supplier_code?: string | null;
   supplier_name?: string | null;
+  vendor_code?: string | null;
+  vendor_name?: string | null;
   warehouse?: string | null;
+  subTotalPreVat?: number | null;
+  orderDiscountAmount?: number | null;
+  totalVat?: number | null;
+  grandTotal?: number | null;
   total_value?: number | null;
   currency?: string | null;
   notes?: string | null;
   pdf_file_name?: string | null;
+  isPurchaseReturn?: boolean;
+  documentType?: 'PO' | 'PURCHASE_RETURN';
+  warningMessage?: string | null;
   items: Array<{
     item_code?: string | null;
+    barcode?: string | null;
     item_name: string;
     unit?: string | null;
     ordered_qty?: number | null;
     unit_price?: number | null;
+    discountPct?: number | null;
+    vatPct?: number | null;
+    linePreVatTotal?: number | null;
+    lineVatAmount?: number | null;
+    lineGrossTotal?: number | null;
     total_price?: number | null;
     warehouse?: string | null;
   }>;

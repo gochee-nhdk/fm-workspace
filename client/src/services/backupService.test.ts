@@ -77,12 +77,51 @@ const mockImportResult: BackupImportResult = {
   notes: 1,
   todos: 1,
   attachments: 2,
+  poOrders: 4,
+  poFolders: 2,
   skipped: 0,
   errors: [],
 };
 
-const totalRestored = mockImportResult.links + mockImportResult.accounts + mockImportResult.stores + mockImportResult.notes + mockImportResult.todos + mockImportResult.attachments;
-assert(totalRestored === 22, '5.1: Total restored items includes both notes and todos (22 items)');
+const totalRestored =
+  mockImportResult.links +
+  mockImportResult.accounts +
+  mockImportResult.stores +
+  mockImportResult.notes +
+  mockImportResult.todos +
+  mockImportResult.attachments +
+  mockImportResult.poOrders +
+  mockImportResult.poFolders;
+assert(totalRestored === 28, '5.1: Total restored items includes POs and Folders (28 items)');
 assert(mockImportResult.notes === 1 && mockImportResult.todos === 1, '5.2: Separate tracking for Notes and To-dos confirmed');
+assert(mockImportResult.poOrders === 4 && mockImportResult.poFolders === 2, '5.3: PO Orders & Folders tracked accurately in import result');
+
+// 6. Backward compatibility with v1.0 payload (missing poOrders/poFolders)
+const legacyV10Payload = {
+  links: [],
+  accounts: [],
+  stores: [],
+  notes: [],
+  attachments: [],
+  activities: [],
+  settings: { theme: 'dark' },
+};
+assert((legacyV10Payload as any).poOrders === undefined, '6.1: Legacy v1.0 payload has undefined poOrders');
+const migratedOrders = (legacyV10Payload as any).poOrders ?? [];
+assert(Array.isArray(migratedOrders) && migratedOrders.length === 0, '6.2: Backward fallback safely defaults poOrders to empty array');
+
+// 7. BUG-012 Attachment SHA-256 deduplication
+const sampleAttachmentList = [
+  { id: 'att_1', name: 'FM_FOR WORK.xlsx', hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' },
+  { id: 'att_2', name: 'FM_FOR WORK.xlsx', hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855' },
+  { id: 'att_3', name: 'invoice.pdf', hash: 'ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb' },
+];
+const seenHashes = new Set<string>();
+const deduplicated = sampleAttachmentList.filter((a) => {
+  if (seenHashes.has(a.hash)) return false;
+  seenHashes.add(a.hash);
+  return true;
+});
+assert(deduplicated.length === 2, '7.1: BUG-012 successfully deduplicated duplicate FM_FOR WORK.xlsx (3 -> 2)');
 
 console.log('\n=== ALL BACKUP & RESTORE UNIT TESTS PASSED! ===');

@@ -1,3 +1,5 @@
+import type { POTrackerPO, POFolderItem } from './po-tracker';
+
 export interface LinkItem {
   id: string;
   stt?: number | null;
@@ -118,7 +120,7 @@ export interface QuickNoteItem {
 // ==================== BACKUP SYSTEM (.fmbackup) ====================
 
 export const FM_BACKUP_APP_NAME = 'FM_WORKSPACE' as const;
-export const FM_BACKUP_VERSION = '1.0' as const;
+export const FM_BACKUP_VERSION = '1.1' as const;
 
 /** Serialized representation of a binary attachment (Blob → base64) */
 export interface SerializedAttachment {
@@ -127,6 +129,7 @@ export interface SerializedAttachment {
   type: string;
   size: number;
   dataBase64: string; // Blob converted to base64
+  hash?: string;      // SHA-256 content checksum for deduplication (BUG-012)
   createdAt: string;
 }
 
@@ -138,6 +141,8 @@ export interface FMBackupPayload {
   notes: QuickNoteItem[]; // images[] stay as base64 data URLs
   attachments: SerializedAttachment[];
   activities: ActivityLogItem[];
+  poOrders?: POTrackerPO[];     // v1.1
+  poFolders?: POFolderItem[];   // v1.1
   settings: {
     theme: string;
   };
@@ -146,7 +151,7 @@ export interface FMBackupPayload {
 /** Top-level .fmbackup file structure */
 export interface FMBackupFile {
   header: {
-    version: typeof FM_BACKUP_VERSION;
+    version: typeof FM_BACKUP_VERSION | '1.0';
     appName: typeof FM_BACKUP_APP_NAME;
     exportedAt: string; // ISO timestamp
     checksum: string;   // SHA-256 hex of serialized payload string
@@ -158,6 +163,8 @@ export interface FMBackupFile {
       notes: number;
       todos?: number;
       attachments: number;
+      poOrders?: number;
+      poFolders?: number;
     };
   };
   payload: string; // JSON string of FMBackupPayload
@@ -185,6 +192,8 @@ export interface BackupImportResult {
   notes: number;
   todos: number;
   attachments: number;
+  poOrders: number;
+  poFolders: number;
   skipped: number;
   errors: string[];
 }
