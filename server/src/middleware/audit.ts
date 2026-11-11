@@ -2,20 +2,76 @@ import { FastifyRequest } from 'fastify';
 import { getDb } from '../db/connection.js';
 import { v4 as uuidv4 } from 'uuid';
 
-function sanitizeAuditData(data: any): any {
-  if (!data || typeof data !== 'object') return data;
+const SENSITIVE_KEYWORDS = [
+  'password',
+  'password_hash',
+  'pass',
+  'pwd',
+  'hash',
+  'salt',
+  'secret',
+  'jwt_secret',
+  'jwt',
+  'token',
+  'refresh_token',
+  'access_token',
+  'authorization',
+  'cookie',
+  'credential',
+  'smtp_pass',
+  'smtp_password',
+  'gemini_api_key',
+  'api_key',
+  'apikey',
+  'private_key',
+  'bearer',
+];
+
+export function sanitizeAuditData(data: any): any {
+  if (data === null || data === undefined) return data;
+  if (typeof data === 'string') {
+    // Redact raw JWT patterns (header.payload.signature)
+    if (/^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/.test(data.trim())) {
+      return '[REDACTED_JWT]';
+    }
+    // Redact argon2 / bcrypt hashes
+    if (data.startsWith('$argon2') || data.startsWith('$2a$') || data.startsWith('$2b$')) {
+      return '[REDACTED_HASH]';
+    }
+    return data;
+  }
+  if (typeof data !== 'object') return data;
   if (Array.isArray(data)) {
     return data.map(sanitizeAuditData);
   }
+
   const copy: Record<string, any> = { ...data };
-  const sensitiveKeys = ['password', 'password_hash', 'pass', 'smtp_pass', 'gemini_api_key', 'api_key', 'secret', 'token', 'refresh_token'];
+
+  // Check if object represents a key-value setting pair e.g. { key: 'smtp_pass', value: 'secret' }
+  const settingKeyName = typeof copy.key === 'string' ? copy.key.toLowerCase() : '';
+  const settingSettingName = typeof copy.setting === 'string' ? copy.setting.toLowerCase() : '';
+  const keyIdentifier = settingKeyName || settingSettingName;
+
+  if (keyIdentifier && SENSITIVE_KEYWORDS.some(sk => keyIdentifier.includes(sk))) {
+    if ('value' in copy) copy.value = '[REDACTED]';
+    if ('val' in copy) copy.val = '[REDACTED]';
+  }
+
   for (const k of Object.keys(copy)) {
-    if (sensitiveKeys.some(sk => k.toLowerCase().includes(sk))) {
+    const lowerKey = k.toLowerCase();
+    if (SENSITIVE_KEYWORDS.some(sk => lowerKey.includes(sk))) {
       copy[k] = '[REDACTED]';
     } else if (typeof copy[k] === 'object' && copy[k] !== null) {
       copy[k] = sanitizeAuditData(copy[k]);
+    } else if (typeof copy[k] === 'string') {
+      if (/^eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$/.test(copy[k].trim())) {
+        copy[k] = '[REDACTED_JWT]';
+      } else if (copy[k].startsWith('$argon2') || copy[k].startsWith('$2a$') || copy[k].startsWith('$2b$')) {
+        copy[k] = '[REDACTED_HASH]';
+      }
     }
   }
+
   return copy;
 }
 

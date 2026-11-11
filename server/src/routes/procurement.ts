@@ -61,6 +61,14 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
     const { status, notes } = request.body || {};
     const { id } = request.params;
 
+    const validStatuses = ['pending', 'approved', 'rejected', 'ordered'];
+    if (!status || !validStatuses.includes(status)) {
+      return reply.code(400).send({
+        success: false,
+        message: `Trạng thái gợi ý không hợp lệ. Các trạng thái cho phép: ${validStatuses.join(', ')}`
+      });
+    }
+
     const existing = await db.prepare('SELECT * FROM purchase_recommendations WHERE id = ?').get(id);
     if (!existing) {
       return reply.code(404).send({ success: false, message: 'Không tìm thấy gợi ý.' });
@@ -73,18 +81,60 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
   });
 
   /**
-   * 4. GET /purchase-orders: List purchase orders
+   * 4. GET /purchase-orders: List purchase orders with filtering & pagination
    */
   fastify.get('/purchase-orders', async (request: any, reply) => {
     const db = getDb();
-    const pos = await db.prepare(`
+    const { status, supplier_id, store_id, search, page, limit } = request.query as any || {};
+
+    let whereClause = ' WHERE 1=1';
+    const params: any[] = [];
+
+    if (status) {
+      whereClause += ' AND po.status = ?';
+      params.push(status);
+    }
+    if (supplier_id) {
+      whereClause += ' AND po.supplier_id = ?';
+      params.push(supplier_id);
+    }
+    if (store_id) {
+      whereClause += ' AND po.store_id = ?';
+      params.push(store_id);
+    }
+    if (search) {
+      whereClause += ' AND (po.po_number LIKE ? OR po.notes LIKE ?)';
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    const countRes = (await db.prepare(`SELECT COUNT(*) as total FROM purchase_orders po ${whereClause}`).get(...params)) as any;
+    const total = Number(countRes?.total || 0);
+
+    let query = `
       SELECT po.*, s.name as supplier_name, st.name as store_name,
              (SELECT COUNT(*) FROM po_items WHERE po_id = po.id) as item_count
       FROM purchase_orders po
       LEFT JOIN suppliers s ON po.supplier_id = s.id
       LEFT JOIN stores st ON po.store_id = st.id
+      ${whereClause}
       ORDER BY po.created_at DESC
-    `).all();
+    `;
+
+    if (page || limit) {
+      const p = Math.max(1, parseInt(page, 10) || 1);
+      const l = Math.max(1, Math.min(100, parseInt(limit, 10) || 20));
+      const offset = (p - 1) * l;
+      query += ' LIMIT ? OFFSET ?';
+      params.push(l, offset);
+      const pos = await db.prepare(query).all(...params);
+      return {
+        success: true,
+        data: pos,
+        pagination: { page: p, limit: l, total, total_pages: Math.ceil(total / l) }
+      };
+    }
+
+    const pos = await db.prepare(query).all(...params);
     return { success: true, data: pos };
   });
 
@@ -125,44 +175,73 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
     const db = getDb();
     const { supplier_id, store_id, notes, items } = request.body || {};
 
-    if (!supplier_id || !store_id || !items || !items.length) {
+    if (!supplier_id || !store_id || !Array.isArray(items) || !items.length) {
       return reply.code(400).send({ success: false, message: 'Vui lòng cung cấp nhà cung cấp, cửa hàng và danh sách sản phẩm.' });
+    }
+
+    // Validate supplier and store existence
+    const supplier = await db.prepare('SELECT id FROM suppliers WHERE id = ?').get(supplier_id);
+    if (!supplier) {
+      return reply.code(400).send({ success: false, message: 'Nhà cung cấp không tồn tại trong hệ thống.' });
+    }
+
+    const store = await db.prepare('SELECT id FROM stores WHERE id = ?').get(store_id);
+    if (!store) {
+      return reply.code(400).send({ success: false, message: 'Cửa hàng/Kho nhận không tồn tại trong hệ thống.' });
+    }
+
+    for (const item of items) {
+      if (!item.product_id) {
+        return reply.code(400).send({ success: false, message: 'Mỗi dòng sản phẩm phải có product_id.' });
+      }
+      const qty = Number(item.ordered_qty);
+      const price = Number(item.unit_price);
+      if (isNaN(qty) || qty <= 0) {
+        return reply.code(400).send({ success: false, message: 'Số lượng đặt hàng (ordered_qty) phải là số dương lớn hơn 0.' });
+      }
+      if (isNaN(price) || price < 0) {
+        return reply.code(400).send({ success: false, message: 'Đơn giá (unit_price) không thể là số âm.' });
+      }
     }
 
     const poId = uuidv4();
     const now = new Date().toISOString();
     const poNumber = `PO-${Date.now().toString().slice(-8)}`;
 
-    await db.transaction(async (tx) => {
-      let totalValue = 0;
-      for (const item of items) {
-        const qty = Number(item.ordered_qty || 0);
-        const price = Number(item.unit_price || 0);
-        totalValue += qty * price;
-      }
+    try {
+      await db.transaction(async (tx) => {
+        let totalValue = 0;
+        for (const item of items) {
+          const qty = Number(item.ordered_qty || 0);
+          const price = Number(item.unit_price || 0);
+          totalValue += qty * price;
+        }
 
-      // 1. Insert parent purchase_orders first to satisfy foreign key constraint
-      await tx.prepare(`
-        INSERT INTO purchase_orders (id, po_number, supplier_id, store_id, status, total_value, notes, created_by, created_at, updated_at)
-        VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?)
-      `).run(poId, poNumber, supplier_id, store_id, totalValue, notes || '', request.user?.id || 'admin', now, now);
+        // 1. Insert parent purchase_orders first to satisfy foreign key constraint
+        await tx.prepare(`
+          INSERT INTO purchase_orders (id, po_number, supplier_id, store_id, status, total_value, notes, created_by, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?)
+        `).run(poId, poNumber, supplier_id, store_id, totalValue, notes || '', request.user?.id || 'admin', now, now);
 
-      // 2. Insert child po_items
-      const insertItem = tx.prepare(`
-        INSERT INTO po_items (id, po_id, product_id, ordered_qty, unit_price, status)
-        VALUES (?, ?, ?, ?, ?, 'pending')
-      `);
+        // 2. Insert child po_items
+        const insertItem = tx.prepare(`
+          INSERT INTO po_items (id, po_id, product_id, ordered_qty, unit_price, status)
+          VALUES (?, ?, ?, ?, ?, 'pending')
+        `);
 
-      for (const item of items) {
-        const qty = Number(item.ordered_qty || 0);
-        const price = Number(item.unit_price || 0);
-        await insertItem.run(uuidv4(), poId, item.product_id, qty, price);
-      }
-    });
+        for (const item of items) {
+          const qty = Number(item.ordered_qty || 0);
+          const price = Number(item.unit_price || 0);
+          await insertItem.run(uuidv4(), poId, item.product_id, qty, price);
+        }
+      });
 
-    auditLog(request, 'CREATE_PO', 'purchase_orders', poId, null, { poNumber, totalItems: items.length });
+      auditLog(request, 'CREATE_PO', 'purchase_orders', poId, null, { poNumber, totalItems: items.length });
 
-    return { success: true, data: { id: poId, poNumber, message: 'Đã tạo đơn đặt hàng thành công.' } };
+      return { success: true, data: { id: poId, poNumber, message: 'Đã tạo đơn đặt hàng thành công.' } };
+    } catch (err: any) {
+      return reply.code(400).send({ success: false, message: `Lỗi tạo đơn đặt hàng: ${err.message}` });
+    }
   });
 
   /**
@@ -185,6 +264,25 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
     const existing = (await db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(id)) as any;
     if (!existing) {
       return reply.code(404).send({ success: false, message: 'Không tìm thấy đơn hàng.' });
+    }
+
+    // State machine validation
+    const validTransitions: Record<string, string[]> = {
+      draft: ['submitted', 'approved', 'cancelled'],
+      submitted: ['approved', 'cancelled', 'draft'],
+      approved: ['ordered', 'cancelled', 'draft'],
+      ordered: ['partial_received', 'received', 'cancelled'],
+      partial_received: ['received', 'cancelled'],
+      received: [],
+      cancelled: []
+    };
+
+    const allowed = validTransitions[existing.status] || [];
+    if (!allowed.includes(status)) {
+      return reply.code(400).send({
+        success: false,
+        message: `Không thể chuyển trạng thái PO từ "${existing.status}" sang "${status}". Các trạng thái hợp lệ tiếp theo: [${allowed.join(', ')}]`
+      });
     }
 
     await db.prepare('UPDATE purchase_orders SET status = ?, updated_at = ? WHERE id = ?').run(status, now, id);
@@ -244,67 +342,71 @@ export default async function procurementRoutes(fastify: FastifyInstance) {
 
     let allFullyReceived = true;
 
-    await db.transaction(async (tx) => {
-      const updatePoItem = tx.prepare(`
-        UPDATE po_items SET received_qty = ?, status = ? WHERE po_id = ? AND product_id = ?
-      `);
+    try {
+      await db.transaction(async (tx) => {
+        const updatePoItem = tx.prepare(`
+          UPDATE po_items SET received_qty = ?, status = ? WHERE po_id = ? AND product_id = ?
+        `);
 
-      const upsertInventory = tx.prepare(`
-        INSERT INTO inventory (id, store_id, product_id, quantity, available_qty, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(store_id, product_id) DO UPDATE SET
-          quantity = quantity + excluded.quantity,
-          available_qty = available_qty + excluded.available_qty,
-          updated_at = excluded.updated_at
-      `);
+        const upsertInventory = tx.prepare(`
+          INSERT INTO inventory (id, store_id, product_id, quantity, available_qty, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(store_id, product_id) DO UPDATE SET
+            quantity = quantity + excluded.quantity,
+            available_qty = available_qty + excluded.available_qty,
+            updated_at = excluded.updated_at
+        `);
 
-      const insertExpiryLot = tx.prepare(`
-        INSERT INTO expiry_lots (id, store_id, product_id, lot_number, quantity, expiry_date, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, 'active', ?)
-      `);
+        const insertExpiryLot = tx.prepare(`
+          INSERT INTO expiry_lots (id, store_id, product_id, lot_number, quantity, expiry_date, status, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, 'active', ?)
+        `);
 
-      for (const item of received_items) {
-        const addQty = Number(item.received_qty || 0);
-        const pi = poItemsMap.get(item.product_id);
-        const currentReceived = Number(pi.received_qty || 0);
-        const newTotalReceived = currentReceived + addQty;
-        const ordered = Number(pi.ordered_qty || 0);
-        const itemStatus = newTotalReceived >= ordered ? 'received' : 'partial';
+        for (const item of received_items) {
+          const addQty = Number(item.received_qty || 0);
+          const pi = poItemsMap.get(item.product_id);
+          const currentReceived = Number(pi.received_qty || 0);
+          const newTotalReceived = currentReceived + addQty;
+          const ordered = Number(pi.ordered_qty || 0);
+          const itemStatus = newTotalReceived >= ordered ? 'received' : 'partial';
 
-        await updatePoItem.run(newTotalReceived, itemStatus, id, item.product_id);
-        await upsertInventory.run(uuidv4(), po.store_id, item.product_id, addQty, addQty, now);
+          await updatePoItem.run(newTotalReceived, itemStatus, id, item.product_id);
+          await upsertInventory.run(uuidv4(), po.store_id, item.product_id, addQty, addQty, now);
 
-        if (item.expiry_date) {
-          await insertExpiryLot.run(
-            uuidv4(), po.store_id, item.product_id,
-            item.lot_number || `LOT-${Date.now()}`, addQty, item.expiry_date, now
-          );
+          if (item.expiry_date) {
+            await insertExpiryLot.run(
+              uuidv4(), po.store_id, item.product_id,
+              item.lot_number || `LOT-${Date.now()}`, addQty, item.expiry_date, now
+            );
+          }
+
+          // Update local map state
+          pi.received_qty = newTotalReceived;
         }
 
-        // Update local map state
-        pi.received_qty = newTotalReceived;
-      }
-
-      // Check if all items in PO are fully received
-      for (const pi of poItemsMap.values()) {
-        const received = Number(pi.received_qty || 0);
-        const ordered = Number(pi.ordered_qty || 0);
-        if (received < ordered) {
-          allFullyReceived = false;
+        // Check if all items in PO are fully received
+        for (const pi of poItemsMap.values()) {
+          const received = Number(pi.received_qty || 0);
+          const ordered = Number(pi.ordered_qty || 0);
+          if (received < ordered) {
+            allFullyReceived = false;
+          }
         }
-      }
 
-      const finalPoStatus = allFullyReceived ? 'received' : 'partial_received';
-      await tx.prepare(`
-        UPDATE purchase_orders SET status = ?, received_date = ?, updated_at = ? WHERE id = ?
-      `).run(finalPoStatus, now, now, id);
-    });
+        const finalPoStatus = allFullyReceived ? 'received' : 'partial_received';
+        await tx.prepare(`
+          UPDATE purchase_orders SET status = ?, received_date = ?, updated_at = ? WHERE id = ?
+        `).run(finalPoStatus, now, now, id);
+      });
 
-    auditLog(request, 'RECEIVE_PO_GOODS', 'purchase_orders', id, po, { receivedItemsCount: received_items.length });
+      auditLog(request, 'RECEIVE_PO_GOODS', 'purchase_orders', id, po, { receivedItemsCount: received_items.length });
 
-    return {
-      success: true,
-      message: allFullyReceived ? 'Đã nhập kho đầy đủ đơn hàng thành công.' : 'Đã nhập kho một phần đơn hàng thành công.'
-    };
+      return {
+        success: true,
+        message: allFullyReceived ? 'Đã nhập kho đầy đủ đơn hàng thành công.' : 'Đã nhập kho một phần đơn hàng thành công.'
+      };
+    } catch (err: any) {
+      return reply.code(400).send({ success: false, message: `Lỗi nhận hàng vào kho: ${err.message}` });
+    }
   });
 }

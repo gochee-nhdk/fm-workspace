@@ -413,6 +413,9 @@ export default async function aiRoutes(fastify: FastifyInstance) {
 
   fastify.post('/chat', { preHandler: verifyToken }, async (request: any, reply) => {
     const { message, conversationId, apiKey, apiKeys } = request.body || {};
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return reply.code(400).send({ success: false, message: 'Nội dung tin nhắn không được để trống.' });
+    }
     const clientKey = apiKey || (Array.isArray(apiKeys) ? apiKeys.find((k: any) => typeof k === 'string' && !k.includes('••••')) : undefined);
     
     try {
@@ -499,13 +502,18 @@ export default async function aiRoutes(fastify: FastifyInstance) {
       return reply.code(413).send({ success: false, message: 'Ảnh quá lớn để xử lý (tối đa 7.5 MB).' });
     }
 
-    // Extract MIME type and raw base64 from data URL
-    const dataUrlMatch = imageDataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/s);
-    if (!dataUrlMatch) {
+    // Extract MIME type and raw base64 from data URL safely without regex backtracking
+    const commaIdx = imageDataUrl.indexOf(',');
+    if (!imageDataUrl.startsWith('data:image/') || commaIdx === -1) {
       return reply.code(400).send({ success: false, message: 'Định dạng ảnh không được hỗ trợ. Chỉ chấp nhận định dạng data URL (data:image/...).' });
     }
-    const mimeType = dataUrlMatch[1] as string;
-    const base64Data = dataUrlMatch[2] as string;
+    const header = imageDataUrl.substring(0, commaIdx);
+    const mimeMatch = header.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64/i);
+    if (!mimeMatch) {
+      return reply.code(400).send({ success: false, message: 'Định dạng data URL không hợp lệ.' });
+    }
+    const mimeType = mimeMatch[1];
+    const base64Data = imageDataUrl.substring(commaIdx + 1).replace(/\s+/g, '');
 
     // Resolve keys pool (client keys -> DB pool -> DB single -> env)
     const db = getDb();

@@ -224,16 +224,46 @@ export default async function importsRoutes(fastify: FastifyInstance) {
           defaultSupplier = { id: defSupId };
         }
 
+        // Pre-cache known products and stores to eliminate N+1 queries during bulk import
+        const productCache = new Map<string, string>();
+        const storeCache = new Map<string, string>();
+        const existingProds = (await tx.prepare("SELECT id, sku_code FROM products").all()) as any[];
+        for (const p of existingProds) {
+          if (p.sku_code) productCache.set(p.sku_code, p.id);
+        }
+        const existingStores = (await tx.prepare("SELECT id, code FROM stores").all()) as any[];
+        for (const s of existingStores) {
+          if (s.code) storeCache.set(s.code, s.id);
+        }
+
+        const insertProductStmt = tx.prepare(`
+          INSERT OR IGNORE INTO products (id, sku_code, name, unit, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `);
+        const insertStoreStmt = tx.prepare(`
+          INSERT OR IGNORE INTO stores (id, name, code, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?)
+        `);
+
+        const getOrCreateProduct = async (sku: string, name: string, unit: string = 'gói') => {
+          if (productCache.has(sku)) return productCache.get(sku)!;
+          const prodId = uuidv4();
+          await insertProductStmt.run(prodId, sku, name, unit, now, now);
+          productCache.set(sku, prodId);
+          return prodId;
+        };
+
+        const getOrCreateStore = async (storeCode?: string, storeName?: string) => {
+          if (!storeCode) return defaultStore.id;
+          if (storeCache.has(storeCode)) return storeCache.get(storeCode)!;
+          const newStoreId = uuidv4();
+          await insertStoreStmt.run(newStoreId, storeName || `Cửa hàng ${storeCode}`, storeCode, now, now);
+          storeCache.set(storeCode, newStoreId);
+          return newStoreId;
+        };
+
         // Ingestion logic per entity type
         if (entityType === 'inventory' || entityType === 'general') {
-          const insertProduct = tx.prepare(`
-            INSERT OR IGNORE INTO products (id, sku_code, name, unit, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-          `);
-          const insertStore = tx.prepare(`
-            INSERT OR IGNORE INTO stores (id, name, code, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?)
-          `);
           const upsertInventory = tx.prepare(`
             INSERT INTO inventory (id, store_id, product_id, quantity, available_qty, updated_at)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -264,32 +294,18 @@ export default async function importsRoutes(fastify: FastifyInstance) {
               ? Number(row.unit_price)
               : null;
 
-            // 1. Ensure product exists
-            let prod = (await tx.prepare("SELECT id FROM products WHERE sku_code = ?").get(sku)) as any;
-            if (!prod) {
-              const prodId = uuidv4();
-              await insertProduct.run(prodId, sku, name, unit, now, now);
-              prod = { id: prodId };
-            }
+            // 1. Ensure product exists with cache
+            const prodId = await getOrCreateProduct(sku, name, unit);
 
-            // 2. Store resolution
-            let storeId = defaultStore.id;
-            if (row.store_code) {
-              let store = (await tx.prepare("SELECT id FROM stores WHERE code = ?").get(row.store_code)) as any;
-              if (!store) {
-                const newStoreId = uuidv4();
-                await insertStore.run(newStoreId, row.store_name || `Cửa hàng ${row.store_code}`, row.store_code, now, now);
-                store = { id: newStoreId };
-              }
-              storeId = store.id;
-            }
+            // 2. Store resolution with cache
+            const storeId = await getOrCreateStore(row.store_code, row.store_name);
 
             // 3. Upsert inventory
-            await upsertInventory.run(uuidv4(), storeId, prod.id, qty, qty, now);
+            await upsertInventory.run(uuidv4(), storeId, prodId, qty, qty, now);
 
             // 4. Record cost price in product_suppliers if provided
             if (unitPrice !== null) {
-              await upsertProductSupplier.run(uuidv4(), prod.id, defaultSupplier.id, unitPrice);
+              await upsertProductSupplier.run(uuidv4(), prodId, defaultSupplier.id, unitPrice);
             }
 
             // 5. Record expiry lot if provided
@@ -297,7 +313,7 @@ export default async function importsRoutes(fastify: FastifyInstance) {
               const cleanedExpiry = ExcelParserService.cleanCellValue(row.expiry_date);
               if (cleanedExpiry && String(cleanedExpiry).includes('-')) {
                 const lotNum = row.lot_number || `LOT-${sku}-${String(cleanedExpiry).replace(/[^0-9]/g, '')}`;
-                await insertExpiryLot.run(uuidv4(), storeId, prod.id, lotNum, qty, cleanedExpiry, now);
+                await insertExpiryLot.run(uuidv4(), storeId, prodId, lotNum, qty, cleanedExpiry, now);
               }
             }
 
@@ -308,35 +324,13 @@ export default async function importsRoutes(fastify: FastifyInstance) {
             INSERT INTO sales (id, store_id, product_id, sale_date, quantity, revenue, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
           `);
-          const insertStore = tx.prepare(`
-            INSERT OR IGNORE INTO stores (id, name, code, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?)
-          `);
 
           for (const row of mappedRows) {
             const sku = row.sku_code || row.sku;
             if (!sku) continue;
 
-            let prod = (await tx.prepare("SELECT id FROM products WHERE sku_code = ?").get(sku)) as any;
-            if (!prod) {
-              const prodId = uuidv4();
-              await tx.prepare("INSERT INTO products (id, sku_code, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").run(
-                prodId, sku, row.product_name || `Sản phẩm ${sku}`, now, now
-              );
-              prod = { id: prodId };
-            }
-
-            // Store resolution
-            let storeId = defaultStore.id;
-            if (row.store_code) {
-              let store = (await tx.prepare("SELECT id FROM stores WHERE code = ?").get(row.store_code)) as any;
-              if (!store) {
-                const newStoreId = uuidv4();
-                await insertStore.run(newStoreId, row.store_name || `Cửa hàng ${row.store_code}`, row.store_code, now, now);
-                store = { id: newStoreId };
-              }
-              storeId = store.id;
-            }
+            const prodId = await getOrCreateProduct(sku, row.product_name || `Sản phẩm ${sku}`);
+            const storeId = await getOrCreateStore(row.store_code, row.store_name);
 
             const rawDate = row.date || now.split('T')[0];
             const saleDate = ExcelParserService.cleanCellValue(rawDate) || now.split('T')[0];
@@ -344,8 +338,58 @@ export default async function importsRoutes(fastify: FastifyInstance) {
             const qty = Number.isFinite(Number(rawQty)) ? Number(rawQty) : 1;
             const rev = Number(row.sales_revenue || row.revenue || 0);
 
-            await insertSale.run(uuidv4(), storeId, prod.id, saleDate, qty, rev, now);
+            await insertSale.run(uuidv4(), storeId, prodId, saleDate, qty, rev, now);
             importedCount++;
+          }
+        } else if (entityType === 'products') {
+          const insertProduct = tx.prepare(`
+            INSERT OR IGNORE INTO products (id, sku_code, name, unit, shelf_life_days, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+          `);
+          const upsertProductSupplier = tx.prepare(`
+            INSERT INTO product_suppliers (id, product_id, supplier_id, cost_price, is_primary)
+            VALUES (?, ?, ?, ?, 1)
+            ON CONFLICT(product_id, supplier_id) DO UPDATE SET
+              cost_price = excluded.cost_price
+          `);
+          for (const row of mappedRows) {
+            const sku = row.sku_code || row.sku;
+            if (!sku) continue;
+            const name = row.product_name || row.name || `Sản phẩm ${sku}`;
+            const unit = row.unit || 'gói';
+            const shelfLife = Number(row.shelf_life_days || 30);
+            const unitPrice = row.unit_price !== undefined && row.unit_price !== null && !isNaN(Number(row.unit_price))
+              ? Number(row.unit_price) : null;
+
+            let prodId = productCache.get(sku);
+            if (!prodId) {
+              prodId = uuidv4();
+              await insertProduct.run(prodId, sku, name, unit, shelfLife, now, now);
+              productCache.set(sku, prodId);
+            }
+            if (unitPrice !== null) {
+              await upsertProductSupplier.run(uuidv4(), prodId, defaultSupplier.id, unitPrice);
+            }
+            importedCount++;
+          }
+        } else if (entityType === 'expiry') {
+          const insertExpiryLot = tx.prepare(`
+            INSERT INTO expiry_lots (id, store_id, product_id, lot_number, quantity, expiry_date, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'active', ?)
+          `);
+          for (const row of mappedRows) {
+            const sku = row.sku_code || row.sku;
+            if (!sku) continue;
+            const prodId = await getOrCreateProduct(sku, row.product_name || row.name || `Sản phẩm ${sku}`);
+            const storeId = await getOrCreateStore(row.store_code, row.store_name);
+            const qty = Number(row.quantity ?? row.inventory_qty ?? 1);
+            const rawExpiry = row.expiry_date;
+            const cleanedExpiry = ExcelParserService.cleanCellValue(rawExpiry);
+            const lotNum = row.lot_number || `LOT-${sku}-${Date.now()}`;
+            if (cleanedExpiry && String(cleanedExpiry).includes('-')) {
+              await insertExpiryLot.run(uuidv4(), storeId, prodId, lotNum, qty, cleanedExpiry, now);
+              importedCount++;
+            }
           }
         }
 

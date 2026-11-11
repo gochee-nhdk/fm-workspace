@@ -13,6 +13,10 @@ import { closeDb } from './db/connection.js';
 import { getJwtSecret } from './config/auth.js';
 import { getAllowedOrigins, isOriginAllowed } from './config/cors.js';
 import { startDbAutoBackup, stopDbAutoBackup } from './services/dbBackupManager.js';
+import { globalRateLimitOptions } from './middleware/rateLimit.js';
+import { preventPrototypePollution } from './middleware/validate.js';
+import { secureErrorHandler } from './middleware/errorHandler.js';
+import { registerSecurityMiddleware } from './middleware/security.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -66,48 +70,17 @@ async function build() {
   // Fail-fast JWT Secret verification
   getJwtSecret();
 
-  // Security Hardening: Anti-DNS Rebinding (Validate Host Header)
-  fastify.addHook('onRequest', async (request, reply) => {
-    const rawHost = request.headers.host || '';
-    const hostname = rawHost.split(':')[0].toLowerCase();
-    const isProd = process.env.NODE_ENV === 'production';
-    const isLocalOrDesktop = !isProd || process.env.ELECTRON_RUN === 'true' || process.env.LOCAL_DEV === 'true';
+  // Register Host Header Validation (Anti-DNS Rebinding) & Enterprise Security Headers
+  registerSecurityMiddleware(fastify);
 
-    // In local development or local desktop app, strictly only accept localhost and 127.0.0.1
-    if (isLocalOrDesktop) {
-      const allowedLocalHosts = ['localhost', '127.0.0.1'];
-      if (!allowedLocalHosts.includes(hostname)) {
-        reply.status(403).send({
-          success: false,
-          error: 'SecurityBlocked',
-          message: 'DNS Rebinding Protection: Host header blocked.',
-        });
-        return;
-      }
-    }
-  });
-
-  // Enterprise Security Headers (Anti-Clickjacking, Anti-MIME sniffing, XSS Filter, CSP, HSTS)
-  fastify.addHook('onSend', async (_request, reply) => {
-    reply.header('X-Content-Type-Options', 'nosniff');
-    reply.header('X-Frame-Options', 'DENY');
-    reply.header('X-XSS-Protection', '1; mode=block');
-    reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
-    reply.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    reply.header(
-      'Content-Security-Policy',
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: http: ws: wss:; frame-ancestors 'none';"
-    );
-    // Security: Only send HSTS over true HTTPS in production web deployment, never on local desktop HTTP
-    const isDesktop = process.env.ELECTRON_RUN === 'true' || process.env.LOCAL_DEV === 'true';
-    if (process.env.NODE_ENV === 'production' && !isDesktop && (_request.protocol === 'https' || _request.headers['x-forwarded-proto'] === 'https')) {
-      reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
-    }
+  // Prototype Pollution Prevention Hook
+  fastify.addHook('preValidation', (request, reply, done) => {
+    preventPrototypePollution(request, reply, done);
   });
 
   await fastify.register(cookie);
-  // Tiered rate limit: 200 requests/minute default (down from 1000)
-  await fastify.register(rateLimit, { max: 200, timeWindow: '1 minute' });
+  // Tiered global rate limit (200 req/min with structured 429 response)
+  await fastify.register(rateLimit, globalRateLimitOptions);
   await fastify.register(multipart, {
     limits: {
       fieldNameSize: 100,
@@ -173,17 +146,7 @@ async function build() {
   }
 
   fastify.setErrorHandler((error: any, request, reply) => {
-    request.log.error(error);
-    const statusCode = error.statusCode && error.statusCode >= 400 && error.statusCode < 600 ? error.statusCode : 500;
-    const isProd = process.env.NODE_ENV === 'production';
-    const message = statusCode >= 500 && isProd
-      ? 'Đã xảy ra lỗi nội bộ hệ thống. Vui lòng liên hệ quản trị viên.'
-      : (error.message || 'Lỗi xử lý yêu cầu');
-    reply.status(statusCode).send({
-      success: false,
-      error: error.name || 'Error',
-      message
-    });
+    secureErrorHandler(error, request, reply);
   });
 
   fastify.addHook('onClose', async () => {

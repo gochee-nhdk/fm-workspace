@@ -1,5 +1,7 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import jwt from 'jsonwebtoken';
+import crypto from 'node:crypto';
+import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '../db/connection.js';
 import { getJwtSecret } from '../config/auth.js';
 
@@ -13,6 +15,63 @@ export interface AuthUser {
 declare module 'fastify' {
   interface FastifyRequest {
     user?: AuthUser;
+    token?: string;
+  }
+}
+
+// In-memory blacklist cache for sub-millisecond check
+const revokedTokenCache = new Set<string>();
+
+export function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token.trim()).digest('hex');
+}
+
+export async function isTokenRevoked(token: string): Promise<boolean> {
+  if (!token) return true;
+  const hash = hashToken(token);
+  if (revokedTokenCache.has(hash)) {
+    return true;
+  }
+
+  try {
+    const db = getDb();
+    const row = (await db.prepare('SELECT id, expires_at FROM token_blacklist WHERE token_hash = ?').get(hash)) as any;
+    if (row) {
+      revokedTokenCache.add(hash);
+      return true;
+    }
+  } catch (_) {
+    // If table not created yet, fallback to cache
+  }
+  return false;
+}
+
+export async function revokeToken(token: string, userId?: string, expiresAt?: Date): Promise<void> {
+  if (!token) return;
+  const hash = hashToken(token);
+  revokedTokenCache.add(hash);
+
+  try {
+    const db = getDb();
+    // Ensure table exists
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS token_blacklist (
+        id TEXT PRIMARY KEY,
+        token_hash TEXT UNIQUE NOT NULL,
+        user_id TEXT,
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+
+    const expiry = expiresAt ? expiresAt.toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    await db.prepare(`
+      INSERT INTO token_blacklist (id, token_hash, user_id, expires_at, created_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(token_hash) DO NOTHING
+    `).run(uuidv4(), hash, userId || null, expiry, new Date().toISOString());
+  } catch (err) {
+    console.warn('[Auth] Error writing token to blacklist:', err);
   }
 }
 
@@ -56,6 +115,11 @@ export async function verifyToken(request: FastifyRequest, reply: FastifyReply) 
       return reply.code(401).send({ error: 'Unauthorized', message: 'Missing or invalid token' });
     }
 
+    // Check blacklist before processing
+    if (await isTokenRevoked(token)) {
+      return reply.code(401).send({ error: 'Unauthorized', message: 'Token has been revoked' });
+    }
+
     const decoded = jwt.verify(token, getJwtSecret()) as AuthUser;
     
     // Check if user is active
@@ -67,6 +131,7 @@ export async function verifyToken(request: FastifyRequest, reply: FastifyReply) 
     }
 
     request.user = decoded;
+    request.token = token;
   } catch (error) {
     return reply.code(401).send({ error: 'Unauthorized', message: 'Invalid or expired token' });
   }
@@ -90,6 +155,11 @@ export async function optionalAuth(request: FastifyRequest, reply: FastifyReply)
       if (!token) {
         return reply.code(401).send({ error: 'Unauthorized', message: 'Missing token' });
       }
+
+      if (await isTokenRevoked(token)) {
+        return reply.code(401).send({ error: 'Unauthorized', message: 'Token has been revoked' });
+      }
+
       const decoded = jwt.verify(token, getJwtSecret()) as AuthUser;
       
       const db = getDb();
@@ -98,6 +168,7 @@ export async function optionalAuth(request: FastifyRequest, reply: FastifyReply)
         return reply.code(401).send({ error: 'Unauthorized', message: 'User inactive or not found' });
       }
       request.user = decoded;
+      request.token = token;
     }
   } catch (error) {
     return reply.code(401).send({ error: 'Unauthorized', message: 'Invalid or expired token' });

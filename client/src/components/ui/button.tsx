@@ -39,7 +39,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      'inline-flex items-center justify-center font-medium transition-[transform,box-shadow,background-color,border-color,opacity] duration-[var(--motion-duration-hover)] ease-[var(--motion-ease-spring)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0088FF]/50 focus-visible:ring-offset-1 disabled:opacity-40 disabled:cursor-not-allowed select-none hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] disabled:hover:translate-y-0 disabled:active:scale-100 tracking-tight relative overflow-hidden shrink-0 font-sans cursor-pointer';
+      'inline-flex items-center justify-center font-medium transition-[transform,box-shadow,background-color,border-color,opacity] duration-hover ease-motion-spring focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0088FF]/50 focus-visible:ring-offset-1 disabled:opacity-40 disabled:cursor-not-allowed select-none hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] disabled:hover:translate-y-0 disabled:active:scale-100 tracking-tight relative overflow-hidden shrink-0 font-sans cursor-pointer';
 
     const variants = {
       primary:

@@ -40,6 +40,31 @@ export const Skeleton: React.FC<SkeletonProps> = ({ className, ...props }) => {
   );
 };
 
+export interface TableSkeletonProps {
+  colSpan: number;
+  rows?: number;
+}
+
+export const TableSkeleton: React.FC<TableSkeletonProps> = ({ colSpan, rows = 5 }) => {
+  return (
+    <>
+      {[...Array(rows)].map((_, i) => (
+        <tr key={i} className="animate-pulse border-b border-black/[0.04] dark:border-white/5">
+          <td colSpan={colSpan} className="py-4 px-4">
+            <div className="flex items-center gap-4">
+              <div className="w-5 h-5 rounded-md bg-black/[0.06] dark:bg-white/10 shrink-0" />
+              <div className="h-4 bg-black/[0.06] dark:bg-white/10 rounded-full w-1/4" />
+              <div className="h-4 bg-black/[0.06] dark:bg-white/10 rounded-full w-1/3" />
+              <div className="h-4 bg-black/[0.06] dark:bg-white/10 rounded-full w-1/5" />
+              <div className="ml-auto h-4 bg-black/[0.06] dark:bg-white/10 rounded-full w-16" />
+            </div>
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+};
+
 export interface ContextualLoadingProps {
   step: string;
   detail?: string;

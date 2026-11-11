@@ -26,7 +26,7 @@ export const QuickNoteFloatingButton: React.FC = () => {
           shadow-[0_16px_36px_-8px_rgba(0,0,0,0.18),inset_0_1.5px_1px_rgba(255,255,255,0.95),inset_0_-1.5px_1.5px_rgba(0,0,0,0.08)]
           hover:shadow-[0_20px_44px_-8px_rgba(245,158,11,0.28),inset_0_1.5px_1px_rgba(255,255,255,1)]
           hover:scale-[1.04] active:scale-[0.92]
-          transition-[transform,box-shadow,background-color] duration-180 ease-[cubic-bezier(0.16,1,0.3,1)] cursor-pointer
+          transition-[transform,box-shadow,background-color] duration-180 ease-spring cursor-pointer
           overflow-visible will-change-transform
         `}
       >
@@ -37,7 +37,7 @@ export const QuickNoteFloatingButton: React.FC = () => {
         <div className="absolute -left-2 -top-2 w-10 h-10 bg-amber-400/20 dark:bg-amber-400/10 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
 
         {/* Icon */}
-        <div className="relative flex items-center justify-center w-8 h-8 sm:w-7 sm:h-7 rounded-full bg-gradient-to-tr from-amber-500 to-amber-400 text-white shadow-sm shadow-amber-500/30 group-hover:rotate-[-8deg] group-hover:scale-105 active:scale-95 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]">
+        <div className="relative flex items-center justify-center w-8 h-8 sm:w-7 sm:h-7 rounded-full bg-gradient-to-tr from-amber-500 to-amber-400 text-white shadow-sm shadow-amber-500/30 group-hover:rotate-[-8deg] group-hover:scale-105 active:scale-95 transition-transform duration-200 ease-spring">
           <SFSquareAndPencil size={17} />
         </div>
 

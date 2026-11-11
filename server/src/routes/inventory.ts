@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { getDb } from '../db/connection.js';
 import { verifyToken } from '../middleware/auth.js';
 import { auditLog } from '../middleware/audit.js';
-import { calculateAverageDailySales, calculateDaysOfCover } from '../services/calculations.js';
+import { calculateAverageDailySales, calculateAverageDailySalesBatch, calculateDaysOfCover } from '../services/calculations.js';
 
 export default async function inventoryRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', verifyToken);
@@ -11,8 +11,10 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
    * 1. GET /: List inventory with product, store, ADS and calculated Days of Cover
    */
   fastify.get('/', async (request: any, reply) => {
-    const { page = 1, limit = 20, store_id, search } = request.query;
-    const offset = (Number(page) - 1) * Number(limit);
+    const { page = 1, limit = 20, store_id, search } = request.query || {};
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10) || 20));
+    const offset = (pageNum - 1) * limitNum;
     const db = getDb();
 
     let whereClause = ' WHERE 1=1';
@@ -45,11 +47,13 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
       LIMIT ? OFFSET ?
     `;
 
-    const rawRows = (await db.prepare(selectQuery).all(...params, Number(limit), Number(offset))) as any[];
+    const rawRows = (await db.prepare(selectQuery).all(...params, limitNum, offset)) as any[];
 
-    // Calculate dynamic ADS and DoC for each row
-    const enrichedRows = await Promise.all(rawRows.map(async (row) => {
-      const ads = await calculateAverageDailySales(row.product_id, row.store_id, 30);
+    // Calculate dynamic ADS and DoC in batch to eliminate N+1 queries
+    const adsMap = await calculateAverageDailySalesBatch(30, store_id);
+
+    const enrichedRows = rawRows.map((row) => {
+      const ads = adsMap.get(`${row.product_id}_${row.store_id}`) || 0;
       const doc = calculateDaysOfCover(row.available_qty, ads);
 
       let status = 'healthy';
@@ -64,16 +68,16 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
         days_of_cover: doc >= 999 ? 'N/A' : Number(doc.toFixed(1)),
         status
       };
-    }));
+    });
 
     return {
       success: true,
       data: enrichedRows,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
+        page: pageNum,
+        limit: limitNum,
         total: count,
-        total_pages: Math.ceil(count / Number(limit))
+        total_pages: Math.ceil(count / limitNum)
       }
     };
   });
@@ -91,15 +95,17 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
       LIMIT 100
     `).all()) as any[];
 
-    const result = await Promise.all(rows.map(async (r) => {
-      const ads = await calculateAverageDailySales(r.product_id, r.store_id, 30);
+    const adsMap = await calculateAverageDailySalesBatch(30);
+
+    const result = rows.map((r) => {
+      const ads = adsMap.get(`${r.product_id}_${r.store_id}`) || 0;
       const doc = calculateDaysOfCover(r.available_qty, ads);
       return {
         ...r,
         ads: Number(ads.toFixed(2)),
         days_of_cover: doc >= 999 ? 999 : Number(doc.toFixed(1))
       };
-    }));
+    });
 
     return { success: true, data: result };
   });
@@ -121,8 +127,10 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
       LIMIT 50
     `).all()) as any[];
 
-    const data = await Promise.all(rows.map(async (r) => {
-      const ads = await calculateAverageDailySales(r.product_id, r.store_id, 30);
+    const adsMap = await calculateAverageDailySalesBatch(30);
+
+    const data = rows.map((r) => {
+      const ads = adsMap.get(`${r.product_id}_${r.store_id}`) || 0;
       const doc = calculateDaysOfCover(r.available_qty, ads);
       return {
         ...r,
@@ -130,7 +138,7 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
         days_of_cover: doc >= 999 ? 0 : Number(doc.toFixed(1)),
         risk_level: r.available_qty <= 0 ? 'critical' : 'warning'
       };
-    }));
+    });
 
     return { success: true, data };
   });
@@ -149,16 +157,18 @@ export default async function inventoryRoutes(fastify: FastifyInstance) {
       LIMIT 100
     `).all()) as any[];
 
+    const adsMap = await calculateAverageDailySalesBatch(30);
+
     // Filter items where DoC > 30 days
-    const mapped = await Promise.all(rows.map(async (r) => {
-      const ads = await calculateAverageDailySales(r.product_id, r.store_id, 30);
+    const mapped = rows.map((r) => {
+      const ads = adsMap.get(`${r.product_id}_${r.store_id}`) || 0;
       const doc = calculateDaysOfCover(r.available_qty, ads);
       return {
         ...r,
         ads: Number(ads.toFixed(2)),
         days_of_cover: doc >= 999 ? 999 : Number(doc.toFixed(1))
       };
-    }));
+    });
 
     const overstocked = mapped.filter((r) => r.days_of_cover > 30);
     return { success: true, data: overstocked.slice(0, 50) };

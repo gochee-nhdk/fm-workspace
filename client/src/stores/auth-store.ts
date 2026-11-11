@@ -158,9 +158,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    set({ token: 'cloud-web-session', user: DEFAULT_USER, isAuthenticated: true });
+    try {
+      await api.post('/auth/logout').catch(() => {});
+    } catch (_) {}
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+    set({ token: null, user: null, isAuthenticated: false });
     if (typeof window !== 'undefined') {
       window.location.reload();
     }

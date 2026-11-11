@@ -2151,6 +2151,16 @@ tbody td {
   margin: 0 !important;
 }
 
+@media (max-width: 640px) {
+  .apple-toaster-container {
+    top: 16px !important;
+    left: 12px !important;
+    right: 12px !important;
+    max-width: calc(100vw - 24px) !important;
+    align-items: center !important;
+  }
+}
+
 .liquid-glass-macos27-toast,
 .apple-hud-toast {
   position: relative !important;

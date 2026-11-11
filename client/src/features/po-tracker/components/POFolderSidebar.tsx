@@ -86,7 +86,7 @@ export const POFolderSidebar: React.FC<POFolderSidebarProps> = ({
     <>
       <aside
         className={cn(
-          'flex flex-col h-full bg-white/60 dark:bg-[#16161c]/60 backdrop-blur-2xl border-r border-black/[0.08] dark:border-white/10 transition-[width] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0 z-10',
+          'flex flex-col h-full bg-white/60 dark:bg-[#16161c]/60 backdrop-blur-2xl border-r border-black/[0.08] dark:border-white/10 transition-[width] duration-200 ease-spring shrink-0 z-10',
           collapsed ? 'w-[68px]' : 'w-[230px]'
         )}
       >

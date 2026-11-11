@@ -4571,7 +4571,7 @@ export const QuickNoteWindow: React.FC = () => {
                 isCompactWindow ? "rounded-[26px]" : "rounded-tl-[26px] rounded-tr-none rounded-br-none rounded-bl-none",
                 (isDraggingCompact || isResizing)
                   ? "shadow-[0_32px_85px_rgba(0,0,0,0.3)] transition-none select-none pointer-events-auto"
-                  : "shadow-[0_20px_60px_rgba(0,0,0,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85)] transition-[right,bottom,width,height,border-radius,box-shadow] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                  : "shadow-[0_20px_60px_rgba(0,0,0,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85)] transition-[right,bottom,width,height,border-radius,box-shadow] duration-200 ease-spring"
               ),
           isWindowClosing
             ? (isMobileScreen ? "apple-bottom-sheet-exit pointer-events-none" : "liquid-droplet-exit pointer-events-none")
@@ -4722,7 +4722,7 @@ export const QuickNoteWindow: React.FC = () => {
             <div
               aria-hidden={!showSidebar}
               className={cn(
-                "absolute top-0 left-0 bottom-0 w-full max-w-[285px] z-30 border-r border-black/[0.08] dark:border-white/10 flex flex-col bg-white/95 dark:bg-[#181820]/95 backdrop-blur-3xl shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.06)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.35)] transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform",
+                "absolute top-0 left-0 bottom-0 w-full max-w-[285px] z-30 border-r border-black/[0.08] dark:border-white/10 flex flex-col bg-white/95 dark:bg-[#181820]/95 backdrop-blur-3xl shrink-0 shadow-[4px_0_24px_rgba(0,0,0,0.06)] dark:shadow-[4px_0_24px_rgba(0,0,0,0.35)] transition-transform duration-200 ease-spring will-change-transform",
                 showSidebar ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none"
               )}
             >
@@ -4978,7 +4978,7 @@ export const QuickNoteWindow: React.FC = () => {
                     <div className="relative grid grid-cols-2 w-full h-7 items-center overflow-hidden rounded-full">
                       {/* Fluid Sliding Pill Indicator: Chiều rộng chính xác 50% của capsule, dịch chuyển 100% đối xứng hoàn hảo */}
                       <div
-                        className="absolute inset-y-0 left-0 w-1/2 rounded-full bg-[#0071e3] shadow-[0_2px_8px_rgba(0,113,227,0.35)] transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] pointer-events-none will-change-transform"
+                        className="absolute inset-y-0 left-0 w-1/2 rounded-full bg-[#0071e3] shadow-[0_2px_8px_rgba(0,113,227,0.35)] transition-transform duration-300 ease-bounce-overshoot pointer-events-none will-change-transform"
                         style={{
                           transform: `translate3d(${isChecklistActive ? '100%' : '0%'}, 0, 0)`,
                         }}
@@ -5279,7 +5279,7 @@ export const QuickNoteWindow: React.FC = () => {
               <div className="flex items-center justify-between gap-1.5 pb-2 mb-2 border-b border-black/[0.06] dark:border-white/10 shrink-0 select-none relative">
                 {/* Collapsible Rich-Text Formatting Controls with Liquid Spring Physics */}
                 <div
-                  className="flex items-center gap-0.5 shrink-0 overflow-x-auto scrollbar-none py-0.5 max-w-[400px] opacity-100 translate-x-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                  className="flex items-center gap-0.5 shrink-0 overflow-x-auto scrollbar-none py-0.5 max-w-[400px] opacity-100 translate-x-0 transition-all duration-300 ease-spring"
                 >
                   <button
                     type="button"
@@ -5893,7 +5893,7 @@ export const QuickNoteWindow: React.FC = () => {
                   {aiDraft && (() => {
                     return (
                       <div
-                        className="absolute z-50 p-3.5 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-purple-500/30 dark:border-purple-400/40 shadow-[0_20px_50px_rgba(0,0,0,0.22),0_4px_24px_rgba(168,85,247,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none flex flex-col gap-2.5 transition-[top,bottom,left,right,max-width,max-height,border-radius] duration-280 ease-[cubic-bezier(0.16,1,0.3,1)] apple-draft-card-enter"
+                        className="absolute z-50 p-3.5 rounded-2xl bg-white/95 dark:bg-[#1e1e26]/95 backdrop-blur-2xl border border-purple-500/30 dark:border-purple-400/40 shadow-[0_20px_50px_rgba(0,0,0,0.22),0_4px_24px_rgba(168,85,247,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.15)] select-none flex flex-col gap-2.5 transition-[top,bottom,left,right,max-width,max-height,border-radius] duration-280 ease-spring apple-draft-card-enter"
                         style={
                           isDraftExpanded
                             ? {
@@ -7526,7 +7526,7 @@ export const QuickNoteWindow: React.FC = () => {
         title={currentFilePreview ? `Xem trước tệp ${currentFilePreview.name}` : 'Xem trước tệp'}
         overlayClassName={isPreviewFullscreen ? "p-0" : "p-3 sm:p-6"}
         contentClassName={cn(
-          "relative bg-white dark:bg-[#1c1c24] flex flex-col overflow-hidden transition-all duration-220 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width,height,transform]",
+          "relative bg-white dark:bg-[#1c1c24] flex flex-col overflow-hidden transition-all duration-220 ease-spring will-change-[width,height,transform]",
           isPreviewFullscreen
             ? "fixed inset-0 w-full h-full max-w-none max-h-none rounded-none shadow-none border-0 z-50"
             : "w-full max-w-4xl h-[85vh] max-h-[850px] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.55)] border border-black/10 dark:border-white/12"

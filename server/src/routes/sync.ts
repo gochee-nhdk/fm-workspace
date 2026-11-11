@@ -47,33 +47,35 @@ export default async function syncRoutes(fastify: FastifyInstance) {
       const itemCountsStr = typeof itemCounts === 'string' ? itemCounts : JSON.stringify(itemCounts || {});
       const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
 
-      // 1. Lưu vào database (Turso hoặc local SQLite) gắn liền với user_id
-      await db.prepare(`
-        INSERT INTO user_workspace_backups (
-          id, user_id, backup_type, device_name, checksum, item_counts, payload, is_encrypted, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        id,
-        userId,
-        backupType,
-        deviceName,
-        checksum,
-        itemCountsStr,
-        payloadStr,
-        isEncrypted ? 1 : 0,
-        now
-      );
+      // 1. Lưu vào database (Turso hoặc local SQLite) gắn liền với user_id trong một transaction ACID
+      await db.transaction(async (tx) => {
+        await tx.prepare(`
+          INSERT INTO user_workspace_backups (
+            id, user_id, backup_type, device_name, checksum, item_counts, payload, is_encrypted, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          id,
+          userId,
+          backupType,
+          deviceName,
+          checksum,
+          itemCountsStr,
+          payloadStr,
+          isEncrypted ? 1 : 0,
+          now
+        );
 
-      // Giữ tối đa 20 bản sao lưu gần nhất của chính user này
-      await db.prepare(`
-        DELETE FROM user_workspace_backups
-        WHERE user_id = ? AND id NOT IN (
-          SELECT id FROM user_workspace_backups
-          WHERE user_id = ?
-          ORDER BY created_at DESC
-          LIMIT 20
-        )
-      `).run(userId, userId);
+        // Giữ tối đa 20 bản sao lưu gần nhất của chính user này
+        await tx.prepare(`
+          DELETE FROM user_workspace_backups
+          WHERE user_id = ? AND id NOT IN (
+            SELECT id FROM user_workspace_backups
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT 20
+          )
+        `).run(userId, userId);
+      });
 
       // 2. Lưu bản sao an toàn vào vault riêng của user trên ổ đĩa (nếu môi trường hỗ trợ lưu trữ tệp cục bộ)
       try {
@@ -222,11 +224,17 @@ export default async function syncRoutes(fastify: FastifyInstance) {
         LIMIT 10
       `).all(userId)) as any[];
 
-      const parsedList = list.map((item) => ({
-        ...item,
-        item_counts: item.item_counts ? JSON.parse(item.item_counts) : {},
-        is_encrypted: Boolean(item.is_encrypted),
-      }));
+      const parsedList = list.map((item) => {
+        let parsedCounts = {};
+        try {
+          if (item.item_counts) parsedCounts = JSON.parse(item.item_counts);
+        } catch (_) {}
+        return {
+          ...item,
+          item_counts: parsedCounts,
+          is_encrypted: Boolean(item.is_encrypted),
+        };
+      });
 
       return {
         success: true,

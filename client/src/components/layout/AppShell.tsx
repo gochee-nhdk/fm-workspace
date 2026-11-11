@@ -234,7 +234,7 @@ export const AppShell: React.FC = () => {
       <aside
         className={`hidden md:flex flex-col ${
           isSidebarCollapsed ? 'w-[72px]' : 'w-[268px]'
-        } vision-glass-sidebar shrink-0 h-full select-none z-30 transition-[width] duration-[var(--motion-duration-sidebar)] ease-[var(--motion-ease-spring)] relative overflow-hidden will-change-[width]`}
+        } vision-glass-sidebar shrink-0 h-full select-none z-30 transition-[width] duration-sidebar ease-motion-spring relative overflow-hidden will-change-[width]`}
       >
 
         {/* Workspace Brand Header */}
@@ -277,7 +277,7 @@ export const AppShell: React.FC = () => {
             title={isSidebarCollapsed ? 'Mở rộng thanh bên (Ctrl+\\)' : 'Thu gọn thanh bên (Ctrl+\\)'}
             aria-label={isSidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
           >
-            <SFSidebarLeft size={16} className={`transition-transform duration-180 ease-[cubic-bezier(0.16,1,0.3,1)] ${isSidebarCollapsed ? 'rotate-180' : ''}`} />
+            <SFSidebarLeft size={16} className={`transition-transform duration-180 ease-spring ${isSidebarCollapsed ? 'rotate-180' : ''}`} />
           </button>
         </div>
 

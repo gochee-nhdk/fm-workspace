@@ -6,7 +6,8 @@ export default async function searchRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', verifyToken);
 
   fastify.get('/', async (request: any, reply) => {
-    const { q = '' } = request.query;
+    const rawQ = request.query?.q;
+    const q = typeof rawQ === 'string' ? rawQ.trim() : '';
     if (!q) return { success: true, data: [] };
     
     const term = `%${q}%`;
@@ -28,7 +29,11 @@ export default async function searchRoutes(fastify: FastifyInstance) {
     // Purchase Orders
     const pos = (await db.prepare('SELECT id, po_number as title, status as subtitle FROM purchase_orders WHERE po_number LIKE ? LIMIT 3').all(term)) as any[];
     results.push(...pos.map(po => ({ type: 'purchase_order', id: po.id, title: po.title, subtitle: po.subtitle, url: `/procurement/orders/${po.id}` })));
+
+    // Stock Transfers
+    const transfers = (await db.prepare('SELECT id, transfer_number as title, status as subtitle FROM stock_transfers WHERE transfer_number LIKE ? LIMIT 3').all(term)) as any[];
+    results.push(...transfers.map(t => ({ type: 'transfer', id: t.id, title: t.title, subtitle: t.subtitle, url: `/inventory/transfers/${t.id}` })));
     
-    return { success: true, data: results.slice(0, 10) };
+    return { success: true, data: results.slice(0, 15) };
   });
 }

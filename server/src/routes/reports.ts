@@ -11,17 +11,23 @@ export default async function reportsRoutes(fastify: FastifyInstance) {
   /**
    * Helper function to fetch data for report type
    */
-  async function getReportData(type: string, db: any) {
+  async function getReportData(type: string, db: any, storeId?: string) {
     if (type === 'inventory') {
-      const rows = await db.prepare(`
+      let query = `
         SELECT p.sku_code, p.name as product_name, s.name as store_name,
                i.available_qty, ps.cost_price, (i.available_qty * COALESCE(ps.cost_price, 0)) as total_value
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         JOIN stores s ON i.store_id = s.id
         LEFT JOIN product_suppliers ps ON p.id = ps.product_id AND ps.is_primary = 1
-        ORDER BY total_value DESC
-      `).all();
+      `;
+      const params: any[] = [];
+      if (storeId) {
+        query += ' WHERE i.store_id = ?';
+        params.push(storeId);
+      }
+      query += ' ORDER BY total_value DESC';
+      const rows = await db.prepare(query).all(...params);
       return {
         title: 'Báo cáo Định giá Tồn kho',
         headers: ['Mã SKU', 'Tên Sản Phẩm', 'Điểm Bán', 'Tồn Khả Dụng', 'Đơn Giá Vốn', 'Giá Trị Tồn (VND)'],
@@ -29,7 +35,7 @@ export default async function reportsRoutes(fastify: FastifyInstance) {
         rows
       };
     } else if (type === 'near_expiry') {
-      const rows = await db.prepare(`
+      let query = `
         SELECT p.sku_code, p.name as product_name, s.name as store_name,
                el.lot_number, el.quantity, el.expiry_date,
                CAST((julianday(el.expiry_date) - julianday('now')) AS INTEGER) as days_left
@@ -37,8 +43,14 @@ export default async function reportsRoutes(fastify: FastifyInstance) {
         JOIN products p ON el.product_id = p.id
         JOIN stores s ON el.store_id = s.id
         WHERE el.status = 'active'
-        ORDER BY el.expiry_date ASC
-      `).all();
+      `;
+      const params: any[] = [];
+      if (storeId) {
+        query += ' AND el.store_id = ?';
+        params.push(storeId);
+      }
+      query += ' ORDER BY el.expiry_date ASC';
+      const rows = await db.prepare(query).all(...params);
       return {
         title: 'Báo cáo Hàng Cận Hạn Sử Dụng',
         headers: ['Mã SKU', 'Tên Sản Phẩm', 'Điểm Bán', 'Số Lô', 'Số Lượng', 'Hạn Sử Dụng', 'Số Ngày Còn Lại'],
@@ -46,14 +58,21 @@ export default async function reportsRoutes(fastify: FastifyInstance) {
         rows
       };
     } else if (type === 'procurement_recommendations') {
-      const rows = await db.prepare(`
+      let query = `
         SELECT p.sku_code, p.name as product_name, s.name as store_name,
                pr.recommended_qty, pr.reason, pr.risk_level, pr.status, pr.created_at
         FROM purchase_recommendations pr
         JOIN products p ON pr.product_id = p.id
         JOIN stores s ON pr.store_id = s.id
-        ORDER BY pr.created_at DESC
-      `).all();
+        WHERE 1=1
+      `;
+      const params: any[] = [];
+      if (storeId) {
+        query += ' AND pr.store_id = ?';
+        params.push(storeId);
+      }
+      query += ' ORDER BY pr.created_at DESC';
+      const rows = await db.prepare(query).all(...params);
       return {
         title: 'Báo cáo Khuyến nghị Đặt hàng',
         headers: ['Mã SKU', 'Tên Sản Phẩm', 'Điểm Bán', 'Số Lượng Gợi Ý', 'Lý Do Đặt', 'Mức Độ Rủi Ro', 'Trạng Thái', 'Ngày Tạo'],
@@ -62,13 +81,19 @@ export default async function reportsRoutes(fastify: FastifyInstance) {
       };
     } else {
       // Default / Daily procurement report
-      const rows = await db.prepare(`
+      let query = `
         SELECT p.sku_code, p.name as product_name, s.name as store_name, i.available_qty
         FROM inventory i
         JOIN products p ON i.product_id = p.id
         JOIN stores s ON i.store_id = s.id
-        ORDER BY p.name ASC
-      `).all();
+      `;
+      const params: any[] = [];
+      if (storeId) {
+        query += ' WHERE i.store_id = ?';
+        params.push(storeId);
+      }
+      query += ' ORDER BY p.name ASC';
+      const rows = await db.prepare(query).all(...params);
       return {
         title: 'Báo cáo Tổng hợp Thu mua Hàng ngày',
         headers: ['Mã SKU', 'Tên Sản Phẩm', 'Điểm Bán', 'Tồn Kho'],
@@ -82,9 +107,9 @@ export default async function reportsRoutes(fastify: FastifyInstance) {
    * 1. POST /generate: Generate JSON report data for UI preview
    */
   fastify.post('/generate', async (request: any, reply) => {
-    const { type = 'daily_procurement' } = request.body || {};
+    const { type = 'daily_procurement', store_id } = request.body || {};
     const db = getDb();
-    const data = await getReportData(type, db);
+    const data = await getReportData(type, db, store_id);
 
     return {
       success: true,
@@ -100,9 +125,9 @@ export default async function reportsRoutes(fastify: FastifyInstance) {
    * 2. GET /export/excel & /export/xlsx: Stream formatted Excel file
    */
   const exportExcelHandler = async (request: any, reply: any) => {
-    const { type = 'daily_procurement' } = request.query as { type?: string };
+    const { type = 'daily_procurement', store_id } = request.query as { type?: string; store_id?: string } || {};
     const db = getDb();
-    const report = await getReportData(type, db);
+    const report = await getReportData(type, db, store_id);
 
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'Farmers Market AI Procurement Copilot';
@@ -192,9 +217,9 @@ export default async function reportsRoutes(fastify: FastifyInstance) {
    * 3. GET /export/csv: Stream CSV file
    */
   fastify.get('/export/csv', async (request: any, reply) => {
-    const { type = 'daily_procurement' } = request.query as { type?: string };
+    const { type = 'daily_procurement', store_id } = request.query as { type?: string; store_id?: string } || {};
     const db = getDb();
-    const report = await getReportData(type, db);
+    const report = await getReportData(type, db, store_id);
 
     const csvData = report.rows.map((rowObj: any) => {
       const obj: Record<string, any> = {};

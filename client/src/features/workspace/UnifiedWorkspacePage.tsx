@@ -33,6 +33,7 @@ import { StoreDrawerForm } from '@/components/forms/StoreDrawerForm';
 import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import { MapPreviewModal } from '@/components/ui/MapPreviewModal';
 import { SegmentedNavigation } from '@/components/ui/SegmentedNavigation';
+import { TableSkeleton } from '@/components/ui/loading';
 import { useDirectionalTab } from '@/lib/motion';
 import { sanitizeUrl } from '@/lib/utils';
 import { LinkTableRow } from './components/LinkTableRow';
@@ -75,15 +76,24 @@ export const UnifiedWorkspacePage: React.FC = () => {
     return () => clearTimeout(handler);
   }, [search]);
 
-  // Close category dropdown on click outside
+  // Close category dropdown on click outside or Escape
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
         setCategoryDropdownOpen(false);
       }
     };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setCategoryDropdownOpen(false);
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   // Inline Password reveal state
@@ -678,7 +688,9 @@ export const UnifiedWorkspacePage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.04] dark:divide-white/5">
-                {filteredLinks.length > 0 ? (
+                {loading ? (
+                  <TableSkeleton colSpan={7} rows={6} />
+                ) : filteredLinks.length > 0 ? (
                   filteredLinks.map((item) => (
                     <LinkTableRow
                       key={item.id}
@@ -713,14 +725,32 @@ export const UnifiedWorkspacePage: React.FC = () => {
                             {search ? `Thử tìm với từ khoá khác` : 'Nhấn «Thêm Link» để bắt đầu'}
                           </p>
                         </div>
-                        {!search && (
+                        {!search ? (
+                          <div className="flex items-center gap-2 mt-1 flex-wrap justify-center">
+                            <button
+                              type="button"
+                              onClick={handleOpenAdd}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-semibold bg-[#0066cc] text-white hover:bg-[#0071e3] active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,102,204,0.35)] cursor-pointer"
+                            >
+                              <SFPlus size={14} />
+                              Thêm Link đầu tiên
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => window.dispatchEvent(new CustomEvent('fm:open-import'))}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-semibold bg-white dark:bg-white/10 text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/15 border border-black/10 dark:border-white/15 active:scale-95 transition-all cursor-pointer"
+                            >
+                              <SFArrowDownDocument size={14} className="text-emerald-600 dark:text-emerald-400" />
+                              Nhập từ Excel
+                            </button>
+                          </div>
+                        ) : (
                           <button
                             type="button"
-                            onClick={handleOpenAdd}
-                            className="mt-1 inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-semibold bg-[#0066cc] text-white hover:bg-[#0071e3] active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,102,204,0.35)]"
+                            onClick={() => setSearch('')}
+                            className="mt-1 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] font-medium bg-black/5 dark:bg-white/10 text-[#1d1d1f] dark:text-white hover:bg-black/10 active:scale-95 transition-all cursor-pointer"
                           >
-                            <SFPlus size={14} />
-                            Thêm Link đầu tiên
+                            Xóa bộ lọc tìm kiếm
                           </button>
                         )}
                       </div>
@@ -752,7 +782,9 @@ export const UnifiedWorkspacePage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.04] dark:divide-white/5">
-                {filteredAccounts.length > 0 ? (
+                {loading ? (
+                  <TableSkeleton colSpan={7} rows={6} />
+                ) : filteredAccounts.length > 0 ? (
                   filteredAccounts.map((item) => (
                     <AccountTableRow
                       key={item.id}
@@ -788,14 +820,32 @@ export const UnifiedWorkspacePage: React.FC = () => {
                             {search ? 'Thử tìm với từ khoá khác' : 'Lưu trữ thông tin đăng nhập và mật khẩu an toàn'}
                           </p>
                         </div>
-                        {!search && (
+                        {!search ? (
+                          <div className="flex items-center gap-2 mt-1 flex-wrap justify-center">
+                            <button
+                              type="button"
+                              onClick={handleOpenAdd}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-semibold bg-[#0066cc] text-white hover:bg-[#0071e3] active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,102,204,0.35)] cursor-pointer"
+                            >
+                              <SFPlus size={14} />
+                              Thêm Tài khoản
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => window.dispatchEvent(new CustomEvent('fm:open-import'))}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-semibold bg-white dark:bg-white/10 text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/15 border border-black/10 dark:border-white/15 active:scale-95 transition-all cursor-pointer"
+                            >
+                              <SFArrowDownDocument size={14} className="text-emerald-600 dark:text-emerald-400" />
+                              Nhập từ Excel
+                            </button>
+                          </div>
+                        ) : (
                           <button
                             type="button"
-                            onClick={handleOpenAdd}
-                            className="mt-1 inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-semibold bg-[#0066cc] text-white hover:bg-[#0071e3] active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,102,204,0.35)]"
+                            onClick={() => setSearch('')}
+                            className="mt-1 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] font-medium bg-black/5 dark:bg-white/10 text-[#1d1d1f] dark:text-white hover:bg-black/10 active:scale-95 transition-all cursor-pointer"
                           >
-                            <SFPlus size={14} />
-                            Thêm Tài khoản
+                            Xóa bộ lọc tìm kiếm
                           </button>
                         )}
                       </div>
@@ -826,7 +876,9 @@ export const UnifiedWorkspacePage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-black/[0.04] dark:divide-white/5">
-                {filteredStores.length > 0 ? (
+                {loading ? (
+                  <TableSkeleton colSpan={6} rows={6} />
+                ) : filteredStores.length > 0 ? (
                   filteredStores.map((item) => (
                     <StoreTableRow
                       key={item.id}
@@ -861,14 +913,32 @@ export const UnifiedWorkspacePage: React.FC = () => {
                             {search ? 'Thử tìm theo mã CH, địa chỉ hoặc quận/huyện' : 'Danh sách hệ thống cửa hàng và vị trí Google Maps'}
                           </p>
                         </div>
-                        {!search && (
+                        {!search ? (
+                          <div className="flex items-center gap-2 mt-1 flex-wrap justify-center">
+                            <button
+                              type="button"
+                              onClick={handleOpenAdd}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-semibold bg-[#0066cc] text-white hover:bg-[#0071e3] active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,102,204,0.35)] cursor-pointer"
+                            >
+                              <SFPlus size={14} />
+                              Thêm Cửa hàng
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => window.dispatchEvent(new CustomEvent('fm:open-import'))}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-semibold bg-white dark:bg-white/10 text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/15 border border-black/10 dark:border-white/15 active:scale-95 transition-all cursor-pointer"
+                            >
+                              <SFArrowDownDocument size={14} className="text-emerald-600 dark:text-emerald-400" />
+                              Nhập từ Excel
+                            </button>
+                          </div>
+                        ) : (
                           <button
                             type="button"
-                            onClick={handleOpenAdd}
-                            className="mt-1 inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-semibold bg-[#0066cc] text-white hover:bg-[#0071e3] active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,102,204,0.35)]"
+                            onClick={() => setSearch('')}
+                            className="mt-1 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] font-medium bg-black/5 dark:bg-white/10 text-[#1d1d1f] dark:text-white hover:bg-black/10 active:scale-95 transition-all cursor-pointer"
                           >
-                            <SFPlus size={14} />
-                            Thêm Cửa hàng
+                            Xóa bộ lọc tìm kiếm
                           </button>
                         )}
                       </div>

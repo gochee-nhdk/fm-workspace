@@ -3,7 +3,7 @@ import { getDb } from '../db/connection.js';
 import { verifyToken } from '../middleware/auth.js';
 import { auditLog } from '../middleware/audit.js';
 import { v4 as uuidv4 } from 'uuid';
-import { calculateAverageDailySales, calculateDaysOfCover } from '../services/calculations.js';
+import { calculateAverageDailySales, calculateAverageDailySalesBatch, calculateDaysOfCover } from '../services/calculations.js';
 
 export default async function transfersRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', verifyToken);
@@ -61,32 +61,46 @@ export default async function transfersRoutes(fastify: FastifyInstance) {
       return reply.code(400).send({ success: false, message: 'Kho đi và kho đến không thể trùng nhau.' });
     }
 
+    // Verify stores exist
+    const fromStore = await db.prepare('SELECT id, name FROM stores WHERE id = ?').get(from_store_id);
+    const toStore = await db.prepare('SELECT id, name FROM stores WHERE id = ?').get(to_store_id);
+    if (!fromStore || !toStore) {
+      return reply.code(400).send({ success: false, message: 'Kho đi hoặc kho đến không tồn tại trong hệ thống.' });
+    }
+
     for (const item of items) {
+      if (!item.product_id) {
+        return reply.code(400).send({ success: false, message: 'Mỗi sản phẩm phải có product_id.' });
+      }
       const qty = Number(item.quantity);
       if (isNaN(qty) || qty <= 0) {
         return reply.code(400).send({ success: false, message: 'Số lượng điều chuyển của mỗi sản phẩm phải lớn hơn 0.' });
       }
     }
 
-    await db.transaction(async (tx) => {
-      await tx.prepare(`
-        INSERT INTO stock_transfers (id, transfer_number, from_store_id, to_store_id, status, requested_by, notes, created_at, updated_at)
-        VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?)
-      `).run(id, transferNumber, from_store_id, to_store_id, request.user?.id || 'admin', notes || '', now, now);
+    try {
+      await db.transaction(async (tx) => {
+        await tx.prepare(`
+          INSERT INTO stock_transfers (id, transfer_number, from_store_id, to_store_id, status, requested_by, notes, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 'draft', ?, ?, ?, ?)
+        `).run(id, transferNumber, from_store_id, to_store_id, request.user?.id || 'admin', notes || '', now, now);
 
-      const insertItem = tx.prepare(`
-        INSERT INTO transfer_items (id, transfer_id, product_id, quantity, reason)
-        VALUES (?, ?, ?, ?, ?)
-      `);
+        const insertItem = tx.prepare(`
+          INSERT INTO transfer_items (id, transfer_id, product_id, quantity, reason)
+          VALUES (?, ?, ?, ?, ?)
+        `);
 
-      for (const item of items) {
-        await insertItem.run(uuidv4(), id, item.product_id, Number(item.quantity), item.reason || 'Cân đối tồn kho');
-      }
-    });
+        for (const item of items) {
+          await insertItem.run(uuidv4(), id, item.product_id, Number(item.quantity), item.reason || 'Cân đối tồn kho');
+        }
+      });
 
-    auditLog(request, 'CREATE_TRANSFER', 'stock_transfers', id, null, { transferNumber, totalItems: items.length });
+      auditLog(request, 'CREATE_TRANSFER', 'stock_transfers', id, null, { transferNumber, totalItems: items.length });
 
-    return { success: true, data: { id, transferNumber, message: 'Đã tạo yêu cầu điều chuyển.' } };
+      return { success: true, data: { id, transferNumber, message: 'Đã tạo yêu cầu điều chuyển.' } };
+    } catch (err: any) {
+      return reply.code(400).send({ success: false, message: `Lỗi tạo yêu cầu điều chuyển: ${err.message}` });
+    }
   });
 
   /**
@@ -129,6 +143,13 @@ export default async function transfersRoutes(fastify: FastifyInstance) {
       HAVING COUNT(store_id) >= 2
     `).all()) as any[];
 
+    if (!candidateProducts.length) {
+      return { success: true, data: [] };
+    }
+
+    // Preload batch sales to eliminate N+1 queries across stores and products
+    const adsMap = await calculateAverageDailySalesBatch(30);
+
     const suggestions: any[] = [];
 
     for (const { product_id } of candidateProducts) {
@@ -140,12 +161,12 @@ export default async function transfersRoutes(fastify: FastifyInstance) {
         WHERE i.product_id = ?
       `).all(product_id)) as any[];
 
-      // Calculate Days of Cover for each store
-      const analyzedStores = await Promise.all(storeInventories.map(async (inv) => {
-        const ads = await calculateAverageDailySales(product_id, inv.store_id, 30);
+      // Calculate Days of Cover for each store using batch adsMap
+      const analyzedStores = storeInventories.map((inv) => {
+        const ads = adsMap.get(`${product_id}_${inv.store_id}`) || 0;
         const doc = calculateDaysOfCover(inv.available_qty, ads);
         return { ...inv, ads, doc };
-      }));
+      });
 
       // Find excess stores (doc > 20 and available_qty >= 10)
       const excess = analyzedStores.filter((s) => s.doc > 20 && s.available_qty >= 10);
@@ -185,7 +206,7 @@ export default async function transfersRoutes(fastify: FastifyInstance) {
   });
 
   /**
-   * 5. PUT /:id/status: Transition status with automated inventory balance adjustments
+   * 5. PUT /:id/status: Transition status with automated inventory balance adjustments & validation
    */
   fastify.put('/:id/status', async (request: any, reply) => {
     const { status } = request.body || {};
@@ -214,56 +235,77 @@ export default async function transfersRoutes(fastify: FastifyInstance) {
 
     const items = (await db.prepare('SELECT * FROM transfer_items WHERE transfer_id = ?').all(id)) as any[];
 
-    await db.transaction(async (tx) => {
-      // 1. If moving to 'in_transit', deduct stock from source store
-      if (status === 'in_transit' && transfer.status === 'draft') {
-        const deductStmt = tx.prepare(`
-          UPDATE inventory
-          SET available_qty = MAX(0, available_qty - ?),
-              quantity = MAX(0, quantity - ?),
-              updated_at = ?
-          WHERE store_id = ? AND product_id = ?
-        `);
-        for (const item of items) {
-          await deductStmt.run(item.quantity, item.quantity, now, transfer.from_store_id, item.product_id);
+    try {
+      await db.transaction(async (tx) => {
+        // 1. If moving to 'in_transit', check stock sufficiency and deduct from source store
+        if (status === 'in_transit' && transfer.status === 'draft') {
+          for (const item of items) {
+            const inv = (await tx.prepare(`
+              SELECT i.available_qty, p.name, p.sku_code
+              FROM inventory i
+              JOIN products p ON i.product_id = p.id
+              WHERE i.store_id = ? AND i.product_id = ?
+            `).get(transfer.from_store_id, item.product_id)) as any;
+
+            const currentStock = Number(inv?.available_qty || 0);
+            if (currentStock < item.quantity) {
+              throw new Error(`Kho xuất không đủ tồn kho khả dụng cho sản phẩm ${inv?.sku_code || item.product_id} (${inv?.name || ''}). Cần chuyển: ${item.quantity}, hiện có: ${currentStock}.`);
+            }
+          }
+
+          const deductStmt = tx.prepare(`
+            UPDATE inventory
+            SET available_qty = MAX(0, available_qty - ?),
+                quantity = MAX(0, quantity - ?),
+                updated_at = ?
+            WHERE store_id = ? AND product_id = ?
+          `);
+          for (const item of items) {
+            await deductStmt.run(item.quantity, item.quantity, now, transfer.from_store_id, item.product_id);
+          }
         }
-      }
 
-      // 2. If moving to 'received', add stock to destination store (must have been in_transit)
-      if (status === 'received' && transfer.status === 'in_transit') {
-        const addStmt = tx.prepare(`
-          INSERT INTO inventory (id, store_id, product_id, quantity, available_qty, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?)
-          ON CONFLICT(store_id, product_id) DO UPDATE SET
-            quantity = quantity + excluded.quantity,
-            available_qty = available_qty + excluded.available_qty,
-            updated_at = excluded.updated_at
-        `);
-        for (const item of items) {
-          await addStmt.run(uuidv4(), transfer.to_store_id, item.product_id, item.quantity, item.quantity, now);
+        // 2. If moving to 'received', add stock to destination store (must have been in_transit)
+        if (status === 'received' && transfer.status === 'in_transit') {
+          const addStmt = tx.prepare(`
+            INSERT INTO inventory (id, store_id, product_id, quantity, available_qty, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(store_id, product_id) DO UPDATE SET
+              quantity = quantity + excluded.quantity,
+              available_qty = available_qty + excluded.available_qty,
+              updated_at = excluded.updated_at
+          `);
+          for (const item of items) {
+            await addStmt.run(uuidv4(), transfer.to_store_id, item.product_id, item.quantity, item.quantity, now);
+          }
         }
-      }
 
-      // 3. If cancelling from in_transit, rollback deducted inventory back to source store
-      if (status === 'cancelled' && transfer.status === 'in_transit') {
-        const rollbackStmt = tx.prepare(`
-          INSERT INTO inventory (id, store_id, product_id, quantity, available_qty, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?)
-          ON CONFLICT(store_id, product_id) DO UPDATE SET
-            quantity = quantity + excluded.quantity,
-            available_qty = available_qty + excluded.available_qty,
-            updated_at = excluded.updated_at
-        `);
-        for (const item of items) {
-          await rollbackStmt.run(uuidv4(), transfer.from_store_id, item.product_id, item.quantity, item.quantity, now);
+        // 3. If cancelling from in_transit, rollback deducted inventory back to source store
+        if (status === 'cancelled' && transfer.status === 'in_transit') {
+          const rollbackStmt = tx.prepare(`
+            INSERT INTO inventory (id, store_id, product_id, quantity, available_qty, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(store_id, product_id) DO UPDATE SET
+              quantity = quantity + excluded.quantity,
+              available_qty = available_qty + excluded.available_qty,
+              updated_at = excluded.updated_at
+          `);
+          for (const item of items) {
+            await rollbackStmt.run(uuidv4(), transfer.from_store_id, item.product_id, item.quantity, item.quantity, now);
+          }
         }
-      }
 
-      await tx.prepare('UPDATE stock_transfers SET status = ?, updated_at = ? WHERE id = ?').run(status, now, id);
-    });
+        await tx.prepare('UPDATE stock_transfers SET status = ?, updated_at = ? WHERE id = ?').run(status, now, id);
+      });
 
-    auditLog(request, 'UPDATE_TRANSFER_STATUS', 'stock_transfers', id, transfer, { status });
+      auditLog(request, 'UPDATE_TRANSFER_STATUS', 'stock_transfers', id, transfer, { status });
 
-    return { success: true, message: `Đã cập nhật trạng thái điều chuyển sang ${status}.` };
+      return { success: true, message: `Đã cập nhật trạng thái điều chuyển sang ${status}.` };
+    } catch (err: any) {
+      return reply.code(400).send({
+        success: false,
+        message: err.message || 'Không thể cập nhật trạng thái điều chuyển.'
+      });
+    }
   });
 }

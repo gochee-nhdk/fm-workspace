@@ -872,9 +872,11 @@ ${safeContent}
 
   // Regular authenticated notification routes (scoped to current user or admin)
   fastify.get('/', { preHandler: verifyToken }, async (request: any, reply) => {
-    const { page = 1, limit = 10 } = request.query;
+    const { page = 1, limit = 10 } = request.query || {};
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit, 10) || 10));
+    const offset = (pageNum - 1) * limitNum;
     const db = getDb();
-    const offset = (Number(page) - 1) * Number(limit);
     const userId = request.user?.id;
     const isAdmin = request.user?.role === 'admin';
     
@@ -884,14 +886,14 @@ ${safeContent}
     if (isAdmin) {
       const countRes = (await db.prepare('SELECT COUNT(*) as total FROM notifications').get()) as any;
       count = Number(countRes?.total || 0);
-      data = await db.prepare('SELECT * FROM notifications ORDER BY created_at DESC LIMIT ? OFFSET ?').all(Number(limit), Number(offset));
+      data = await db.prepare('SELECT * FROM notifications ORDER BY created_at DESC LIMIT ? OFFSET ?').all(limitNum, offset);
     } else {
       const countRes = (await db.prepare('SELECT COUNT(*) as total FROM notifications WHERE user_id = ? OR user_id IS NULL OR user_id = "system"').get(userId)) as any;
       count = Number(countRes?.total || 0);
-      data = await db.prepare('SELECT * FROM notifications WHERE user_id = ? OR user_id IS NULL OR user_id = "system" ORDER BY created_at DESC LIMIT ? OFFSET ?').all(userId, Number(limit), Number(offset));
+      data = await db.prepare('SELECT * FROM notifications WHERE user_id = ? OR user_id IS NULL OR user_id = "system" ORDER BY created_at DESC LIMIT ? OFFSET ?').all(userId, limitNum, offset);
     }
     
-    return { success: true, data, pagination: { page: Number(page), limit: Number(limit), total: count, total_pages: Math.ceil(count / Number(limit)) } };
+    return { success: true, data, pagination: { page: pageNum, limit: limitNum, total: count, total_pages: Math.ceil(count / limitNum) } };
   });
 
   fastify.put('/:id/read', { preHandler: verifyToken }, async (request: any, reply) => {

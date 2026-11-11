@@ -14,12 +14,14 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
    */
   fastify.get('/', async (request: any, reply) => {
     const data = await getDb().prepare(`
-      SELECT * FROM system_settings 
-      WHERE key NOT IN ('gemini_api_key', 'smtp_pass', 'jwt_secret')
+      SELECT id, key, value, category, updated_by, updated_at FROM system_settings 
+      WHERE key NOT IN ('gemini_api_key', 'gemini_api_keys_pool', 'smtp_pass', 'smtp_password', 'jwt_secret', 'database_url')
         AND key NOT LIKE '%pass%'
         AND key NOT LIKE '%secret%'
         AND key NOT LIKE '%token%'
         AND key NOT LIKE '%api_key%'
+        AND key NOT LIKE '%credential%'
+        AND key NOT LIKE '%private%'
       ORDER BY category, key
     `).all();
     return { success: true, data };
@@ -37,13 +39,15 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
     const db = getDb();
     const now = new Date().toISOString();
     const userId = request.user?.id || 'admin';
+    const forbiddenKeys = ['gemini_api_key', 'gemini_api_keys_pool', 'jwt_secret', 'smtp_pass', 'smtp_password'];
 
     await db.transaction(async (tx) => {
       const updateStmt = tx.prepare('UPDATE system_settings SET value = ?, updated_by = ?, updated_at = ? WHERE key = ?');
       for (const item of settings) {
-        if (item.key !== 'gemini_api_key' && item.key !== 'jwt_secret') {
-          await updateStmt.run(String(item.value), userId, now, item.key);
+        if (!item.key || forbiddenKeys.includes(item.key) || item.key.includes('secret') || item.key.includes('pass')) {
+          continue; // Protected keys cannot be overwritten by bulk update
         }
+        await updateStmt.run(String(item.value), userId, now, item.key);
       }
     });
 
@@ -84,9 +88,9 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
   fastify.get('/gemini-key-status', getGeminiStatusHandler);
 
   /**
-   * GET /gemini-keys-pool: Get list of configured Gemini API keys (masked for security)
+   * GET /gemini-keys-pool: Get list of configured Gemini API keys (masked for security, ADMIN only)
    */
-  fastify.get('/gemini-keys-pool', async (request: any, reply) => {
+  fastify.get('/gemini-keys-pool', { preHandler: requireRole('admin') }, async (request: any, reply) => {
     const db = getDb();
     const poolSetting = (await db.prepare("SELECT value FROM system_settings WHERE key = 'gemini_api_keys_pool'").get()) as any;
     let pool: any[] = [];
@@ -113,11 +117,11 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
       }
     }
 
-    // Mask keys before returning to UI
+    // Strictly mask keys before returning to UI - no secret leakage
     const maskedPool = pool.map((item) => ({
       ...item,
-      key: item.key ? `${item.key.substring(0, 6)}••••••••${item.key.slice(-4)}` : '',
-      rawKeyPreview: item.key ? `${item.key.substring(0, 8)}...` : '',
+      key: item.key ? `${item.key.substring(0, 4)}••••••••${item.key.slice(-4)}` : '',
+      rawKeyPreview: item.key ? `${item.key.substring(0, 4)}••••` : '',
     }));
 
     return { success: true, data: maskedPool };
@@ -239,9 +243,16 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
     if (!email || !password || !full_name) {
       return reply.code(400).send({ success: false, message: 'Vui lòng điền đầy đủ email, họ tên và mật khẩu.' });
     }
+    if (typeof password !== 'string' || password.length < 6) {
+      return reply.code(400).send({ success: false, message: 'Mật khẩu phải có độ dài tối thiểu 6 ký tự.' });
+    }
+
+    const validRoles = ['admin', 'manager', 'staff', 'merchandiser', 'viewer'];
+    const assignedRole = role && validRoles.includes(role) ? role : 'staff';
 
     const db = getDb();
-    const existing = await db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    const cleanEmail = email.toLowerCase().trim();
+    const existing = await db.prepare('SELECT id FROM users WHERE email = ?').get(cleanEmail);
     if (existing) {
       return reply.code(400).send({ success: false, message: 'Email này đã được sử dụng trong hệ thống.' });
     }
@@ -253,9 +264,9 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
     await db.prepare(`
       INSERT INTO users (id, email, full_name, password_hash, role, is_active, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-    `).run(id, email.toLowerCase().trim(), full_name.trim(), passwordHash, role || 'staff', now, now);
+    `).run(id, cleanEmail, full_name.trim(), passwordHash, assignedRole, now, now);
 
-    auditLog(request, 'CREATE_USER', 'users', id, null, { email, role });
+    auditLog(request, 'CREATE_USER', 'users', id, null, { email: cleanEmail, role: assignedRole });
     return { success: true, data: { id, message: 'Đã tạo tài khoản người dùng thành công.' } };
   });
 
@@ -268,13 +279,18 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
     const db = getDb();
     const now = new Date().toISOString();
 
-    const existing = (await db.prepare('SELECT * FROM users WHERE id = ?').get(id)) as any;
+    const existing = (await db.prepare('SELECT id, email, full_name, role, is_active, password_hash FROM users WHERE id = ?').get(id)) as any;
     if (!existing) {
       return reply.code(404).send({ success: false, message: 'Không tìm thấy người dùng.' });
     }
 
+    const validRoles = ['admin', 'manager', 'staff', 'merchandiser', 'viewer'];
+    if (role && !validRoles.includes(role)) {
+      return reply.code(400).send({ success: false, message: 'Vai trò người dùng không hợp lệ.' });
+    }
+
     let passwordHash = existing.password_hash;
-    if (password && password.trim().length >= 6) {
+    if (password && typeof password === 'string' && password.trim().length >= 6) {
       passwordHash = await argon2.hash(password.trim());
     }
 
@@ -295,7 +311,14 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
       id
     );
 
-    auditLog(request, 'UPDATE_USER', 'users', id, existing, { role, is_active });
+    // Never log raw password hash in beforeData
+    const sanitizedBefore = {
+      id: existing.id,
+      email: existing.email,
+      role: existing.role,
+      is_active: existing.is_active,
+    };
+    auditLog(request, 'UPDATE_USER', 'users', id, sanitizedBefore, { role, is_active });
     return { success: true, message: 'Đã cập nhật thông tin người dùng.' };
   });
 }

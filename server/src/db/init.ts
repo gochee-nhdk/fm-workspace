@@ -35,6 +35,14 @@ async function initDb() {
       created_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS token_blacklist (
+      id TEXT PRIMARY KEY,
+      token_hash TEXT UNIQUE NOT NULL,
+      user_id TEXT,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
     -- Master Data
     CREATE TABLE IF NOT EXISTS regions (
       id TEXT PRIMARY KEY,

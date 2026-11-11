@@ -13,6 +13,33 @@ export async function calculateAverageDailySales(productId: string, storeId: str
   return total > 0 ? total / days : 0;
 }
 
+export async function calculateAverageDailySalesBatch(days: number = 30, storeId?: string): Promise<Map<string, number>> {
+  if (days <= 0) return new Map();
+  const db = getDb();
+  let query = `
+    SELECT product_id, store_id, SUM(quantity) as total_qty
+    FROM sales 
+    WHERE sale_date >= date('now', '-' || ? || ' days')
+  `;
+  const params: any[] = [days];
+  if (storeId) {
+    query += ' AND store_id = ?';
+    params.push(storeId);
+  }
+  query += ' GROUP BY product_id, store_id';
+  try {
+    const rows = (await db.prepare(query).all(...params)) as any[];
+    const map = new Map<string, number>();
+    for (const r of rows) {
+      const total = Number(r.total_qty || 0);
+      map.set(`${r.product_id}_${r.store_id}`, total > 0 ? total / days : 0);
+    }
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
 export function calculateDaysOfCover(currentStock: number, avgDailySales: number): number {
   if (avgDailySales <= 0) return 999;
   if (currentStock <= 0) return 0;
@@ -31,7 +58,7 @@ export function calculateReorderPoint(avgDailySales: number, leadTime: number, s
   return (safeAvg * safeLead) + safeStock;
 }
 
-export async function calculateRecommendedOrderQty(productId: string, storeId: string): Promise<any> {
+export async function calculateRecommendedOrderQty(productId: string, storeId: string, preloadedSettings?: any[]): Promise<any> {
   const db = getDb();
   
   // Get supplier info (lead time, moq)
@@ -55,9 +82,9 @@ export async function calculateRecommendedOrderQty(productId: string, storeId: s
   const moq = Math.max(1, Number(productInfo?.moq) || 1);
   const orderMultiple = Math.max(1, Number(productInfo?.order_multiple) || 1);
   
-  const settings = (await db.prepare('SELECT key, value FROM system_settings').all()) as any[];
+  const settings = preloadedSettings || ((await db.prepare('SELECT key, value FROM system_settings').all()) as any[]);
   const getSetting = (key: string, def: number) => {
-    const s = settings.find(s => s.key === key);
+    const s = settings.find((item: any) => item.key === key);
     const parsed = s ? parseFloat(s.value) : def;
     return isNaN(parsed) || parsed < 0 ? def : parsed;
   };
