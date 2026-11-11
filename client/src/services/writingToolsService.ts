@@ -257,7 +257,7 @@ const dynamicModelCache = new Map<string, { models: string[]; timestamp: number 
 export const discoverBestFlashModels = async (apiKey: string): Promise<string[]> => {
   const cleanKey = apiKey.trim();
   if (!cleanKey || cleanKey.includes('••••')) {
-    return ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    return ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite'];
   }
 
   // Tận dụng cache ngắn hạn (10 phút) tránh gọi thừa
@@ -268,32 +268,29 @@ export const discoverBestFlashModels = async (apiKey: string): Promise<string[]>
 
   const fallbackFlashModels = [
     'gemini-2.0-flash',
-    'gemini-2.5-flash',
     'gemini-1.5-flash',
     'gemini-2.0-flash-lite',
   ];
 
   try {
-    for (const apiVer of ['v1beta', 'v1']) {
-      const res = await fetch(`https://generativelanguage.googleapis.com/${apiVer}/models?key=${cleanKey}`);
-      if (res.ok) {
-        const data = await res.json();
-        const models: any[] = data.models || [];
-        const supported = models
-          .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
-          .map((m) => m.name?.replace(/^models\//, ''))
-          .filter(Boolean);
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${cleanKey}`);
+    if (res.ok) {
+      const data = await res.json();
+      const models: any[] = data.models || [];
+      const supported = models
+        .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
+        .map((m) => m.name?.replace(/^models\//, ''))
+        .filter((name: string) => Boolean(name) && !name.includes('2.5') && !name.includes('preview') && !name.includes('pro'));
 
-        if (supported.length > 0) {
-          const sorted = sortGeminiModelsNewestFirst(supported);
-          dynamicModelCache.set(cleanKey, { models: sorted, timestamp: Date.now() });
-          try {
-            if (sorted[0]) {
-              localStorage.setItem('gemini_preferred_model', sorted[0]);
-            }
-          } catch (_) {}
-          return sorted;
-        }
+      if (supported.length > 0) {
+        const sorted = sortGeminiModelsNewestFirst(supported);
+        dynamicModelCache.set(cleanKey, { models: sorted, timestamp: Date.now() });
+        try {
+          if (sorted[0]) {
+            localStorage.setItem('gemini_preferred_model', sorted[0]);
+          }
+        } catch (_) {}
+        return sorted;
       }
     }
   } catch (_) {

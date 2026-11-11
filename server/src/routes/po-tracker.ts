@@ -90,8 +90,9 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
     let fileName = 'po-document.pdf';
     let mimeType = 'application/pdf';
     let apiKeys: string[] = [];
+    let textContent = '';
 
-    // Check if body was sent as JSON (base64 DataURL or direct base64)
+    // Check if body was sent as JSON (base64 DataURL, direct base64, or digital text)
     if (request.body && typeof request.body === 'object') {
       const {
         fileDataUrl,
@@ -100,8 +101,13 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
         file,
         fileName: bFileName,
         mimeType: bMime,
-        apiKeys: bKeys
+        apiKeys: bKeys,
+        textContent: bText,
+        digitalText: bDigitalText,
       } = request.body;
+
+      if (bText && typeof bText === 'string') textContent = bText;
+      else if (bDigitalText && typeof bDigitalText === 'string') textContent = bDigitalText;
 
       const rawUrl = fileDataUrl || dataUrl || base64 || file;
       if (rawUrl && typeof rawUrl === 'string') {
@@ -126,7 +132,7 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
     }
 
     // Fall back to multipart streaming if not JSON
-    if (!base64Data && request.file) {
+    if (!base64Data && !textContent && request.file) {
       try {
         const data = await request.file();
         if (data) {
@@ -142,12 +148,12 @@ export default async function poTrackerRoutes(fastify: FastifyInstance) {
       } catch (_) {}
     }
 
-    if (!base64Data) {
-      return reply.code(400).send({ success: false, message: 'Không tìm thấy dữ liệu tệp được tải lên.' });
+    if (!base64Data && !textContent) {
+      return reply.code(400).send({ success: false, message: 'Không tìm thấy dữ liệu tệp hoặc văn bản được tải lên.' });
     }
 
     try {
-      const extractedData = await geminiService.extractPOFromPdf(base64Data, fileName, mimeType, apiKeys);
+      const extractedData = await geminiService.extractPOFromPdf(base64Data, fileName, mimeType, apiKeys, textContent);
       return { success: true, data: { ...extractedData, pdf_file_name: fileName } };
     } catch (error: any) {
       return reply.code(500).send({

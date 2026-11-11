@@ -222,6 +222,17 @@ const serverModelCache = new Map<string, { models: string[]; timestamp: number }
 
 export function sortGeminiModelsNewestFirst(models: string[]): string[] {
   return [...models].sort((a, b) => {
+    // Ưu tiên cao nhất cho gemini-2.0-flash và gemini-1.5-flash tốc độ cao
+    const isA20 = a.toLowerCase() === 'gemini-2.0-flash';
+    const isB20 = b.toLowerCase() === 'gemini-2.0-flash';
+    if (isA20 && !isB20) return -1;
+    if (!isA20 && isB20) return 1;
+
+    const isA15 = a.toLowerCase() === 'gemini-1.5-flash';
+    const isB15 = b.toLowerCase() === 'gemini-1.5-flash';
+    if (isA15 && !isB15) return -1;
+    if (!isA15 && isB15) return 1;
+
     const extractVersion = (name: string): number => {
       const match = name.match(/gemini-(\d+(?:\.\d+)?)/i) || name.match(/(\d+(?:\.\d+)?)/);
       return match ? parseFloat(match[1]) : 0;
@@ -229,7 +240,7 @@ export function sortGeminiModelsNewestFirst(models: string[]): string[] {
     const verA = extractVersion(a);
     const verB = extractVersion(b);
     if (verB !== verA) {
-      return verB - verA; // Ưu tiên phiên bản cao nhất trước
+      return verB - verA;
     }
     const isFlashA = a.toLowerCase().includes('flash') ? 1 : 0;
     const isFlashB = b.toLowerCase().includes('flash') ? 1 : 0;
@@ -243,7 +254,7 @@ export function sortGeminiModelsNewestFirst(models: string[]): string[] {
 export async function discoverBestGeminiModels(apiKey: string): Promise<string[]> {
   const cleanKey = apiKey.trim();
   if (!cleanKey || cleanKey.includes('••••')) {
-    return ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    return ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite'];
   }
 
   const cached = serverModelCache.get(cleanKey);
@@ -252,29 +263,24 @@ export async function discoverBestGeminiModels(apiKey: string): Promise<string[]
   }
 
   const fallback = [
-    'gemini-2.5-flash',
     'gemini-2.0-flash',
     'gemini-1.5-flash',
     'gemini-2.0-flash-lite',
-    'gemini-2.5-pro',
-    'gemini-1.5-pro',
   ];
 
   try {
-    for (const apiVer of ['v1beta', 'v1']) {
-      const res = await fetch(`https://generativelanguage.googleapis.com/${apiVer}/models?key=${cleanKey}`);
-      if (res.ok) {
-        const data: any = await res.json();
-        const serverModels = (data.models || [])
-          .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
-          .map((m: any) => m.name?.replace(/^models\//, ''))
-          .filter(Boolean);
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${cleanKey}`);
+    if (res.ok) {
+      const data: any = await res.json();
+      const serverModels = (data.models || [])
+        .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+        .map((m: any) => m.name?.replace(/^models\//, ''))
+        .filter((name: string) => Boolean(name) && !name.includes('2.5') && !name.includes('preview') && !name.includes('pro'));
 
-        if (serverModels.length > 0) {
-          const sorted = sortGeminiModelsNewestFirst(serverModels);
-          serverModelCache.set(cleanKey, { models: sorted, timestamp: Date.now() });
-          return sorted;
-        }
+      if (serverModels.length > 0) {
+        const sorted = sortGeminiModelsNewestFirst(serverModels);
+        serverModelCache.set(cleanKey, { models: sorted, timestamp: Date.now() });
+        return sorted;
       }
     }
   } catch (_) {}
@@ -285,7 +291,7 @@ export async function discoverBestGeminiModels(apiKey: string): Promise<string[]
 export class GeminiService {
   private ai: GoogleGenAI | null = null;
   private currentApiKey: string | null = null;
-  private model = 'gemini-2.5-flash';
+  private model = 'gemini-2.0-flash';
 
   constructor() {
     // Initial sync fallback with environment variable
@@ -326,10 +332,10 @@ export class GeminiService {
         this.currentApiKey = apiKey.trim();
         this.ai = new GoogleGenAI({ apiKey: apiKey.trim() });
       }
-      if (modelSetting && modelSetting.value) {
+      if (modelSetting && modelSetting.value && !modelSetting.value.includes('2.5')) {
         this.model = modelSetting.value;
       } else {
-        this.model = 'gemini-2.5-flash';
+        this.model = 'gemini-2.0-flash';
       }
     } catch {
       // Fallback to environment variable if system_settings table is not ready yet
@@ -403,7 +409,10 @@ export class GeminiService {
           contents: prompt,
           config: {
             systemInstruction: systemPrompt,
-            temperature: 0.1 // Low temperature for factual precision
+            temperature: 0.1,
+            thinkingConfig: {
+              thinkingBudget: 0,
+            },
           }
         });
 
@@ -418,7 +427,13 @@ export class GeminiService {
     throw new Error(`AI generation failed: ${lastError?.message || 'Không có phản hồi'}`);
   }
 
-  async extractPOFromPdf(base64Data: string, fileName: string, mimeType = 'application/pdf', clientKeys: string[] = []): Promise<any> {
+  async extractPOFromPdf(
+    base64Data?: string,
+    fileName: string = 'po-document.pdf',
+    mimeType = 'application/pdf',
+    clientKeys: string[] = [],
+    textContent?: string
+  ): Promise<any> {
     const dbCandidateKeys: string[] = [];
     try {
       const db = getDb();
@@ -456,81 +471,92 @@ export class GeminiService {
 
     const effectiveMime = mimeType && mimeType.includes('/') ? mimeType : (fileName.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
     const cleanBase64 = (base64Data || '').replace(/\s+/g, '');
+    const hasDigitalText = Boolean(textContent && textContent.trim().length > 50);
 
     const prompt = `Bạn là chuyên gia phân tích và bóc tách dữ liệu chứng từ Đơn mua hàng (PO - Purchase Order) của hệ thống siêu thị FARMERS MARKET (CÔNG TY TNHH THƯƠNG MẠI LARIA) và các chuỗi bán lẻ tại Việt Nam.
 
-Hãy phân tích toàn bộ nội dung tài liệu (PDF / Hình ảnh) được cung cấp và trích xuất đầy đủ, chính xác tất cả các thông tin sau theo cấu trúc JSON:
+Hãy phân tích toàn bộ nội dung tài liệu được cung cấp và trích xuất đầy đủ, chính xác tất cả các thông tin sau theo cấu trúc JSON:
 
 QUY TẮC BÓC TÁCH CHUẨN XÁC:
 1. "po_number" (Số hiệu PO / Mã đơn hàng):
-   - Lấy sau "Số hiệu chứng từ:", "Số PO", "Số đơn đặt hàng", hoặc mã 5-8 chữ số ở đầu chứng từ (ví dụ: "PO-118292", "PO-118873", "PO-118744"). Nếu chưa có tiền tố "PO-", hãy thêm "PO-". Tham khảo tên file: "${fileName}".
+   - Lấy sau "Số hiệu chứng từ:", "Số PO", "Số đơn đặt hàng", hoặc mã 5-8 chữ số ở đầu chứng từ (ví dụ: "PO-118292", "PO-118873", "PO-118744", "PO-118748"). Nếu chưa có tiền tố "PO-", hãy thêm "PO-". Tham khảo tên file: "${fileName}".
 2. "supplier_name" (Tên Nhà cung cấp / Đơn vị cung ứng):
-   - QUAN TRỌNG: "CÔNG TY TNHH THƯƠNG MẠI LARIA - FARMERS MARKET" là BÊN MUA HÀNG (Buyer), TUYỆT ĐỐI KHÔNG LẤY TÊN NÀY LÀM NHÀ CUNG CẤP!
-   - TÊN NHÀ CUNG CẤP là đơn vị nằm sau nhãn "Tên NCC:" (ví dụ: "CÔNG TY CỔ PHẦN DEVIE", "CÔNG TY TNHH BẢO MINH", "CENTRAL RETAIL").
+   - CỰC KỲ QUAN TRỌNG: "CÔNG TY TNHH THƯƠNG MẠI LARIA", "FARMERS MARKET", "HỆ THỐNG SIÊU THỊ FARMERS MARKET" là BÊN MUA HÀNG (Buyer / Đơn vị mua hàng). TUYỆT ĐỐI KHÔNG LẤY TÊN NÀY LÀM NHÀ CUNG CẤP!
+   - TÊN NHÀ CUNG CẤP là đơn vị bán hàng, nằm sau nhãn "Tên NCC:", "Nhà cung cấp:", "Vendor:", "Supplier:" (ví dụ: "CÔNG TY CỔ PHẦN DEVIE", "CÔNG TY TNHH BẢO MINH", "CENTRAL RETAIL", "CÔNG TY TNHH CENTRAL DISTRIBUTION", "LƯƠNG GIA").
 3. "supplier_code" (Mã Nhà cung cấp):
-   - Lấy sau nhãn "Mã NCC:" (ví dụ: "V0001613", "V0001834").
+   - Lấy sau nhãn "Mã NCC:" hoặc "Mã vendor:" (ví dụ: "V0001613", "V0001834").
 4. "po_date" (Ngày lập chứng từ PO):
-   - Lấy sau nhãn "Ngày chứng từ:" (ví dụ: "2/11/2026" chuẩn hóa thành "2026-11-02").
+   - Lấy sau nhãn "Ngày chứng từ:" hoặc "Ngày đặt:" (ví dụ: "2/11/2026" chuẩn hóa thành "2026-11-02", "05-Nov-2026" thành "2026-11-05").
 5. "expected_delivery_date" (Hạn giao hàng / Ngày giao dự kiến):
-   - Lấy sau nhãn "Ngày giao hàng:" (ví dụ: "5/11/2026" chuẩn hóa thành "2026-11-05").
+   - Lấy sau nhãn "Ngày giao hàng:" hoặc "Hạn giao:" (ví dụ: "5/11/2026" chuẩn hóa thành "2026-11-05").
 6. "warehouse" (Kho nhận hàng / Chi nhánh yêu cầu):
-   - Lấy sau "Chi nhánh yêu cầu:" hoặc "Địa chỉ giao hàng:" (ví dụ: "DC01 - Nơ Trang Long, 204 Nơ Trang Long, Phường Bình Thạnh, TP.HCM").
+   - Lấy sau "Chi nhánh yêu cầu:" hoặc "Địa chỉ giao hàng:" hoặc "Kho nhận:" (ví dụ: "DC01 - Nơ Trang Long, 204 Nơ Trang Long, Phường Bình Thạnh, TP.HCM").
 7. "total_value" (Tổng giá trị đơn hàng / Tổng thanh toán):
    - Lấy từ dòng "TỔNG TIỀN HÀNG" hoặc "TỔNG CỘNG TRƯỚC THUẾ VAT", là một số thực nguyên bản (bỏ các dấu phân cách chấm, phẩy). Ví dụ: 9021888 hoặc 8353600.
 8. "currency": Đơn vị tiền tệ, mặc định "VND".
-9. "notes": Người đặt hàng từ nhãn "Người đặt hàng:" (ví dụ: "Nguyễn Hùng Tiến").
+9. "notes": Người đặt hàng từ nhãn "Người đặt hàng:" (ví dụ: "Nguyễn Hùng Tiến") hoặc ghi chú chứng từ.
 10. "items" (Danh sách toàn bộ các dòng mặt hàng trong bảng ĐƠN MUA HÀNG):
     Bóc tách ĐẦY ĐỦ TẤT CẢ các dòng sản phẩm trong bảng chi tiết, tuyệt đối không bỏ sót dòng nào:
-    - "item_code": Cột "Internal Code" hoặc "Barcode/PLU" (ví dụ: "10015745").
-    - "item_name": Cột "Mặt hàng" (ví dụ: "Hạt dinh dưỡng Your SuperFood Mix nhiều loại hạt hũ 400 g").
-    - "ordered_qty": Cột "Số lượng" (kiểu số thực, ví dụ: 46).
+    - "item_code": Cột "Internal Code", "Barcode/PLU" hoặc mã SKU (ví dụ: "10015745").
+    - "item_name": Cột "Mặt hàng" hoặc "Tên sản phẩm" (ví dụ: "Hạt dinh dưỡng Your SuperFood Mix nhiều loại hạt hũ 400 g", "Bánh mì hoa cúc Harrys 500 g").
+    - "ordered_qty": Cột "Số lượng" (kiểu số thực, ví dụ: 46 hoặc 225).
     - "unit": Cột "DVT" (ví dụ: "Hũ", "Hộp", "Thùng", "Kg", "Gói", "Chai", "Lon", "Túi", "Cái").
     - "unit_price": Cột "Đơn giá chưa VAT" hoặc "Đơn giá chưa VAT sau chiết khấu" (kiểu số, ví dụ: 181600).
     - "total_price": Cột "Thành tiền chưa VAT" (kiểu số, ví dụ: 8353600).
     - "warehouse": Kho nhận nếu có (ví dụ: "DC01 - Nơ Trang Long").
 
-Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ, không bọc markdown fence, không kèm lời chào.`;
+Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ theo đúng cấu trúc, không bọc markdown fence, không kèm lời chào hay giải thích.`;
 
-    // 1. Try dynamic models for each available key
+    // Chuẩn bị parts:
+    // Tách bạch rõ luồng Text vs Vision:
+    // - Nếu tệp có Digital Text: GỬI DUY NHẤT Prompt + Digital Text (không gửi file/ảnh base64 nặng) -> giảm từ 25s xuống 1.5s!
+    // - Chỉ gửi file/ảnh base64 khi không có Digital Text (file scan thuần túy).
+    const requestParts: any[] = [{ text: prompt }];
+    if (hasDigitalText) {
+      requestParts.push({
+        text: `NỘI DUNG VĂN BẢN TRÍCH XUẤT TỪ CHỨNG TỪ (DIGITAL TEXT):\n"""\n${textContent!.slice(0, 25000)}\n"""\nHãy trích xuất đầy đủ thông tin đơn hàng và bảng danh sách mặt hàng dựa trên nội dung văn bản này.`
+      });
+    } else if (cleanBase64) {
+      requestParts.push({
+        inlineData: { mimeType: effectiveMime, data: cleanBase64 }
+      });
+    }
+
+    // 1. Try dynamic models for each available key via high-speed v1beta
     for (const key of keys) {
       if (!key || key.startsWith('sk-') || key.includes('••••')) continue;
       const cleanKey = key.trim();
       const discoveredModels = await discoverBestGeminiModels(cleanKey);
 
       for (const m of discoveredModels) {
-        for (const apiVer of ['v1beta', 'v1']) {
-          try {
-            const fetchUrl = `https://generativelanguage.googleapis.com/${apiVer}/models/${m}:generateContent?key=${cleanKey}`;
-            const isV1Beta = apiVer === 'v1beta';
+        try {
+          const fetchUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${cleanKey}`;
 
-            const res = await fetch(fetchUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{
-                  parts: [
-                    { text: prompt },
-                    { inlineData: { mimeType: effectiveMime, data: cleanBase64 } }
-                  ]
-                }],
-                generationConfig: {
-                  temperature: 0.1,
-                  maxOutputTokens: 8192,
-                  ...(isV1Beta ? { responseMimeType: 'application/json' } : {})
-                }
-              })
-            });
-
-            if (res.ok) {
-              const data: any = await res.json();
-              const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-              const parsed = safeParseAIJson(text, fileName);
-              if (parsed && (parsed.po_number || parsed.supplier_name || (parsed.items && parsed.items.length > 0))) {
-                return parsed;
+          const res = await fetch(fetchUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: requestParts }],
+              generationConfig: {
+                temperature: 0,
+                maxOutputTokens: 8192,
+                responseMimeType: 'application/json',
+                thinkingConfig: {
+                  thinkingBudget: 0,
+                },
               }
+            })
+          });
+
+          if (res.ok) {
+            const data: any = await res.json();
+            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+            const parsed = safeParseAIJson(text, fileName);
+            if (parsed && (parsed.po_number || parsed.supplier_name || (parsed.items && parsed.items.length > 0))) {
+              return parsed;
             }
-          } catch (_) {}
-        }
+          }
+        } catch (_) {}
       }
     }
 
@@ -539,15 +565,13 @@ Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ, không bọc markdown
       try {
         const response = await this.ai.models.generateContent({
           model: this.model,
-          contents: [{
-            parts: [
-              { text: prompt },
-              { inlineData: { mimeType: effectiveMime, data: cleanBase64 } }
-            ]
-          }],
+          contents: [{ parts: requestParts }],
           config: {
-            temperature: 0.1,
-            responseMimeType: 'application/json'
+            temperature: 0,
+            responseMimeType: 'application/json',
+            thinkingConfig: {
+              thinkingBudget: 0,
+            },
           }
         });
 
