@@ -1836,6 +1836,7 @@ export const QuickNoteWindow: React.FC = () => {
     }
 
     if (!targetText) {
+      savedSelectionRangeRef.current = null;
       if (editorMode === 'checklist') {
         targetText = localChecklist
           .split('\n')
@@ -1845,8 +1846,7 @@ export const QuickNoteWindow: React.FC = () => {
       } else {
         targetText = extractPlainText(localContent);
       }
-    } else {
-      savedSelectionRangeRef.current = null;
+
       // Auto-detect line rects for the whole note when no specific selection is active
       if (canvasRef.current && editorRef.current && targetText.trim()) {
         try {
@@ -1998,7 +1998,16 @@ export const QuickNoteWindow: React.FC = () => {
               frag.appendChild(b);
             }
 
-            if (startBlock && endBlock && startBlock.parentNode === editor && endBlock.parentNode === editor) {
+            const selectedText = savedRange.toString().trim();
+            const isSingleBlock = Boolean(startBlock && endBlock && startBlock === endBlock);
+            const isFullBlockSelected = isSingleBlock && (startBlock?.textContent || '').trim() === selectedText;
+
+            if (isSingleBlock && !isFullBlockSelected && !aiDraft.result.includes('\n')) {
+              // Partial text selection inside a single paragraph/line -> replace inline cleanly without wiping the whole paragraph
+              savedRange.deleteContents();
+              const textNode = document.createTextNode(aiDraft.result);
+              savedRange.insertNode(textNode);
+            } else if (startBlock && endBlock && startBlock.parentNode === editor && endBlock.parentNode === editor) {
               const blocksToRemove: Node[] = [];
               let curr: Node | null = startBlock;
               while (curr) {

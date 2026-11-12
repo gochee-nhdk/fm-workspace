@@ -77,28 +77,30 @@ export default async function aiRoutes(fastify: FastifyInstance) {
         'gemini-1.5-flash',
       ];
 
-      const baseInstruction = 'YÊU CẦU BẮT BUỘC: CHỈ trả về duy nhất kết quả câu văn/đoạn văn sau khi xử lý. Tuyệt đối KHÔNG kèm theo lời giải thích, KHÔNG tiêu đề, KHÔNG lời chào, KHÔNG nội dung lan man ngoài ngữ cảnh gốc.';
+      const baseInstruction = 'YÊU CẦU BẮT BUỘC: CHỈ trả về duy nhất kết quả câu văn/đoạn văn sau khi xử lý. Tuyệt đối KHÔNG kèm theo lời giải thích, KHÔNG tiêu đề, KHÔNG lời chào/kết, KHÔNG nội dung lan man ngoài ngữ cảnh gốc.';
 
       let prompt = '';
       if (action === 'summarize') {
-        prompt = `Hãy tóm tắt nội dung sau thành các ý ngắn gọn, súc tích bằng tiếng Việt. ${baseInstruction}\n\nNội dung cần tóm tắt:\n${text}`;
+        prompt = `Hãy tóm tắt cô đọng đúng bản chất nội dung sau bằng tiếng Việt, giữ lại các thông tin cốt lõi (Ai, làm gì, khi nào, số lượng, lưu ý chính), không lan man. ${baseInstruction}\n\nNội dung cần tóm tắt:\n${text}`;
       } else if (action === 'keypoints') {
-        prompt = `Hãy rút ra các ý chính quan trọng từ văn bản sau (đánh số 1, 2, 3...) bằng tiếng Việt. ${baseInstruction}\n\nVăn bản:\n${text}`;
+        prompt = `Hãy rút ra các ý chính / luận điểm mấu chốt quan trọng nhất từ văn bản sau bằng tiếng Việt, đánh số thứ tự 1, 2, 3... rõ ràng, ngắn gọn, đi thẳng vào trọng tâm. ${baseInstruction}\n\nVăn bản:\n${text}`;
       } else if (action === 'professional') {
-        prompt = `Hãy viết lại nội dung sau theo phong cách lịch sự, chuyên nghiệp, chuẩn mực doanh nghiệp bằng tiếng Việt. Bám sát nội dung gốc, không bịa đặt thêm các thông tin không liên quan. ${baseInstruction}\n\nNội dung gốc:\n${text}`;
+        prompt = `Hãy viết lại văn bản sau chuẩn văn phong công vụ, thương mại lịch sự, tôn trọng người đọc bằng tiếng Việt, thay thế toàn bộ từ ngữ suồng sã, teencode, văn nói, giữ nguyên đầy đủ ý và tính chính xác của thông tin gốc. ${baseInstruction}\n\nNội dung gốc:\n${text}`;
       } else if (action === 'concise') {
-        prompt = `Hãy viết lại nội dung sau thật ngắn gọn, cô đọng, súc tích bằng tiếng Việt nhưng giữ nguyên toàn bộ ý nghĩa. ${baseInstruction}\n\nNội dung gốc:\n${text}`;
+        prompt = `Hãy viết lại văn bản sau thật ngắn gọn, súc tích bằng tiếng Việt. Giản lược tối đa các từ đệm, trạng từ thừa, cụm từ lặp lại, giữ nguyên 100% cốt lõi thông tin. ${baseInstruction}\n\nNội dung gốc:\n${text}`;
+      } else if (action === 'proofread') {
+        prompt = `Hãy sửa đúng chính tả tiếng Việt, chuẩn hóa dấu thanh, dấu câu, ngắt câu, viết hoa đầu câu trong văn bản sau, mà KHÔNG làm thay đổi cấu trúc hay ý nghĩa câu. ${baseInstruction}\n\nĐoạn văn gốc:\n${text}`;
       } else if (action === 'expand') {
-        prompt = `Hãy phát triển và mở rộng câu văn/đoạn văn sau một cách tự nhiên, mạch lạc, đầy đủ ý tứ bằng tiếng Việt, bám sát đúng chủ đề và nội dung ban đầu của người dùng, không thêm các quy trình dự án máy móc không liên quan. ${baseInstruction}\n\nNội dung gốc:\n${text}`;
+        prompt = `Hãy phát triển câu từ tự nhiên, mạch lạc, bám sát ngữ cảnh thực tế của câu gốc bằng tiếng Việt (loại bỏ hoàn toàn mẫu câu máy móc vô nghĩa như quy trình dự án chung chung). ${baseInstruction}\n\nNội dung gốc:\n${text}`;
       } else if (action === 'action_items') {
-        prompt = `Hãy chuyển văn bản sau thành danh sách việc cần làm (Checklist) với cú pháp '- [ ] ' ở đầu mỗi dòng. ${baseInstruction}\n\nVăn bản:\n${text}`;
+        prompt = `Hãy trích xuất chính xác các hành động/đầu việc cần thực hiện từ văn bản sau thành định dạng checklist '- [ ] [Hành động cụ thể]'. ${baseInstruction}\n\nVăn bản:\n${text}`;
       } else if (action === 'translate_en') {
-        prompt = `Hãy dịch chính xác văn bản sau sang tiếng Anh tự nhiên. ${baseInstruction}\n\nVăn bản gốc:\n${text}`;
+        prompt = `Hãy dịch sang tiếng Anh chuẩn, tự nhiên, chính xác cả về thuật ngữ kinh doanh/thu mua và đời sống. ${baseInstruction}\n\nVăn bản gốc:\n${text}`;
       } else if (action === 'translate_vi') {
-        prompt = `Hãy dịch chính xác văn bản sau sang tiếng Việt tự nhiên, mượt mà. ${baseInstruction}\n\nVăn bản gốc:\n${text}`;
+        prompt = `Hãy dịch sang tiếng Việt mượt mà, thuần Việt, chuẩn ngữ pháp. ${baseInstruction}\n\nVăn bản gốc:\n${text}`;
       } else {
-        // proofread
-        prompt = `Hãy sửa toàn bộ lỗi chính tả, ngữ pháp, dấu câu và câu từ trong đoạn văn sau bằng tiếng Việt. ${baseInstruction}\n\nĐoạn văn gốc:\n${text}`;
+        // proofread fallback
+        prompt = `Hãy sửa đúng chính tả tiếng Việt, chuẩn hóa dấu thanh, dấu câu, ngắt câu, viết hoa đầu câu trong văn bản sau, mà KHÔNG làm thay đổi cấu trúc hay ý nghĩa câu. ${baseInstruction}\n\nĐoạn văn gốc:\n${text}`;
       }
 
       let lastErr: any = null;

@@ -169,20 +169,137 @@ export const setPrimaryKey = (id: string): void => {
 /**
  * Free instant translation using public Google Translate endpoint (zero auth, 100% reliable)
  */
+export const OFFLINE_VI_TO_EN_DICT: Record<string, string> = {
+  'xin chào': 'hello',
+  'cảm ơn': 'thank you',
+  'tạm biệt': 'goodbye',
+  'bút': 'pen',
+  'bút chì': 'pencil',
+  'sổ tay': 'notebook',
+  'sổ': 'notebook',
+  'báo cáo': 'report',
+  'hợp đồng': 'contract',
+  'nhà cung cấp': 'supplier',
+  'giá': 'price',
+  'đơn hàng': 'order',
+  'thanh toán': 'payment',
+  'kiểm tra': 'check',
+  'hoàn thành': 'completed',
+  'kế hoạch': 'plan',
+  'khách hàng': 'customer',
+  'sản phẩm': 'product',
+  'tồn kho': 'inventory',
+  'doanh thu': 'revenue',
+  'chi phí': 'cost',
+  'yêu cầu': 'requirement',
+  'cuộc họp': 'meeting',
+  'họp': 'meeting',
+  'gửi': 'send',
+  'nhận': 'receive',
+  'mua': 'buy',
+  'bán': 'sell',
+  'số lượng': 'quantity',
+  'chất lượng': 'quality',
+  'tiến độ': 'progress',
+  'hạn chót': 'deadline',
+  'ngày mai': 'tomorrow',
+  'hôm nay': 'today',
+  'tuần này': 'this week',
+  'tháng này': 'this month',
+};
+
+export const OFFLINE_EN_TO_VI_DICT: Record<string, string> = {
+  'hello': 'xin chào',
+  'hi': 'xin chào',
+  'thank you': 'cảm ơn',
+  'thanks': 'cảm ơn',
+  'goodbye': 'tạm biệt',
+  'bye': 'tạm biệt',
+  'pen': 'bút',
+  'pencil': 'bút chì',
+  'notebook': 'sổ tay',
+  'report': 'báo cáo',
+  'contract': 'hợp đồng',
+  'supplier': 'nhà cung cấp',
+  'price': 'giá',
+  'order': 'đơn hàng',
+  'payment': 'thanh toán',
+  'check': 'kiểm tra',
+  'completed': 'hoàn thành',
+  'plan': 'kế hoạch',
+  'customer': 'khách hàng',
+  'product': 'sản phẩm',
+  'inventory': 'tồn kho',
+  'revenue': 'doanh thu',
+  'cost': 'chi phí',
+  'requirement': 'yêu cầu',
+  'meeting': 'cuộc họp',
+  'send': 'gửi',
+  'receive': 'nhận',
+  'buy': 'mua',
+  'sell': 'bán',
+  'quantity': 'số lượng',
+  'quality': 'chất lượng',
+  'progress': 'tiến độ',
+  'deadline': 'hạn chót',
+  'tomorrow': 'ngày mai',
+  'today': 'hôm nay',
+  'this week': 'tuần này',
+  'this month': 'tháng này',
+};
+
+export const offlineDictionaryTranslate = (text: string, targetLang: 'vi' | 'en'): string => {
+  const trimmed = text.trim();
+  if (!trimmed) return text;
+  const dict = targetLang === 'en' ? OFFLINE_VI_TO_EN_DICT : OFFLINE_EN_TO_VI_DICT;
+  const lower = trimmed.toLowerCase();
+  if (dict[lower]) {
+    const res = dict[lower];
+    return trimmed[0] === trimmed[0].toUpperCase() ? res.charAt(0).toUpperCase() + res.slice(1) : res;
+  }
+  let translated = trimmed;
+  for (const [k, v] of Object.entries(dict)) {
+    const reg = new RegExp(`\\b${k}\\b`, 'gi');
+    translated = translated.replace(reg, v);
+  }
+  return translated;
+};
+
 export const freeTranslate = async (text: string, targetLang: 'vi' | 'en'): Promise<string> => {
+  const trimmed = text.trim();
+  if (!trimmed) return text;
+
+  // Primary endpoint: Google Translate single endpoint
   try {
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(trimmed)}`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error('Translation failed');
-    const data = await res.json();
-    if (Array.isArray(data) && Array.isArray(data[0])) {
-      const translated = data[0].map((item: any) => item[0]).filter(Boolean).join('');
-      if (translated && translated.trim()) return translated.trim();
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && Array.isArray(data[0])) {
+        const translated = data[0].map((item: any) => item[0]).filter(Boolean).join('');
+        if (translated && translated.trim()) return translated.trim();
+      }
     }
   } catch (e) {
-    console.warn('Free translate failed:', e);
+    console.warn('Free translate primary endpoint failed:', e);
   }
-  return text;
+
+  // Secondary endpoint: Google Translate client5 endpoint fallback
+  try {
+    const url2 = `https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=auto&tl=${targetLang}&q=${encodeURIComponent(trimmed)}`;
+    const res2 = await fetch(url2);
+    if (res2.ok) {
+      const data2 = await res2.json();
+      if (Array.isArray(data2) && data2[0]) {
+        const translated2 = typeof data2[0] === 'string' ? data2[0] : data2[0][0];
+        if (translated2 && typeof translated2 === 'string' && translated2.trim()) return translated2.trim();
+      }
+    }
+  } catch (e) {
+    console.warn('Free translate secondary endpoint failed:', e);
+  }
+
+  return offlineDictionaryTranslate(trimmed, targetLang);
 };
 
 /**
@@ -710,7 +827,7 @@ export const testAllGeminiKeys = async (
  * Intelligent local text transformer — high-quality offline fallback
  * Uses NLP-inspired heuristics to produce genuinely useful output
  */
-const localTransform = (text: string, action: WritingToolAction): string => {
+export const localTransform = (text: string, action: WritingToolAction): string => {
   const rawLines = text.split('\n');
   const lines = rawLines.map((l) => l.trim()).filter(Boolean);
 
@@ -932,27 +1049,84 @@ const localTransform = (text: string, action: WritingToolAction): string => {
       const trimmedText = text.trim();
       if (!trimmedText) return '';
       const cleanBase = localTransform(trimmedText, 'proofread');
-      const lines = cleanBase.split('\n').map((l) => l.trim()).filter(Boolean);
+      const rawLines = cleanBase.split('\n').map((l) => l.trim()).filter(Boolean);
 
-      // Mở rộng mạch lạc từng ý dựa trên chính nội dung người dùng nhập
-      const expanded = lines.map((l) => {
-        const clean = l.replace(/[.!?…]+$/, '');
-        return `${clean} (bao gồm chi tiết thông số, kiểm tra xác nhận và theo dõi tiến độ thực hiện).`;
-      });
+      const expandSingleSentence = (sentence: string): string => {
+        const clean = sentence.replace(/[.!?…]+$/, '').trim();
+        if (!clean) return '';
+        const lower = clean.toLowerCase();
+
+        // 1. Procurement / Purchasing / Orders / Supplies
+        if (/(?:mua|nhập|đặt hàng|báo giá|vật tư|thiết bị|hàng hóa|văn phòng phẩm|nhà cung cấp|ncc|hợp đồng|đơn hàng)/i.test(lower)) {
+          if (/mua|đặt/i.test(lower) && !/báo giá|khảo sát|liên hệ/i.test(lower)) {
+            return `${clean}, chủ động liên hệ nhà cung cấp uy tín để lấy báo giá cạnh tranh và kiểm tra kỹ số lượng, thông số kỹ thuật trước khi phê duyệt đặt hàng.`;
+          }
+          return `${clean}, đồng thời rà soát lại dự toán ngân sách, tiến độ giao hàng dự kiến và đảm bảo các tiêu chuẩn nghiệm thu cần thiết.`;
+        }
+
+        // 2. Inspection / Quality Control / Auditing / Checking
+        if (/(?:kiểm tra|rà soát|đánh giá|nghiệm thu|review|soát lỗi|kiểm kê|đối chiếu)/i.test(lower)) {
+          return `${clean}, đối chiếu chi tiết theo từng tiêu chí chất lượng và lập biên bản ghi nhận cụ thể các hạng mục đạt chuẩn hoặc cần khắc phục.`;
+        }
+
+        // 3. Meetings / Calls / Discussions / Contact
+        if (/(?:họp|gặp|trao đổi|liên hệ|gọi|thảo luận|thống nhất|hẹn)/i.test(lower)) {
+          return `${clean}, chuẩn bị trước nội dung trọng tâm cần trao đổi và ghi chép lại kết luận sau cuộc họp để các bên phối hợp triển khai thuận tiện.`;
+        }
+
+        // 4. Reporting / Submitting / Documentation / Planning
+        if (/(?:báo cáo|gửi|soạn|lập kế hoạch|kế hoạch|tài liệu|hồ sơ|tổng hợp)/i.test(lower)) {
+          return `${clean}, bảo đảm số liệu được cập nhật chuẩn xác, định dạng rõ ràng và gửi đến các bên liên quan đúng thời hạn quy định.`;
+        }
+
+        // 5. Daily Life / Personal / Food / Leisure / Travel
+        if (/(?:ăn|uống|cà phê|cafe|trà|cơm|bún|phở|du lịch|nghỉ ngơi|chơi|sách|xem phim)/i.test(lower)) {
+          return `${clean}, lựa chọn không gian và thời điểm phù hợp để có trải nghiệm thoải mái và trọn vẹn nhất.`;
+        }
+
+        // 6. Generic natural elaboration based on length
+        if (clean.length < 35) {
+          return `${clean}, chuẩn bị kỹ các bước cần thiết và lưu ý theo dõi để đạt kết quả tốt nhất.`;
+        }
+        return `${clean}, bảo đảm thực hiện đầy đủ các yêu cầu và cập nhật thông tin kịp thời khi có thay đổi.`;
+      };
+
+      const expanded = rawLines.map(expandSingleSentence);
       return expanded.join('\n') || cleanBase;
     }
 
     case 'action_items': {
-      const items = lines.map((l) => `- [ ] ${cleanLine(l)}`).join('\n');
+      const actionableVerbRegex = /^(?:cần|phải|hãy|nên|mua|bán|gửi|nhận|kiểm tra|rà soát|liên hệ|gọi|họp|báo cáo|hoàn thành|thực hiện|lập|soạn|xác nhận|cập nhật|theo dõi|đôn đốc|thanh toán|ký|duyệt|chuẩn bị|đặt|chuyển|xử lý|nghiệm thu|đánh giá|tìm|thảo luận|triển khai|tổng hợp|chốt|thống nhất|in|gặp|hẹn|nhắc|sửa|tạo|nộp|đăng ký|sắp xếp|check|send|buy|order|review|call|meet|update|complete|prepare|submit|contact|create|fix)\b/i;
+
+      const allLines = lines.length > 1 ? lines : splitIntoSentences(text);
+      const actionCandidates: string[] = [];
+
+      for (const line of allLines) {
+        const cleaned = cleanLine(line);
+        if (!cleaned) continue;
+
+        // Numbered line (e.g. 1. or 1)) or bullet
+        const isNumberedOrBullet = /^(?:\d+[\.\)]|[-*•])\s+/.test(line.trim());
+        // Starts with action verb or modal verb
+        const startsWithVerb = actionableVerbRegex.test(cleaned);
+
+        if (isNumberedOrBullet || startsWithVerb) {
+          actionCandidates.push(cleaned);
+        }
+      }
+
+      // If actionable items detected, use them. If none matched, use non-empty clean lines.
+      const chosenItems = actionCandidates.length > 0 ? actionCandidates : lines.map(cleanLine).filter(Boolean);
+      const items = chosenItems.map((item) => `- [ ] ${item}`).join('\n');
       return items || '- [ ] ' + text.trim();
     }
 
     case 'translate_en': {
-      return text;
+      return offlineDictionaryTranslate(text, 'en');
     }
 
     case 'translate_vi': {
-      return text;
+      return offlineDictionaryTranslate(text, 'vi');
     }
 
     default:
@@ -1009,23 +1183,23 @@ export const runWritingTool = async (
       'YÊU CẦU BẮT BUỘC: CHỈ trả về duy nhất văn bản kết quả đã xử lý. TUYỆT ĐỐI KHÔNG giải thích, KHÔNG thêm tiêu đề, KHÔNG thêm lời chào/kết, KHÔNG thêm nội dung văn mẫu không liên quan đến ngữ cảnh gốc.';
     let prompt = '';
     if (action === 'summarize') {
-      prompt = `Hãy tóm tắt văn bản sau thành các gạch đầu dòng ngắn gọn, súc tích và bám sát ngữ cảnh gốc bằng tiếng Việt.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+      prompt = `Hãy tóm tắt cô đọng đúng bản chất nội dung sau bằng tiếng Việt, giữ lại các thông tin cốt lõi (Ai, làm gì, khi nào, số lượng, lưu ý chính), không lan man.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
     } else if (action === 'keypoints') {
-      prompt = `Hãy rút ra các ý chính quan trọng nhất từ văn bản sau (đánh số 1, 2, 3...) bám sát đúng ngữ cảnh bằng tiếng Việt.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+      prompt = `Hãy rút ra các ý chính / luận điểm mấu chốt quan trọng nhất từ văn bản sau bằng tiếng Việt, đánh số thứ tự 1, 2, 3... rõ ràng, ngắn gọn, đi thẳng vào trọng tâm.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
     } else if (action === 'professional') {
-      prompt = `Hãy viết lại văn bản sau theo phong cách lịch sự, trang trọng và chuẩn mực tiếng Việt, giữ nguyên đúng ý và ngữ cảnh của câu gốc.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+      prompt = `Hãy viết lại văn bản sau chuẩn văn phong công vụ, thương mại lịch sự, tôn trọng người đọc bằng tiếng Việt, thay thế toàn bộ từ ngữ suồng sã, teencode, văn nói, giữ nguyên đầy đủ ý và tính chính xác của thông tin gốc.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
     } else if (action === 'concise') {
-      prompt = `Hãy viết lại văn bản sau thật ngắn gọn, súc tích, loại bỏ từ thừa nhưng giữ nguyên trọn vẹn ngữ nghĩa và ngữ cảnh gốc bằng tiếng Việt.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+      prompt = `Hãy viết lại văn bản sau thật ngắn gọn, súc tích bằng tiếng Việt. Giản lược tối đa các từ đệm, trạng từ thừa, cụm từ lặp lại, giữ nguyên 100% cốt lõi thông tin.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
     } else if (action === 'proofread') {
-      prompt = `Hãy sửa toàn bộ lỗi chính tả, dấu câu và ngữ pháp trong văn bản sau. Giữ nguyên ý gốc và ngữ cảnh của câu.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+      prompt = `Hãy sửa đúng chính tả tiếng Việt, chuẩn hóa dấu thanh, dấu câu, ngắt câu, viết hoa đầu câu trong văn bản sau, mà KHÔNG làm thay đổi cấu trúc hay ý nghĩa câu.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
     } else if (action === 'expand') {
-      prompt = `Hãy mở rộng văn bản sau một cách tự nhiên, mạch lạc, bám sát và phát triển đúng ngữ cảnh của câu gốc (ví dụ nếu nói về món ăn/đồ uống/nhu cầu cá nhân thì mở rộng về hương vị, loại, thời gian hoặc mong muốn cụ thể; nếu nói về công việc thì mở rộng về kế hoạch/chi tiết công việc). TUYỆT ĐỐI KHÔNG chèn nội dung quản lý dự án hay văn bản mẫu doanh nghiệp nếu câu gốc không nói về công việc doanh nghiệp.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+      prompt = `Hãy phát triển câu từ tự nhiên, mạch lạc, bám sát ngữ cảnh thực tế của câu gốc bằng tiếng Việt (loại bỏ hoàn toàn mẫu câu máy móc vô nghĩa như quy trình dự án chung chung).\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
     } else if (action === 'action_items') {
-      prompt = `Hãy chuyển văn bản sau thành danh sách hành động (Checklist) với cú pháp '- [ ] ' ở đầu mỗi dòng, sát với ngữ cảnh gốc.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+      prompt = `Hãy trích xuất chính xác các hành động/đầu việc cần thực hiện từ văn bản sau thành định dạng checklist '- [ ] [Hành động cụ thể]'.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
     } else if (action === 'translate_en') {
-      prompt = `Hãy dịch văn bản sau sang tiếng Anh tự nhiên, chuẩn xác, đúng ngữ cảnh.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+      prompt = `Hãy dịch sang tiếng Anh chuẩn, tự nhiên, chính xác cả về thuật ngữ kinh doanh/thu mua và đời sống.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
     } else if (action === 'translate_vi') {
-      prompt = `Hãy dịch văn bản sau sang tiếng Việt tự nhiên, chuẩn xác, đúng ngữ cảnh.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+      prompt = `Hãy dịch sang tiếng Việt mượt mà, thuần Việt, chuẩn ngữ pháp.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
     }
 
     // Helper function to call appropriate API provider
@@ -1140,9 +1314,7 @@ export const runWritingTool = async (
   if (action === 'translate_en' || action === 'translate_vi') {
     const targetLang = action === 'translate_vi' ? 'vi' : 'en';
     const translated = await freeTranslate(trimmed, targetLang);
-    if (translated && translated.trim()) {
-      return { result: translated, usedGemini: false };
-    }
+    return { result: translated, usedGemini: false };
   }
 
   // Tier 4: Resilient offline NLP transformer
