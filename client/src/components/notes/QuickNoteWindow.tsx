@@ -444,7 +444,7 @@ const ensureHtml = (content: string, noteImages?: NoteImageAttachment[]): string
           span.setAttribute('contenteditable', 'false');
           span.setAttribute('data-media-type', 'image');
           span.setAttribute('style', 'position: relative; display: inline-flex; line-height: 0; font-size: 0; padding: 0; margin: 6px 0; max-width: 100%; vertical-align: middle; border-radius: 14px; overflow: hidden; box-shadow: 0 3px 12px rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.08); background: transparent;');
-          span.innerHTML = `<img src="${src}" alt="${alt}" class="apple-note-inline-img" style="max-width: 320px; max-height: 220px; width: auto; height: auto; object-fit: contain; border-radius: 13px; display: block; margin: 0; padding: 0; border: none; box-shadow: none; vertical-align: top; line-height: 0; cursor: zoom-in;" title="Nhấp để xem ảnh đầy đủ" /><button type="button" class="apple-img-delete-btn" style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; background: rgba(22,22,26,0.52); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #ffffff; border: 0.5px solid rgba(255,255,255,0.35); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; outline: none; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.25);" title="Xóa hình ảnh này"><svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg></button>`;
+          span.innerHTML = `<img src="${src}" alt="${alt}" class="apple-note-inline-img" style="max-width: 320px; max-height: 220px; width: auto; height: auto; object-fit: contain; border-radius: 13px; display: block; margin: 0; padding: 0; border: none; box-shadow: none; vertical-align: top; line-height: 0; cursor: zoom-in;" title="Nhấp để xem ảnh đầy đủ" /><button type="button" class="apple-img-delete-btn" style="position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; background: rgba(28,28,32,0.75); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #ff453a; border: 1px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; margin: 0; outline: none; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.35);" title="Xóa hình ảnh này"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333a1.333 1.333 0 0 1-1.334 1.334H4.667a1.333 1.333 0 0 1-1.334-1.334V4"/><line x1="6.5" y1="7" x2="6.5" y2="12"/><line x1="9.5" y1="7" x2="9.5" y2="12"/></svg></button>`;
           img.replaceWith(span);
         } else {
           const wrapper = img.closest('.apple-img-wrapper');
@@ -459,9 +459,9 @@ const ensureHtml = (content: string, noteImages?: NoteImageAttachment[]): string
               const btn = document.createElement('button');
               btn.type = 'button';
               btn.className = 'apple-img-delete-btn';
-              btn.setAttribute('style', 'position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; background: rgba(22,22,26,0.52); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #ffffff; border: 0.5px solid rgba(255,255,255,0.35); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; outline: none; z-index: 10; box-shadow: 0 2px 6px rgba(0,0,0,0.25);');
+              btn.setAttribute('style', 'position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; background: rgba(28,28,32,0.75); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #ff453a; border: 1px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; margin: 0; outline: none; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.35);');
               btn.setAttribute('title', 'Xóa hình ảnh này');
-              btn.innerHTML = `<svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/></svg>`;
+              btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333a1.333 1.333 0 0 1-1.334 1.334H4.667a1.333 1.333 0 0 1-1.334-1.334V4"/><line x1="6.5" y1="7" x2="6.5" y2="12"/><line x1="9.5" y1="7" x2="9.5" y2="12"/></svg>`;
               wrapper.appendChild(btn);
             }
           }
@@ -905,7 +905,7 @@ const escapeRegex = (str: string): string => {
 const generateInlineImageHtml = (dataUrl: string, name: string): string => {
   return `<p><span class="apple-img-wrapper" contenteditable="false" data-media-type="image" style="position: relative; display: inline-flex; line-height: 0; font-size: 0; padding: 0; margin: 6px 0; max-width: 100%; vertical-align: middle; border-radius: 14px; overflow: hidden; box-shadow: 0 3px 12px rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.08); background: transparent;">
     <img src="${dataUrl}" alt="${name}" class="apple-note-inline-img" style="max-width: 320px; max-height: 220px; width: auto; height: auto; object-fit: contain; border-radius: 13px; display: block; margin: 0; padding: 0; border: none; box-shadow: none; vertical-align: top; line-height: 0; cursor: zoom-in;" title="Nhấp để xem ảnh đầy đủ" />
-    <button type="button" class="apple-img-delete-btn" style="position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; background: rgba(22,22,26,0.65); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #ff453a; border: 0.5px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; outline: none; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);" title="Xóa hình ảnh này"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333a1.333 1.333 0 0 1-1.334 1.334H4.667a1.333 1.333 0 0 1-1.334-1.334V4"/><line x1="6.5" y1="7" x2="6.5" y2="12"/><line x1="9.5" y1="7" x2="9.5" y2="12"/></svg></button>
+    <button type="button" class="apple-img-delete-btn" style="position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; background: rgba(28,28,32,0.75); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #ff453a; border: 1px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; margin: 0; outline: none; z-index: 10; box-shadow: 0 2px 8px rgba(0,0,0,0.35);" title="Xóa hình ảnh này"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333a1.333 1.333 0 0 1-1.334 1.334H4.667a1.333 1.333 0 0 1-1.334-1.334V4"/><line x1="6.5" y1="7" x2="6.5" y2="12"/><line x1="9.5" y1="7" x2="9.5" y2="12"/></svg></button>
   </span></p><p><br></p>`;
 };
 
@@ -5800,13 +5800,13 @@ export const QuickNoteWindow: React.FC = () => {
                 /* Seamless Flowing Writing Canvas */
                 <div ref={canvasRef} className="flex-1 flex flex-col min-h-0 relative">
                   {/* Apple AI High-Precision Holographic Text Scanning Engine - Strictly Line-Bound */}
-                  {/* Apple Intelligence Refined Ethereal Scanner (Clean, Delicate Shimmer) */}
+                  {/* Apple Intelligence Refined Scanner (Iridescent Glow Aura & Shimmer Wave) */}
                   {writingToolLoading && selectionBounds?.lineRects && selectionBounds.lineRects.length > 0 && (
                     <div className="absolute inset-0 pointer-events-none select-none z-20 overflow-hidden">
                       {selectionBounds.lineRects.map((rect, idx) => (
                         <div
                           key={`scan-line-${idx}-${rect.top.toFixed(0)}-${rect.left.toFixed(0)}`}
-                          className="apple-ai-scan-pill"
+                          className="apple-ai-scan-pill rounded-md"
                           style={{
                             top: `${rect.top}px`,
                             left: `${rect.left}px`,
@@ -5814,12 +5814,12 @@ export const QuickNoteWindow: React.FC = () => {
                             height: `${rect.height}px`,
                           }}
                         >
-                          {/* Soft Ethereal Shimmer Wave Sweep */}
+                          {/* Vibrant Apple Intelligence Shimmer Wave Sweep */}
                           <div
                             className="apple-ai-shimmer-wave"
                             style={{
                               left: `${selectionBounds.left - rect.left}px`,
-                              width: `${selectionBounds.width}px`,
+                              width: `${Math.max(selectionBounds.width, 160)}px`,
                             }}
                           />
                         </div>
@@ -7389,11 +7389,13 @@ export const QuickNoteWindow: React.FC = () => {
                       setLightboxImage(null);
                       handleResetLightboxZoom();
                     }}
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-90 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 cursor-pointer shadow-xs shrink-0"
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white border border-red-500/30 hover:border-red-500 active:scale-90 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 cursor-pointer shadow-[0_2px_8px_rgba(239,68,68,0.25)] shrink-0"
                     title="Xóa ảnh khỏi ghi chú"
                   >
                     <SFTrash size={14} />
                   </button>
+
+                  <span className="w-[1px] h-4 bg-white/20 mx-0.5 shrink-0" />
 
                   <CloseButton
                     onClick={() => {
@@ -7401,7 +7403,7 @@ export const QuickNoteWindow: React.FC = () => {
                       handleResetLightboxZoom();
                     }}
                     size="md"
-                    className="w-8 h-8 min-w-[32px] min-h-[32px] bg-white/10 hover:bg-white/20 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 active:scale-90 shadow-xs"
+                    className="w-8 h-8 min-w-[32px] min-h-[32px] bg-white/15 hover:bg-white/25 text-white border border-white/20 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 active:scale-90 shadow-xs"
                     title="Đóng xem ảnh (Esc)"
                   />
                 </div>

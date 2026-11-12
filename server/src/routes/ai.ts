@@ -6,6 +6,81 @@ import { verifyToken } from '../middleware/auth.js';
 import { getDb } from '../db/connection.js';
 import { v4 as uuidv4 } from 'uuid';
 
+/**
+ * Sanitizer for AI Writing Tool outputs:
+ * Strips raw prompt reflection, meta-analysis preambles (* Input:, * Goal:, * Constraint:, Analysis:),
+ * and conversational intros, ensuring only clean processed text is returned to the user.
+ */
+export function sanitizeAiWritingOutput(rawText: string): string {
+  if (!rawText || typeof rawText !== 'string') return '';
+  let text = rawText.trim();
+
+  // 1. Remove outer markdown code fence if wrapped
+  if (text.startsWith('```') && text.endsWith('```')) {
+    text = text.replace(/^```[a-zA-Z]*\n?/, '').replace(/\n?```$/, '').trim();
+  }
+
+  // 2. Check for meta analysis blocks containing Input / Goal / Constraint / Analysis / Output / Result
+  const metaRegex = /(?:^|\n)(?:[*•-]\s*)?(?:\*{1,2})?(?:Input|Goal|Constraints?|Constraint\s*\d+|Analysis|Target|Context|Instruction|Yêu cầu|Mục tiêu|Ràng buộc|Phân tích)(?:\*{1,2})?\s*:/i;
+
+  if (metaRegex.test(text)) {
+    // Check if there is an explicit "Output:", "Result:", "Kết quả:" label after the meta section
+    const outputMatch = text.match(/(?:^|\n)(?:[*•-]\s*)?(?:\*{1,2})?(?:Output|Result|Processed Text|Văn bản sau khi xử lý|Kết quả)(?:\*{1,2})?\s*:\s*([\s\S]+)$/i);
+    if (outputMatch && outputMatch[1]?.trim()) {
+      text = outputMatch[1].trim();
+    } else {
+      // Split by lines and filter out any lines that are part of the meta analysis preamble
+      const lines = text.split('\n');
+      const filteredLines: string[] = [];
+      let skippingMetaBlock = true;
+
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        // Check if line starts a meta item
+        if (/^(?:[*•-]\s*)?(?:\*{1,2})?(?:Input|Goal|Constraints?|Constraint\s*\d+|Analysis|Target|Context|Instruction|Yêu cầu|Mục tiêu|Ràng buộc|Phân tích)(?:\*{1,2})?\s*:/i.test(trimmedLine)) {
+          skippingMetaBlock = true;
+          continue;
+        }
+        // If line is another meta-list sub-item or constraint continuation
+        if (skippingMetaBlock && /^(?:[*•-]\s*)?(?:\*{1,2})?(?:Ensure|Maintain|Do not|Keep|Only|Giữ|Không|Chỉ)(?:\*{1,2})?/i.test(trimmedLine)) {
+          continue;
+        }
+        // If line starts with "Output:" or "Result:"
+        if (/^(?:[*•-]\s*)?(?:\*{1,2})?(?:Output|Result|Processed Text|Kết quả)(?:\*{1,2})?\s*:\s*/i.test(trimmedLine)) {
+          skippingMetaBlock = false;
+          const cleanedLine = trimmedLine.replace(/^(?:[*•-]\s*)?(?:\*{1,2})?(?:Output|Result|Processed Text|Kết quả)(?:\*{1,2})?\s*:\s*/i, '');
+          if (cleanedLine) filteredLines.push(cleanedLine);
+          continue;
+        }
+
+        // Blank line or normal text
+        if (trimmedLine.length > 0) {
+          skippingMetaBlock = false;
+          filteredLines.push(line);
+        }
+      }
+      if (filteredLines.length > 0) {
+        text = filteredLines.join('\n').trim();
+      }
+    }
+  }
+
+  // 3. Remove conversational preambles
+  text = text
+    .replace(/^(?:Dưới đây là (?:kết quả|văn bản|nội dung|câu|đoạn văn|bản dịch)(?: sau khi [^:\n]+)?|Here is the (?:revised|translated|processed|summarized)?\s*(?:text|result|version)[^:\n]*|Kết quả sau khi [^:\n]+|Bản dịch tiếng [^:\n]+)\s*:\s*\n?/i, '')
+    .trim();
+
+  // 4. Remove enclosing quotation marks if model enclosed entire response in quotes
+  if ((text.startsWith('"') && text.endsWith('"') && text.length >= 2) ||
+      (text.startsWith('“') && text.endsWith('”') && text.length >= 2) ||
+      (text.startsWith("'") && text.endsWith("'") && text.length >= 2)) {
+    const inner = text.slice(1, -1).trim();
+    if (inner && !inner.includes('\n\n')) text = inner;
+  }
+
+  return text.trim();
+}
+
 export default async function aiRoutes(fastify: FastifyInstance) {
   // Writing Tool endpoint (requires authenticated user + rate limited to prevent quota exhaustion)
   fastify.post('/writing-tool', {
@@ -77,30 +152,35 @@ export default async function aiRoutes(fastify: FastifyInstance) {
         'gemini-1.5-flash',
       ];
 
-      const baseInstruction = 'YÊU CẦU BẮT BUỘC: CHỈ trả về duy nhất kết quả câu văn/đoạn văn sau khi xử lý. Tuyệt đối KHÔNG kèm theo lời giải thích, KHÔNG tiêu đề, KHÔNG lời chào/kết, KHÔNG nội dung lan man ngoài ngữ cảnh gốc.';
+      const systemInstruction =
+        'Bạn là công cụ xử lý văn bản Apple Intelligence thông minh.\n' +
+        'QUY TẮC BẮT BUỘC:\n' +
+        '1. CHỈ xuất ra duy nhất văn bản kết quả sau khi xử lý.\n' +
+        '2. Tuyệt đối KHÔNG kèm giải thích, KHÔNG tiêu đề, KHÔNG lời chào/kết.\n' +
+        '3. Tuyệt đối KHÔNG phân tích cấu trúc prompt, KHÔNG in các nhãn "* Input:", "* Goal:", "* Constraint", "Analysis:" hoặc các bước suy luận.';
 
       let prompt = '';
       if (action === 'summarize') {
-        prompt = `Hãy tóm tắt cô đọng đúng bản chất nội dung sau bằng tiếng Việt, giữ lại các thông tin cốt lõi (Ai, làm gì, khi nào, số lượng, lưu ý chính), không lan man. ${baseInstruction}\n\nNội dung cần tóm tắt:\n${text}`;
+        prompt = `Hãy tóm tắt cô đọng đúng bản chất các thông tin cốt lõi (Ai, làm gì, khi nào, số lượng, lưu ý chính) của nội dung sau bằng tiếng Việt:\n\n${text}`;
       } else if (action === 'keypoints') {
-        prompt = `Hãy rút ra các ý chính / luận điểm mấu chốt quan trọng nhất từ văn bản sau bằng tiếng Việt, đánh số thứ tự 1, 2, 3... rõ ràng, ngắn gọn, đi thẳng vào trọng tâm. ${baseInstruction}\n\nVăn bản:\n${text}`;
+        prompt = `Hãy rút ra các ý chính mấu chốt quan trọng nhất từ văn bản sau bằng tiếng Việt, đánh số thứ tự 1, 2, 3... rõ ràng, ngắn gọn và đi thẳng vào trọng tâm:\n\n${text}`;
       } else if (action === 'professional') {
-        prompt = `Hãy viết lại văn bản sau chuẩn văn phong công vụ, thương mại lịch sự, tôn trọng người đọc bằng tiếng Việt, thay thế toàn bộ từ ngữ suồng sã, teencode, văn nói, giữ nguyên đầy đủ ý và tính chính xác của thông tin gốc. ${baseInstruction}\n\nNội dung gốc:\n${text}`;
+        prompt = `Hãy viết lại văn bản sau chuẩn văn phong công vụ, thương mại lịch sự, tôn trọng người đọc bằng tiếng Việt, thay thế toàn bộ từ ngữ suồng sã, teencode, văn nói, giữ nguyên đầy đủ ý và tính chính xác của thông tin gốc:\n\n${text}`;
       } else if (action === 'concise') {
-        prompt = `Hãy viết lại văn bản sau thật ngắn gọn, súc tích bằng tiếng Việt. Giản lược tối đa các từ đệm, trạng từ thừa, cụm từ lặp lại, giữ nguyên 100% cốt lõi thông tin. ${baseInstruction}\n\nNội dung gốc:\n${text}`;
+        prompt = `Hãy viết lại văn bản sau thật ngắn gọn, súc tích bằng tiếng Việt, giản lược tối đa các từ đệm, trạng từ thừa, cụm từ lặp lại, giữ nguyên 100% cốt lõi thông tin:\n\n${text}`;
       } else if (action === 'proofread') {
-        prompt = `Hãy sửa đúng chính tả tiếng Việt, chuẩn hóa dấu thanh, dấu câu, ngắt câu, viết hoa đầu câu trong văn bản sau, mà KHÔNG làm thay đổi cấu trúc hay ý nghĩa câu. ${baseInstruction}\n\nĐoạn văn gốc:\n${text}`;
+        prompt = `Hãy sửa đúng chính tả tiếng Việt, chuẩn hóa dấu thanh, dấu câu, ngắt câu, viết hoa đầu câu trong văn bản sau mà KHÔNG làm thay đổi cấu trúc hay ý nghĩa câu:\n\n${text}`;
       } else if (action === 'expand') {
-        prompt = `Hãy phát triển câu từ tự nhiên, mạch lạc, bám sát ngữ cảnh thực tế của câu gốc bằng tiếng Việt (loại bỏ hoàn toàn mẫu câu máy móc vô nghĩa như quy trình dự án chung chung). ${baseInstruction}\n\nNội dung gốc:\n${text}`;
+        prompt = `Hãy phát triển câu từ tự nhiên, mạch lạc, bám sát ngữ cảnh thực tế của câu gốc bằng tiếng Việt (không dùng mẫu câu máy móc hay văn mẫu rập khuôn):\n\n${text}`;
       } else if (action === 'action_items') {
-        prompt = `Hãy trích xuất chính xác các hành động/đầu việc cần thực hiện từ văn bản sau thành định dạng checklist '- [ ] [Hành động cụ thể]'. ${baseInstruction}\n\nVăn bản:\n${text}`;
+        prompt = `Hãy trích xuất chính xác các hành động hoặc đầu việc cần thực hiện từ văn bản sau thành định dạng danh sách việc cần làm '- [ ] [Hành động cụ thể]':\n\n${text}`;
       } else if (action === 'translate_en') {
-        prompt = `Hãy dịch sang tiếng Anh chuẩn, tự nhiên, chính xác cả về thuật ngữ kinh doanh/thu mua và đời sống. ${baseInstruction}\n\nVăn bản gốc:\n${text}`;
+        prompt = `Hãy dịch sang tiếng Anh chuẩn, tự nhiên, chính xác cả về thuật ngữ kinh doanh/thu mua và đời sống:\n\n${text}`;
       } else if (action === 'translate_vi') {
-        prompt = `Hãy dịch sang tiếng Việt mượt mà, thuần Việt, chuẩn ngữ pháp. ${baseInstruction}\n\nVăn bản gốc:\n${text}`;
+        prompt = `Hãy dịch sang tiếng Việt mượt mà, thuần Việt, chuẩn ngữ pháp:\n\n${text}`;
       } else {
         // proofread fallback
-        prompt = `Hãy sửa đúng chính tả tiếng Việt, chuẩn hóa dấu thanh, dấu câu, ngắt câu, viết hoa đầu câu trong văn bản sau, mà KHÔNG làm thay đổi cấu trúc hay ý nghĩa câu. ${baseInstruction}\n\nĐoạn văn gốc:\n${text}`;
+        prompt = `Hãy sửa đúng chính tả tiếng Việt, chuẩn hóa dấu thanh, dấu câu, ngắt câu, viết hoa đầu câu trong văn bản sau mà KHÔNG làm thay đổi cấu trúc hay ý nghĩa câu:\n\n${text}`;
       }
 
       let lastErr: any = null;
@@ -121,7 +201,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
               body: JSON.stringify({
                 model: 'gpt-4o-mini',
                 messages: [
-                  { role: 'system', content: baseInstruction },
+                  { role: 'system', content: systemInstruction },
                   { role: 'user', content: prompt },
                 ],
                 temperature: 0.2,
@@ -129,7 +209,8 @@ export default async function aiRoutes(fastify: FastifyInstance) {
             });
             if (oaiRes.ok) {
               const data: any = await oaiRes.json();
-              const resultText = data.choices?.[0]?.message?.content?.trim();
+              const rawResult = data.choices?.[0]?.message?.content?.trim();
+              const resultText = sanitizeAiWritingOutput(rawResult);
               if (resultText) {
                 return reply.send({
                   success: true,
@@ -158,7 +239,7 @@ export default async function aiRoutes(fastify: FastifyInstance) {
               body: JSON.stringify({
                 model: 'deepseek-chat',
                 messages: [
-                  { role: 'system', content: baseInstruction },
+                  { role: 'system', content: systemInstruction },
                   { role: 'user', content: prompt },
                 ],
                 temperature: 0.2,
@@ -166,7 +247,8 @@ export default async function aiRoutes(fastify: FastifyInstance) {
             });
             if (dsRes.ok) {
               const data: any = await dsRes.json();
-              const resultText = data.choices?.[0]?.message?.content?.trim();
+              const rawResult = data.choices?.[0]?.message?.content?.trim();
+              const resultText = sanitizeAiWritingOutput(rawResult);
               if (resultText) {
                 return reply.send({
                   success: true,
@@ -192,10 +274,12 @@ export default async function aiRoutes(fastify: FastifyInstance) {
                 model,
                 contents: prompt,
                 config: {
+                  systemInstruction,
                   temperature: 0.2,
                 },
               });
-              const resultText = response.text?.trim() || '';
+              const rawResult = response.text?.trim() || '';
+              const resultText = sanitizeAiWritingOutput(rawResult);
               if (resultText) {
                 return reply.send({
                   success: true,

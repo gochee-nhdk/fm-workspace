@@ -727,12 +727,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
 
                 {/* Floating Liquid-Glass Popover Menu originating from trigger */}
                 {categoryDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-white dark:bg-[#1c1c24] backdrop-blur-3xl border border-black/10 dark:border-white/15 p-1.5 shadow-[0_20px_48px_-6px_rgba(0,0,0,0.25),0_6px_16px_rgba(0,0,0,0.08)] z-50 apple-popover-tr space-y-1">
-                    <div className="px-3 py-2 text-[11px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between">
-                      <span>Phân loại danh mục</span>
-                      <span className="font-mono text-[10px] font-normal text-[#86868b] dark:text-[#a1a1a6]">{categories.length} nhóm</span>
-                    </div>
-
+                  <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-white dark:bg-[#1c1c24] backdrop-blur-3xl border border-black/10 dark:border-white/15 p-1.5 shadow-[0_20px_48px_-6px_rgba(0,0,0,0.25),0_6px_16px_rgba(0,0,0,0.08)] z-50 apple-popover-tr">
                     <div className="max-h-60 overflow-y-auto space-y-0.5 pr-0.5">
                       {/* Option: ALL */}
                       <button

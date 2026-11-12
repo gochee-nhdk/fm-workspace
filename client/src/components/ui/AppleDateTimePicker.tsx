@@ -112,7 +112,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const pickerWidth = 288;
-    const pickerHeight = 310;
+    const pickerHeight = 330;
     const viewportH = window.innerHeight;
     const viewportW = window.innerWidth;
 
@@ -135,9 +135,24 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
     let left = rect.left + (rect.width - pickerWidth) / 2;
     left = Math.max(12, Math.min(viewportW - pickerWidth - 12, left));
 
+    let topVal: number | undefined;
+    let bottomVal: number | undefined;
+
+    if (placement === 'bottom') {
+      topVal = rect.bottom + 6;
+      if (topVal + pickerHeight > viewportH - 12) {
+        topVal = Math.max(12, viewportH - pickerHeight - 12);
+      }
+    } else {
+      bottomVal = viewportH - rect.top + 6;
+      if (viewportH - bottomVal - pickerHeight < 12) {
+        bottomVal = Math.max(12, viewportH - 12 - pickerHeight);
+      }
+    }
+
     setPopoverCoords({
-      top: placement === 'bottom' ? rect.bottom + 6 : undefined,
-      bottom: placement === 'top' ? viewportH - rect.top + 6 : undefined,
+      top: topVal,
+      bottom: bottomVal,
       left,
       placement,
     });
@@ -359,7 +374,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
 
   // Render the petite, ultra-compact square Apple picker panel
   const renderPickerBody = () => (
-    <div className="relative w-[288px] mx-auto p-3.5 rounded-2xl bg-white/92 dark:bg-[#1c1c22]/92 backdrop-blur-3xl border border-black/10 dark:border-white/15 shadow-[0_28px_70px_-10px_rgba(0,0,0,0.3),0_8px_24px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_32px_80px_-10px_rgba(0,0,0,0.75),0_10px_30px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.15)] space-y-2.5 select-none font-sans text-left overflow-hidden">
+    <div className="relative w-[288px] mx-auto p-3.5 rounded-2xl bg-white dark:bg-[#1c1c22] border border-black/10 dark:border-white/15 shadow-[0_24px_70px_rgba(0,0,0,0.35)] space-y-2.5 select-none font-sans text-left overflow-hidden">
       {/* ─────────────────── LAYER 2: Main Calendar & Time Controls ─────────────────── */}
       {/* 1. Month & Year Navigation Header: Clean Apple Pills (Wheel Scrollable) */}
       <div className="flex items-center justify-between gap-2 px-0.5">
@@ -559,7 +574,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
         <div
           className={cn(
             'absolute inset-0 z-30 rounded-2xl flex items-center justify-center p-2.5',
-            'bg-black/[0.04] dark:bg-black/25',
+            'bg-black/35 dark:bg-black/60',
             'transition-opacity duration-200 ease-out',
             isSubPickerExiting
               ? 'opacity-0 pointer-events-none'
@@ -570,7 +585,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
           <div
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              'w-full p-3 rounded-2xl bg-white dark:bg-[#252528] shadow-[0_10px_28px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.06)] border border-black/8 dark:border-white/12 flex flex-col gap-2',
+              'w-full p-3 rounded-2xl bg-white dark:bg-[#252528] shadow-[0_24px_70px_rgba(0,0,0,0.35)] border border-black/10 dark:border-white/15 flex flex-col gap-2',
               'transition-all duration-200 ease-out',
               isSubPickerExiting
                 ? 'scale-95 opacity-0'
@@ -716,10 +731,10 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
             aria-modal="true"
             aria-label="Chọn thời gian nhắc việc"
             className={cn(
-              'fixed inset-0 z-[10030] pointer-events-auto select-none',
+              'fixed inset-0 z-[10060] pointer-events-auto select-none',
               popoverCoords
                 ? 'overflow-visible'
-                : 'flex items-center justify-center p-4 bg-black/15 dark:bg-black/40 backdrop-blur-xs'
+                : 'flex items-center justify-center p-4 bg-black/30 dark:bg-black/60 backdrop-blur-xs'
             )}
             onClick={() => setIsOpen(false)}
           >

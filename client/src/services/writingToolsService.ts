@@ -29,6 +29,81 @@ export interface GeminiKeyItem {
 const GEMINI_KEY_STORAGE = 'fm_gemini_api_key';
 const GEMINI_KEYS_POOL_STORAGE = 'fm_gemini_api_keys_pool';
 
+/**
+ * Sanitizer for AI Writing Tool outputs:
+ * Strips raw prompt reflection, meta-analysis preambles (* Input:, * Goal:, * Constraint:, Analysis:),
+ * and conversational intros, ensuring only clean processed text is returned to the user.
+ */
+export const sanitizeAiWritingOutput = (rawText: string): string => {
+  if (!rawText || typeof rawText !== 'string') return '';
+  let text = rawText.trim();
+
+  // 1. Remove outer markdown code fence if wrapped
+  if (text.startsWith('```') && text.endsWith('```')) {
+    text = text.replace(/^```[a-zA-Z]*\n?/, '').replace(/\n?```$/, '').trim();
+  }
+
+  // 2. Check for meta analysis blocks containing Input / Goal / Constraint / Analysis / Output / Result
+  const metaRegex = /(?:^|\n)(?:[*•-]\s*)?(?:\*{1,2})?(?:Input|Goal|Constraints?|Constraint\s*\d+|Analysis|Target|Context|Instruction|Yêu cầu|Mục tiêu|Ràng buộc|Phân tích)(?:\*{1,2})?\s*:/i;
+
+  if (metaRegex.test(text)) {
+    // Check if there is an explicit "Output:", "Result:", "Kết quả:" label after the meta section
+    const outputMatch = text.match(/(?:^|\n)(?:[*•-]\s*)?(?:\*{1,2})?(?:Output|Result|Processed Text|Văn bản sau khi xử lý|Kết quả)(?:\*{1,2})?\s*:\s*([\s\S]+)$/i);
+    if (outputMatch && outputMatch[1]?.trim()) {
+      text = outputMatch[1].trim();
+    } else {
+      // Split by lines and filter out any lines that are part of the meta analysis preamble
+      const lines = text.split('\n');
+      const filteredLines: string[] = [];
+      let skippingMetaBlock = true;
+
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        // Check if line starts a meta item
+        if (/^(?:[*•-]\s*)?(?:\*{1,2})?(?:Input|Goal|Constraints?|Constraint\s*\d+|Analysis|Target|Context|Instruction|Yêu cầu|Mục tiêu|Ràng buộc|Phân tích)(?:\*{1,2})?\s*:/i.test(trimmedLine)) {
+          skippingMetaBlock = true;
+          continue;
+        }
+        // If line is another meta-list sub-item or constraint continuation
+        if (skippingMetaBlock && /^(?:[*•-]\s*)?(?:\*{1,2})?(?:Ensure|Maintain|Do not|Keep|Only|Giữ|Không|Chỉ)(?:\*{1,2})?/i.test(trimmedLine)) {
+          continue;
+        }
+        // If line starts with "Output:" or "Result:"
+        if (/^(?:[*•-]\s*)?(?:\*{1,2})?(?:Output|Result|Processed Text|Kết quả)(?:\*{1,2})?\s*:\s*/i.test(trimmedLine)) {
+          skippingMetaBlock = false;
+          const cleanedLine = trimmedLine.replace(/^(?:[*•-]\s*)?(?:\*{1,2})?(?:Output|Result|Processed Text|Kết quả)(?:\*{1,2})?\s*:\s*/i, '');
+          if (cleanedLine) filteredLines.push(cleanedLine);
+          continue;
+        }
+
+        // Blank line or normal text
+        if (trimmedLine.length > 0) {
+          skippingMetaBlock = false;
+          filteredLines.push(line);
+        }
+      }
+      if (filteredLines.length > 0) {
+        text = filteredLines.join('\n').trim();
+      }
+    }
+  }
+
+  // 3. Remove conversational preambles
+  text = text
+    .replace(/^(?:Dưới đây là (?:kết quả|văn bản|nội dung|câu|đoạn văn|bản dịch)(?: sau khi [^:\n]+)?|Here is the (?:revised|translated|processed|summarized)?\s*(?:text|result|version)[^:\n]*|Kết quả sau khi [^:\n]+|Bản dịch tiếng [^:\n]+)\s*:\s*\n?/i, '')
+    .trim();
+
+  // 4. Remove enclosing quotation marks if model enclosed entire response in quotes
+  if ((text.startsWith('"') && text.endsWith('"') && text.length >= 2) ||
+      (text.startsWith('“') && text.endsWith('”') && text.length >= 2) ||
+      (text.startsWith("'") && text.endsWith("'") && text.length >= 2)) {
+    const inner = text.slice(1, -1).trim();
+    if (inner && !inner.includes('\n\n')) text = inner;
+  }
+
+  return text.trim();
+};
+
 export const detectProvider = (key: string): AIProvider => {
   return 'gemini';
 };
@@ -425,7 +500,12 @@ export const discoverBestFlashModels = async (apiKey: string): Promise<string[]>
 /**
  * Direct Gemini API call from client with dynamic Flash model fallback
  */
-const callGeminiApi = async (prompt: string, apiKey: string, signal?: AbortSignal): Promise<string> => {
+const callGeminiApi = async (
+  prompt: string,
+  apiKey: string,
+  systemInstruction?: string,
+  signal?: AbortSignal
+): Promise<string> => {
   if (signal?.aborted) {
     throw new DOMException('Aborted', 'AbortError');
   }
@@ -449,6 +529,13 @@ const callGeminiApi = async (prompt: string, apiKey: string, signal?: AbortSigna
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
+          ...(systemInstruction
+            ? {
+                systemInstruction: {
+                  parts: [{ text: systemInstruction }],
+                },
+              }
+            : {}),
           generationConfig: {
             temperature: 0.2,
             maxOutputTokens: 2048,
@@ -465,7 +552,7 @@ const callGeminiApi = async (prompt: string, apiKey: string, signal?: AbortSigna
       const data = await response.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!text) throw new Error('Không nhận được nội dung từ Gemini');
-      return text.trim();
+      return sanitizeAiWritingOutput(text);
     } catch (err: any) {
       lastError = err;
     }
@@ -1161,10 +1248,11 @@ export const runWritingTool = async (
   try {
     const backendRes = await callBackendWritingTool(trimmed, action, rawKeyStrings, signal);
     if (backendRes?.result) {
+      const sanitized = sanitizeAiWritingOutput(backendRes.result);
       const usedIndex = backendRes.usedKeyIndex ?? 0;
       const keyObj = activeKeys[usedIndex];
       return {
-        result: backendRes.result,
+        result: sanitized,
         usedGemini: true,
         usedFallbackKey: Boolean(backendRes.fallbackKeyUsed),
         usedKeyName: keyObj?.name,
@@ -1179,27 +1267,34 @@ export const runWritingTool = async (
   if (activeKeys.length > 0) {
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
-    const strictConstraint =
-      'YÊU CẦU BẮT BUỘC: CHỈ trả về duy nhất văn bản kết quả đã xử lý. TUYỆT ĐỐI KHÔNG giải thích, KHÔNG thêm tiêu đề, KHÔNG thêm lời chào/kết, KHÔNG thêm nội dung văn mẫu không liên quan đến ngữ cảnh gốc.';
+    const systemInstruction =
+      'Bạn là công cụ xử lý văn bản Apple Intelligence thông minh.\n' +
+      'QUY TẮC BẮT BUỘC:\n' +
+      '1. CHỈ xuất ra duy nhất văn bản kết quả sau khi xử lý.\n' +
+      '2. Tuyệt đối KHÔNG kèm giải thích, KHÔNG tiêu đề, KHÔNG lời chào/kết.\n' +
+      '3. Tuyệt đối KHÔNG phân tích cấu trúc prompt, KHÔNG in các nhãn "* Input:", "* Goal:", "* Constraint", "Analysis:" hoặc các bước suy luận.';
+
     let prompt = '';
     if (action === 'summarize') {
-      prompt = `Hãy tóm tắt cô đọng đúng bản chất nội dung sau bằng tiếng Việt, giữ lại các thông tin cốt lõi (Ai, làm gì, khi nào, số lượng, lưu ý chính), không lan man.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+      prompt = `Hãy tóm tắt cô đọng đúng bản chất các thông tin cốt lõi (Ai, làm gì, khi nào, số lượng, lưu ý chính) của nội dung sau bằng tiếng Việt:\n\n${trimmed}`;
     } else if (action === 'keypoints') {
-      prompt = `Hãy rút ra các ý chính / luận điểm mấu chốt quan trọng nhất từ văn bản sau bằng tiếng Việt, đánh số thứ tự 1, 2, 3... rõ ràng, ngắn gọn, đi thẳng vào trọng tâm.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+      prompt = `Hãy rút ra các ý chính mấu chốt quan trọng nhất từ văn bản sau bằng tiếng Việt, đánh số thứ tự 1, 2, 3... rõ ràng, ngắn gọn và đi thẳng vào trọng tâm:\n\n${trimmed}`;
     } else if (action === 'professional') {
-      prompt = `Hãy viết lại văn bản sau chuẩn văn phong công vụ, thương mại lịch sự, tôn trọng người đọc bằng tiếng Việt, thay thế toàn bộ từ ngữ suồng sã, teencode, văn nói, giữ nguyên đầy đủ ý và tính chính xác của thông tin gốc.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+      prompt = `Hãy viết lại văn bản sau theo chuẩn văn phong công vụ, thương mại lịch sự, tôn trọng người đọc bằng tiếng Việt, thay thế toàn bộ từ ngữ suồng sã, teencode, văn nói, giữ nguyên đầy đủ ý và tính chính xác của thông tin gốc:\n\n${trimmed}`;
     } else if (action === 'concise') {
-      prompt = `Hãy viết lại văn bản sau thật ngắn gọn, súc tích bằng tiếng Việt. Giản lược tối đa các từ đệm, trạng từ thừa, cụm từ lặp lại, giữ nguyên 100% cốt lõi thông tin.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+      prompt = `Hãy viết lại văn bản sau thật ngắn gọn, súc tích bằng tiếng Việt, giản lược tối đa các từ đệm, trạng từ thừa, cụm từ lặp lại, giữ nguyên 100% cốt lõi thông tin:\n\n${trimmed}`;
     } else if (action === 'proofread') {
-      prompt = `Hãy sửa đúng chính tả tiếng Việt, chuẩn hóa dấu thanh, dấu câu, ngắt câu, viết hoa đầu câu trong văn bản sau, mà KHÔNG làm thay đổi cấu trúc hay ý nghĩa câu.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+      prompt = `Hãy sửa đúng chính tả tiếng Việt, chuẩn hóa dấu thanh, dấu câu, ngắt câu, viết hoa đầu câu trong văn bản sau mà KHÔNG làm thay đổi cấu trúc hay ý nghĩa câu:\n\n${trimmed}`;
     } else if (action === 'expand') {
-      prompt = `Hãy phát triển câu từ tự nhiên, mạch lạc, bám sát ngữ cảnh thực tế của câu gốc bằng tiếng Việt (loại bỏ hoàn toàn mẫu câu máy móc vô nghĩa như quy trình dự án chung chung).\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+      prompt = `Hãy phát triển câu từ tự nhiên, mạch lạc, bám sát ngữ cảnh thực tế của câu gốc bằng tiếng Việt (không dùng mẫu câu máy móc hay văn mẫu rập khuôn):\n\n${trimmed}`;
     } else if (action === 'action_items') {
-      prompt = `Hãy trích xuất chính xác các hành động/đầu việc cần thực hiện từ văn bản sau thành định dạng checklist '- [ ] [Hành động cụ thể]'.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+      prompt = `Hãy trích xuất chính xác các hành động hoặc đầu việc cần thực hiện từ văn bản sau thành định dạng danh sách việc cần làm '- [ ] [Hành động cụ thể]':\n\n${trimmed}`;
     } else if (action === 'translate_en') {
-      prompt = `Hãy dịch sang tiếng Anh chuẩn, tự nhiên, chính xác cả về thuật ngữ kinh doanh/thu mua và đời sống.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+      prompt = `Hãy dịch sang tiếng Anh chuẩn, tự nhiên, chính xác cả về thuật ngữ kinh doanh/thu mua và đời sống:\n\n${trimmed}`;
     } else if (action === 'translate_vi') {
-      prompt = `Hãy dịch sang tiếng Việt mượt mà, thuần Việt, chuẩn ngữ pháp.\n${strictConstraint}\n\nVăn bản gốc:\n${trimmed}`;
+      prompt = `Hãy dịch sang tiếng Việt mượt mà, thuần Việt, chuẩn ngữ pháp:\n\n${trimmed}`;
+    } else {
+      prompt = `Hãy sửa đúng chính tả tiếng Việt, chuẩn hóa dấu thanh, dấu câu, ngắt câu, viết hoa đầu câu trong văn bản sau mà KHÔNG làm thay đổi cấu trúc hay ý nghĩa câu:\n\n${trimmed}`;
     }
 
     // Helper function to call appropriate API provider
@@ -1219,7 +1314,7 @@ export const runWritingTool = async (
             messages: [
               {
                 role: 'system',
-                content: 'Bạn là trợ lý soạn thảo văn bản tiếng Việt xuất sắc. Hãy xử lý yêu cầu và CHỈ trả về duy nhất văn bản kết quả sau khi xử lý. Tuyệt đối KHÔNG giải thích, KHÔNG thêm tiêu đề, KHÔNG lời chào/kết, KHÔNG trả về nội dung ngoài ngữ cảnh.',
+                content: systemInstruction,
               },
               { role: 'user', content: pr },
             ],
@@ -1236,7 +1331,7 @@ export const runWritingTool = async (
         const data = await res.json();
         const text = data.choices?.[0]?.message?.content?.trim();
         if (!text) throw new Error('Không nhận được phản hồi từ DeepSeek');
-        return text;
+        return sanitizeAiWritingOutput(text);
       }
 
       if (prov === 'openai') {
@@ -1251,7 +1346,7 @@ export const runWritingTool = async (
             messages: [
               {
                 role: 'system',
-                content: 'Bạn là trợ lý soạn thảo văn bản tiếng Việt xuất sắc. Hãy xử lý yêu cầu và CHỈ trả về duy nhất văn bản kết quả sau khi xử lý.',
+                content: systemInstruction,
               },
               { role: 'user', content: pr },
             ],
@@ -1268,11 +1363,11 @@ export const runWritingTool = async (
         const data = await res.json();
         const text = data.choices?.[0]?.message?.content?.trim();
         if (!text) throw new Error('Không nhận được phản hồi từ OpenAI');
-        return text;
+        return sanitizeAiWritingOutput(text);
       }
 
       // Default: Google Gemini
-      return callGeminiApi(pr, cleanKey, sig);
+      return callGeminiApi(pr, cleanKey, systemInstruction, sig);
     };
 
     // Try keys sequentially until one succeeds
@@ -1280,6 +1375,7 @@ export const runWritingTool = async (
       const keyObj = activeKeys[i];
       try {
         const result = await callProviderApi(keyObj, prompt, signal);
+        const cleanResult = sanitizeAiWritingOutput(result);
         // Mark key active
         updateGeminiKey(keyObj.id, {
           status: 'active',
@@ -1287,7 +1383,7 @@ export const runWritingTool = async (
           lastCheckedAt: new Date().toISOString(),
         });
         return {
-          result,
+          result: cleanResult,
           usedGemini: true,
           usedFallbackKey: i > 0,
           usedKeyName: keyObj.name,

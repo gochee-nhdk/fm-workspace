@@ -3,6 +3,7 @@ import {
   offlineDictionaryTranslate,
   localTransform,
   WritingToolAction,
+  sanitizeAiWritingOutput,
 } from './writingToolsService.js';
 
 let passed = 0;
@@ -127,6 +128,75 @@ Kiểm tra lại hợp đồng vận chuyển`;
 
   const viTermRes = localTransform('supplier', 'translate_vi');
   assert(viTermRes.toLowerCase().includes('nhà cung cấp'), 'localTransform translate_vi uses dictionary instead of untranslated text');
+
+  // Test 7: AI Output Sanitizer (fixes Image 1 meta-analysis reflection error)
+  console.log('\n--- TEST GROUP 7: AI Output Sanitizer (Fix Image 1 Error) ---');
+
+  // Case 7.1: Image 1 exact error structure
+  const rawImage1Error = `* Input: "bút"
+* Goal: Sửa lỗi chính tả tiếng Việt
+* Constraint 1: Chỉ trả về kết quả
+* Constraint 2: Không thêm giải thích
+Bút bi chuyên dụng phục vụ ký kết hợp đồng.`;
+  const sanitized71 = sanitizeAiWritingOutput(rawImage1Error);
+  assert(
+    sanitized71 === 'Bút bi chuyên dụng phục vụ ký kết hợp đồng.',
+    'Sanitizer strips raw meta-analysis preamble (* Input:, * Goal:, * Constraint:)'
+  );
+  assert(!sanitized71.includes('* Input:'), 'Sanitizer drops * Input: line');
+  assert(!sanitized71.includes('* Goal:'), 'Sanitizer drops * Goal: line');
+  assert(!sanitized71.includes('* Constraint'), 'Sanitizer drops * Constraint line');
+
+  // Case 7.2: Analysis block with Output / Result label
+  const rawWithOutputLabel = `Analysis:
+- Target: expand text
+- Language: Vietnamese
+Output: Mua 100 ram giấy in A4 chất lượng cao.`;
+  const sanitized72 = sanitizeAiWritingOutput(rawWithOutputLabel);
+  assert(
+    sanitized72 === 'Mua 100 ram giấy in A4 chất lượng cao.',
+    'Sanitizer extracts clean output following Output: label'
+  );
+
+  // Case 7.3: Conversational intro
+  const rawWithIntro = `Dưới đây là kết quả sau khi xử lý:
+Kiểm tra tiến độ giao hàng trước 17h.`;
+  const sanitized73 = sanitizeAiWritingOutput(rawWithIntro);
+  assert(
+    sanitized73 === 'Kiểm tra tiến độ giao hàng trước 17h.',
+    'Sanitizer strips Vietnamese conversational preamble'
+  );
+
+  // Case 7.4: Outer code fences
+  const rawWithFences = '```markdown\nBáo cáo chi tiết đơn hàng quý 4.\n```';
+  const sanitized74 = sanitizeAiWritingOutput(rawWithFences);
+  assert(
+    sanitized74 === 'Báo cáo chi tiết đơn hàng quý 4.',
+    'Sanitizer removes outer markdown code fences'
+  );
+
+  // Case 7.5: Enclosing quotes
+  const rawWithQuotes = '"Đã thanh toán cho nhà cung cấp."';
+  const sanitized75 = sanitizeAiWritingOutput(rawWithQuotes);
+  assert(
+    sanitized75 === 'Đã thanh toán cho nhà cung cấp.',
+    'Sanitizer removes enclosing quotes'
+  );
+
+  // Case 7.6: Legitimate checklist & numbered list are preserved
+  const checklistInput = '- [ ] Mua văn phòng phẩm\n- [ ] Gửi hợp đồng';
+  const sanitizedChecklist = sanitizeAiWritingOutput(checklistInput);
+  assert(
+    sanitizedChecklist === checklistInput,
+    'Sanitizer preserves legitimate markdown checklists'
+  );
+
+  const numberedInput = '1. Ý chính thứ nhất\n2. Ý chính thứ hai';
+  const sanitizedNumbered = sanitizeAiWritingOutput(numberedInput);
+  assert(
+    sanitizedNumbered === numberedInput,
+    'Sanitizer preserves legitimate numbered points'
+  );
 
   console.log(`\n=== TỔNG KẾT KIỂM THỬ WRITING TOOLS: ${passed} ĐẠT, ${failed} THẤT BẠI ===`);
   if (failed > 0) {
