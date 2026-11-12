@@ -101,8 +101,8 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
-            Phần mềm / Hệ thống <span className="text-[#ff3b30] font-bold ml-0.5">*</span>
+          <label className="block text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight mb-1.5">
+            Phần mềm / Hệ thống <span className="text-[#FF383C] font-bold ml-0.5">*</span>
           </label>
           <Input
             placeholder="vd: SAP, POS, DMS, Bravo, Gmail, Nội bộ..."
@@ -117,8 +117,8 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
-            Tên đăng nhập / Email / ID <span className="text-[#ff3b30] font-bold ml-0.5">*</span>
+          <label className="block text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight mb-1.5">
+            Tên đăng nhập / Email / ID <span className="text-[#FF383C] font-bold ml-0.5">*</span>
           </label>
           <Input
             placeholder="user@farmersmarket.vn hoặc username"
@@ -132,22 +132,22 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
+          <label className="block text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight mb-1.5">
             Mật khẩu
           </label>
-          <div className="relative flex items-center">
+          <div className="group relative flex items-center rounded-xl shadow-2xs">
             <input
               type={showPassword ? 'text' : 'password'}
               placeholder="Nhập mật khẩu..."
-              className="w-full text-sm rounded-xl border border-[#e0e0e0] dark:border-white/15 bg-white dark:bg-[#1d1d1f] pl-9 pr-10 py-2.5 text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] font-mono transition-all"
+              className="w-full text-[13px] rounded-xl border border-black/10 dark:border-white/12 bg-white/85 dark:bg-[#1c1c22]/85 backdrop-blur-xl pl-9 pr-10 py-2.5 text-[#1d1d1f] dark:text-white placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] hover:border-black/20 dark:hover:border-white/25 focus:outline-none focus:ring-2 focus:ring-[#0088FF]/35 dark:focus:ring-[#0091FF]/45 focus:border-[#0088FF] dark:focus:border-[#0091FF] focus:shadow-[0_0_14px_rgba(0,136,255,0.25)] dark:focus:shadow-[0_0_18px_rgba(0,145,255,0.32)] font-mono transition-all duration-200 ease-spring"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <SFLockFill size={16} className="text-[#86868b] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <SFLockFill size={16} className="text-[#86868b] dark:text-[#a1a1a6] group-focus-within:text-[#0088FF] dark:group-focus-within:text-[#0091FF] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors duration-200" />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-90"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-[#86868b] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all duration-150 ease-spring cursor-pointer"
               title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
             >
               {showPassword ? <SFEyeSlash size={16} /> : <SFEye size={16} />}
@@ -156,7 +156,7 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
+          <label className="block text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight mb-1.5">
             Đường dẫn đăng nhập (URL)
           </label>
           <Input
@@ -166,12 +166,12 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
             onBlur={() => {
               if (link.trim()) setLink(formatUrl(link));
             }}
-            leftIcon={<SFGlobe size={16} className="text-[#86868b]" />}
+            leftIcon={<SFGlobe size={16} />}
           />
         </div>
 
         <div>
-          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
+          <label className="block text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight mb-1.5">
             Thứ tự (STT)
           </label>
           <Input
@@ -183,12 +183,12 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
+          <label className="block text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight mb-1.5">
             Ghi chú
           </label>
           <textarea
             rows={2}
-            className="w-full text-sm rounded-xl border border-[#e0e0e0] dark:border-white/15 bg-white dark:bg-[#1d1d1f] p-3 text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] resize-none transition-all placeholder:text-[#86868b]"
+            className="w-full text-[13px] rounded-xl border border-black/10 dark:border-white/12 bg-white/85 dark:bg-[#1c1c22]/85 backdrop-blur-xl p-3 text-[#1d1d1f] dark:text-white hover:border-black/20 dark:hover:border-white/25 focus:outline-none focus:ring-2 focus:ring-[#0088FF]/35 dark:focus:ring-[#0091FF]/45 focus:border-[#0088FF] dark:focus:border-[#0091FF] focus:shadow-[0_0_14px_rgba(0,136,255,0.25)] dark:focus:shadow-[0_0_18px_rgba(0,145,255,0.32)] resize-none transition-all duration-200 ease-spring placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] shadow-2xs"
             placeholder="Ghi chú phân quyền, tài khoản chung hay cá nhân..."
             value={note}
             onChange={(e) => setNote(e.target.value)}

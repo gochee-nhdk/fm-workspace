@@ -24,6 +24,8 @@ import {
 } from 'sf-symbols-lib';
 import { Button } from '@/components/ui/button';
 import { CloseButton } from '@/components/ui/close-button';
+import { StatCard } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { dataService } from '@/services/dataService';
 import { excelService } from '@/services/excelService';
 import { LinkItem, AccountItem, StoreItem } from '@/types/workspace';
@@ -118,6 +120,10 @@ export const UnifiedWorkspacePage: React.FC = () => {
     id: string;
     label: string;
   } | null>(null);
+
+  // Batch selection states
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
 
   // Drag and drop reordering states
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -272,6 +278,7 @@ export const UnifiedWorkspacePage: React.FC = () => {
     setActiveTab(tab);
     setSearch('');
     setSelectedCategory('ALL');
+    setSelectedIds(new Set());
     startTransition(() => {
       setSearchParams({ tab }, { replace: true });
     });
@@ -414,6 +421,52 @@ export const UnifiedWorkspacePage: React.FC = () => {
     );
   }, [stores, debouncedSearch]);
 
+  // Batch Selection Handlers
+  const handleToggleSelect = useCallback((id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    const currentList =
+      activeTab === 'links'
+        ? filteredLinks
+        : activeTab === 'accounts'
+        ? filteredAccounts
+        : filteredStores;
+    if (selectedIds.size === currentList.length && currentList.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(currentList.map((i) => i.id)));
+    }
+  }, [activeTab, filteredLinks, filteredAccounts, filteredStores, selectedIds.size]);
+
+  const handleConfirmBatchDelete = async () => {
+    if (selectedIds.size === 0) return;
+    try {
+      const ids = Array.from(selectedIds);
+      if (activeTab === 'links') {
+        await Promise.all(ids.map((id) => dataService.deleteLink(id)));
+      } else if (activeTab === 'accounts') {
+        await Promise.all(ids.map((id) => dataService.deleteAccount(id)));
+      } else if (activeTab === 'stores') {
+        await Promise.all(ids.map((id) => dataService.deleteStore(id)));
+      }
+      toast.success(`Đã xóa ${ids.length} mục đã chọn!`);
+      setSelectedIds(new Set());
+      setBatchDeleteOpen(false);
+      await loadData();
+    } catch (err) {
+      console.error('Lỗi khi xóa hàng loạt:', err);
+      toast.error('Lỗi khi xóa hàng loạt các mục');
+    }
+  };
+
   // Quick Add handler according to current sheet
   const handleOpenAdd = () => {
     if (activeTab === 'links') {
@@ -492,6 +545,85 @@ export const UnifiedWorkspacePage: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto space-y-5 mt-5">
+        {/* ─────────────────── Quick Stat Overview Cards ─────────────────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          {activeTab === 'accounts' && (
+            <>
+              <StatCard
+                title="Tổng tài khoản"
+                value={accounts.length}
+                subtitle="Hệ thống đăng nhập nội bộ"
+                type="actual"
+                icon={<SFShieldFill size={18} />}
+              />
+              <StatCard
+                title="Phần mềm quản lý"
+                value={new Set(accounts.map((a) => a.software)).size}
+                subtitle="Phần mềm & dịch vụ"
+                type="calculated"
+                icon={<SFStorefront size={18} />}
+              />
+              <StatCard
+                title="Cổng truy cập"
+                value={accounts.filter((a) => !!a.link).length}
+                subtitle="Liên kết đăng nhập trực tiếp"
+                type="actual"
+                icon={<SFLink size={18} />}
+              />
+            </>
+          )}
+          {activeTab === 'links' && (
+            <>
+              <StatCard
+                title="Tổng số liên kết"
+                value={links.length}
+                subtitle="Hệ thống link nghiệp vụ"
+                type="actual"
+                icon={<SFLink size={18} />}
+              />
+              <StatCard
+                title="Mục yêu thích"
+                value={links.filter((l) => l.favorite).length}
+                subtitle="Ghim truy cập nhanh"
+                type="calculated"
+                icon={<SFStarFill size={18} className="text-amber-500" />}
+              />
+              <StatCard
+                title="Phân nhóm danh mục"
+                value={categories.length}
+                subtitle="Danh mục phân loại"
+                type="actual"
+                icon={<SFShieldFill size={18} />}
+              />
+            </>
+          )}
+          {activeTab === 'stores' && (
+            <>
+              <StatCard
+                title="Tổng cửa hàng"
+                value={stores.length}
+                subtitle="Hệ thống chuỗi toàn quốc"
+                type="actual"
+                icon={<SFStorefront size={18} />}
+              />
+              <StatCard
+                title="Đã định vị bản đồ"
+                value={stores.filter((s) => !!s.googleMaps || !!s.address).length}
+                subtitle="Tọa độ Google Maps"
+                type="calculated"
+                icon={<SFMappinAndEllipse size={18} />}
+              />
+              <StatCard
+                title="Phân loại cửa hàng"
+                value={new Set(stores.map((s) => s.type).filter(Boolean)).size || 1}
+                subtitle="Khu vực & mô hình"
+                type="actual"
+                icon={<SFShieldFill size={18} />}
+              />
+            </>
+          )}
+        </div>
+
         {/* ─────────────────── Search & Quick Filter Bar ─────────────────── */}
         <div className="relative z-10 glass-material rounded-[20px] p-3 sm:p-3.5 flex flex-col md:flex-row items-center justify-between gap-3 shadow-xs">
         {/* Instant Search Bar */}
@@ -674,8 +806,17 @@ export const UnifiedWorkspacePage: React.FC = () => {
               <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
               <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-white select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <tr>
-                  <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]" aria-label="Kéo thả sắp xếp" title="Kéo thả sắp xếp">
-                    <SFLine3Horizontal size={14} className="mx-auto opacity-40" />
+                  <th className="w-12 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]" aria-label="Chọn và kéo thả" title="Chọn và kéo thả">
+                    <div className="inline-flex items-center gap-1.5 justify-center">
+                      <input
+                        type="checkbox"
+                        checked={filteredLinks.length > 0 && selectedIds.size === filteredLinks.length}
+                        onChange={handleSelectAll}
+                        className="w-3.5 h-3.5 rounded text-[#0066cc] dark:text-[#2997ff] border-black/20 dark:border-white/20 focus:ring-0 focus:ring-offset-0 cursor-pointer active:scale-90 transition-transform duration-100 touch-manipulation"
+                        title="Chọn tất cả các dòng đang hiển thị"
+                      />
+                      <SFLine3Horizontal size={13} className="opacity-40" />
+                    </div>
                   </th>
                   <th className="px-2 py-3.5 w-10 text-center whitespace-nowrap" aria-label="Đánh dấu yêu thích" title="Đánh dấu yêu thích">⭐</th>
                   <th className="px-4 py-3.5 whitespace-nowrap min-w-[140px] max-w-[220px] text-[#1d1d1f] dark:text-white font-bold">Tên Hạng Mục</th>
@@ -699,6 +840,8 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       isDragOver={dragOverId === item.id}
                       dropPosition={dropPosition}
                       copiedKey={copiedKey}
+                      isSelected={selectedIds.has(item.id)}
+                      onToggleSelect={handleToggleSelect}
                       onDragStart={handleDragStart}
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
@@ -712,48 +855,16 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="py-14 text-center">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-[#0066cc]/8 dark:bg-[#2997ff]/12 flex items-center justify-center">
-                          <SFLink size={20} className="text-[#0066cc]/60 dark:text-[#2997ff]/70" />
-                        </div>
-                        <div>
-                          <p className="text-[14px] font-semibold text-[#1d1d1f] dark:text-white mb-0.5">
-                            {search ? 'Không tìm thấy kết quả' : 'Chưa có link nào'}
-                          </p>
-                          <p className="text-[12.5px] text-[#76767b] dark:text-[#a1a1a6]">
-                            {search ? `Thử tìm với từ khoá khác` : 'Nhấn «Thêm Link» để bắt đầu'}
-                          </p>
-                        </div>
-                        {!search ? (
-                          <div className="flex items-center gap-2 mt-1 flex-wrap justify-center">
-                            <button
-                              type="button"
-                              onClick={handleOpenAdd}
-                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-semibold bg-[#0066cc] text-white hover:bg-[#0071e3] active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,102,204,0.35)] cursor-pointer"
-                            >
-                              <SFPlus size={14} />
-                              Thêm Link đầu tiên
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => window.dispatchEvent(new CustomEvent('fm:open-import'))}
-                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-semibold bg-white dark:bg-white/10 text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/15 border border-black/10 dark:border-white/15 active:scale-95 transition-all cursor-pointer"
-                            >
-                              <SFArrowDownDocument size={14} className="text-emerald-600 dark:text-emerald-400" />
-                              Nhập từ Excel
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setSearch('')}
-                            className="mt-1 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] font-medium bg-black/5 dark:bg-white/10 text-[#1d1d1f] dark:text-white hover:bg-black/10 active:scale-95 transition-all cursor-pointer"
-                          >
-                            Xóa bộ lọc tìm kiếm
-                          </button>
-                        )}
-                      </div>
+                    <td colSpan={7} className="py-10 px-4">
+                      <EmptyState
+                        icon={<SFLink size={20} />}
+                        title={search ? 'Không tìm thấy kết quả' : 'Chưa có link nào'}
+                        description={search ? 'Thử tìm với từ khoá khác hoặc xóa bộ lọc' : 'Nhấn «Thêm Link» hoặc nhập từ file Excel để bắt đầu'}
+                        actionLabel={!search ? 'Thêm Link đầu tiên' : 'Xóa bộ lọc'}
+                        onAction={!search ? handleOpenAdd : () => setSearch('')}
+                        secondaryActionLabel={!search ? 'Nhập từ Excel' : undefined}
+                        onSecondaryAction={!search ? () => window.dispatchEvent(new CustomEvent('fm:open-import')) : undefined}
+                      />
                     </td>
                   </tr>
                 )}
@@ -768,8 +879,17 @@ export const UnifiedWorkspacePage: React.FC = () => {
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-white">
               <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-white select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <tr>
-                  <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]" aria-label="Kéo thả sắp xếp" title="Kéo thả sắp xếp">
-                    <SFLine3Horizontal size={14} className="mx-auto opacity-40" />
+                  <th className="w-12 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]" aria-label="Chọn và kéo thả" title="Chọn và kéo thả">
+                    <div className="inline-flex items-center gap-1.5 justify-center">
+                      <input
+                        type="checkbox"
+                        checked={filteredAccounts.length > 0 && selectedIds.size === filteredAccounts.length}
+                        onChange={handleSelectAll}
+                        className="w-3.5 h-3.5 rounded text-[#0066cc] dark:text-[#2997ff] border-black/20 dark:border-white/20 focus:ring-0 focus:ring-offset-0 cursor-pointer active:scale-90 transition-transform duration-100 touch-manipulation"
+                        title="Chọn tất cả các dòng đang hiển thị"
+                      />
+                      <SFLine3Horizontal size={13} className="opacity-40" />
+                    </div>
                   </th>
                   <th className="px-4 py-3.5 whitespace-nowrap min-w-[120px] max-w-[160px] text-[#1d1d1f] dark:text-white font-bold">Phần Mềm</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px] max-w-[210px] text-[#1d1d1f] dark:text-white font-bold">Tên Đăng Nhập</th>
@@ -794,6 +914,8 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       dropPosition={dropPosition}
                       copiedKey={copiedKey}
                       showPassword={!!showPasswordMap[item.id]}
+                      isSelected={selectedIds.has(item.id)}
+                      onToggleSelect={handleToggleSelect}
                       onTogglePassword={handleTogglePassword}
                       onDragStart={handleDragStart}
                       onDragOver={handleDragOver}
@@ -807,48 +929,16 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="py-14 text-center">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-[#0066cc]/8 dark:bg-[#2997ff]/12 flex items-center justify-center">
-                          <SFShieldFill size={20} className="text-[#0066cc]/60 dark:text-[#2997ff]/70" />
-                        </div>
-                        <div>
-                          <p className="text-[14px] font-semibold text-[#1d1d1f] dark:text-white mb-0.5">
-                            {search ? 'Không tìm thấy tài khoản nào' : 'Chưa có tài khoản nào'}
-                          </p>
-                          <p className="text-[12.5px] text-[#76767b] dark:text-[#a1a1a6]">
-                            {search ? 'Thử tìm với từ khoá khác' : 'Lưu trữ thông tin đăng nhập và mật khẩu an toàn'}
-                          </p>
-                        </div>
-                        {!search ? (
-                          <div className="flex items-center gap-2 mt-1 flex-wrap justify-center">
-                            <button
-                              type="button"
-                              onClick={handleOpenAdd}
-                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-semibold bg-[#0066cc] text-white hover:bg-[#0071e3] active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,102,204,0.35)] cursor-pointer"
-                            >
-                              <SFPlus size={14} />
-                              Thêm Tài khoản
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => window.dispatchEvent(new CustomEvent('fm:open-import'))}
-                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-semibold bg-white dark:bg-white/10 text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/15 border border-black/10 dark:border-white/15 active:scale-95 transition-all cursor-pointer"
-                            >
-                              <SFArrowDownDocument size={14} className="text-emerald-600 dark:text-emerald-400" />
-                              Nhập từ Excel
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setSearch('')}
-                            className="mt-1 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] font-medium bg-black/5 dark:bg-white/10 text-[#1d1d1f] dark:text-white hover:bg-black/10 active:scale-95 transition-all cursor-pointer"
-                          >
-                            Xóa bộ lọc tìm kiếm
-                          </button>
-                        )}
-                      </div>
+                    <td colSpan={7} className="py-10 px-4">
+                      <EmptyState
+                        icon={<SFShieldFill size={20} />}
+                        title={search ? 'Không tìm thấy tài khoản nào' : 'Chưa có tài khoản nào'}
+                        description={search ? 'Thử tìm với từ khoá khác hoặc xóa bộ lọc' : 'Lưu trữ thông tin đăng nhập và mật khẩu an toàn trên thiết bị'}
+                        actionLabel={!search ? 'Thêm Tài khoản' : 'Xóa bộ lọc'}
+                        onAction={!search ? handleOpenAdd : () => setSearch('')}
+                        secondaryActionLabel={!search ? 'Nhập từ Excel' : undefined}
+                        onSecondaryAction={!search ? () => window.dispatchEvent(new CustomEvent('fm:open-import')) : undefined}
+                      />
                     </td>
                   </tr>
                 )}
@@ -863,8 +953,17 @@ export const UnifiedWorkspacePage: React.FC = () => {
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-white">
               <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-white select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <tr>
-                  <th className="w-9 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]" aria-label="Kéo thả sắp xếp" title="Kéo thả sắp xếp">
-                    <SFLine3Horizontal size={14} className="mx-auto opacity-40" />
+                  <th className="w-12 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]" aria-label="Chọn và kéo thả" title="Chọn và kéo thả">
+                    <div className="inline-flex items-center gap-1.5 justify-center">
+                      <input
+                        type="checkbox"
+                        checked={filteredStores.length > 0 && selectedIds.size === filteredStores.length}
+                        onChange={handleSelectAll}
+                        className="w-3.5 h-3.5 rounded text-[#0066cc] dark:text-[#2997ff] border-black/20 dark:border-white/20 focus:ring-0 focus:ring-offset-0 cursor-pointer active:scale-90 transition-transform duration-100 touch-manipulation"
+                        title="Chọn tất cả các dòng đang hiển thị"
+                      />
+                      <SFLine3Horizontal size={13} className="opacity-40" />
+                    </div>
                   </th>
                   <th className="px-4 py-3.5 whitespace-nowrap min-w-[100px] text-[#1d1d1f] dark:text-white font-bold">Mã Cửa Hàng</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[240px] max-w-[550px] text-[#1d1d1f] dark:text-white font-bold">Địa Chỉ Cửa Hàng</th>
@@ -887,6 +986,8 @@ export const UnifiedWorkspacePage: React.FC = () => {
                       isDragOver={dragOverId === item.id}
                       dropPosition={dropPosition}
                       copiedKey={copiedKey}
+                      isSelected={selectedIds.has(item.id)}
+                      onToggleSelect={handleToggleSelect}
                       onDragStart={handleDragStart}
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
@@ -900,48 +1001,16 @@ export const UnifiedWorkspacePage: React.FC = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="py-14 text-center">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-[#0066cc]/8 dark:bg-[#2997ff]/12 flex items-center justify-center">
-                          <SFStorefront size={20} className="text-[#0066cc]/60 dark:text-[#2997ff]/70" />
-                        </div>
-                        <div>
-                          <p className="text-[14px] font-semibold text-[#1d1d1f] dark:text-white mb-0.5">
-                            {search ? 'Không tìm thấy cửa hàng nào' : 'Chưa có cửa hàng nào'}
-                          </p>
-                          <p className="text-[12.5px] text-[#76767b] dark:text-[#a1a1a6]">
-                            {search ? 'Thử tìm theo mã CH, địa chỉ hoặc quận/huyện' : 'Danh sách hệ thống cửa hàng và vị trí Google Maps'}
-                          </p>
-                        </div>
-                        {!search ? (
-                          <div className="flex items-center gap-2 mt-1 flex-wrap justify-center">
-                            <button
-                              type="button"
-                              onClick={handleOpenAdd}
-                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-semibold bg-[#0066cc] text-white hover:bg-[#0071e3] active:scale-95 transition-all shadow-[0_4px_14px_rgba(0,102,204,0.35)] cursor-pointer"
-                            >
-                              <SFPlus size={14} />
-                              Thêm Cửa hàng
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => window.dispatchEvent(new CustomEvent('fm:open-import'))}
-                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-[12.5px] font-semibold bg-white dark:bg-white/10 text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/15 border border-black/10 dark:border-white/15 active:scale-95 transition-all cursor-pointer"
-                            >
-                              <SFArrowDownDocument size={14} className="text-emerald-600 dark:text-emerald-400" />
-                              Nhập từ Excel
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setSearch('')}
-                            className="mt-1 inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[12px] font-medium bg-black/5 dark:bg-white/10 text-[#1d1d1f] dark:text-white hover:bg-black/10 active:scale-95 transition-all cursor-pointer"
-                          >
-                            Xóa bộ lọc tìm kiếm
-                          </button>
-                        )}
-                      </div>
+                    <td colSpan={6} className="py-10 px-4">
+                      <EmptyState
+                        icon={<SFStorefront size={20} />}
+                        title={search ? 'Không tìm thấy cửa hàng nào' : 'Chưa có cửa hàng nào'}
+                        description={search ? 'Thử tìm theo mã CH, địa chỉ hoặc quận/huyện' : 'Danh sách hệ thống cửa hàng và vị trí Google Maps'}
+                        actionLabel={!search ? 'Thêm Cửa hàng' : 'Xóa bộ lọc'}
+                        onAction={!search ? handleOpenAdd : () => setSearch('')}
+                        secondaryActionLabel={!search ? 'Nhập từ Excel' : undefined}
+                        onSecondaryAction={!search ? () => window.dispatchEvent(new CustomEvent('fm:open-import')) : undefined}
+                      />
                     </td>
                   </tr>
                 )}
@@ -1015,11 +1084,58 @@ export const UnifiedWorkspacePage: React.FC = () => {
         description={`Bạn có chắc chắn muốn xóa "${deleteTarget?.label}"? Thao tác này không thể hoàn tác.`}
       />
 
+      {/* ─────────────────── Floating Apple Liquid Batch Action Bar ─────────────────── */}
+      <div
+        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ease-spring ${
+          selectedIds.size > 0
+            ? 'translate-y-0 opacity-100 scale-100 pointer-events-auto'
+            : 'translate-y-16 opacity-0 scale-95 pointer-events-none'
+        }`}
+      >
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-full bg-white/90 dark:bg-[#1c1c24]/90 backdrop-blur-2xl border border-black/10 dark:border-white/15 shadow-[0_16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.6)] text-[13px]">
+          <span className="flex items-center gap-1.5 font-medium text-[#1d1d1f] dark:text-white">
+            <span className="w-5 h-5 rounded-full bg-[#0066cc] dark:bg-[#2997ff] text-white flex items-center justify-center text-[11px] font-bold">
+              {selectedIds.size}
+            </span>
+            <span>đã chọn</span>
+          </span>
+
+          <div className="h-4 w-px bg-black/10 dark:bg-white/15" />
+
+          <button
+            type="button"
+            onClick={() => setBatchDeleteOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 active:scale-95 transition-all duration-150 font-medium text-[12.5px] cursor-pointer touch-manipulation"
+          >
+            <SFTrash size={13} />
+            <span>Xóa {selectedIds.size} mục</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedIds(new Set())}
+            className="px-2.5 py-1 text-xs text-[#76767b] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white active:scale-95 transition-all duration-150 cursor-pointer touch-manipulation"
+          >
+            Bỏ chọn
+          </button>
+        </div>
+      </div>
+
       {/* Google Maps In-App Preview Modal */}
       <MapPreviewModal
         isOpen={!!previewMapStore}
         onClose={() => setPreviewMapStore(null)}
         store={previewMapStore}
+      />
+
+      <ConfirmDeleteDialog
+        isOpen={batchDeleteOpen}
+        onClose={() => setBatchDeleteOpen(false)}
+        onConfirm={handleConfirmBatchDelete}
+        title={`Xóa hàng loạt ${selectedIds.size} mục?`}
+        description={`Bạn có chắc chắn muốn xóa ${selectedIds.size} mục đã chọn trong bảng ${
+          activeTab === 'links' ? 'Links' : activeTab === 'accounts' ? 'Tài khoản' : 'Cửa hàng'
+        }? Thao tác này không thể hoàn tác.`}
       />
       </div>
     </div>

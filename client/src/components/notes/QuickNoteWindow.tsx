@@ -1074,6 +1074,7 @@ export const QuickNoteWindow: React.FC = () => {
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const [isWindowClosing, setIsWindowClosing] = useState(false);
+  const [isWindowMinimizing, setIsWindowMinimizing] = useState(false);
   const closeWindowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isCompactWindow, setIsCompactWindow] = useState(false);
@@ -3408,6 +3409,16 @@ export const QuickNoteWindow: React.FC = () => {
     }, 200);
   }, [closeNote, savePendingDraft]);
 
+  const handleMinimizeNote = useCallback(() => {
+    savePendingDraft(activeNoteIdRef.current);
+    setIsWindowMinimizing(true);
+    if (closeWindowTimerRef.current) clearTimeout(closeWindowTimerRef.current);
+    closeWindowTimerRef.current = setTimeout(() => {
+      setIsWindowMinimizing(false);
+      setMinimized(true);
+    }, 200);
+  }, [setMinimized, savePendingDraft]);
+
   // Clean up closing timer on unmount
   useEffect(() => {
     return () => {
@@ -4534,8 +4545,8 @@ export const QuickNoteWindow: React.FC = () => {
     toast.success('Đã hủy lịch nhắc nhở toàn bộ ghi chú', { id: 'reminder-removed' });
   };
 
-  // Only render if opened
-  if (!isOpen && !isWindowClosing) return null;
+  // Only render if opened and not currently minimized (unless minimizing/closing animation is running)
+  if (!isOpen || (isMinimized && !isWindowMinimizing && !isWindowClosing)) return null;
 
   const currentColorConfig = COLOR_MAP[activeNote?.color || 'amber'];
   const currentW = isCompactWindow
@@ -4559,7 +4570,7 @@ export const QuickNoteWindow: React.FC = () => {
         <div
           className={cn(
             "fixed inset-0 bg-black/40 backdrop-blur-sm z-[9998] will-change-[opacity] [transform:translateZ(0)]",
-            isWindowClosing ? "liquid-backdrop-exit" : "liquid-backdrop-enter"
+            (isWindowClosing || isWindowMinimizing) ? "liquid-backdrop-exit" : "liquid-backdrop-enter"
           )}
           onClick={handleCloseNote}
           aria-hidden="true"
@@ -4579,12 +4590,14 @@ export const QuickNoteWindow: React.FC = () => {
                 top: 'max(0.5rem, env(safe-area-inset-top, 0px))',
                 width: '100vw',
                 height: 'calc(100% - max(0.5rem, env(safe-area-inset-top, 0px)))',
+                transformOrigin: 'bottom center',
               }
             : {
                 right: `${rightPx}px`,
                 bottom: `${bottomPx}px`,
                 width: `${currentW}px`,
                 height: `${currentH}px`,
+                transformOrigin: isCompactWindow ? 'center' : 'bottom right',
               }
         }
         className={cn(
@@ -4598,7 +4611,7 @@ export const QuickNoteWindow: React.FC = () => {
                   ? "shadow-[0_32px_85px_rgba(0,0,0,0.3)] transition-none select-none pointer-events-auto"
                   : "shadow-[0_20px_60px_rgba(0,0,0,0.18),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.85)] transition-[right,bottom,width,height,border-radius,box-shadow] duration-200 ease-spring"
               ),
-          isWindowClosing
+          (isWindowClosing || isWindowMinimizing)
             ? (isMobileScreen ? "apple-bottom-sheet-exit pointer-events-none" : "liquid-droplet-exit pointer-events-none")
             : (isMobileScreen ? "apple-bottom-sheet-enter" : "liquid-droplet-enter")
         )}
@@ -5121,11 +5134,22 @@ export const QuickNoteWindow: React.FC = () => {
                 </div>
               )}
 
+              {/* 1.5. Apple Window Minimize: Thu nhỏ xuống góc */}
+              <button
+                type="button"
+                onClick={handleMinimizeNote}
+                className="hidden sm:flex w-7 h-7 rounded-full items-center justify-center text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all duration-150 ease-spring cursor-pointer active:scale-90"
+                title="Thu nhỏ xuống góc (Alt + N để mở lại)"
+                aria-label="Thu nhỏ cửa sổ ghi chú"
+              >
+                <SFMinus size={13} />
+              </button>
+
               {/* 2. Apple Window Mode Toggle: Phóng to / Thu nhỏ nằm kế bên nút đóng (Chỉ trên Desktop) */}
               <button
                 type="button"
                 onClick={handleToggleCompactMode}
-                className="hidden sm:flex w-7 h-7 rounded-full items-center justify-center text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer active:scale-90"
+                className="hidden sm:flex w-7 h-7 rounded-full items-center justify-center text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all duration-150 ease-spring cursor-pointer active:scale-90"
                 title={isCompactWindow ? 'Phóng to thành tab chính cố định (Góc dưới phải)' : 'Thu nhỏ thành cửa sổ nhỏ linh động di chuyển'}
                 aria-label={isCompactWindow ? 'Phóng to tab chính' : 'Thu nhỏ cửa sổ'}
               >

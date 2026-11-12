@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Drawer } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import { StoreItem } from '@/types/workspace';
 import { SFMappinAndEllipse, SFLocationFill, SFArrowUpRightSquare } from 'sf-symbols-lib';
 import { AppleListbox } from '@/components/ui/AppleListbox';
@@ -113,8 +114,8 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
-            Mã Cửa Hàng <span className="text-[#ff3b30] font-bold ml-0.5">*</span>
+          <label className="block text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight mb-1.5">
+            Mã Cửa Hàng <span className="text-[#FF383C] font-bold ml-0.5">*</span>
           </label>
           <Input
             placeholder="vd: FM01, FM09, FM-DISTRICT7..."
@@ -129,12 +130,15 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
-            Địa chỉ chi tiết <span className="text-[#ff3b30] font-bold ml-0.5">*</span>
+          <label className="block text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight mb-1.5">
+            Địa chỉ chi tiết <span className="text-[#FF383C] font-bold ml-0.5">*</span>
           </label>
           <textarea
             rows={3}
-            className="w-full text-sm rounded-xl border border-[#e0e0e0] dark:border-white/15 bg-white dark:bg-[#1d1d1f] p-3 text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] resize-none transition-all placeholder:text-[#86868b]"
+            className={cn(
+              'w-full text-[13px] rounded-xl border border-black/10 dark:border-white/12 bg-white/85 dark:bg-[#1c1c22]/85 backdrop-blur-xl p-3 text-[#1d1d1f] dark:text-white hover:border-black/20 dark:hover:border-white/25 focus:outline-none focus:ring-2 focus:ring-[#0088FF]/35 dark:focus:ring-[#0091FF]/45 focus:border-[#0088FF] dark:focus:border-[#0091FF] focus:shadow-[0_0_14px_rgba(0,136,255,0.25)] dark:focus:shadow-[0_0_18px_rgba(0,145,255,0.32)] resize-none transition-all duration-200 ease-spring placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] shadow-2xs',
+              errors.address ? 'border-[#FF383C] dark:border-[#FF4245] focus:ring-[#FF383C]/35 focus:border-[#FF383C] focus:shadow-[0_0_14px_rgba(255,56,60,0.25)]' : ''
+            )}
             placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành..."
             value={address}
             onChange={(e) => {
@@ -142,18 +146,18 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
               if (errors.address) setErrors((prev) => ({ ...prev, address: undefined }));
             }}
           />
-          {errors.address && <p className="mt-1 text-xs text-rose-500">{errors.address}</p>}
+          {errors.address && <p className="mt-1 text-[11px] text-[#FF383C] dark:text-[#FF4245] font-medium">{errors.address}</p>}
         </div>
 
         <div>
-          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
+          <label className="block text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight mb-1.5">
             Link Google Maps
           </label>
           <Input
             placeholder="https://maps.app.goo.gl/... hoặc https://google.com/maps/..."
             value={googleMaps}
             onChange={(e) => setGoogleMaps(e.target.value)}
-            leftIcon={<SFLocationFill size={16} className="text-[#86868b]" />}
+            leftIcon={<SFLocationFill size={16} />}
           />
 
           {/* Live Map Preview Toggle */}
@@ -162,7 +166,7 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
               <button
                 type="button"
                 onClick={() => setShowMapPreview((prev) => !prev)}
-                className="inline-flex items-center gap-1.5 text-xs font-medium text-[#0071e3] dark:text-[#2997ff] hover:underline transition-all cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0088FF] dark:text-[#0091FF] hover:underline active:scale-95 transition-all duration-180 ease-spring cursor-pointer"
               >
                 <SFMappinAndEllipse size={14} />
                 <span>{showMapPreview ? 'Ẩn bản đồ xem trước' : 'Xem trước vị trí trên Google Maps'}</span>

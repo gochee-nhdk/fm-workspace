@@ -847,7 +847,10 @@ export const SettingsPage: React.FC = () => {
         {/* ── Spatial Animated Settings Tab Content Container ── */}
         <div className="relative">
         {/* ── TAB 1: DỮ LIỆU & SAO LƯU ── */}
-        <div className={activeTab === 'backup' ? `${animationClass} block` : 'hidden'}>
+        <div
+          key={activeTab === 'backup' ? `tab-backup-${direction}` : 'tab-backup-off'}
+          className={activeTab === 'backup' ? `${animationClass} block` : 'hidden'}
+        >
           <div className="space-y-6">
           {/* Storage Health & Stats */}
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-5">
@@ -1224,7 +1227,10 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       {/* ── TAB 2: LÁ CHẮN AN TOÀN ── */}
-      <div className={activeTab === 'shield' ? `${animationClass} block` : 'hidden'}>
+      <div
+        key={activeTab === 'shield' ? `tab-shield-${direction}` : 'tab-shield-off'}
+        className={activeTab === 'shield' ? `${animationClass} block` : 'hidden'}
+      >
         <div className="space-y-6">
           {/* Dual-Persistence Shield */}
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-4 border border-emerald-500/20 bg-emerald-500/[0.02]">
@@ -1539,7 +1545,10 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       {/* ── TAB 3: GỬI MAIL TỰ ĐỘNG (GMAIL SMTP) ── */}
-      <div className={activeTab === 'smtp' ? `${animationClass} block` : 'hidden'}>
+      <div
+        key={activeTab === 'smtp' ? `tab-smtp-${direction}` : 'tab-smtp-off'}
+        className={activeTab === 'smtp' ? `${animationClass} block` : 'hidden'}
+      >
         <div className="space-y-6">
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-5">
             <div className="flex items-center justify-between pb-3.5 border-b border-[#e0e0e0] dark:border-white/10 flex-wrap gap-2">
@@ -1688,7 +1697,10 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       {/* ── TAB 4: QUẢN LÝ KHÓA API (GOOGLE GEMINI & OCR) ── */}
-      <div className={activeTab === 'ai' ? `${animationClass} block` : 'hidden'}>
+      <div
+        key={activeTab === 'ai' ? `tab-ai-${direction}` : 'tab-ai-off'}
+        className={activeTab === 'ai' ? `${animationClass} block` : 'hidden'}
+      >
         <div className="space-y-6">
           {/* Header & Status Summary Card */}
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-5">
@@ -2002,7 +2014,10 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       {/* ── TAB 5: GIAO DIỆN (THEME & APPEARANCE) ── */}
-      <div className={activeTab === 'appearance' ? `${animationClass} block` : 'hidden'}>
+      <div
+        key={activeTab === 'appearance' ? `tab-appearance-${direction}` : 'tab-appearance-off'}
+        className={activeTab === 'appearance' ? `${animationClass} block` : 'hidden'}
+      >
         <div className="space-y-6">
           <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-3">

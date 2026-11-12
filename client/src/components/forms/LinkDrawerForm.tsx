@@ -135,8 +135,8 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
     >
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
-            Tên Hạng mục / Công cụ <span className="text-[#ff3b30] font-bold ml-0.5">*</span>
+          <label className="block text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight mb-1.5">
+            Tên Hạng mục / Công cụ <span className="text-[#FF383C] font-bold ml-0.5">*</span>
           </label>
           <Input
             placeholder="vd: SAP, POS Bán Hàng, Báo Date Thiên Lương..."
@@ -151,7 +151,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
+          <label className="block text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight mb-1.5">
             Đường dẫn (URL)
           </label>
           <div className="relative">
@@ -168,12 +168,12 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
                 }
               }}
               error={errors.link}
-              leftIcon={<SFLink size={16} className="text-[#86868b] dark:text-[#a1a1a6]" />}
+              leftIcon={<SFLink size={16} />}
             />
           </div>
           {!link.trim() && (
-            <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1">
-              <SFExclamationmarkCircle size={14} className="inline" /> Để trống sẽ hiển thị trạng thái "Missing link"
+            <p className="mt-1 text-[11px] text-[#FF8D28] dark:text-[#FF9230] flex items-center gap-1 font-medium">
+              <SFExclamationmarkCircle size={14} className="inline shrink-0" /> Để trống sẽ hiển thị trạng thái "Missing link"
             </p>
           )}
         </div>
@@ -202,7 +202,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
                 type="text"
                 autoFocus
                 placeholder="Nhập tên phân nhóm mới..."
-                className="mt-2 w-full text-sm rounded-xl border border-[#0071e3] bg-white dark:bg-[#1d1d1f] px-3.5 py-2 text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20 transition-all font-medium"
+                className="mt-2 w-full text-[13px] rounded-xl border border-[#0088FF] dark:border-[#0091FF] bg-white/85 dark:bg-[#1c1c22]/85 backdrop-blur-xl px-3.5 py-2 text-[#1d1d1f] dark:text-white placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] focus:outline-none focus:ring-2 focus:ring-[#0088FF]/35 dark:focus:ring-[#0091FF]/45 focus:shadow-[0_0_12px_rgba(0,136,255,0.25)] transition-all duration-200 ease-spring font-medium shadow-2xs"
                 value={customCategory}
                 onChange={(e) => {
                   setCustomCategory(e.target.value);
@@ -213,7 +213,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
           </div>
 
           <div>
-            <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
+            <label className="block text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight mb-1.5">
               Thứ tự (STT)
             </label>
             <Input
@@ -226,12 +226,12 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
+          <label className="block text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight mb-1.5">
             Ghi chú / Hướng dẫn
           </label>
           <textarea
             rows={3}
-            className="w-full text-sm rounded-xl border border-[#e0e0e0] dark:border-white/15 bg-white dark:bg-[#1d1d1f] p-3 text-[#1d1d1f] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#0071e3]/20 focus:border-[#0071e3] resize-none transition-all placeholder:text-[#86868b]"
+            className="w-full text-[13px] rounded-xl border border-black/10 dark:border-white/12 bg-white/85 dark:bg-[#1c1c22]/85 backdrop-blur-xl p-3 text-[#1d1d1f] dark:text-white hover:border-black/20 dark:hover:border-white/25 focus:outline-none focus:ring-2 focus:ring-[#0088FF]/35 dark:focus:ring-[#0091FF]/45 focus:border-[#0088FF] dark:focus:border-[#0091FF] focus:shadow-[0_0_14px_rgba(0,136,255,0.25)] dark:focus:shadow-[0_0_18px_rgba(0,145,255,0.32)] resize-none transition-all duration-200 ease-spring placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] shadow-2xs"
             placeholder="Ghi chú về cách dùng, chu kỳ báo cáo, hoặc người phụ trách..."
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -239,16 +239,16 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
         </div>
 
         <div className="pt-2">
-          <label className="flex items-center gap-3 p-3.5 rounded-xl border border-black/10 dark:border-white/10 bg-[#f5f5f7] dark:bg-white/5 cursor-pointer hover:bg-[#e8e8ed] dark:hover:bg-white/10 transition-colors">
+          <label className="flex items-center gap-3 p-3.5 rounded-xl border border-black/10 dark:border-white/12 bg-white/60 dark:bg-white/[0.04] backdrop-blur-md cursor-pointer hover:bg-white/80 dark:hover:bg-white/[0.08] active:scale-[0.99] transition-all duration-180 ease-spring shadow-2xs">
             <input
               type="checkbox"
               checked={favorite}
               onChange={(e) => setFavorite(e.target.checked)}
-              className="rounded accent-[#0071e3] text-[#0071e3] w-4 h-4 cursor-pointer outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus:ring-offset-0 ring-0 shadow-none"
+              className="rounded accent-[#0088FF] text-[#0088FF] w-4 h-4 cursor-pointer outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus:ring-offset-0 ring-0 shadow-none"
             />
             <div className="flex items-center gap-2">
               {favorite ? <SFStarFill size={16} className="text-amber-500" /> : <SFStar size={16} className="text-[#86868b]" />}
-              <span className="text-xs font-medium text-[#1d1d1f] dark:text-white">
+              <span className="text-[12.5px] font-medium text-[#1d1d1f] dark:text-white">
                 Đánh dấu liên kết yêu thích (Ghim lên đầu Dashboard)
               </span>
             </div>
