@@ -378,9 +378,21 @@ const getStrictSelectionLineRects = (
     }
   }
 
-  // Filter out any empty lines/whitespace gaps
+  // Filter out any empty lines/whitespace gaps, narrow artifacts, vertical cursor stalks, or block-level containers
   return merged
-    .filter((m) => m.width > 4 && m.height > 4)
+    .filter((m) => {
+      // Must have substantive width and reasonable height for a text line
+      if (m.width < 14 || m.height > 50) return false;
+      // Stalk filter: text line height should never be more than twice its width
+      if (m.height / m.width > 2.0) return false;
+      return true;
+    })
+    .map((m) => ({
+      left: Math.max(0, m.left - 4),
+      width: m.width + 8,
+      top: m.top - 2,
+      height: m.height + 4,
+    }))
     .sort((a, b) => a.top - b.top || a.left - b.left);
 };
 

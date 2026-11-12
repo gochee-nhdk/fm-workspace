@@ -605,7 +605,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         aria-modal="true"
         aria-label="Tìm kiếm nhanh Spotlight"
         className={cn(
-          'relative w-full max-w-2xl sm:max-w-[720px] bg-white/92 dark:bg-[#1c1c22]/92 backdrop-blur-3xl rounded-[26px] shadow-[0_32px_90px_rgba(0,0,0,0.35),0_10px_30px_rgba(0,0,0,0.1),inset_0_1.5px_1px_rgba(255,255,255,0.95)] dark:shadow-[0_36px_100px_rgba(0,0,0,0.8),0_12px_36px_rgba(0,0,0,0.5),inset_0_1.5px_1px_rgba(255,255,255,0.15)] border border-black/10 dark:border-white/15 overflow-hidden z-10 flex flex-col',
+          'relative w-full max-w-2xl sm:max-w-[720px] bg-white/98 dark:bg-[#1c1c22]/98 backdrop-blur-3xl rounded-[26px] shadow-[0_32px_90px_rgba(0,0,0,0.4),0_10px_30px_rgba(0,0,0,0.12),inset_0_1.5px_1px_rgba(255,255,255,0.95)] dark:shadow-[0_36px_100px_rgba(0,0,0,0.85),0_12px_36px_rgba(0,0,0,0.6),inset_0_1.5px_1px_rgba(255,255,255,0.15)] border border-black/10 dark:border-white/15 overflow-hidden z-10 flex flex-col',
           isClosing ? 'liquid-droplet-exit' : 'liquid-droplet-enter'
         )}
       >
@@ -626,7 +626,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Tìm kiếm liên kết, tài khoản, cửa hàng, trang, tác vụ..."
             className="w-full text-[16px] bg-transparent text-[#1d1d1f] dark:text-white placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] border-0 outline-none ring-0 p-0 shadow-none font-normal"
-            style={{ outline: 'none', boxShadow: 'none', border: 'none' }}
+            style={{ outline: 'none', boxShadow: 'none', border: 'none', caretColor: '#0071e3' }}
           />
 
           {/* Right Controls: Result Count + Clear + Clean Close (X) Button */}

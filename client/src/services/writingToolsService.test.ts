@@ -198,6 +198,22 @@ Kiểm tra tiến độ giao hàng trước 17h.`;
     'Sanitizer preserves legitimate numbered points'
   );
 
+  // Case 7.7: Defense-in-depth reconstruction of diff/arrow lists into finished document (Fix Image 1)
+  const rawDiffList = `* "Dear NCC" -> Kính gửi Quý Nhà cung cấp,
+* "Em gửi anh/chị file PO số 123" -> Chúng tôi xin gửi Quý Công ty đơn đặt hàng số PO-123.
+* "Check giúp em nha" -> Kính mong Quý Công ty kiểm tra và phản hồi xác nhận.`;
+  const sanitized77 = sanitizeAiWritingOutput(rawDiffList);
+  assert(
+    !sanitized77.includes('->') && !sanitized77.includes('Dear NCC'),
+    'Sanitizer reconstructs diff arrow list and strips original old tokens'
+  );
+  assert(
+    sanitized77.includes('Kính gửi Quý Nhà cung cấp,') &&
+    sanitized77.includes('Chúng tôi xin gửi Quý Công ty đơn đặt hàng số PO-123.') &&
+    sanitized77.includes('Kính mong Quý Công ty kiểm tra và phản hồi xác nhận.'),
+    'Sanitizer extracts replacement text into a complete coherent document'
+  );
+
   console.log(`\n=== TỔNG KẾT KIỂM THỬ WRITING TOOLS: ${passed} ĐẠT, ${failed} THẤT BẠI ===`);
   if (failed > 0) {
     process.exit(1);

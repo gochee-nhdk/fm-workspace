@@ -9,7 +9,8 @@ import { v4 as uuidv4 } from 'uuid';
 /**
  * Sanitizer for AI Writing Tool outputs:
  * Strips raw prompt reflection, meta-analysis preambles (* Input:, * Goal:, * Constraint:, Analysis:),
- * and conversational intros, ensuring only clean processed text is returned to the user.
+ * conversational intros, and reconstructs finished document text if the AI mistakenly outputs diff/arrow lists.
+ * Ensures a ready-to-use, complete text is returned to the user.
  */
 export function sanitizeAiWritingOutput(rawText: string): string {
   if (!rawText || typeof rawText !== 'string') return '';
@@ -76,6 +77,38 @@ export function sanitizeAiWritingOutput(rawText: string): string {
       (text.startsWith("'") && text.endsWith("'") && text.length >= 2)) {
     const inner = text.slice(1, -1).trim();
     if (inner && !inner.includes('\n\n')) text = inner;
+  }
+
+  // 5. Defense-in-depth: Reconstruct coherent text if AI returned a diff/mapping list (e.g., * "old" -> new or * old -> new)
+  // Example error:
+  // * "Dear NCC" -> Kính gửi Quý Nhà cung cấp,
+  // * "Em gửi anh/chị..." -> Chúng tôi xin gửi...
+  const lines = text.split('\n');
+  const diffArrowRegex = /^(?:[*•-]\s+)?(?:"[^"]+"|'[^']+'|[^->\n]+?)\s*(?:->|→|=>)\s*(.+)$/;
+  const diffMatches = lines.filter((l) => diffArrowRegex.test(l.trim()));
+
+  if (diffMatches.length > 0 && diffMatches.length >= lines.filter((l) => l.trim().length > 0).length * 0.5) {
+    const reconstructedLines: string[] = [];
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      const match = trimmedLine.match(diffArrowRegex);
+      if (match && match[1]) {
+        let replacement = match[1].trim();
+        // Remove surrounding quotes if any
+        replacement = replacement.replace(/^["'“](.*)["'”]$/, '$1').trim();
+        if (replacement) {
+          reconstructedLines.push(replacement);
+        }
+      } else if (trimmedLine) {
+        // If it's another non-diff line, keep it unless it looks like a header like "Thay đổi:" or "Đối chiếu:"
+        if (!/^(?:Thay đổi|Chi tiết thay đổi|Đối chiếu|Bảng đối chiếu|Chỉnh sửa)(?:\s*:)?$/i.test(trimmedLine)) {
+          reconstructedLines.push(line);
+        }
+      }
+    }
+    if (reconstructedLines.length > 0) {
+      text = reconstructedLines.join('\n').trim();
+    }
   }
 
   return text.trim();
@@ -154,33 +187,34 @@ export default async function aiRoutes(fastify: FastifyInstance) {
 
       const systemInstruction =
         'Bạn là công cụ xử lý văn bản Apple Intelligence thông minh.\n' +
-        'QUY TẮC BẮT BUỘC:\n' +
-        '1. CHỈ xuất ra duy nhất văn bản kết quả sau khi xử lý.\n' +
-        '2. Tuyệt đối KHÔNG kèm giải thích, KHÔNG tiêu đề, KHÔNG lời chào/kết.\n' +
-        '3. Tuyệt đối KHÔNG phân tích cấu trúc prompt, KHÔNG in các nhãn "* Input:", "* Goal:", "* Constraint", "Analysis:" hoặc các bước suy luận.';
+        'YÊU CẦU BẮT BUỘC:\n' +
+        '1. Đầu ra PHẢI LÀ MỘT VĂN BẢN HOÀN CHỈNH, MẠCH LẠC, ĐẦY ĐỦ, ĐỌC LIỀN TỪ ĐẦU ĐẾN CUỐI ĐỂ NGƯỜI DÙNG CÓ THỂ THAY THẾ VÀO GHI CHÚ VÀ SỬ DỤNG ĐƯỢC NGAY LẬP TỨC.\n' +
+        '2. TUYỆT ĐỐI KHÔNG trả về danh sách đối chiếu thay đổi (KHÔNG viết dạng `* \'cũ\' -> mới`), KHÔNG liệt kê từng từ thay thế, KHÔNG kèm lời bình luận hay chú thích.\n' +
+        '3. Tuyệt đối KHÔNG kèm giải thích, KHÔNG tiêu đề, KHÔNG lời chào/kết ngoài nội dung văn bản.\n' +
+        '4. Tuyệt đối KHÔNG phân tích cấu trúc prompt, KHÔNG in các nhãn "* Input:", "* Goal:", "* Constraint", "Analysis:" hoặc các bước suy luận.';
 
       let prompt = '';
       if (action === 'summarize') {
-        prompt = `Hãy tóm tắt cô đọng đúng bản chất các thông tin cốt lõi (Ai, làm gì, khi nào, số lượng, lưu ý chính) của nội dung sau bằng tiếng Việt:\n\n${text}`;
+        prompt = `Hãy tóm tắt cô đọng đúng bản chất các thông tin cốt lõi (Ai, làm gì, khi nào, số lượng, lưu ý chính) của nội dung sau thành một bản tóm tắt hoàn chỉnh bằng tiếng Việt:\n\n${text}`;
       } else if (action === 'keypoints') {
         prompt = `Hãy rút ra các ý chính mấu chốt quan trọng nhất từ văn bản sau bằng tiếng Việt, đánh số thứ tự 1, 2, 3... rõ ràng, ngắn gọn và đi thẳng vào trọng tâm:\n\n${text}`;
       } else if (action === 'professional') {
-        prompt = `Hãy viết lại văn bản sau chuẩn văn phong công vụ, thương mại lịch sự, tôn trọng người đọc bằng tiếng Việt, thay thế toàn bộ từ ngữ suồng sã, teencode, văn nói, giữ nguyên đầy đủ ý và tính chính xác của thông tin gốc:\n\n${text}`;
+        prompt = `Hãy viết lại toàn bộ văn bản sau thành một bức thư/email/văn bản hoàn chỉnh theo chuẩn văn phong công vụ, thương mại trang trọng, lịch sự và chuẩn mực tiếng Việt. BẢO TOÀN cấu trúc phân đoạn và thông tin cốt lõi (PO, số lượng, giá, thời hạn...), nhưng trau chuốt câu từ trang trọng. Trả về DUY NHẤT toàn văn bản đã viết lại hoàn chỉnh để người dùng có thể gửi ngay:\n\n${text}`;
       } else if (action === 'concise') {
-        prompt = `Hãy viết lại văn bản sau thật ngắn gọn, súc tích bằng tiếng Việt, giản lược tối đa các từ đệm, trạng từ thừa, cụm từ lặp lại, giữ nguyên 100% cốt lõi thông tin:\n\n${text}`;
+        prompt = `Hãy viết lại toàn bộ văn bản sau thành một văn bản hoàn chỉnh thật ngắn gọn, súc tích bằng tiếng Việt, giản lược tối đa các từ đệm, trạng từ thừa, cụm từ lặp lại, giữ nguyên 100% cốt lõi thông tin. Trả về DUY NHẤT toàn văn bản hoàn chỉnh đã rút gọn để người dùng có thể sử dụng ngay:\n\n${text}`;
       } else if (action === 'proofread') {
-        prompt = `Hãy sửa đúng chính tả tiếng Việt, chuẩn hóa dấu thanh, dấu câu, ngắt câu, viết hoa đầu câu trong văn bản sau mà KHÔNG làm thay đổi cấu trúc hay ý nghĩa câu:\n\n${text}`;
+        prompt = `Hãy sửa đúng chính tả tiếng Việt, chuẩn hóa dấu thanh, dấu câu, ngắt câu, viết hoa đầu câu trong văn bản sau mà KHÔNG làm thay đổi cấu trúc hay ý nghĩa câu. Trả về DUY NHẤT toàn bộ văn bản hoàn chỉnh sau khi sửa để người dùng có thể thay thế sử dụng ngay (TUYỆT ĐỐI KHÔNG liệt kê danh sách từ thay thế dạng A -> B):\n\n${text}`;
       } else if (action === 'expand') {
-        prompt = `Hãy phát triển câu từ tự nhiên, mạch lạc, bám sát ngữ cảnh thực tế của câu gốc bằng tiếng Việt (không dùng mẫu câu máy móc hay văn mẫu rập khuôn):\n\n${text}`;
+        prompt = `Hãy phát triển câu từ tự nhiên, mạch lạc, bám sát ngữ cảnh thực tế của câu gốc bằng tiếng Việt (không dùng mẫu câu máy móc hay văn mẫu rập khuôn). Trả về DUY NHẤT toàn văn bản hoàn chỉnh đã mở rộng để người dùng có thể sử dụng ngay:\n\n${text}`;
       } else if (action === 'action_items') {
         prompt = `Hãy trích xuất chính xác các hành động hoặc đầu việc cần thực hiện từ văn bản sau thành định dạng danh sách việc cần làm '- [ ] [Hành động cụ thể]':\n\n${text}`;
       } else if (action === 'translate_en') {
-        prompt = `Hãy dịch sang tiếng Anh chuẩn, tự nhiên, chính xác cả về thuật ngữ kinh doanh/thu mua và đời sống:\n\n${text}`;
+        prompt = `Hãy dịch toàn bộ nội dung sau sang một văn bản tiếng Anh hoàn chỉnh, chuẩn, tự nhiên, chính xác cả về thuật ngữ kinh doanh/thu mua và đời sống để người dùng có thể sử dụng ngay:\n\n${text}`;
       } else if (action === 'translate_vi') {
-        prompt = `Hãy dịch sang tiếng Việt mượt mà, thuần Việt, chuẩn ngữ pháp:\n\n${text}`;
+        prompt = `Hãy dịch toàn bộ nội dung sau sang một văn bản tiếng Việt hoàn chỉnh, mượt mà, thuần Việt, chuẩn ngữ pháp để người dùng có thể sử dụng ngay:\n\n${text}`;
       } else {
         // proofread fallback
-        prompt = `Hãy sửa đúng chính tả tiếng Việt, chuẩn hóa dấu thanh, dấu câu, ngắt câu, viết hoa đầu câu trong văn bản sau mà KHÔNG làm thay đổi cấu trúc hay ý nghĩa câu:\n\n${text}`;
+        prompt = `Hãy sửa đúng chính tả tiếng Việt, chuẩn hóa dấu thanh, dấu câu, ngắt câu, viết hoa đầu câu trong văn bản sau mà KHÔNG làm thay đổi cấu trúc hay ý nghĩa câu. Trả về DUY NHẤT toàn văn bản hoàn chỉnh sau khi sửa để người dùng có thể sử dụng ngay:\n\n${text}`;
       }
 
       let lastErr: any = null;

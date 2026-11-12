@@ -2816,11 +2816,11 @@ tbody td {
   min-width: 28px;
   min-height: 28px;
   border-radius: 50%;
-  background: rgba(28, 28, 32, 0.75);
+  background: rgba(28, 28, 32, 0.78) !important;
   backdrop-filter: blur(20px) saturate(190%);
   -webkit-backdrop-filter: blur(20px) saturate(190%);
-  color: #ff453a;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
   display: flex;
   align-items: center;
@@ -2855,7 +2855,7 @@ tbody td {
   color: #ffffff !important;
   border-color: rgba(255, 255, 255, 0.6) !important;
   transform: scale(1.08) !important;
-  box-shadow: 0 3px 12px rgba(255, 59, 48, 0.45) !important;
+  box-shadow: 0 3px 12px rgba(255, 59, 48, 0.5) !important;
 }
 
 .apple-img-wrapper .apple-img-delete-btn:active {
@@ -3200,30 +3200,32 @@ tbody td {
   position: absolute;
   overflow: hidden;
   border-radius: 6px !important;
+  border: none !important;
   pointer-events: none;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(168, 85, 247, 0.3), rgba(236, 72, 153, 0.25)) !important;
-  border: 1px solid rgba(168, 85, 247, 0.4) !important;
-  box-shadow: 0 0 14px rgba(168, 85, 247, 0.45), inset 0 0 8px rgba(236, 72, 153, 0.2) !important;
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  background: linear-gradient(90deg, rgba(168, 85, 247, 0.12) 0%, rgba(192, 132, 252, 0.18) 50%, rgba(168, 85, 247, 0.12) 100%) !important;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.22) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   animation: appleAiHighlightBreathe 2.4s ease-in-out infinite;
   transform: translateZ(0);
 }
 
 .dark .apple-ai-scan-pill {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.32), rgba(168, 85, 247, 0.38), rgba(236, 72, 153, 0.32)) !important;
-  border: 1px solid rgba(192, 132, 252, 0.5) !important;
-  box-shadow: 0 0 18px rgba(168, 85, 247, 0.55), inset 0 0 10px rgba(236, 72, 153, 0.25) !important;
+  border: none !important;
+  background: linear-gradient(90deg, rgba(168, 85, 247, 0.16) 0%, rgba(192, 132, 252, 0.24) 50%, rgba(168, 85, 247, 0.16) 100%) !important;
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.3) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 @keyframes appleAiHighlightBreathe {
   0%, 100% {
-    opacity: 0.88;
-    box-shadow: 0 0 14px rgba(168, 85, 247, 0.45), inset 0 0 8px rgba(236, 72, 153, 0.2);
+    opacity: 0.85;
+    box-shadow: 0 0 10px rgba(168, 85, 247, 0.18);
   }
   50% {
     opacity: 1;
-    box-shadow: 0 0 20px rgba(168, 85, 247, 0.65), inset 0 0 12px rgba(236, 72, 153, 0.35);
+    box-shadow: 0 0 16px rgba(168, 85, 247, 0.32);
   }
 }
 
@@ -3232,17 +3234,18 @@ tbody td {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 180px;
+  width: 220px;
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.15) 20%,
-    rgba(255, 255, 255, 0.85) 50%,
-    rgba(236, 72, 153, 0.45) 75%,
+    rgba(255, 255, 255, 0.05) 15%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(236, 72, 153, 0.35) 70%,
     transparent 100%
   );
-  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.85));
-  animation: appleAiShimmerSweep 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.6));
+  opacity: 0.75;
+  animation: appleAiShimmerSweep 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   pointer-events: none;
   transform: translateZ(0);
 }
@@ -3251,17 +3254,18 @@ tbody td {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.2) 20%,
-    rgba(255, 255, 255, 0.95) 50%,
-    rgba(236, 72, 153, 0.55) 75%,
+    rgba(255, 255, 255, 0.08) 15%,
+    rgba(255, 255, 255, 0.65) 50%,
+    rgba(236, 72, 153, 0.4) 70%,
     transparent 100%
   );
-  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.95));
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.7));
+  opacity: 0.8;
 }
 
 @keyframes appleAiShimmerSweep {
   0% {
-    transform: translate3d(-180px, 0, 0);
+    transform: translate3d(-220px, 0, 0);
     opacity: 0;
   }
   15% {
@@ -3271,7 +3275,7 @@ tbody td {
     opacity: 1;
   }
   100% {
-    transform: translate3d(calc(100% + 180px), 0, 0);
+    transform: translate3d(calc(100% + 220px), 0, 0);
     opacity: 0;
   }
 }
