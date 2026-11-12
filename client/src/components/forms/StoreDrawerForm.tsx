@@ -166,9 +166,14 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
               <button
                 type="button"
                 onClick={() => setShowMapPreview((prev) => !prev)}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0088FF] dark:text-[#0091FF] hover:underline active:scale-95 transition-all duration-180 ease-spring cursor-pointer"
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-180 ease-spring cursor-pointer active:scale-95 border",
+                  showMapPreview
+                    ? "bg-[#0088FF]/12 border-[#0088FF]/30 text-[#0088FF] dark:text-[#0091FF]"
+                    : "bg-black/[0.03] dark:bg-white/[0.05] border-black/10 dark:border-white/10 text-[#555558] dark:text-[#a1a1a6] hover:bg-black/[0.06] dark:hover:bg-white/10 hover:text-[#1d1d1f] dark:hover:text-white"
+                )}
               >
-                <SFMappinAndEllipse size={14} />
+                <SFMappinAndEllipse size={13} className={showMapPreview ? "text-[#0088FF] dark:text-[#0091FF]" : ""} />
                 <span>{showMapPreview ? 'Ẩn bản đồ xem trước' : 'Xem trước vị trí trên Google Maps'}</span>
               </button>
 

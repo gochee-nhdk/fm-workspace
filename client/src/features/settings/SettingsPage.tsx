@@ -60,6 +60,7 @@ import { autoBackupManager } from '@/services/autoBackupManager';
 import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import { AppleLiquidDialog } from '@/components/ui/AppleLiquidDialog';
 import { AppleListbox } from '@/components/ui/AppleListbox';
+import { AppleCheckbox, AppleSwitch } from '@/components/ui/AppleCheckbox';
 import { SegmentedNavigation } from '@/components/ui/SegmentedNavigation';
 import { useUiStore, resolveTheme } from '@/stores/ui-store';
 import { toggleThemeWithIris } from '@/lib/themeTransition';

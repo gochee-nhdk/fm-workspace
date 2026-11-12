@@ -19,3 +19,4 @@ export * from './close-button';
 export * from './AppleLiquidDialog';
 export * from './ConfirmDeleteDialog';
 export * from './MapPreviewModal';
+export * from './AppleCheckbox';

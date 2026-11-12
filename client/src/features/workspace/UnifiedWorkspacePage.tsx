@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, startTransition } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import {
   SFLink,
@@ -19,7 +20,6 @@ import {
   SFStarFill,
   SFMappinAndEllipse,
   SFLine3HorizontalDecreaseCircle,
-  SFLine3Horizontal,
   SFChevronDown,
 } from 'sf-symbols-lib';
 import { Button } from '@/components/ui/button';
@@ -124,6 +124,17 @@ export const UnifiedWorkspacePage: React.FC = () => {
   // Batch selection states
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
+
+  // Clear batch selection on Escape key
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && selectedIds.size > 0 && !batchDeleteOpen) {
+        setSelectedIds(new Set());
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedIds.size, batchDeleteOpen]);
 
   // Drag and drop reordering states
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -806,19 +817,16 @@ export const UnifiedWorkspacePage: React.FC = () => {
               <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-[#f5f5f7]">
               <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-white select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <tr>
-                  <th className="w-12 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]" aria-label="Chọn và kéo thả" title="Chọn và kéo thả">
-                    <div className="inline-flex items-center gap-1.5 justify-center">
-                      <input
-                        type="checkbox"
-                        checked={filteredLinks.length > 0 && selectedIds.size === filteredLinks.length}
-                        onChange={handleSelectAll}
-                        className="w-3.5 h-3.5 rounded text-[#0066cc] dark:text-[#2997ff] border-black/20 dark:border-white/20 focus:ring-0 focus:ring-offset-0 cursor-pointer active:scale-90 transition-transform duration-100 touch-manipulation"
-                        title="Chọn tất cả các dòng đang hiển thị"
-                      />
-                      <SFLine3Horizontal size={13} className="opacity-40" />
-                    </div>
+                  <th className="w-10 px-2 py-3.5 text-center">
+                    <input
+                      type="checkbox"
+                      checked={filteredLinks.length > 0 && selectedIds.size === filteredLinks.length}
+                      onChange={handleSelectAll}
+                      className="w-4 h-4 rounded text-[#0066cc] dark:text-[#2997ff] border-black/20 dark:border-white/20 focus:ring-0 focus:ring-offset-0 cursor-pointer active:scale-90 transition-transform duration-100 touch-manipulation align-middle"
+                      title="Chọn tất cả mục để thao tác hàng loạt"
+                    />
                   </th>
-                  <th className="px-2 py-3.5 w-10 text-center whitespace-nowrap" aria-label="Đánh dấu yêu thích" title="Đánh dấu yêu thích">⭐</th>
+                  <th className="w-10 px-2 py-3.5 text-center whitespace-nowrap" aria-label="Đánh dấu yêu thích" title="Đánh dấu yêu thích">⭐</th>
                   <th className="px-4 py-3.5 whitespace-nowrap min-w-[140px] max-w-[220px] text-[#1d1d1f] dark:text-white font-bold">Tên Hạng Mục</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px] text-[#1d1d1f] dark:text-white font-bold">Đường Dẫn</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[110px] text-[#1d1d1f] dark:text-white font-bold">Danh Mục</th>
@@ -879,17 +887,14 @@ export const UnifiedWorkspacePage: React.FC = () => {
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-white">
               <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-white select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <tr>
-                  <th className="w-12 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]" aria-label="Chọn và kéo thả" title="Chọn và kéo thả">
-                    <div className="inline-flex items-center gap-1.5 justify-center">
-                      <input
-                        type="checkbox"
-                        checked={filteredAccounts.length > 0 && selectedIds.size === filteredAccounts.length}
-                        onChange={handleSelectAll}
-                        className="w-3.5 h-3.5 rounded text-[#0066cc] dark:text-[#2997ff] border-black/20 dark:border-white/20 focus:ring-0 focus:ring-offset-0 cursor-pointer active:scale-90 transition-transform duration-100 touch-manipulation"
-                        title="Chọn tất cả các dòng đang hiển thị"
-                      />
-                      <SFLine3Horizontal size={13} className="opacity-40" />
-                    </div>
+                  <th className="w-10 px-2 py-3.5 text-center">
+                    <input
+                      type="checkbox"
+                      checked={filteredAccounts.length > 0 && selectedIds.size === filteredAccounts.length}
+                      onChange={handleSelectAll}
+                      className="w-4 h-4 rounded text-[#0066cc] dark:text-[#2997ff] border-black/20 dark:border-white/20 focus:ring-0 focus:ring-offset-0 cursor-pointer active:scale-90 transition-transform duration-100 touch-manipulation align-middle"
+                      title="Chọn tất cả mục để thao tác hàng loạt"
+                    />
                   </th>
                   <th className="px-4 py-3.5 whitespace-nowrap min-w-[120px] max-w-[160px] text-[#1d1d1f] dark:text-white font-bold">Phần Mềm</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[130px] max-w-[210px] text-[#1d1d1f] dark:text-white font-bold">Tên Đăng Nhập</th>
@@ -953,17 +958,14 @@ export const UnifiedWorkspacePage: React.FC = () => {
             <table className="w-full text-left text-[13px] text-[#1d1d1f] dark:text-white">
               <thead className="bg-[#f5f5f7]/95 dark:bg-[#181820]/95 backdrop-blur-2xl border-b border-black/[0.08] dark:border-white/[0.12] text-[12px] font-bold text-[#1d1d1f] dark:text-white select-none sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
                 <tr>
-                  <th className="w-12 pl-3 pr-1 py-3.5 text-center text-[#8e8e93]" aria-label="Chọn và kéo thả" title="Chọn và kéo thả">
-                    <div className="inline-flex items-center gap-1.5 justify-center">
-                      <input
-                        type="checkbox"
-                        checked={filteredStores.length > 0 && selectedIds.size === filteredStores.length}
-                        onChange={handleSelectAll}
-                        className="w-3.5 h-3.5 rounded text-[#0066cc] dark:text-[#2997ff] border-black/20 dark:border-white/20 focus:ring-0 focus:ring-offset-0 cursor-pointer active:scale-90 transition-transform duration-100 touch-manipulation"
-                        title="Chọn tất cả các dòng đang hiển thị"
-                      />
-                      <SFLine3Horizontal size={13} className="opacity-40" />
-                    </div>
+                  <th className="w-10 px-2 py-3.5 text-center">
+                    <input
+                      type="checkbox"
+                      checked={filteredStores.length > 0 && selectedIds.size === filteredStores.length}
+                      onChange={handleSelectAll}
+                      className="w-4 h-4 rounded text-[#0066cc] dark:text-[#2997ff] border-black/20 dark:border-white/20 focus:ring-0 focus:ring-offset-0 cursor-pointer active:scale-90 transition-transform duration-100 touch-manipulation align-middle"
+                      title="Chọn tất cả mục để thao tác hàng loạt"
+                    />
                   </th>
                   <th className="px-4 py-3.5 whitespace-nowrap min-w-[100px] text-[#1d1d1f] dark:text-white font-bold">Mã Cửa Hàng</th>
                   <th className="px-3.5 py-3.5 whitespace-nowrap min-w-[240px] max-w-[550px] text-[#1d1d1f] dark:text-white font-bold">Địa Chỉ Cửa Hàng</th>
@@ -1085,41 +1087,45 @@ export const UnifiedWorkspacePage: React.FC = () => {
       />
 
       {/* ─────────────────── Floating Apple Liquid Batch Action Bar ─────────────────── */}
-      <div
-        className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ease-spring ${
-          selectedIds.size > 0
-            ? 'translate-y-0 opacity-100 scale-100 pointer-events-auto'
-            : 'translate-y-16 opacity-0 scale-95 pointer-events-none'
-        }`}
-      >
-        <div className="flex items-center gap-3 px-4 py-2.5 rounded-full bg-white/90 dark:bg-[#1c1c24]/90 backdrop-blur-2xl border border-black/10 dark:border-white/15 shadow-[0_16px_40px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.6)] text-[13px]">
-          <span className="flex items-center gap-1.5 font-medium text-[#1d1d1f] dark:text-white">
-            <span className="w-5 h-5 rounded-full bg-[#0066cc] dark:bg-[#2997ff] text-white flex items-center justify-center text-[11px] font-bold">
-              {selectedIds.size}
-            </span>
-            <span>đã chọn</span>
-          </span>
-
-          <div className="h-4 w-px bg-black/10 dark:bg-white/15" />
-
-          <button
-            type="button"
-            onClick={() => setBatchDeleteOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 active:scale-95 transition-all duration-150 font-medium text-[12.5px] cursor-pointer touch-manipulation"
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ease-spring ${
+              selectedIds.size > 0
+                ? 'translate-y-0 opacity-100 scale-100 pointer-events-auto'
+                : 'translate-y-16 opacity-0 scale-95 pointer-events-none'
+            }`}
           >
-            <SFTrash size={13} />
-            <span>Xóa {selectedIds.size} mục</span>
-          </button>
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-full bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-2xl border border-black/15 dark:border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.22)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.7)] text-[13px]">
+              <span className="flex items-center gap-2 font-medium text-[#1d1d1f] dark:text-white">
+                <span className="min-w-5 h-5 px-1.5 rounded-full bg-[#0066cc] dark:bg-[#2997ff] text-white flex items-center justify-center text-[11px] font-bold">
+                  {selectedIds.size}
+                </span>
+                <span className="font-semibold">{selectedIds.size} đã chọn</span>
+              </span>
 
-          <button
-            type="button"
-            onClick={() => setSelectedIds(new Set())}
-            className="px-2.5 py-1 text-xs text-[#76767b] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white active:scale-95 transition-all duration-150 cursor-pointer touch-manipulation"
-          >
-            Bỏ chọn
-          </button>
-        </div>
-      </div>
+              <div className="h-4 w-px bg-black/15 dark:bg-white/20" />
+
+              <button
+                type="button"
+                onClick={() => setBatchDeleteOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-rose-500 hover:bg-rose-600 text-white active:scale-95 transition-all duration-150 font-medium text-[12.5px] cursor-pointer touch-manipulation shadow-xs"
+              >
+                <SFTrash size={13} />
+                <span>Xóa {selectedIds.size} mục</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                className="px-2.5 py-1 text-xs text-[#76767b] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white active:scale-95 transition-all duration-150 cursor-pointer touch-manipulation font-medium"
+              >
+                Bỏ chọn (Esc)
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* Google Maps In-App Preview Modal */}
       <MapPreviewModal

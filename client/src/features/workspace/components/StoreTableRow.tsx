@@ -70,30 +70,30 @@ export const StoreTableRow = React.memo<StoreTableRowProps>(({
           : ''
       }`}
     >
-      {/* Drag & Select Handle */}
-      <td className="w-9 pl-3 pr-1 py-3 text-center cursor-grab active:cursor-grabbing text-[#8e8e93] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-colors select-none">
-        <div className="inline-flex items-center gap-1">
-          {onToggleSelect && (
-            <input
-              type="checkbox"
-              checked={!!isSelected}
-              onChange={(e) => onToggleSelect(item.id, e as unknown as React.MouseEvent)}
-              className="w-3.5 h-3.5 rounded text-[#0066cc] dark:text-[#2997ff] border-black/20 dark:border-white/20 focus:ring-0 focus:ring-offset-0 cursor-pointer active:scale-90 transition-transform duration-100"
-              title="Chọn mục này"
-            />
-          )}
-          <div
-            className="inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 active:scale-90 active:bg-black/10 dark:active:bg-white/20 transition-all duration-150 touch-manipulation"
-            title="Kéo thả để sắp xếp thứ tự tùy ý"
-          >
-            <SFLine3Horizontal size={14} className="opacity-40 group-hover:opacity-100 transition-opacity duration-150" />
-          </div>
-        </div>
+      {/* Selection Checkbox */}
+      <td className="w-10 px-2 py-3 text-center">
+        {onToggleSelect && (
+          <input
+            type="checkbox"
+            checked={!!isSelected}
+            onChange={(e) => onToggleSelect(item.id, e as unknown as React.MouseEvent)}
+            className="w-4 h-4 rounded text-[#0066cc] dark:text-[#2997ff] border-black/20 dark:border-white/20 focus:ring-0 focus:ring-offset-0 cursor-pointer active:scale-90 transition-transform duration-100 touch-manipulation align-middle"
+            title="Chọn để thao tác hàng loạt (Xóa hoặc quản lý)"
+          />
+        )}
       </td>
 
       {/* Store Code (Plain bold text, neutral color) */}
       <td className="px-4 py-3 font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] min-w-[100px] select-text">
-        {item.storeCode}
+        <div className="flex items-center gap-2 truncate">
+          <span
+            className="opacity-30 group-hover:opacity-60 hover:opacity-100 cursor-grab active:cursor-grabbing text-[#8e8e93] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-all p-0.5 rounded touch-manipulation shrink-0"
+            title="Kéo thả để sắp xếp thứ tự tùy ý"
+          >
+            <SFLine3Horizontal size={13} />
+          </span>
+          <span className="truncate">{item.storeCode}</span>
+        </div>
       </td>
 
       {/* Address (Neutral normal text by default, highlights with Apple blue on hover) */}

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { LinkItem } from '@/types/workspace';
 import { SFStar, SFStarFill, SFLink, SFExclamationmarkCircle } from 'sf-symbols-lib';
 import { AppleListbox } from '@/components/ui/AppleListbox';
+import { AppleCheckbox } from '@/components/ui/AppleCheckbox';
 import toast from 'react-hot-toast';
 
 interface LinkDrawerFormProps {
@@ -239,20 +240,25 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
         </div>
 
         <div className="pt-2">
-          <label className="flex items-center gap-3 p-3.5 rounded-xl border border-black/10 dark:border-white/12 bg-white/60 dark:bg-white/[0.04] backdrop-blur-md cursor-pointer hover:bg-white/80 dark:hover:bg-white/[0.08] active:scale-[0.99] transition-all duration-180 ease-spring shadow-2xs">
-            <input
-              type="checkbox"
+          <div className="p-3.5 rounded-2xl border border-black/10 dark:border-white/12 bg-white/60 dark:bg-white/[0.04] backdrop-blur-md hover:bg-white/80 dark:hover:bg-white/[0.08] transition-all duration-180 ease-spring shadow-2xs">
+            <AppleCheckbox
               checked={favorite}
-              onChange={(e) => setFavorite(e.target.checked)}
-              className="rounded accent-[#0088FF] text-[#0088FF] w-4 h-4 cursor-pointer outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus:ring-offset-0 ring-0 shadow-none"
+              onChange={setFavorite}
+              label={
+                <div className="flex items-center gap-2">
+                  {favorite ? (
+                    <SFStarFill size={16} className="text-amber-500 drop-shadow-[0_1px_4px_rgba(245,158,11,0.4)]" />
+                  ) : (
+                    <SFStar size={16} className="text-[#86868b]" />
+                  )}
+                  <span className="text-[12.5px] font-medium text-[#1d1d1f] dark:text-white">
+                    Đánh dấu liên kết yêu thích (Ghim lên đầu Dashboard)
+                  </span>
+                </div>
+              }
+              title="Ghim liên kết này lên đầu trang tổng quan"
             />
-            <div className="flex items-center gap-2">
-              {favorite ? <SFStarFill size={16} className="text-amber-500" /> : <SFStar size={16} className="text-[#86868b]" />}
-              <span className="text-[12.5px] font-medium text-[#1d1d1f] dark:text-white">
-                Đánh dấu liên kết yêu thích (Ghim lên đầu Dashboard)
-              </span>
-            </div>
-          </label>
+          </div>
         </div>
 
         <div className="pt-4 border-t border-[#e0e0e0] dark:border-white/10 flex items-center justify-end gap-2.5">

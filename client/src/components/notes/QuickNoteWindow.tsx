@@ -80,6 +80,7 @@ import { CloseButton } from '@/components/ui/close-button';
 import { AppleLiquidDialog } from '@/components/ui/AppleLiquidDialog';
 import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import { AppleDateTimePicker } from '@/components/ui/AppleDateTimePicker';
+import { AppleSwitch } from '@/components/ui/AppleCheckbox';
 import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
 import { sanitizeNoteHTML } from '@/services/backupService';
 import toast from 'react-hot-toast';
@@ -5685,21 +5686,27 @@ export const QuickNoteWindow: React.FC = () => {
                               : 'hover:bg-black/[0.025] dark:hover:bg-white/[0.035]'
                           }`}
                         >
-                          {/* Apple Circular Checkbox */}
+                          {/* Apple Reminders Circular Checkbox with Tactile Physics */}
                           <button
                             type="button"
                             onClick={() => handleToggleChecklistRow(row.lineIndex)}
-                            className={`w-[18px] h-[18px] rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0 active:scale-90 ${
+                            className={`w-[19px] h-[19px] rounded-full flex items-center justify-center transition-all duration-200 ease-spring cursor-pointer shrink-0 active:scale-85 my-auto ${
                               row.completed
-                                ? 'bg-emerald-500 text-white shadow-2xs scale-100'
-                                : 'border-[1.5px] border-black/30 dark:border-white/35 hover:border-[#0071e3] dark:hover:border-[#2997ff]'
+                                ? 'bg-[#34c759] dark:bg-[#30d158] text-white shadow-xs border-transparent'
+                                : 'border-[1.5px] border-black/30 dark:border-white/35 hover:border-[#0071e3] dark:hover:border-[#2997ff] bg-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.05]'
                             }`}
                             title={row.completed ? 'Đánh dấu chưa xong' : 'Đánh dấu đã hoàn thành'}
+                            aria-label={row.completed ? 'Đánh dấu chưa xong' : 'Đánh dấu đã hoàn thành'}
                           >
-                            {row.completed && <SFCheckmark size={11} className="stroke-[3]" />}
+                            <SFCheckmark
+                              size={10.5}
+                              className={`stroke-[3] text-white drop-shadow-xs transition-all duration-200 ease-spring ${
+                                row.completed ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
+                              }`}
+                            />
                           </button>
 
-                          {/* Inline Editable Task Text Input */}
+                          {/* Inline Editable Task Text Input with Smooth Strikethrough Animation */}
                           <input
                             type="text"
                             value={row.text}
@@ -5714,10 +5721,10 @@ export const QuickNoteWindow: React.FC = () => {
                               }
                             }}
                             placeholder="Nhập việc cần làm..."
-                            className={`checklist-item-input flex-1 bg-transparent !border-0 !border-none !outline-none !shadow-none !ring-0 text-[13.5px] leading-snug py-0.5 ${
+                            className={`checklist-item-input flex-1 bg-transparent !border-0 !border-none !outline-none !shadow-none !ring-0 text-[13.5px] leading-snug py-1 transition-all duration-200 ease-spring ${
                               row.completed
-                                ? 'line-through text-[#86868b] dark:text-[#76767b]'
-                                : 'text-[#1d1d1f] dark:text-[#f5f5f7]'
+                                ? 'line-through text-[#86868b] dark:text-[#76767b] opacity-75'
+                                : 'no-underline text-[#1d1d1f] dark:text-[#f5f5f7] opacity-100'
                             }`}
                           />
 
@@ -6577,9 +6584,9 @@ export const QuickNoteWindow: React.FC = () => {
             </label>
 
             {/* Option 1: Desktop Browser Notification */}
-            <label className="flex items-center justify-between p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 cursor-pointer hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors">
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-xl bg-[#0071e3]/15 text-[#0071e3] flex items-center justify-center">
+                <div className="w-7 h-7 rounded-xl bg-[#0071e3]/15 text-[#0071e3] flex items-center justify-center shrink-0">
                   <SFBell size={14} />
                 </div>
                 <div>
@@ -6591,19 +6598,19 @@ export const QuickNoteWindow: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <input
-                type="checkbox"
+              <AppleSwitch
                 checked={reminderDesktop}
-                onChange={(e) => setReminderDesktop(e.target.checked)}
-                className="w-4 h-4 rounded text-[#0071e3] accent-[#0071e3] cursor-pointer"
+                onChange={setReminderDesktop}
+                size="sm"
+                title="Bật/tắt thông báo màn hình"
               />
-            </label>
+            </div>
 
             {/* Option 2: Email Notification */}
             <div className="p-3 rounded-2xl bg-black/[0.02] dark:bg-white/[0.04] border border-black/[0.06] dark:border-white/10 space-y-2.5">
-              <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                  <div className="w-7 h-7 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
                     <SFEnvelope size={14} />
                   </div>
                   <div>
@@ -6615,13 +6622,13 @@ export const QuickNoteWindow: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <input
-                  type="checkbox"
+                <AppleSwitch
                   checked={reminderNotifyEmail}
-                  onChange={(e) => setReminderNotifyEmail(e.target.checked)}
-                  className="w-4 h-4 rounded text-[#0071e3] accent-[#0071e3] cursor-pointer"
+                  onChange={setReminderNotifyEmail}
+                  size="sm"
+                  title="Bật/tắt gửi email nhắc nhở"
                 />
-              </label>
+              </div>
 
               {reminderNotifyEmail && (
                 <div className="pt-2 border-t border-black/[0.04] dark:border-white/10 space-y-2 animate-in fade-in duration-150">
