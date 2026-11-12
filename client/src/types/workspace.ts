@@ -1,4 +1,3 @@
-import type { POTrackerPO, POFolderItem } from './po-tracker';
 
 export interface LinkItem {
   id: string;
@@ -141,8 +140,8 @@ export interface FMBackupPayload {
   notes: QuickNoteItem[]; // images[] stay as base64 data URLs
   attachments: SerializedAttachment[];
   activities: ActivityLogItem[];
-  poOrders?: POTrackerPO[];     // v1.1
-  poFolders?: POFolderItem[];   // v1.1
+  poOrders?: unknown[];     // legacy v1.1 backward compatibility
+  poFolders?: unknown[];   // legacy v1.1 backward compatibility
   settings: {
     theme: string;
   };
@@ -192,8 +191,8 @@ export interface BackupImportResult {
   notes: number;
   todos: number;
   attachments: number;
-  poOrders: number;
-  poFolders: number;
+  poOrders?: number;
+  poFolders?: number;
   skipped: number;
   errors: string[];
 }

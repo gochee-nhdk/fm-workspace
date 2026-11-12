@@ -5,7 +5,6 @@ import { ErrorBoundary } from '@/components/ui';
 import { NotFoundPage } from '@/components/ui/NotFoundPage';
 import { UnifiedWorkspacePage } from '@/features/workspace/UnifiedWorkspacePage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
-import { POTrackerPage } from '@/features/po-tracker/POTrackerPage';
 
 export default function RoutesConfig() {
   return (
@@ -14,9 +13,6 @@ export default function RoutesConfig() {
         <Route path="/" element={<AppShell />}>
           {/* Main Workspace (All-in-One Sheet View) */}
           <Route index element={<UnifiedWorkspacePage />} />
-
-          {/* PO Tracking Hub */}
-          <Route path="po-tracker" element={<POTrackerPage />} />
 
           {/* Unified Settings & Data Hub */}
           <Route path="settings" element={<SettingsPage />} />

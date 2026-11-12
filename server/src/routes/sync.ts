@@ -75,71 +75,6 @@ export default async function syncRoutes(fastify: FastifyInstance) {
             LIMIT 20
           )
         `).run(userId, userId);
-
-        // 1b. Khôi phục/đồng bộ PO Tracker và PO Folders vào database nếu các bảng quan hệ tồn tại
-        try {
-          if (!isEncrypted && payloadStr) {
-            const parsedPayload = typeof payload === 'object' ? payload : JSON.parse(payloadStr);
-            const tableCheck = (await tx.prepare(`
-              SELECT name FROM sqlite_master WHERE type='table' AND name IN ('po_tracker_folders', 'po_tracker_pos')
-            `).all()) as any[];
-            const existingTableNames = new Set(tableCheck.map((t) => t.name));
-
-            if (existingTableNames.has('po_tracker_folders') && Array.isArray(parsedPayload.poFolders)) {
-              for (const f of parsedPayload.poFolders) {
-                if (!f || !f.id) continue;
-                const exists = await tx.prepare('SELECT id FROM po_tracker_folders WHERE id = ?').get(f.id);
-                if (exists) {
-                  await tx.prepare(`
-                    UPDATE po_tracker_folders SET name = ?, description = ?, color = ?, icon = ?, sort_order = ?, updated_at = ?
-                    WHERE id = ?
-                  `).run(f.name || 'Nhóm', f.description || '', f.color || 'blue', f.icon || 'shippingbox', f.sort_order || 0, f.updated_at || now, f.id);
-                } else {
-                  await tx.prepare(`
-                    INSERT INTO po_tracker_folders (id, name, description, color, icon, sort_order, created_by, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                  `).run(f.id, f.name || 'Nhóm', f.description || '', f.color || 'blue', f.icon || 'shippingbox', f.sort_order || 0, userId, f.created_at || now, f.updated_at || now);
-                }
-              }
-            }
-
-            if (existingTableNames.has('po_tracker_pos') && Array.isArray(parsedPayload.poOrders)) {
-              for (const po of parsedPayload.poOrders) {
-                if (!po || !po.id) continue;
-                const exists = await tx.prepare('SELECT id FROM po_tracker_pos WHERE id = ?').get(po.id);
-                if (exists) {
-                  await tx.prepare(`
-                    UPDATE po_tracker_pos SET
-                      folder_id = ?, po_number = ?, po_date = ?, expected_delivery_date = ?,
-                      actual_delivery_date = ?, supplier_code = ?, supplier_name = ?,
-                      warehouse = ?, status = ?, total_value = ?, currency = ?, notes = ?, updated_at = ?
-                    WHERE id = ?
-                  `).run(
-                    po.folder_id || null, po.po_number || null, po.po_date || null,
-                    po.expected_delivery_date || null, po.actual_delivery_date || null,
-                    po.supplier_code || null, po.supplier_name || null,
-                    po.warehouse || null, po.status || 'pending', Number(po.total_value || 0),
-                    po.currency || 'VND', po.notes || null, po.updated_at || now, po.id
-                  );
-                } else {
-                  await tx.prepare(`
-                    INSERT INTO po_tracker_pos (
-                      id, folder_id, po_number, po_date, expected_delivery_date, actual_delivery_date,
-                      supplier_code, supplier_name, warehouse, status, total_value, currency,
-                      notes, created_by, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                  `).run(
-                    po.id, po.folder_id || null, po.po_number || null, po.po_date || null,
-                    po.expected_delivery_date || null, po.actual_delivery_date || null,
-                    po.supplier_code || null, po.supplier_name || null,
-                    po.warehouse || null, po.status || 'pending', Number(po.total_value || 0),
-                    po.currency || 'VND', po.notes || null, userId, po.created_at || now, po.updated_at || now
-                  );
-                }
-              }
-            }
-          }
-        } catch (_) {}
       });
 
       // 2. Lưu bản sao an toàn vào vault riêng của user trên ổ đĩa (nếu môi trường hỗ trợ lưu trữ tệp cục bộ)
@@ -394,90 +329,11 @@ export default async function syncRoutes(fastify: FastifyInstance) {
         });
       }
 
-      let poOrdersCount = 0;
-      let poFoldersCount = 0;
-
-      if (!backupRecord.is_encrypted) {
-        try {
-          const payload = typeof backupRecord.payload === 'object' ? backupRecord.payload : JSON.parse(backupRecord.payload);
-          const now = new Date().toISOString();
-
-          await db.transaction(async (tx) => {
-            const tableCheck = (await tx.prepare(`
-              SELECT name FROM sqlite_master WHERE type='table' AND name IN ('po_tracker_folders', 'po_tracker_pos')
-            `).all()) as any[];
-            const existingTableNames = new Set(tableCheck.map((t) => t.name));
-
-            if (existingTableNames.has('po_tracker_folders') && Array.isArray(payload.poFolders)) {
-              for (const f of payload.poFolders) {
-                if (!f || !f.id) continue;
-                const exists = await tx.prepare('SELECT id FROM po_tracker_folders WHERE id = ?').get(f.id);
-                if (exists) {
-                  if (conflictStrategy === 'skip') continue;
-                  await tx.prepare(`
-                    UPDATE po_tracker_folders SET name = ?, description = ?, color = ?, icon = ?, sort_order = ?, updated_at = ?
-                    WHERE id = ?
-                  `).run(f.name || 'Nhóm', f.description || '', f.color || 'blue', f.icon || 'shippingbox', f.sort_order || 0, f.updated_at || now, f.id);
-                } else {
-                  await tx.prepare(`
-                    INSERT INTO po_tracker_folders (id, name, description, color, icon, sort_order, created_by, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                  `).run(f.id, f.name || 'Nhóm', f.description || '', f.color || 'blue', f.icon || 'shippingbox', f.sort_order || 0, userId, f.created_at || now, f.updated_at || now);
-                }
-                poFoldersCount++;
-              }
-            }
-
-            if (existingTableNames.has('po_tracker_pos') && Array.isArray(payload.poOrders)) {
-              for (const po of payload.poOrders) {
-                if (!po || !po.id) continue;
-                const exists = await tx.prepare('SELECT id FROM po_tracker_pos WHERE id = ?').get(po.id);
-                if (exists) {
-                  if (conflictStrategy === 'skip') continue;
-                  await tx.prepare(`
-                    UPDATE po_tracker_pos SET
-                      folder_id = ?, po_number = ?, po_date = ?, expected_delivery_date = ?,
-                      actual_delivery_date = ?, supplier_code = ?, supplier_name = ?,
-                      warehouse = ?, status = ?, total_value = ?, currency = ?, notes = ?, updated_at = ?
-                    WHERE id = ?
-                  `).run(
-                    po.folder_id || null, po.po_number || null, po.po_date || null,
-                    po.expected_delivery_date || null, po.actual_delivery_date || null,
-                    po.supplier_code || null, po.supplier_name || null,
-                    po.warehouse || null, po.status || 'pending', Number(po.total_value || 0),
-                    po.currency || 'VND', po.notes || null, po.updated_at || now, po.id
-                  );
-                } else {
-                  await tx.prepare(`
-                    INSERT INTO po_tracker_pos (
-                      id, folder_id, po_number, po_date, expected_delivery_date, actual_delivery_date,
-                      supplier_code, supplier_name, warehouse, status, total_value, currency,
-                      notes, created_by, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                  `).run(
-                    po.id, po.folder_id || null, po.po_number || null, po.po_date || null,
-                    po.expected_delivery_date || null, po.actual_delivery_date || null,
-                    po.supplier_code || null, po.supplier_name || null,
-                    po.warehouse || null, po.status || 'pending', Number(po.total_value || 0),
-                    po.currency || 'VND', po.notes || null, userId, po.created_at || now, po.updated_at || now
-                  );
-                }
-                poOrdersCount++;
-              }
-            }
-          });
-        } catch (err: any) {
-          console.warn('[Sync] Non-fatal restore error:', err);
-        }
-      }
-
       return {
         success: true,
         message: 'Đã phục hồi dữ liệu từ bản sao lưu thành công.',
         data: {
           backupId: backupRecord.id,
-          poOrdersRestored: poOrdersCount,
-          poFoldersRestored: poFoldersCount,
           backup: backupRecord,
         },
       };

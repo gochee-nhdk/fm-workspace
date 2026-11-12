@@ -9,5 +9,4 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
-declare module 'pdfjs-dist/build/pdf.min.mjs';
 

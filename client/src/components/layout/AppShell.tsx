@@ -15,7 +15,7 @@ import {
   SFSquareAndPencil,
 } from '@/components/ui/AppleIcon';
 import { CommandPalette } from '@/components/ui/command-palette';
-import { SFLink, SFShieldFill, SFStorefront, SFLock, SFShippingbox } from 'sf-symbols-lib';
+import { SFLink, SFShieldFill, SFStorefront, SFLock } from 'sf-symbols-lib';
 import { ExcelImportModal } from '@/components/excel/ExcelImportModal';
 import { QuickNoteFloatingButton } from '@/components/notes/QuickNoteFloatingButton';
 
@@ -35,13 +35,11 @@ import { cn } from '@/lib/utils';
 
 const navItems = [
   { to: '/', label: 'Bàn làm việc chính', icon: <SFSquareGrid2x2 size={16} /> },
-  { to: '/po-tracker', label: 'Theo dõi đơn hàng', icon: <SFShippingbox size={16} /> },
   { to: '/settings', label: 'Cài đặt & Dữ liệu', icon: <SFGearshapeFill size={16} /> },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
   '/': 'Bàn làm việc',
-  '/po-tracker': 'Theo dõi đơn hàng (PO Tracker)',
   '/settings': 'Cài đặt & Dữ liệu',
 };
 
@@ -125,9 +123,7 @@ export const AppShell: React.FC = () => {
     };
   }, [recordActivity, checkAutoLock]);
 
-  const activeTabKey = location.pathname.startsWith('/po-tracker')
-    ? '/po-tracker'
-    : location.pathname.startsWith('/settings')
+  const activeTabKey = location.pathname.startsWith('/settings')
     ? '/settings'
     : '/';
   const sidebarTrackRef = useRef<HTMLDivElement>(null);

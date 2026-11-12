@@ -40,7 +40,6 @@ import settingsRoutes from './routes/settings.js';
 import searchRoutes from './routes/search.js';
 import knowledgeRoutes from './routes/knowledge.js';
 import syncRoutes from './routes/sync.js';
-import poTrackerRoutes from './routes/po-tracker.js';
 
 const fastify = Fastify({
   bodyLimit: 100 * 1024 * 1024, // 100MB max payload
@@ -112,7 +111,6 @@ async function build() {
   fastify.register(searchRoutes, { prefix: '/api/search' });
   fastify.register(knowledgeRoutes, { prefix: '/api/knowledge' });
   fastify.register(syncRoutes, { prefix: '/api/sync' });
-  fastify.register(poTrackerRoutes, { prefix: '/api/po-tracker' });
 
   // Security Guardian Heartbeat & Health Check (Redacted in production)
   fastify.get('/health', async () => {

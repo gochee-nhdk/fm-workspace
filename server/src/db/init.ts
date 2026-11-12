@@ -410,81 +410,6 @@ async function initDb() {
       uploaded_by TEXT,
       created_at TEXT
     );
-
-    -- PO Tracker: Folders/Groups
-    CREATE TABLE IF NOT EXISTS po_tracker_folders (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      description TEXT,
-      color TEXT DEFAULT 'blue',
-      icon TEXT DEFAULT 'shippingbox',
-      sort_order INTEGER DEFAULT 0,
-      created_by TEXT REFERENCES users(id),
-      created_at TEXT,
-      updated_at TEXT
-    );
-
-    -- PO Tracker: Purchase Orders
-    CREATE TABLE IF NOT EXISTS po_tracker_pos (
-      id TEXT PRIMARY KEY,
-      folder_id TEXT REFERENCES po_tracker_folders(id) ON DELETE SET NULL,
-      po_number TEXT,
-      po_date TEXT,
-      expected_delivery_date TEXT,
-      actual_delivery_date TEXT,
-      supplier_code TEXT,
-      supplier_name TEXT,
-      warehouse TEXT,
-      status TEXT DEFAULT 'pending',
-      sub_total_pre_vat REAL,
-      order_discount_amount REAL DEFAULT 0,
-      total_vat REAL,
-      grand_total REAL,
-      total_value REAL DEFAULT 0,
-      currency TEXT DEFAULT 'VND',
-      notes TEXT,
-      tags TEXT,
-      extracted_data TEXT,
-      pdf_file_name TEXT,
-      is_overdue_notified INTEGER DEFAULT 0,
-      last_checked_at TEXT,
-      created_by TEXT REFERENCES users(id),
-      created_at TEXT,
-      updated_at TEXT
-    );
-
-    -- PO Tracker: Line items
-    CREATE TABLE IF NOT EXISTS po_tracker_items (
-      id TEXT PRIMARY KEY,
-      po_id TEXT REFERENCES po_tracker_pos(id) ON DELETE CASCADE,
-      item_code TEXT,
-      barcode TEXT,
-      item_name TEXT,
-      unit TEXT DEFAULT 'thùng',
-      ordered_qty REAL DEFAULT 0,
-      received_qty REAL DEFAULT 0,
-      unit_price REAL DEFAULT 0,
-      discount_pct REAL DEFAULT 0,
-      vat_pct REAL DEFAULT 8,
-      line_pre_vat_total REAL,
-      line_vat_amount REAL,
-      line_gross_total REAL,
-      total_price REAL DEFAULT 0,
-      warehouse TEXT,
-      notes TEXT,
-      status TEXT DEFAULT 'pending'
-    );
-
-    -- PO Tracker: Permissions
-    CREATE TABLE IF NOT EXISTS po_tracker_permissions (
-      id TEXT PRIMARY KEY,
-      user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
-      resource_type TEXT NOT NULL,
-      resource_id TEXT,
-      permission TEXT NOT NULL,
-      granted_by TEXT REFERENCES users(id),
-      created_at TEXT
-    );
   `);
 
   console.log('Tables created. Creating indices...');
@@ -500,46 +425,6 @@ async function initDb() {
     }
   } catch (err) {
     console.warn('[DB Migration] Notice on users table update:', err);
-  }
-
-  try {
-    const itemCols = (await db.prepare("PRAGMA table_info(po_tracker_items)").all()) as Array<{ name: string }>;
-    const itemColNames = itemCols.map((c) => c.name);
-    if (!itemColNames.includes('barcode')) {
-      await db.prepare("ALTER TABLE po_tracker_items ADD COLUMN barcode TEXT").run();
-    }
-    if (!itemColNames.includes('discount_pct')) {
-      await db.prepare("ALTER TABLE po_tracker_items ADD COLUMN discount_pct REAL DEFAULT 0").run();
-    }
-    if (!itemColNames.includes('vat_pct')) {
-      await db.prepare("ALTER TABLE po_tracker_items ADD COLUMN vat_pct REAL DEFAULT 8").run();
-    }
-    if (!itemColNames.includes('line_pre_vat_total')) {
-      await db.prepare("ALTER TABLE po_tracker_items ADD COLUMN line_pre_vat_total REAL").run();
-    }
-    if (!itemColNames.includes('line_vat_amount')) {
-      await db.prepare("ALTER TABLE po_tracker_items ADD COLUMN line_vat_amount REAL").run();
-    }
-    if (!itemColNames.includes('line_gross_total')) {
-      await db.prepare("ALTER TABLE po_tracker_items ADD COLUMN line_gross_total REAL").run();
-    }
-
-    const poCols = (await db.prepare("PRAGMA table_info(po_tracker_pos)").all()) as Array<{ name: string }>;
-    const poColNames = poCols.map((c) => c.name);
-    if (!poColNames.includes('sub_total_pre_vat')) {
-      await db.prepare("ALTER TABLE po_tracker_pos ADD COLUMN sub_total_pre_vat REAL").run();
-    }
-    if (!poColNames.includes('order_discount_amount')) {
-      await db.prepare("ALTER TABLE po_tracker_pos ADD COLUMN order_discount_amount REAL DEFAULT 0").run();
-    }
-    if (!poColNames.includes('total_vat')) {
-      await db.prepare("ALTER TABLE po_tracker_pos ADD COLUMN total_vat REAL").run();
-    }
-    if (!poColNames.includes('grand_total')) {
-      await db.prepare("ALTER TABLE po_tracker_pos ADD COLUMN grand_total REAL").run();
-    }
-  } catch (err) {
-    console.warn('[DB Migration] Notice on po_tracker tables update:', err);
   }
 
   await db.exec(`
@@ -560,10 +445,6 @@ async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_audit_logs_lookup ON audit_logs(entity_type, entity_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_datasets_status ON datasets(status, created_at);
     CREATE INDEX IF NOT EXISTS idx_company_knowledge_status ON company_knowledge(status, doc_type);
-    CREATE INDEX IF NOT EXISTS idx_po_tracker_folder ON po_tracker_pos(folder_id, status);
-    CREATE INDEX IF NOT EXISTS idx_po_tracker_status ON po_tracker_pos(status, expected_delivery_date);
-    CREATE INDEX IF NOT EXISTS idx_po_tracker_items_po ON po_tracker_items(po_id);
-    CREATE INDEX IF NOT EXISTS idx_po_tracker_perms ON po_tracker_permissions(user_id, resource_type, resource_id);
   `);
 
   console.log('Indices created. Checking default admin user...');
@@ -630,21 +511,6 @@ async function initDb() {
 
   for (const setting of defaultSettings) {
     await insertSetting.run(uuidv4(), setting.key, setting.value, setting.category, now);
-  }
-
-  // Insert default PO tracker folders
-  const defaultFolders = [
-    { id: 'f-default-1', name: 'Hàng kinh doanh', description: 'Các đơn hàng thu mua sản phẩm thương mại', color: 'blue', icon: 'shippingbox', sort_order: 1 },
-    { id: 'f-default-2', name: 'Vật tư & Bao bì', description: 'Bao bì đóng gói, tem nhãn', color: 'amber', icon: 'shippingbox', sort_order: 2 }
-  ];
-
-  const insertFolder = db.prepare(`
-    INSERT OR IGNORE INTO po_tracker_folders (id, name, description, color, icon, sort_order, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  for (const f of defaultFolders) {
-    await insertFolder.run(f.id, f.name, f.description, f.color, f.icon, f.sort_order, now, now);
   }
   
   console.log('Database initialization complete.');

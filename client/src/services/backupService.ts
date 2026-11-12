@@ -34,9 +34,6 @@ import {
   FM_BACKUP_APP_NAME,
   FM_BACKUP_VERSION,
 } from '@/types/workspace';
-import type { POTrackerPO, POFolderItem } from '@/types/po-tracker';
-import { saveLocalPOs, saveLocalFolders } from './poTrackerService';
-import { idbGetAll as idbGetAllTyped } from './storage/indexedDb';
 import type { StoredAttachment } from './attachmentService';
 
 // ──────────────────────────────────────────────
@@ -154,15 +151,13 @@ async function exportFullBackup(options: BackupExportOptions = {}): Promise<void
   const { includeActivities = true } = options;
 
   // 1. Collect all data from IndexedDB & noteService in parallel (guarantees both IDB + localStorage cache)
-  const [links, accounts, stores, allNotes, rawActivities, rawAttachments, poOrders, poFolders] = await Promise.all([
+  const [links, accounts, stores, allNotes, rawActivities, rawAttachments] = await Promise.all([
     idbGetAll<LinkItem>(STORES.LINKS),
     idbGetAll<AccountItem>(STORES.ACCOUNTS),
     idbGetAll<StoreItem>(STORES.STORES),
     noteService.getAllNotes(),
     includeActivities ? idbGetAll<ActivityLogItem>(STORES.ACTIVITIES) : Promise.resolve([]),
     idbGetAll<StoredAttachment>(STORES.ATTACHMENTS),
-    idbGetAll<POTrackerPO>(STORES.POS),
-    idbGetAll<POFolderItem>(STORES.PO_FOLDERS),
   ]);
 
   const textNotes = allNotes.filter((n) => n.noteType !== 'checklist');
@@ -214,7 +209,7 @@ async function exportFullBackup(options: BackupExportOptions = {}): Promise<void
     }
   } catch (_) {}
 
-  // 4. Build payload with PO Tracker data (v1.1)
+  // 4. Build payload without PO Tracker data
   const payload: FMBackupPayload = {
     links,
     accounts, // passwords included — user's own data on their machine
@@ -222,8 +217,6 @@ async function exportFullBackup(options: BackupExportOptions = {}): Promise<void
     notes: allNotes,
     attachments,
     activities: rawActivities,
-    poOrders,
-    poFolders,
     settings: { theme },
   };
 
@@ -256,8 +249,6 @@ async function exportFullBackup(options: BackupExportOptions = {}): Promise<void
         notes: textNotes.length,
         todos: todoNotes.length,
         attachments: attachments.length,
-        poOrders: poOrders.length,
-        poFolders: poFolders.length,
       },
     },
     payload: finalPayloadStr,
@@ -417,16 +408,12 @@ async function importFullBackup(
     existingStores,
     existingNotes,
     existingAttachments,
-    existingPoFolders,
-    existingPoOrders,
   ] = await Promise.all([
     idbGetAll<LinkItem>(STORES.LINKS),
     idbGetAll<AccountItem>(STORES.ACCOUNTS),
     idbGetAll<StoreItem>(STORES.STORES),
     noteService.getAllNotes(),
     idbGetAll<StoredAttachment>(STORES.ATTACHMENTS),
-    idbGetAll<POFolderItem>(STORES.PO_FOLDERS),
-    idbGetAll<POTrackerPO>(STORES.POS),
   ]);
 
   const norm = (s: string) => (s || '').trim().toLowerCase();
@@ -587,67 +574,7 @@ async function importFullBackup(
     }
   }
 
-  // ── Step 8b: Import PO Folders (v1.1)
-  progress('Đang nhập Nhóm đơn hàng PO (Folders)...');
-  for (const folder of payload.poFolders ?? []) {
-    try {
-      const dup = existingPoFolders.find((e) => e.id === folder.id || norm(e.name) === norm(folder.name));
-      if (dup) {
-        if (conflictStrategy === 'skip') {
-          result.skipped++;
-          continue;
-        }
-        if (conflictStrategy === 'overwrite') {
-          await idbPut<POFolderItem>(STORES.PO_FOLDERS, { ...folder, id: dup.id, updated_at: now });
-          result.poFolders++;
-          continue;
-        }
-      }
-      const targetId = (conflictStrategy === 'merge' && existingPoFolders.some((f) => f.id === folder.id))
-        ? `folder-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-        : (folder.id || `folder-${Date.now()}`);
-      await idbPut<POFolderItem>(STORES.PO_FOLDERS, { ...folder, id: targetId, updated_at: now });
-      result.poFolders++;
-    } catch (e) {
-      result.errors.push(`Nhóm PO "${folder.name}": ${(e as Error).message}`);
-    }
-  }
-
-  // ── Step 8c: Import Purchase Orders (v1.1)
-  progress('Đang nhập Đơn mua hàng PO (Tracker)...');
-  for (const po of payload.poOrders ?? []) {
-    try {
-      const dup = existingPoOrders.find(
-        (e) => e.id === po.id || (po.po_number && e.po_number && norm(e.po_number) === norm(po.po_number))
-      );
-      if (dup) {
-        if (conflictStrategy === 'skip') {
-          result.skipped++;
-          continue;
-        }
-        if (conflictStrategy === 'overwrite') {
-          await idbPut<POTrackerPO>(STORES.POS, { ...po, id: dup.id, updated_at: now });
-          result.poOrders++;
-          continue;
-        }
-      }
-      const targetId = (conflictStrategy === 'merge' && existingPoOrders.some((p) => p.id === po.id))
-        ? `po-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-        : (po.id || `po-${Date.now()}`);
-      await idbPut<POTrackerPO>(STORES.POS, { ...po, id: targetId, updated_at: now });
-      result.poOrders++;
-    } catch (e) {
-      result.errors.push(`Đơn PO "${po.po_number}": ${(e as Error).message}`);
-    }
-  }
-
-  // ── Step 8d: Maintain bidirectional compatibility with localStorage
-  try {
-    const finalPos = await idbGetAll<POTrackerPO>(STORES.POS);
-    if (finalPos.length > 0) saveLocalPOs(finalPos);
-    const finalFolders = await idbGetAll<POFolderItem>(STORES.PO_FOLDERS);
-    if (finalFolders.length > 0) saveLocalFolders(finalFolders);
-  } catch (_) {}
+  // Note: If an older backup has poOrders/poFolders, they are safely ignored
 
   // ── Step 9: Restore settings (opt-in only)
   if (restoreSettings && payload.settings?.theme) {
@@ -671,7 +598,7 @@ async function importFullBackup(
   }
 
   result.success = result.errors.length === 0 || (
-    result.links + result.accounts + result.stores + result.notes + result.todos + result.attachments + result.poOrders + result.poFolders > 0
+    result.links + result.accounts + result.stores + result.notes + result.todos + result.attachments > 0
   );
 
   return result;
@@ -682,15 +609,13 @@ async function importFullBackup(
  * Used for automated background server sync.
  */
 async function generateBackupPayload(): Promise<{ payloadStr: string; checksum: string; itemCounts: any }> {
-  const [links, accounts, stores, allNotes, rawActivities, rawAttachments, poOrders, poFolders] = await Promise.all([
+  const [links, accounts, stores, allNotes, rawActivities, rawAttachments] = await Promise.all([
     idbGetAll<LinkItem>(STORES.LINKS),
     idbGetAll<AccountItem>(STORES.ACCOUNTS),
     idbGetAll<StoreItem>(STORES.STORES),
     noteService.getAllNotes(),
     idbGetAll<ActivityLogItem>(STORES.ACTIVITIES),
     idbGetAll<StoredAttachment>(STORES.ATTACHMENTS),
-    idbGetAll<POTrackerPO>(STORES.POS),
-    idbGetAll<POFolderItem>(STORES.PO_FOLDERS),
   ]);
 
   const textNotes = allNotes.filter((n) => n.noteType !== 'checklist');
@@ -740,8 +665,6 @@ async function generateBackupPayload(): Promise<{ payloadStr: string; checksum: 
     notes: allNotes,
     attachments,
     activities: rawActivities,
-    poOrders,
-    poFolders,
     settings: { theme },
   };
 
@@ -758,8 +681,6 @@ async function generateBackupPayload(): Promise<{ payloadStr: string; checksum: 
       notes: textNotes.length,
       todos: todoNotes.length,
       attachments: attachments.length,
-      poOrders: poOrders.length,
-      poFolders: poFolders.length,
     },
   };
 }
