@@ -872,7 +872,7 @@
 }
 
 .glass-btn:active {
-  transform: scale(0.97);
+  transform: scale(0.95);
   transition-duration: var(--motion-duration-press);
 }
 
@@ -902,7 +902,7 @@
   box-shadow: 0 5px 14px rgba(0, 113, 227, 0.34);
 }
 .glass-btn-prominent:active {
-  transform: scale(0.97);
+  transform: scale(0.95);
   transition-duration: var(--motion-duration-press);
 }
 
@@ -1500,35 +1500,35 @@
 /* Directional tab content glide — Apple ProMotion 120fps Instant Glide */
 @keyframes liquidTabContentGlide {
   0% {
-    opacity: 0.92;
-    transform: translate3d(5px, 0, 0);
+    opacity: 0;
+    transform: translate3d(18px, 0, 0) scale(0.996);
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 @keyframes liquidTabContentGlideRev {
   0% {
-    opacity: 0.92;
-    transform: translate3d(-5px, 0, 0);
+    opacity: 0;
+    transform: translate3d(-18px, 0, 0) scale(0.996);
   }
   100% {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 .apple-tab-content-enter {
-  animation: liquidTabContentGlide 0.11s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: liquidTabContentGlide 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
   transform: translateZ(0);
   backface-visibility: hidden;
 }
 
 .apple-tab-content-enter-rev {
-  animation: liquidTabContentGlideRev 0.11s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: liquidTabContentGlideRev 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
   transform: translateZ(0);
   backface-visibility: hidden;
@@ -2441,7 +2441,7 @@ tbody td {
   box-shadow: 0 4px 14px rgba(0, 136, 255, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.4);
 }
 .macos-btn-prominent:active {
-  transform: scale(0.97);
+  transform: scale(0.95);
   filter: brightness(0.94);
 }
 
@@ -2459,7 +2459,7 @@ tbody td {
   filter: brightness(1.06);
 }
 .macos-btn-prominent-destructive:active {
-  transform: scale(0.97);
+  transform: scale(0.95);
 }
 
 /* 01 - Bordered */
@@ -2481,7 +2481,7 @@ tbody td {
   border-color: rgba(255, 255, 255, 0.24);
 }
 .macos-btn-bordered:active {
-  transform: scale(0.97);
+  transform: scale(0.95);
 }
 
 /* 02 - Bordered Tinted */
@@ -2496,7 +2496,7 @@ tbody td {
   background: rgba(0, 136, 255, 0.15);
 }
 .macos-btn-bordered-tinted:active {
-  transform: scale(0.97);
+  transform: scale(0.95);
 }
 
 /* 03 - Bordered Destructive */
@@ -2511,7 +2511,7 @@ tbody td {
   background: rgba(255, 56, 60, 0.15);
 }
 .macos-btn-bordered-destructive:active {
-  transform: scale(0.97);
+  transform: scale(0.95);
 }
 
 /* 3. LAYER STYLES: Input Fields */
@@ -3004,20 +3004,20 @@ tbody td {
   will-change: transform, opacity;
 }
 
-/* Apple Shake — more organic multi-axis spring shake */
+/* Apple Shake — organic multi-axis spring shake for passcode/verification failure */
 @keyframes appleShake {
   0%   { transform: translate3d(0, 0, 0) rotate(0deg); }
-  15%  { transform: translate3d(-8px, 0, 0) rotate(-0.5deg); }
-  30%  { transform: translate3d(7px, 0, 0) rotate(0.5deg); }
-  45%  { transform: translate3d(-5px, 0, 0) rotate(-0.3deg); }
-  60%  { transform: translate3d(4px, 0, 0) rotate(0.2deg); }
-  75%  { transform: translate3d(-2px, 0, 0); }
-  90%  { transform: translate3d(1px, 0, 0); }
+  15%  { transform: translate3d(-10px, 0, 0) rotate(-1deg); }
+  30%  { transform: translate3d(9px, 0, 0) rotate(0.8deg); }
+  45%  { transform: translate3d(-7px, 0, 0) rotate(-0.5deg); }
+  60%  { transform: translate3d(5px, 0, 0) rotate(0.3deg); }
+  75%  { transform: translate3d(-3px, 0, 0) rotate(-0.1deg); }
+  90%  { transform: translate3d(1.5px, 0, 0); }
   100% { transform: translate3d(0, 0, 0) rotate(0deg); }
 }
 
 .apple-shake {
-  animation: appleShake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  animation: appleShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
   will-change: transform;
 }
 

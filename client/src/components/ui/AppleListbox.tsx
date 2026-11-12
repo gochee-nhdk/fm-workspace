@@ -50,7 +50,7 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const { shouldRender, isExiting } = useAnimatedPresence(isOpen, 140);
+  const { shouldRender, isExiting } = useAnimatedPresence(isOpen, 180);
 
   // Floating coordinates for portaled popover
   const [coords, setCoords] = useState<{
@@ -181,7 +181,7 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
       }
       className={cn(
         !usePortal && 'absolute left-0 right-0 top-full mt-1.5 z-50',
-        'rounded-2xl bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-3xl border border-black/10 dark:border-white/15 p-1.5 shadow-[0_20px_48px_-6px_rgba(0,0,0,0.25),0_6px_16px_rgba(0,0,0,0.08)] select-none text-left',
+        'rounded-2xl bg-white/92 dark:bg-[#1c1c24]/92 backdrop-blur-3xl border border-black/10 dark:border-white/15 p-1.5 shadow-[0_24px_60px_-10px_rgba(0,0,0,0.28),0_6px_20px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.85)] dark:shadow-[0_28px_70px_-10px_rgba(0,0,0,0.7),0_8px_24px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.14)] select-none text-left',
         isExiting
           ? coords?.placement === 'top'
             ? 'apple-picker-close-up pointer-events-none'
@@ -211,10 +211,10 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
               aria-selected={isSelected}
               onClick={() => handleSelectOption(opt.value)}
               className={cn(
-                'w-full flex items-center justify-between px-3 py-2 rounded-xl text-[12.5px] transition-colors cursor-pointer text-left',
+                'w-full flex items-center justify-between px-3 py-2 rounded-xl text-[12.5px] active:scale-[0.98] transition-all duration-150 ease-spring cursor-pointer text-left',
                 isSelected
-                  ? 'bg-[#0071e3]/10 dark:bg-[#2997ff]/20 text-[#0071e3] dark:text-[#2997ff] font-semibold'
-                  : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-normal'
+                  ? 'bg-[#0088FF]/12 dark:bg-[#0091FF]/20 text-[#0088FF] dark:text-[#0091FF] font-semibold'
+                  : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/[0.05] dark:hover:bg-white/[0.08] font-normal'
               )}
             >
               <span className="flex items-center gap-2.5 truncate">
@@ -222,7 +222,7 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
                   className={cn(
                     'w-2 h-2 rounded-full shrink-0 transition-colors',
                     isSelected
-                      ? 'bg-[#0071e3] dark:bg-[#2997ff]'
+                      ? 'bg-[#0088FF] dark:bg-[#0091FF]'
                       : 'bg-[#8e8e93]/50 dark:bg-[#8e8e93]/40'
                   )}
                 />
@@ -234,7 +234,7 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
                   className={cn(
                     'px-1.5 py-0.5 rounded-full text-[10px] font-mono leading-none ml-2 shrink-0',
                     isSelected
-                      ? 'bg-[#0071e3]/20 text-[#0071e3] dark:text-[#2997ff] font-bold'
+                      ? 'bg-[#0088FF]/20 text-[#0088FF] dark:text-[#0091FF] font-bold'
                       : 'bg-black/5 dark:bg-white/10 text-[#76767b] dark:text-[#a1a1a6]'
                   )}
                 >
@@ -253,10 +253,10 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
             type="button"
             onClick={handleSelectCustom}
             className={cn(
-              'w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[12.5px] transition-colors cursor-pointer text-left',
+              'w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[12.5px] active:scale-[0.98] transition-all duration-150 ease-spring cursor-pointer text-left',
               isCustomSelected
-                ? 'bg-[#0071e3]/10 dark:bg-[#2997ff]/20 text-[#0071e3] dark:text-[#2997ff] font-semibold'
-                : 'text-[#0071e3] dark:text-[#2997ff] hover:bg-[#0071e3]/8 font-medium'
+                ? 'bg-[#0088FF]/12 dark:bg-[#0091FF]/20 text-[#0088FF] dark:text-[#0091FF] font-semibold'
+                : 'text-[#0088FF] dark:text-[#0091FF] hover:bg-[#0088FF]/10 font-medium'
             )}
           >
             <SFPlus size={13} className="shrink-0" />
@@ -270,7 +270,7 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
   return (
     <div className={cn('relative w-full select-none font-sans', compact && 'w-auto inline-block', className)}>
       {label && (
-        <label className="block text-[13px] font-semibold text-[#1d1d1f] dark:text-white mb-1.5">
+        <label className="block text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight mb-1.5">
           {label}
         </label>
       )}
@@ -287,15 +287,15 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         className={cn(
-          'w-full flex items-center justify-between text-sm font-medium transition-all duration-150 text-left',
+          'w-full flex items-center justify-between text-sm font-medium active:scale-95 transition-all duration-200 ease-spring text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0088FF]/50 dark:focus-visible:ring-[#0091FF]/60 focus-visible:shadow-[0_0_12px_rgba(0,136,255,0.3)]',
           compact ? 'px-3 py-1.5 rounded-xl text-[12.5px]' : 'px-3.5 py-2.5 rounded-xl',
           disabled
-            ? 'opacity-50 cursor-not-allowed bg-black/[0.02] dark:bg-white/[0.03] border-black/10 dark:border-white/10 text-[#86868b]'
-            : 'cursor-pointer border bg-white dark:bg-[#1d1d1f] text-[#1d1d1f] dark:text-white shadow-2xs',
+            ? 'opacity-40 cursor-not-allowed bg-[#f5f5f7] dark:bg-white/5 border-black/10 dark:border-white/10 text-[#86868b]'
+            : 'cursor-pointer border bg-white/85 dark:bg-[#1c1c22]/85 backdrop-blur-xl text-[#1d1d1f] dark:text-white shadow-2xs',
           !disabled && isOpen
-            ? 'border-[#0071e3] ring-2 ring-[#0071e3]/20 dark:border-[#2997ff]'
-            : !disabled && 'border-[#e0e0e0] dark:border-white/15 hover:border-black/25 dark:hover:border-white/30',
-          error ? 'border-rose-500 focus:ring-rose-500/20' : '',
+            ? 'border-[#0088FF] dark:border-[#0091FF] ring-2 ring-[#0088FF]/30 dark:ring-[#0091FF]/30 shadow-[0_0_14px_rgba(0,136,255,0.25)]'
+            : !disabled && 'border-black/10 dark:border-white/12 hover:border-black/20 dark:hover:border-white/25',
+          error ? 'border-[#FF383C] dark:border-[#FF4245] focus-visible:ring-[#FF383C]/30 focus-visible:shadow-[0_0_12px_rgba(255,56,60,0.25)]' : '',
           triggerClassName
         )}
       >
@@ -307,8 +307,8 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
           <SFChevronDown
             size={compact ? 12 : 14}
             className={cn(
-              'transition-transform duration-200',
-              isOpen && 'rotate-180 text-[#0071e3] dark:text-[#2997ff]'
+              'transition-transform duration-260 ease-spring',
+              isOpen && 'rotate-180 text-[#0088FF] dark:text-[#0091FF]'
             )}
           />
         </div>
@@ -320,7 +320,7 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
         : popoverContent}
 
       {error && (
-        <p className="text-[12px] text-rose-600 dark:text-rose-400 font-medium mt-1">
+        <p className="text-[11px] text-[#FF383C] dark:text-[#FF4245] font-medium mt-1">
           {error}
         </p>
       )}

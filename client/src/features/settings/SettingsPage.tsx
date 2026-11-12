@@ -307,7 +307,7 @@ export const SettingsPage: React.FC = () => {
     fetchServerKeys();
   }, []);
 
-  const { animationClass } = useDirectionalTab(activeTab, SETTINGS_TABS);
+  const { animationClass, direction } = useDirectionalTab(activeTab, SETTINGS_TABS);
 
   const handleDisconnectSmtp = async () => {
     setIsDisconnectingSmtp(true);

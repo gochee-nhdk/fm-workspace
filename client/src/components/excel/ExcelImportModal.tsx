@@ -160,7 +160,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
       zIndex={10010}
       title="Import Dữ Liệu Excel"
       overlayClassName="p-2 sm:p-4"
-      contentClassName="relative bg-white dark:bg-[#1c1c22] rounded-[24px] max-w-2xl w-full p-4 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15 flex flex-col max-h-[92vh] sm:max-h-[90vh]"
+      contentClassName="relative bg-white/95 dark:bg-[#1c1c22]/95 backdrop-blur-2xl rounded-[24px] max-w-2xl w-full p-5 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] dark:shadow-[0_28px_84px_rgba(0,0,0,0.6),inset_0_1.5px_1px_rgba(255,255,255,0.12)] border border-black/10 dark:border-white/15 flex flex-col max-h-[92vh] sm:max-h-[90vh]"
     >
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-black/[0.06] dark:border-white/10 shrink-0">

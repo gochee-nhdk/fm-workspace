@@ -229,12 +229,12 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
       zIndex={10010}
       title={currentStore ? `Bản đồ cửa hàng ${currentStore.storeCode}` : 'Bản đồ cửa hàng'}
       overlayClassName="p-3 sm:p-5 md:p-6"
-      contentClassName="relative w-full max-w-4xl bg-white dark:bg-[#1c1c22] rounded-[28px] border border-black/10 dark:border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] overflow-hidden flex flex-col z-10"
+      contentClassName="relative w-full max-w-4xl bg-white/95 dark:bg-[#1c1c22]/95 backdrop-blur-2xl rounded-[28px] border border-black/10 dark:border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] dark:shadow-[0_28px_84px_rgba(0,0,0,0.6),inset_0_1.5px_1px_rgba(255,255,255,0.12)] overflow-hidden flex flex-col z-10"
     >
       {currentStore && (
         <>
           {/* Apple Window Header */}
-        <div className="px-5 sm:px-6 py-3.5 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between gap-4 bg-white/50 dark:bg-white/[0.03] shrink-0">
+        <div className="px-5 sm:px-6 py-3.5 border-b border-black/[0.06] dark:border-white/10 flex items-center justify-between gap-4 bg-[#fbfbfd]/80 dark:bg-white/[0.03] backdrop-blur-md shrink-0">
           <div className="flex items-center gap-3.5 min-w-0">
             {/* Apple Maps App Lens Icon */}
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-b from-[#2997ff] to-[#0066cc] flex items-center justify-center text-white shadow-[0_4px_12px_rgba(0,113,227,0.35),inset_0_1px_1px_rgba(255,255,255,0.7)] border border-white/40 shrink-0">
@@ -364,7 +364,7 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
         </div>
 
         {/* Apple Liquid Glass Footer */}
-        <div className="px-5 sm:px-6 py-3 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-between text-xs text-[#76767b] dark:text-[#a1a1a6] bg-white/50 dark:bg-white/[0.03]">
+        <div className="px-5 sm:px-6 py-3.5 border-t border-black/[0.06] dark:border-white/10 flex items-center justify-between text-xs text-[#76767b] dark:text-[#a1a1a6] bg-[#fbfbfd]/80 dark:bg-white/[0.03] backdrop-blur-md">
           <div className="flex items-center gap-2 min-w-0">
             <span className="w-2 h-2 rounded-full bg-[#34c759] shadow-[0_0_6px_rgba(52,199,89,0.7)] shrink-0" />
             <span className="truncate font-medium text-[#1d1d1f] dark:text-[#f5f5f7]">

@@ -359,7 +359,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
 
   // Render the petite, ultra-compact square Apple picker panel
   const renderPickerBody = () => (
-    <div className="relative w-[288px] mx-auto p-3.5 rounded-2xl bg-white/95 dark:bg-[#1c1c1e]/95 backdrop-blur-2xl border border-black/[0.08] dark:border-white/[0.12] shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_25px_60px_rgba(0,0,0,0.65)] space-y-2.5 select-none font-sans text-left overflow-hidden">
+    <div className="relative w-[288px] mx-auto p-3.5 rounded-2xl bg-white/92 dark:bg-[#1c1c22]/92 backdrop-blur-3xl border border-black/10 dark:border-white/15 shadow-[0_28px_70px_-10px_rgba(0,0,0,0.3),0_8px_24px_rgba(0,0,0,0.08),inset_0_1px_1px_rgba(255,255,255,0.9)] dark:shadow-[0_32px_80px_-10px_rgba(0,0,0,0.75),0_10px_30px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.15)] space-y-2.5 select-none font-sans text-left overflow-hidden">
       {/* ─────────────────── LAYER 2: Main Calendar & Time Controls ─────────────────── */}
       {/* 1. Month & Year Navigation Header: Clean Apple Pills (Wheel Scrollable) */}
       <div className="flex items-center justify-between gap-2 px-0.5">
@@ -547,7 +547,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className="px-4 py-1.5 rounded-xl text-[12px] font-semibold bg-[#0071e3] text-white hover:bg-[#0077ed] transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0"
+            className="px-4 py-1.5 rounded-xl text-[12px] font-semibold bg-[#0088FF] text-white hover:bg-[#0077ed] transition-all duration-180 ease-spring cursor-pointer shadow-[0_2px_8px_rgba(0,136,255,0.35)] active:scale-95 shrink-0"
           >
             Xong
           </button>
@@ -681,20 +681,20 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
           setIsOpen(!isOpen);
         }}
         className={cn(
-          'w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-[12.5px] font-medium transition-all cursor-pointer shadow-2xs',
-          'bg-black/[0.02] dark:bg-white/[0.04] border border-black/15 dark:border-white/20',
-          'text-[#1d1d1f] dark:text-[#f5f5f7] hover:border-[#0071e3]/60 dark:hover:border-[#0071e3]/60',
-          isOpen && 'border-[#0071e3] ring-2 ring-[#0071e3]/20 dark:border-[#2997ff]'
+          'w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-[12.5px] font-medium active:scale-95 transition-all duration-200 ease-spring cursor-pointer shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0088FF]/50 dark:focus-visible:ring-[#0091FF]/60 focus-visible:shadow-[0_0_12px_rgba(0,136,255,0.3)]',
+          'bg-white/85 dark:bg-[#1c1c22]/85 backdrop-blur-xl border border-black/10 dark:border-white/12',
+          'text-[#1d1d1f] dark:text-[#f5f5f7] hover:border-black/20 dark:hover:border-white/25',
+          isOpen && 'border-[#0088FF] ring-2 ring-[#0088FF]/30 dark:border-[#0091FF] dark:ring-[#0091FF]/30 shadow-[0_0_14px_rgba(0,136,255,0.25)]'
         )}
       >
         <span className="flex items-center gap-2 truncate">
-          <SFCalendar size={14} className="text-[#0071e3] dark:text-[#2997ff] shrink-0" />
+          <SFCalendar size={14} className="text-[#0088FF] dark:text-[#0091FF] shrink-0" />
           <span className="truncate font-semibold">
             {formatVietnameseDateDisplay(currentDate)}
           </span>
           <span className="text-[#86868b] dark:text-[#a1a1a6]">•</span>
-          <SFClock size={13} className="text-[#0071e3] dark:text-[#2997ff] shrink-0" />
-          <span className="font-semibold text-[#0071e3] dark:text-[#2997ff] tabular-nums">
+          <SFClock size={13} className="text-[#0088FF] dark:text-[#0091FF] shrink-0" />
+          <span className="font-semibold text-[#0088FF] dark:text-[#0091FF] tabular-nums">
             {pad(hours)}:{pad(minutes)}
           </span>
         </span>
@@ -702,8 +702,8 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
         <SFChevronDown
           size={14}
           className={cn(
-            'text-[#86868b] transition-transform duration-200 shrink-0 ml-2',
-            isOpen && 'rotate-180 text-[#0071e3] dark:text-[#2997ff]'
+            'text-[#86868b] dark:text-[#a1a1a6] transition-transform duration-260 ease-spring shrink-0 ml-2',
+            isOpen && 'rotate-180 text-[#0088FF] dark:text-[#0091FF]'
           )}
         />
       </button>

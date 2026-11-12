@@ -30,6 +30,9 @@ import {
 } from '@/components/ui/AppleIcon';
 import { downloadImage, copyImageToClipboard, formatFileSize } from '@/services/noteImageService';
 import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
+import { CloseButton } from '@/components/ui/close-button';
+import { motionTokens } from '@/lib/motion';
+import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
 import toast from 'react-hot-toast';
 
 export type AnnotationTool = 'select' | 'pen' | 'highlighter' | 'rect' | 'arrow' | 'text' | 'note' | 'eraser';
@@ -140,6 +143,20 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   image,
   onSave,
 }) => {
+  const { shouldRender, isExiting } = useAnimatedPresence(isOpen, motionTokens.duration.exit + 10);
+
+  // Lock body scroll while editor modal is active
+  useEffect(() => {
+    if (shouldRender) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [shouldRender]);
+
   // Current active tool (toggling off active tool switches directly to 'select' mode)
   const [activeTool, setActiveTool] = useState<AnnotationTool>('pen');
   const [selectedShapeVariant, setSelectedShapeVariant] = useState<ShapeVariant>('rect');
@@ -1149,7 +1166,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
   // Keyboard shortcuts
   useEffect(() => {
-    if (!isOpen) return;
+    if (!shouldRender || isExiting) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const isTyping = document.activeElement?.tagName === 'TEXTAREA' || document.activeElement?.tagName === 'INPUT';
@@ -1213,7 +1230,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, activeInlineText, handleUndo, handleRedo, annotations, activeTool, selectedAnnotationId]);
+  }, [shouldRender, isExiting, activeInlineText, handleUndo, handleRedo, annotations, activeTool, selectedAnnotationId, onClose]);
 
   // Export full-res dataURL from canvas
   const exportEditedImage = async (): Promise<{ dataUrl: string; size: number } | null> => {
@@ -1276,7 +1293,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     toast.success('Đã sao chép ảnh vào clipboard!');
   };
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   // Compute screen position of active inline text directly on top of image
   const inlineScreenPos = activeInlineText ? getScreenCoords({ x: activeInlineText.canvasX, y: activeInlineText.canvasY }) : null;
@@ -1287,7 +1304,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-label="Chỉnh sửa hình ảnh Apple Markup"
-      className="fixed inset-0 z-[10020] flex flex-col bg-black/85 backdrop-blur-3xl select-none animate-in fade-in duration-200 overflow-hidden"
+      className={cn(
+        "fixed inset-0 z-[10020] flex flex-col bg-black/85 backdrop-blur-3xl select-none overflow-hidden will-change-[transform,opacity] [transform:translateZ(0)]",
+        isExiting ? "liquid-backdrop-exit pointer-events-none" : "liquid-backdrop-enter pointer-events-auto"
+      )}
     >
       {/* ────────────────── TOP BAR (Header Actions - Perfectly Centered) ────────────────── */}
       <header className="h-14 sm:h-16 grid grid-cols-3 items-center px-4 sm:px-6 border-b border-white/10 shrink-0 z-30">
@@ -1397,15 +1417,6 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
           <button
             type="button"
-            onClick={onClose}
-            className="px-4 py-1.5 rounded-full text-[13px] font-medium text-white/80 hover:text-white bg-white/10 hover:bg-white/20 border border-white/15 transition-all active:scale-95 cursor-pointer"
-            title="Hủy bỏ (Esc)"
-          >
-            Hủy
-          </button>
-
-          <button
-            type="button"
             onClick={handleSave}
             disabled={isSaving}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-[13px] font-semibold text-white bg-[#0071e3] hover:bg-[#0077ed] shadow-[0_4px_16px_rgba(0,113,227,0.35)] transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
@@ -1414,6 +1425,13 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             <SFCheckmark size={14} />
             <span>{isSaving ? 'Đang lưu...' : 'Lưu ảnh'}</span>
           </button>
+
+          <CloseButton
+            onClick={onClose}
+            size="md"
+            className="bg-white/10 hover:bg-white/20 active:bg-white/30 text-white/80 hover:text-white"
+            title="Đóng trình sửa ảnh (Esc)"
+          />
         </div>
       </header>
 

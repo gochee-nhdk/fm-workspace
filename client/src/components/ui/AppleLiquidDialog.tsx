@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { motionTokens } from '@/lib/motion';
+import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
 
 export interface AppleLiquidDialogProps {
   isOpen: boolean;
@@ -19,9 +20,10 @@ export interface AppleLiquidDialogProps {
 }
 
 /**
- * AppleLiquidDialog - 120 FPS Apple Liquid Glass Modal Container
- * Handles entrance & exit physical spring animations (apple-modal-enter / apple-modal-exit)
- * and deep liquid glass backdrop transitions (liquid-backdrop-enter / liquid-backdrop-exit)
+ * AppleLiquidDialog - macOS 27 Apple Liquid Glass Modal Container
+ * Driven by `useAnimatedPresence` with physical spring entrance/exit animations
+ * (apple-modal-enter / apple-modal-exit) and liquid glass backdrop transitions
+ * (liquid-backdrop-enter / liquid-backdrop-exit).
  */
 export const AppleLiquidDialog: React.FC<AppleLiquidDialogProps> = ({
   isOpen,
@@ -37,56 +39,34 @@ export const AppleLiquidDialog: React.FC<AppleLiquidDialogProps> = ({
   closeOnEsc = true,
   closeOnBackdropClick = true,
 }) => {
-  const [isMounted, setIsMounted] = useState(isOpen);
-  const [isClosing, setIsClosing] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { shouldRender, isExiting } = useAnimatedPresence(isOpen, motionTokens.duration.exit + 10);
   const lastChildrenRef = useRef<React.ReactNode | null>(null);
 
-  // Synchronize mount and closing states strictly when isOpen changes
-  useLayoutEffect(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-
-    if (isOpen) {
-      setIsMounted(true);
-      setIsClosing(false);
-      document.body.style.overflow = 'hidden';
-    } else if (isMounted) {
-      setIsClosing(true);
-      timerRef.current = setTimeout(() => {
-        setIsMounted(false);
-        setIsClosing(false);
-        document.body.style.overflow = '';
-        timerRef.current = null;
-      }, motionTokens.duration.exit + 10);
-    }
-  }, [isOpen, isMounted]);
-
   const handleClose = useCallback(() => {
-    if (isClosing) return;
+    if (isExiting) return;
     onClose();
-  }, [isClosing, onClose]);
+  }, [isExiting, onClose]);
 
   // Keep last non-null children rendered during the exit animation
   if (isOpen && children) {
     lastChildrenRef.current = typeof children === 'function' ? children({ handleClose, isClosing: false }) : children;
   }
 
-  // Clean up timer and restore overflow when the whole component unmounts
+  // Lock body scroll while dialog is rendered
   useEffect(() => {
+    if (shouldRender) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
       document.body.style.overflow = '';
     };
-  }, []);
+  }, [shouldRender]);
 
   // Escape key handler
   useEffect(() => {
-    if (!closeOnEsc || !isMounted || isClosing) return;
+    if (!closeOnEsc || !shouldRender || isExiting) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
@@ -98,27 +78,20 @@ export const AppleLiquidDialog: React.FC<AppleLiquidDialogProps> = ({
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [isMounted, isClosing, handleClose, closeOnEsc]);
+  }, [shouldRender, isExiting, handleClose, closeOnEsc]);
 
-  if (!isMounted) return null;
+  if (!shouldRender) return null;
 
   return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel || title || 'Cửa sổ'}
-      onAnimationEnd={(event) => {
-        if (event.target !== event.currentTarget || event.animationName !== 'liquidBackdropFadeOut') return;
-        if (timerRef.current) clearTimeout(timerRef.current);
-        timerRef.current = null;
-        setIsMounted(false);
-        setIsClosing(false);
-      }}
-      onClick={closeOnBackdropClick && !isClosing ? handleClose : undefined}
+      onClick={closeOnBackdropClick && !isExiting ? handleClose : undefined}
       style={{ zIndex }}
       className={cn(
-        'fixed inset-0 flex items-center justify-center p-4 bg-black/30 dark:bg-black/55 backdrop-blur-md select-none will-change-[opacity] [transform:translateZ(0)]',
-        isClosing ? 'liquid-backdrop-exit pointer-events-none' : 'liquid-backdrop-enter pointer-events-auto',
+        'fixed inset-0 flex items-center justify-center p-3 sm:p-4 bg-black/40 dark:bg-black/60 backdrop-blur-xl sm:backdrop-blur-2xl select-none will-change-[opacity] [transform:translateZ(0)]',
+        isExiting ? 'liquid-backdrop-exit pointer-events-none' : 'liquid-backdrop-enter pointer-events-auto',
         backdropClassName,
         overlayClassName
       )}
@@ -127,15 +100,15 @@ export const AppleLiquidDialog: React.FC<AppleLiquidDialogProps> = ({
         onClick={(e) => e.stopPropagation()}
         className={cn(
           'will-change-[transform,opacity] [transform:translateZ(0)]',
-          isClosing ? 'apple-modal-exit pointer-events-none' : 'apple-modal-enter pointer-events-auto',
+          isExiting ? 'apple-modal-exit pointer-events-none' : 'apple-modal-enter pointer-events-auto',
           containerClassName,
           contentClassName
         )}
       >
-        {isClosing && lastChildrenRef.current
+        {isExiting && lastChildrenRef.current
           ? lastChildrenRef.current
           : typeof children === 'function'
-            ? children({ handleClose, isClosing })
+            ? children({ handleClose, isClosing: isExiting })
             : children}
       </div>
     </div>,

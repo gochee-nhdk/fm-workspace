@@ -88,18 +88,18 @@ export const SegmentedNavigation: React.FC<SegmentedNavigationProps> = ({
             data-tab-id={item.id}
             onClick={() => onChange(item.id)}
             className={cn(
-              'group relative z-10 inline-flex h-[32px] min-w-0 sm:min-w-[100px] items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-full px-2.5 sm:px-3.5 text-[12px] sm:text-[13px] leading-none select-none cursor-pointer active:scale-[0.975] transition-[color,transform] duration-tab ease-motion-spring',
+              'group relative z-10 inline-flex h-[32px] min-w-0 sm:min-w-[100px] items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap rounded-full px-2.5 sm:px-3.5 text-[12px] sm:text-[13px] leading-none select-none cursor-pointer active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0088FF]/50 dark:focus-visible:ring-[#0091FF]/60 focus-visible:shadow-[0_0_10px_rgba(0,136,255,0.3)] transition-[color,transform] duration-200 ease-spring',
               isActive
-                ? 'font-semibold text-[#0071e3] dark:text-[#3898ff]'
+                ? 'font-semibold text-[#0088FF] dark:text-[#0091FF]'
                 : 'font-medium text-[#6e6e73] hover:text-[#1d1d1f] dark:text-[#a1a1a6] dark:hover:text-white'
             )}
           >
             <span
               aria-hidden="true"
               className={cn(
-                'shrink-0 transition-colors duration-tab',
+                'shrink-0 transition-colors duration-200',
                 isActive
-                  ? 'text-[#0071e3] dark:text-[#3898ff]'
+                  ? 'text-[#0088FF] dark:text-[#0091FF]'
                   : 'text-[#8e8e93] group-hover:text-[#555558] dark:group-hover:text-[#d1d1d6]'
               )}
             >

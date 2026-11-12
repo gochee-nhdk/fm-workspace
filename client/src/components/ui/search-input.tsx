@@ -36,19 +36,19 @@ export const SearchInput: React.FC<SearchInputProps> = ({
   return (
     <div
       className={cn(
-        'group relative flex items-center rounded-full w-full max-w-xs transition-all duration-180',
-        'bg-white/75 dark:bg-white/[0.07] backdrop-blur-xl',
-        'border border-black/[0.08] dark:border-white/12 shadow-[inset_0_1px_2px_rgba(0,0,0,0.03),0_2px_6px_rgba(0,0,0,0.02)]',
-        'focus-within:border-[#0071e3] focus-within:ring-2 focus-within:ring-[#0071e3]/20 focus-within:bg-white dark:focus-within:bg-[#1d1d1f]',
+        'group relative flex items-center rounded-full w-full max-w-xs transition-all duration-200 ease-spring',
+        'bg-white/80 dark:bg-white/[0.08] backdrop-blur-xl',
+        'border border-black/10 dark:border-white/12 hover:border-black/20 dark:hover:border-white/20 shadow-2xs',
+        'focus-within:border-[#0088FF] dark:focus-within:border-[#0091FF] focus-within:ring-2 focus-within:ring-[#0088FF]/30 dark:focus-within:ring-[#0091FF]/35 focus-within:shadow-[0_0_12px_rgba(0,136,255,0.25)] focus-within:bg-white dark:focus-within:bg-[#1c1c22]',
         className
       )}
     >
-      <div className="pl-3.5 pr-1 flex items-center pointer-events-none transition-colors">
+      <div className="pl-3.5 pr-1 flex items-center pointer-events-none transition-colors duration-200">
         <SFMagnifyingglass
           size={14}
           className={cn(
-            'transition-colors',
-            hasContent ? 'text-[#0066cc] dark:text-[#2997ff]' : 'text-[#76767b] group-focus-within:text-[#0066cc] dark:group-focus-within:text-[#2997ff]'
+            'transition-colors duration-200',
+            hasContent ? 'text-[#0088FF] dark:text-[#0091FF]' : 'text-[#86868b] dark:text-[#a1a1a6] group-focus-within:text-[#0088FF] dark:group-focus-within:text-[#0091FF]'
           )}
         />
       </div>

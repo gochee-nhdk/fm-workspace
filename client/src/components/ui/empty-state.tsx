@@ -29,11 +29,12 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center p-8 md:p-12 text-center rounded-[18px] border border-dashed border-[#e0e0e0] dark:border-white/12 bg-[#fafafc]/50 dark:bg-white/5',
+        'flex flex-col items-center justify-center p-8 md:p-12 text-center rounded-[20px] border border-dashed border-[#e0e0e0] dark:border-white/12 bg-[#fafafc]/50 dark:bg-white/5 backdrop-blur-md',
+        'animate-in fade-in-0 slide-in-from-bottom-1 duration-500 ease-fluid fill-mode-both',
         className
       )}
     >
-      <div className="w-12 h-12 rounded-full bg-[#0066cc]/10 text-[#0066cc] dark:bg-[#2997ff]/15 dark:text-[#2997ff] flex items-center justify-center mb-3.5 shadow-2xs">
+      <div className="w-12 h-12 rounded-full bg-[#0066cc]/10 text-[#0066cc] dark:bg-[#2997ff]/15 dark:text-[#2997ff] flex items-center justify-center mb-3.5 shadow-2xs transition-transform duration-300 ease-spring hover:scale-105">
         {icon || <SFTray size={20} />}
       </div>
       <h4 className="text-[16px] font-semibold text-[#1d1d1f] dark:text-white tracking-tight mb-1">
@@ -48,12 +49,22 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       {(actionLabel || secondaryActionLabel) && (
         <div className="flex items-center gap-2.5">
           {actionLabel && (
-            <Button variant="glassProminent" size="sm" onClick={onAction}>
+            <Button
+              variant="glassProminent"
+              size="sm"
+              onClick={onAction}
+              className="active:scale-[0.96] transition-transform duration-120 touch-manipulation"
+            >
               {actionLabel}
             </Button>
           )}
           {secondaryActionLabel && (
-            <Button variant="glass" size="sm" onClick={onSecondaryAction}>
+            <Button
+              variant="glass"
+              size="sm"
+              onClick={onSecondaryAction}
+              className="active:scale-[0.96] transition-transform duration-120 touch-manipulation"
+            >
               {secondaryActionLabel}
             </Button>
           )}

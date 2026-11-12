@@ -62,7 +62,7 @@ export const ConfirmDeleteDialog: React.FC<ConfirmDeleteDialogProps> = ({
       zIndex={10030}
       title={title}
       overlayClassName="p-3 sm:p-4"
-      contentClassName="relative bg-white dark:bg-[#1c1c22] rounded-[24px] max-w-md w-full p-4.5 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] border border-black/10 dark:border-white/15"
+      contentClassName="relative bg-white/95 dark:bg-[#1c1c22]/95 backdrop-blur-2xl rounded-[24px] max-w-md w-full p-5 sm:p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] dark:shadow-[0_28px_84px_rgba(0,0,0,0.6),inset_0_1.5px_1px_rgba(255,255,255,0.12)] border border-black/10 dark:border-white/15"
     >
       <CloseButton
         onClick={handleClose}
@@ -71,16 +71,16 @@ export const ConfirmDeleteDialog: React.FC<ConfirmDeleteDialogProps> = ({
       />
 
       <div className="flex items-start gap-4">
-        <div className={`w-10 h-10 ${variant === 'warning' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400' : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400'} rounded-full flex items-center justify-center shrink-0`}>
+        <div className={`w-10 h-10 ${variant === 'warning' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200/50 dark:border-amber-700/30' : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-700/30'} rounded-2xl flex items-center justify-center shrink-0 shadow-xs`}>
           <SFExclamationmarkTriangleFill size={20} />
         </div>
 
-        <div className="flex-1 min-w-0">
-          <h3 className="text-[17px] font-semibold text-[#1d1d1f] dark:text-white tracking-tight">
+        <div className="flex-1 min-w-0 pr-6">
+          <h3 className="text-[17px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] tracking-tight">
             {title}
           </h3>
           {itemLabel && (
-            <p className="mt-1.5 text-[13px] font-medium text-[#1d1d1f] dark:text-[#a1a1a6] truncate bg-[#f5f5f7] dark:bg-white/5 px-3 py-1 rounded-full border border-[#e0e0e0]/60 dark:border-white/5">
+            <p className="mt-1.5 text-[12.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] truncate bg-black/[0.04] dark:bg-white/[0.08] px-3 py-1 rounded-full border border-black/[0.06] dark:border-white/10">
               {itemLabel}
             </p>
           )}

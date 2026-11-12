@@ -55,12 +55,23 @@ export const StatCard: React.FC<StatCardProps> = ({
       ref={tiltRef}
       onClick={onClick}
       className={cn(
-        'p-5.5 rounded-[20px] border border-white/60 dark:border-white/12 liquid-glass-3d liquid-tilt-card transition-all duration-200 relative overflow-hidden',
+        'p-5.5 rounded-[20px] border border-white/60 dark:border-white/12 liquid-glass-3d liquid-tilt-card transition-all duration-260 ease-spring relative overflow-hidden',
+        'animate-in fade-in-0 slide-in-from-bottom-2 zoom-in-[0.98] duration-350 ease-spring group',
         severityBorders[severity],
-        'hover:border-[#0066cc]/40 dark:hover:border-[#2997ff]/40 cursor-pointer active:scale-[0.985]',
+        onClick && 'cursor-pointer active:scale-[0.98] active:translate-y-[1px] hover:shadow-ios-liquid-hover',
         className
       )}
     >
+      {/* Subtle liquid shimmer specular highlight */}
+      <div
+        className="pointer-events-none absolute -inset-full bg-gradient-to-r from-transparent via-white/12 dark:via-white/[0.06] to-transparent rotate-12 animate-shimmer opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+        aria-hidden="true"
+      />
+      {/* Specular edge reflection */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/80 dark:via-white/25 to-transparent z-10"
+        aria-hidden="true"
+      />
       <div className="flex items-start justify-between">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
