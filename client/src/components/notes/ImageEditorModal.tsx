@@ -31,6 +31,7 @@ import {
 import { downloadImage, copyImageToClipboard, formatFileSize } from '@/services/noteImageService';
 import { ConfirmDeleteDialog } from '@/components/ui/ConfirmDeleteDialog';
 import { CloseButton } from '@/components/ui/close-button';
+import { AppleSwitch } from '@/components/ui/AppleCheckbox';
 import { motionTokens } from '@/lib/motion';
 import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
 import toast from 'react-hot-toast';
@@ -2277,17 +2278,17 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                     <div className="flex flex-col gap-3 text-[11.5px]">
                       {/* 1. Drop Shadow Controls */}
                       <div className="flex flex-col gap-1.5 p-2 rounded-xl bg-white/5 border border-white/10">
-                        <label className="flex items-center justify-between font-medium cursor-pointer">
+                        <div className="flex items-center justify-between font-medium">
                           <span>Đổ bóng chữ</span>
-                          <input
-                            type="checkbox"
+                          <AppleSwitch
                             checked={textEffects.shadowEnabled || false}
-                            onChange={(e) =>
-                              setTextEffects((prev) => ({ ...prev, shadowEnabled: e.target.checked }))
+                            onChange={(checked) =>
+                              setTextEffects((prev) => ({ ...prev, shadowEnabled: checked }))
                             }
-                            className="rounded accent-[#0071e3] cursor-pointer"
+                            size="sm"
+                            title="Bật/tắt đổ bóng chữ"
                           />
-                        </label>
+                        </div>
                         {textEffects.shadowEnabled && (
                           <div className="flex flex-col gap-2 pt-1 border-t border-white/10">
                             <div className="flex items-center justify-between">
@@ -2338,17 +2339,17 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
                       {/* 2. Text Outline / Stroke Controls */}
                       <div className="flex flex-col gap-1.5 p-2 rounded-xl bg-white/5 border border-white/10">
-                        <label className="flex items-center justify-between font-medium cursor-pointer">
+                        <div className="flex items-center justify-between font-medium">
                           <span>Viền chữ (Stroke)</span>
-                          <input
-                            type="checkbox"
+                          <AppleSwitch
                             checked={textEffects.strokeEnabled || false}
-                            onChange={(e) =>
-                              setTextEffects((prev) => ({ ...prev, strokeEnabled: e.target.checked }))
+                            onChange={(checked) =>
+                              setTextEffects((prev) => ({ ...prev, strokeEnabled: checked }))
                             }
-                            className="rounded accent-[#0071e3] cursor-pointer"
+                            size="sm"
+                            title="Bật/tắt viền chữ"
                           />
-                        </label>
+                        </div>
                         {textEffects.strokeEnabled && (
                           <div className="flex flex-col gap-2 pt-1 border-t border-white/10">
                             <div className="flex items-center justify-between">
@@ -2382,17 +2383,17 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
                       {/* 3. Text Blur Controls */}
                       <div className="flex flex-col gap-1.5 p-2 rounded-xl bg-white/5 border border-white/10">
-                        <label className="flex items-center justify-between font-medium cursor-pointer">
+                        <div className="flex items-center justify-between font-medium">
                           <span>Làm mờ chữ (Blur)</span>
-                          <input
-                            type="checkbox"
+                          <AppleSwitch
                             checked={textEffects.blurEnabled || false}
-                            onChange={(e) =>
-                              setTextEffects((prev) => ({ ...prev, blurEnabled: e.target.checked }))
+                            onChange={(checked) =>
+                              setTextEffects((prev) => ({ ...prev, blurEnabled: checked }))
                             }
-                            className="rounded accent-[#0071e3] cursor-pointer"
+                            size="sm"
+                            title="Bật/tắt làm mờ chữ"
                           />
-                        </label>
+                        </div>
                         {textEffects.blurEnabled && (
                           <div className="flex items-center justify-between pt-1 border-t border-white/10">
                             <span className="text-white/60">Mức mờ:</span>

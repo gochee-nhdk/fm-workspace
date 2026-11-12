@@ -1034,15 +1034,13 @@ export const SettingsPage: React.FC = () => {
                   </button>
                 ))}
               </div>
-              <label className="flex items-center gap-2 cursor-pointer select-none text-[12.5px] text-[#1d1d1f] dark:text-white font-medium">
-                <input
-                  type="checkbox"
-                  checked={restoreSettingsOnImport}
-                  onChange={(e) => setRestoreSettingsOnImport(e.target.checked)}
-                  className="rounded accent-[#0071e3] w-4 h-4 cursor-pointer outline-none focus:outline-none focus:ring-0 shadow-none"
-                />
-                <span>Khôi phục cài đặt giao diện (theme) từ backup</span>
-              </label>
+              <AppleCheckbox
+                checked={restoreSettingsOnImport}
+                onChange={setRestoreSettingsOnImport}
+                size="sm"
+                label="Khôi phục cài đặt giao diện (theme) từ backup"
+                title="Khôi phục trạng thái giao diện đã lưu trong tệp sao lưu"
+              />
             </div>
 
             {/* Progress */}
@@ -1155,16 +1153,14 @@ export const SettingsPage: React.FC = () => {
               </Button>
             </div>
 
-            <div className="flex items-center gap-2 pt-1 text-[12.5px] text-[#555558] dark:text-[#a1a1a6]">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={maskPasswordInExport}
-                  onChange={(e) => setMaskPasswordInExport(e.target.checked)}
-                  className="rounded accent-[#0071e3] w-4 h-4 cursor-pointer outline-none focus:outline-none focus:ring-0 shadow-none"
-                />
-                <span>Bảo vệ quyền riêng tư: Ẩn mật khẩu (dạng ••••••••) khi xuất Excel</span>
-              </label>
+            <div className="pt-1">
+              <AppleCheckbox
+                checked={maskPasswordInExport}
+                onChange={setMaskPasswordInExport}
+                size="sm"
+                label="Bảo vệ quyền riêng tư: Ẩn mật khẩu (dạng ••••••••) khi xuất Excel"
+                title="Che giấu các ký tự mật khẩu trong tệp Excel để đảm bảo an toàn thông tin"
+              />
             </div>
 
             <div className="pt-3 border-t border-black/5 dark:border-white/10 flex items-center gap-2 flex-wrap text-xs text-[#76767b]">
@@ -1460,13 +1456,30 @@ export const SettingsPage: React.FC = () => {
                   Khóa Màn Hình Cục Bộ (Local Privacy Lock / Screen Shield)
                 </h3>
               </div>
-              <div className={`apple-badge-base ${
-                isLockEnabled
-                  ? 'apple-badge-success'
-                  : 'apple-badge-neutral'
-              }`}>
-                {isLockEnabled ? <SFCheckmarkCircleFill size={12} /> : <SFLock size={12} />}
-                <span>{isLockEnabled ? 'Đã bật mã PIN bảo vệ' : 'Chưa cài đặt mã PIN'}</span>
+              <div className="flex items-center gap-3">
+                <div className={`apple-badge-base ${
+                  isLockEnabled
+                    ? 'apple-badge-success'
+                    : 'apple-badge-neutral'
+                }`}>
+                  {isLockEnabled ? <SFCheckmarkCircleFill size={12} /> : <SFLock size={12} />}
+                  <span>{isLockEnabled ? 'Đã bật mã PIN bảo vệ' : 'Chưa cài đặt mã PIN'}</span>
+                </div>
+                <AppleSwitch
+                  checked={isLockEnabled}
+                  onChange={(enable) => {
+                    if (enable) {
+                      setPinInput('');
+                      setPinConfirmInput('');
+                      setShowPinSetupModal(true);
+                    } else {
+                      setPinRemoveInput('');
+                      setPinRemoveMismatch(false);
+                      setShowPinRemoveModal(true);
+                    }
+                  }}
+                  title={isLockEnabled ? 'Tắt khóa bảo vệ bằng mã PIN' : 'Bật khóa bảo vệ bằng mã PIN'}
+                />
               </div>
             </div>
 
@@ -1903,24 +1916,12 @@ export const SettingsPage: React.FC = () => {
                           )}
 
                           {/* Toggle Active Switch */}
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={item.isActive}
-                            onClick={() => handleToggleActiveGeminiKey(item.id, item.isActive)}
-                            className={cn(
-                              "w-9 h-5 rounded-full p-0.5 transition-colors duration-200 cursor-pointer shrink-0 focus:outline-none",
-                              item.isActive ? "bg-[#34c759]" : "bg-black/20 dark:bg-white/20"
-                            )}
+                          <AppleSwitch
+                            checked={item.isActive}
+                            onChange={() => handleToggleActiveGeminiKey(item.id, item.isActive)}
+                            size="sm"
                             title={item.isActive ? 'Khóa đang BẬT (nhấp để tạm dừng)' : 'Khóa đang TẮT (nhấp để kích hoạt)'}
-                          >
-                            <div
-                              className={cn(
-                                "w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-sm",
-                                item.isActive ? "translate-x-4" : "translate-x-0"
-                              )}
-                            />
-                          </button>
+                          />
 
                           {/* Delete */}
                           <button
