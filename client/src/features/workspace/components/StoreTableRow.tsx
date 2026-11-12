@@ -159,7 +159,7 @@ export const StoreTableRow = React.memo<StoreTableRowProps>(({
       </td>
 
       {/* Actions */}
-      <td className="sticky right-0 z-10 px-3 sm:px-4 py-2.5 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white/95 dark:bg-[#141418] group-hover:bg-[#f8f9fc]/95 dark:group-hover:bg-[#1a1a20]/95 backdrop-blur-xl border-l border-black/[0.04] dark:border-white/[0.06] transition-colors duration-200 ease-spring">
+      <td className="sticky right-0 z-10 px-3 sm:px-4 py-2.5 text-right whitespace-nowrap w-[96px] min-w-[96px] bg-white dark:bg-[#141418] group-hover:bg-[#f8f9fc] dark:group-hover:bg-[#1a1a20] border-l border-black/[0.04] dark:border-white/[0.06] transition-colors duration-200 ease-spring">
         <div className="inline-flex items-center justify-end gap-1 opacity-90 group-hover:opacity-100 transition-opacity duration-150">
           <button
             type="button"

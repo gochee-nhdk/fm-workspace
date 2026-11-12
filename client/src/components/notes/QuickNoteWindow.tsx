@@ -2459,11 +2459,12 @@ export const QuickNoteWindow: React.FC = () => {
 
   // Listen to document selectionchange for real-time tracking
   useEffect(() => {
+    if (!isOpen || isMinimized || editorMode !== 'text') return;
     document.addEventListener('selectionchange', handleEditorSelect);
     return () => {
       document.removeEventListener('selectionchange', handleEditorSelect);
     };
-  }, [handleEditorSelect]);
+  }, [isOpen, isMinimized, editorMode, handleEditorSelect]);
 
   const handleApplyFormat = (
     format: 'bold' | 'italic' | 'underline' | 'strike' | 'bullet' | 'number' | 'h1' | 'h2' | 'h3'
@@ -2968,6 +2969,8 @@ export const QuickNoteWindow: React.FC = () => {
   };
   // ─────────────────────────────────────────────────────────────────────────
   useEffect(() => {
+    if (!isOpen || isMinimized) return;
+
     const handleGlobalPaste = async (e: ClipboardEvent) => {
       if (!isOpen || isMinimized || !activeNote) return;
 

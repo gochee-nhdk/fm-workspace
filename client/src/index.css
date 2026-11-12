@@ -755,11 +755,9 @@
     0 3px 10px -1px rgba(0, 0, 0, 0.03);
   position: relative;
   overflow: hidden;
-  transform-style: preserve-3d;
-  /* GPU-only: eliminates layout & paint during animation */
+  /* GPU-friendly: avoids persistent 3D contexts, transitions transform & box-shadow on hover */
   transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1),
               box-shadow 0.24s cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
@@ -1712,28 +1710,28 @@
 .apple-popover-close-tr {
   transform-origin: top right;
   animation: applePopoverCloseTR 0.12s cubic-bezier(0.32, 0, 0.67, 0) both;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
   pointer-events: none;
 }
 
 .apple-popover-close-tl {
   transform-origin: top left;
   animation: applePopoverCloseTL 0.12s cubic-bezier(0.32, 0, 0.67, 0) both;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
   pointer-events: none;
 }
 
 .apple-popover-close-br {
   transform-origin: bottom right;
   animation: applePopoverCloseBR 0.12s cubic-bezier(0.32, 0, 0.67, 0) both;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
   pointer-events: none;
 }
 
 .apple-popover-close-bl {
   transform-origin: bottom left;
   animation: applePopoverCloseBL 0.12s cubic-bezier(0.32, 0, 0.67, 0) both;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
   pointer-events: none;
 }
 
@@ -1775,7 +1773,7 @@
 .apple-picker-close {
   transform-origin: top center;
   animation: applePickerExit 0.13s cubic-bezier(0.32, 0, 0.67, 0) both;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
   pointer-events: none;
 }
 
@@ -1812,7 +1810,7 @@
 .apple-picker-close-up {
   transform-origin: bottom center;
   animation: applePickerExitUp 0.13s cubic-bezier(0.32, 0, 0.67, 0) both;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
   pointer-events: none;
 }
 
@@ -2000,25 +1998,25 @@
 
 .apple-lightbox-stage-enter {
   animation: appleLightboxStageEnter 0.20s cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
   transform-origin: center center;
 }
 
 .apple-lightbox-stage-exit {
   animation: appleLightboxStageExit 0.14s cubic-bezier(0.32, 0, 0.67, 0) forwards;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
   transform-origin: center center;
   pointer-events: none;
 }
 
 .apple-lightbox-img-enter {
   animation: appleLightboxStageEnter 0.20s cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
 }
 
 .apple-lightbox-img-exit {
   animation: appleLightboxStageExit 0.14s cubic-bezier(0.32, 0, 0.67, 0) forwards;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
   pointer-events: none;
 }
 
@@ -2246,7 +2244,11 @@ tbody td {
     transparent 55%
   );
   background-size: 200% 100%;
-  animation: appleGlassGleam 2.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  animation: appleGlassGleam 1.2s cubic-bezier(0.16, 1, 0.3, 1) 1;
+}
+
+.apple-toast-shimmer:hover {
+  animation: appleGlassGleam 1.2s cubic-bezier(0.16, 1, 0.3, 1) 1;
 }
 
 .dark .apple-toast-shimmer {
@@ -3238,12 +3240,12 @@ tbody td {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.05) 15%,
-    rgba(255, 255, 255, 0.55) 50%,
-    rgba(236, 72, 153, 0.35) 70%,
+    rgba(255, 255, 255, 0.08) 15%,
+    rgba(255, 255, 255, 0.65) 50%,
+    rgba(236, 72, 153, 0.4) 70%,
     transparent 100%
   );
-  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.6));
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
   opacity: 0.75;
   animation: appleAiShimmerSweep 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   pointer-events: none;
@@ -3254,12 +3256,12 @@ tbody td {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.08) 15%,
-    rgba(255, 255, 255, 0.65) 50%,
-    rgba(236, 72, 153, 0.4) 70%,
+    rgba(255, 255, 255, 0.1) 15%,
+    rgba(255, 255, 255, 0.75) 50%,
+    rgba(236, 72, 153, 0.45) 70%,
     transparent 100%
   );
-  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.7));
+  box-shadow: 0 0 14px rgba(255, 255, 255, 0.4);
   opacity: 0.8;
 }
 
@@ -3465,7 +3467,7 @@ tbody td {
 
 .apple-quicklook-morph-expand {
   animation: appleQuickLookExpand 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
   transform: translateZ(0);
 }
 
@@ -3511,7 +3513,6 @@ tbody td {
 .liquid-auth-trigger {
   position: relative;
   transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease !important;
-  animation: liquidBorderPulse 3.5s ease-in-out infinite !important;
 }
 
 .liquid-auth-trigger:hover {
@@ -3534,7 +3535,6 @@ tbody td {
     #14b8a6 75%,
     #10b981 100%
   ) !important;
-  animation: liquidSheenSweep 4.5s ease-in-out infinite, liquidBtnAmbientGlow 3s ease-in-out infinite !important;
   transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease !important;
 }
 

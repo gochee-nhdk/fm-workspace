@@ -27,7 +27,6 @@ import { toggleThemeWithIris } from '@/lib/themeTransition';
 import { useNoteStore } from '@/stores/note-store';
 import { Button } from '@/components/ui/button';
 import { CloseButton } from '@/components/ui/close-button';
-import { reminderService } from '@/services/reminderService';
 import { useTabIndicator, useAppleTabSpring, motionTokens } from '@/lib/motion';
 import { useSecurityStore } from '@/stores/security-store';
 import { LocalLockScreen } from '@/components/security/LocalLockScreen';
@@ -102,7 +101,7 @@ export const AppShell: React.FC = () => {
     let lastHandled = 0;
     const handleUserActivity = () => {
       const now = Date.now();
-      if (now - lastHandled > 15_000) {
+      if (now - lastHandled > 30_000) {
         lastHandled = now;
         recordActivity();
       }
@@ -198,13 +197,6 @@ export const AppShell: React.FC = () => {
     return () => window.removeEventListener('fm:open-import', handleOpenImport);
   }, []);
 
-  // Background reminder notifications monitor
-  useEffect(() => {
-    const stop = reminderService.startMonitoring();
-    return () => {
-      stop();
-    };
-  }, []);
 
   // Logo click: go home via React Router
   const handleLogoClick = useCallback(
