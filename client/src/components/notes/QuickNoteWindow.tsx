@@ -5489,11 +5489,6 @@ export const QuickNoteWindow: React.FC = () => {
                           : 'apple-popover-tr'
                       }`}
                     >
-                      <div className="px-2.5 py-1 text-[10.5px] font-bold text-[#1d1d1f] dark:text-white border-b border-black/[0.06] dark:border-white/10 mb-1 flex items-center justify-between">
-                        <span>Writing Tools</span>
-                        <span className="text-[9.5px] bg-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff] px-1.5 py-0.5 rounded-full font-semibold">Intelligence</span>
-                      </div>
-
                       <button
                         type="button"
                         onClick={() => {
@@ -6240,18 +6235,6 @@ export const QuickNoteWindow: React.FC = () => {
                                 : (floatingAiPresence.isExiting ? 'top-full mt-2 apple-popover-close-tr' : 'top-full mt-2 apple-popover-tr')
                             }`}
                           >
-                            <div className="px-2.5 py-1.5 flex items-center justify-between border-b border-black/[0.06] dark:border-white/10 mb-1">
-                              <div className="flex items-center gap-1.5 text-[#0071e3] dark:text-[#2997ff]">
-                                <SFWandAndSparkles size={12.5} />
-                                <span className="text-[11.5px] font-bold text-[#1d1d1f] dark:text-white">
-                                  Writing Tools
-                                </span>
-                              </div>
-                              <span className="text-[9.5px] bg-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff] px-1.5 py-0.5 rounded-full font-semibold">
-                                Intelligence
-                              </span>
-                            </div>
-
                             <button
                               type="button"
                               onMouseDown={(e) => e.preventDefault()}

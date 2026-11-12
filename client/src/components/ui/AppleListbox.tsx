@@ -12,7 +12,9 @@ export interface AppleListboxOption {
 
 export interface AppleListboxProps {
   label?: string;
+  /** @deprecated Header in popover removed per macOS HIG */
   headerTitle?: string;
+  /** @deprecated Header in popover removed per macOS HIG */
   headerCountLabel?: string;
   value: string;
   onChange: (value: string) => void;
@@ -31,8 +33,8 @@ export interface AppleListboxProps {
 
 export const AppleListbox: React.FC<AppleListboxProps> = ({
   label,
-  headerTitle = 'Phân loại danh mục',
-  headerCountLabel = 'NHÓM',
+  headerTitle: _headerTitle,
+  headerCountLabel: _headerCountLabel,
   value,
   onChange,
   options,
@@ -191,16 +193,8 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
           : 'apple-picker-open pointer-events-auto'
       )}
     >
-      {/* Header */}
-      <div className="px-3 py-2 text-[11px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7] uppercase tracking-wider border-b border-black/[0.06] dark:border-white/[0.08] flex items-center justify-between">
-        <span>{headerTitle}</span>
-        <span className="font-mono text-[10px] font-normal text-[#86868b] dark:text-[#a1a1a6]">
-          {normalizedOptions.length} {headerCountLabel}
-        </span>
-      </div>
-
       {/* Scrollable Items List */}
-      <div className="max-h-56 overflow-y-auto space-y-0.5 py-1 pr-0.5 scrollbar-thin">
+      <div className="max-h-56 overflow-y-auto space-y-0.5 py-0.5 pr-0.5 scrollbar-thin">
         {normalizedOptions.map((opt) => {
           const isSelected = !isCustomSelected && opt.value === value;
           return (
