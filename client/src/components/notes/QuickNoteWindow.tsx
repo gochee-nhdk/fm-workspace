@@ -1794,8 +1794,8 @@ export const QuickNoteWindow: React.FC = () => {
     setAiDraftCopied(false);
     setShowWritingToolsMenu(false);
     setShowCompactAiMenu(false);
-    let targetText = extractPlainText(localContent);
     let isSelection = false;
+    let targetText = '';
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0 && !sel.isCollapsed && editorRef.current?.contains(sel.anchorNode)) {
       const selectedStr = sel.toString().trim();
@@ -1830,6 +1830,18 @@ export const QuickNoteWindow: React.FC = () => {
             lineRects,
           });
         }
+      }
+    }
+
+    if (!targetText) {
+      if (editorMode === 'checklist') {
+        targetText = localChecklist
+          .split('\n')
+          .map((l) => l.replace(/^(?:-\s*)?\[([ xX])\]\s*/, '').trim())
+          .filter(Boolean)
+          .join('\n');
+      } else {
+        targetText = extractPlainText(localContent);
       }
     } else {
       savedSelectionRangeRef.current = null;
@@ -4474,6 +4486,11 @@ export const QuickNoteWindow: React.FC = () => {
       toast.error('Vui lòng chọn thời gian nhắc nhở');
       return;
     }
+    const cleanEmail = reminderEmail.trim() || reminderService.getPreferredEmail();
+    if (reminderNotifyEmail && (!cleanEmail || !cleanEmail.includes('@'))) {
+      toast.error('Vui lòng nhập địa chỉ email người nhận hợp lệ!');
+      return;
+    }
     const reminderIso = new Date(reminderDate).toISOString();
 
     if (reminderDesktop) {
@@ -4483,15 +4500,15 @@ export const QuickNoteWindow: React.FC = () => {
       }
     }
 
-    if (reminderNotifyEmail && reminderEmail.trim()) {
-      reminderService.setPreferredEmail(reminderEmail.trim());
+    if (reminderNotifyEmail && cleanEmail) {
+      reminderService.setPreferredEmail(cleanEmail);
     }
 
     updateActiveNote({
       reminderAt: reminderIso,
       reminderNotifyDesktop: reminderDesktop,
       reminderNotifyEmail: reminderNotifyEmail,
-      reminderEmail: reminderEmail.trim() || null,
+      reminderEmail: cleanEmail || null,
       reminderCompleted: false,
     });
 
@@ -6848,6 +6865,10 @@ export const QuickNoteWindow: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
+                    if (!todoReminderTarget.reminderAt) {
+                      toast.error('Vui lòng chọn thời gian nhắc việc!');
+                      return;
+                    }
                     handleSaveIndividualTaskReminder(
                       todoReminderTarget.lineIndex,
                       todoReminderTarget.taskId,

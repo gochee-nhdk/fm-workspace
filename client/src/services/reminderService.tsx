@@ -176,7 +176,23 @@ class ReminderService {
     const cleanPort = Number(config.port) || 587;
     const cleanSender = config.senderName || 'Trợ Lý Thu Mua • Farmers Market';
 
-    // Save immediately into local secure vault
+    // 1. Verify credentials live against SMTP server first
+    try {
+      await api.post('/notifications/verify-smtp', {
+        user: cleanUser,
+        pass: cleanPass,
+        host: cleanHost,
+        port: cleanPort,
+      });
+    } catch (verifyErr: any) {
+      const errMsg = verifyErr.response?.data?.message || verifyErr.message;
+      return {
+        success: false,
+        message: errMsg || 'Xác thực tài khoản gửi email thất bại. Vui lòng kiểm tra lại Google App Password.',
+      };
+    }
+
+    // 2. Verified successfully! Save into local secure vault
     saveLocalSmtp({
       user: cleanUser,
       pass: cleanPass,
@@ -186,33 +202,24 @@ class ReminderService {
       configured: true,
     });
 
+    // 3. Sync to server system settings if user is Admin
     try {
-      const res = await api.post('/notifications/smtp-config', {
+      await api.post('/notifications/smtp-config', {
         user: cleanUser,
         pass: cleanPass,
         host: cleanHost,
         port: cleanPort,
         senderName: cleanSender,
       });
-      return {
-        success: res.data?.success ?? true,
-        message: res.data?.message || 'Cấu hình SMTP thành công! Đã kết nối Google Mail.',
-        configured: true,
-      };
-    } catch (err: any) {
-      const serverMsg = err.response?.data?.message;
-      if (serverMsg && err.response?.status !== 405) {
-        return {
-          success: false,
-          message: serverMsg,
-        };
-      }
-      return {
-        success: true,
-        message: 'Đã lưu cấu hình tài khoản Google Mail an toàn trong trình duyệt của bạn.',
-        configured: true,
-      };
+    } catch (_) {
+      // Non-admins getting 403 is normal; verified personal vault is active!
     }
+
+    return {
+      success: true,
+      message: 'Cấu hình SMTP thành công! Đã kết nối và xác thực tài khoản Google Mail.',
+      configured: true,
+    };
   }
 
   /**
@@ -303,36 +310,40 @@ class ReminderService {
       const now = Date.now();
 
       for (const note of notes) {
-        // 1. Note-level reminder check
-        if (note.reminderAt && !note.reminderCompleted) {
-          const reminderTime = new Date(note.reminderAt).getTime();
-          if (reminderTime <= now) {
-            const isOverdue = now - reminderTime > 4 * 60 * 60 * 1000;
-            await this.fireNoteReminder(note, isOverdue);
-          }
-        }
-
-        // 2. Checklist task-level reminders check
-        if (note.taskReminders && note.taskReminders.length > 0) {
-          let updated = false;
-          for (const tr of note.taskReminders) {
-            if (tr.reminderAt && !tr.reminderCompleted) {
-              const reminderTime = new Date(tr.reminderAt).getTime();
-              if (reminderTime <= now) {
-                const isOverdue = now - reminderTime > 4 * 60 * 60 * 1000;
-                await this.fireTaskReminder(note, tr, isOverdue);
-                tr.reminderCompleted = true;
-                updated = true;
-              }
+        try {
+          // 1. Note-level reminder check
+          if (note.reminderAt && !note.reminderCompleted) {
+            const reminderTime = new Date(note.reminderAt).getTime();
+            if (reminderTime <= now) {
+              const isOverdue = now - reminderTime > 4 * 60 * 60 * 1000;
+              await this.fireNoteReminder(note, isOverdue);
             }
           }
-          if (updated) {
-            await noteService.saveNote({
-              id: note.id,
-              taskReminders: note.taskReminders,
-            });
-            useNoteStore.getState().loadNotes();
+
+          // 2. Checklist task-level reminders check
+          if (note.taskReminders && note.taskReminders.length > 0) {
+            let updated = false;
+            for (const tr of note.taskReminders) {
+              if (tr.reminderAt && !tr.reminderCompleted) {
+                const reminderTime = new Date(tr.reminderAt).getTime();
+                if (reminderTime <= now) {
+                  const isOverdue = now - reminderTime > 4 * 60 * 60 * 1000;
+                  tr.reminderCompleted = true;
+                  updated = true;
+                  await this.fireTaskReminder(note, tr, isOverdue);
+                }
+              }
+            }
+            if (updated) {
+              await noteService.saveNote({
+                id: note.id,
+                taskReminders: note.taskReminders,
+              });
+              useNoteStore.getState().loadNotes();
+            }
           }
+        } catch (noteErr) {
+          console.warn(`Error processing reminder for note ${note.id}:`, noteErr);
         }
       }
     } catch (err) {

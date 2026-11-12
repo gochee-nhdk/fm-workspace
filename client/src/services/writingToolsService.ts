@@ -765,20 +765,23 @@ const localTransform = (text: string, action: WritingToolAction): string => {
     }
 
     case 'professional': {
-      // Viết lại trang trọng, sạch sẽ, không tiêu đề biên bản giả định hay giải thích lan man
-      const cleanBase = text.trim();
-      if (!cleanBase) return '';
-      if (/yêu|đất nước|việt nam/i.test(cleanBase)) {
-        return `Tôi luôn trân trọng và dành tình cảm sâu sắc, niềm tin vững chắc đối với sự phát triển của đất nước Việt Nam.`;
-      }
-      if (/cần|muốn|xin/i.test(cleanBase)) {
-        return `Kính đề nghị xem xét và tạo điều kiện hỗ trợ thực hiện nội dung sau: ${cleanBase}`;
-      }
-      const cleanLines = lines.map(cleanLine).filter(Boolean);
+      // Viết lại trang trọng, sạch sẽ, chuẩn mực văn phong công vụ/kinh doanh
+      const cleanBase = localTransform(text, 'proofread');
+      const cleanLines = cleanBase.split('\n').map((l) => l.trim()).filter(Boolean);
       return cleanLines
         .map((l) => {
-          const cap = l.charAt(0).toUpperCase() + l.slice(1);
-          return cap.endsWith('.') || cap.endsWith('!') || cap.endsWith('?') ? cap : `${cap}.`;
+          let line = l;
+          // Chuẩn hóa từ ngữ trang trọng
+          line = line
+            .replace(/\b(em|tớ|tui|mình)\b/gi, 'Tôi')
+            .replace(/\b(bạn|cậu|đằng ấy)\b/gi, 'Quý đối tác / Anh/Chị')
+            .replace(/\b(ko|k|hem)\b/gi, 'không')
+            .replace(/\b(đc|dc)\b/gi, 'được')
+            .replace(/\b(nhé|nha|nghen)\b/gi, 'trân trọng')
+            .replace(/\b(ok|okie|oke)\b/gi, 'đồng ý xác nhận')
+            .trim();
+          const cap = line.charAt(0).toUpperCase() + line.slice(1);
+          return /[.!?…]$/.test(cap) ? cap : `${cap}.`;
         })
         .join('\n') || text;
     }
@@ -929,22 +932,14 @@ const localTransform = (text: string, action: WritingToolAction): string => {
       const trimmedText = text.trim();
       if (!trimmedText) return '';
       const cleanBase = localTransform(trimmedText, 'proofread');
-      const baseNoDot = cleanBase.replace(/[.!?…]+$/, '');
+      const lines = cleanBase.split('\n').map((l) => l.trim()).filter(Boolean);
 
-      // Check context keywords for natural, beautiful expansion without lecturing
-      if (/yêu|tự hào|quê hương|đất nước|việt nam/i.test(trimmedText)) {
-        return `${cleanBase} Đây là tình cảm sâu sắc, niềm tự hào thiêng liêng gắn liền với lịch sử ngàn năm văn hiến và tinh thần đoàn kết bất khuất của dân tộc.`;
-      }
-      if (/kem|món|ăn|uống|cafe|cà phê|trà/i.test(trimmedText)) {
-        return `${cleanBase} Ưu tiên lựa chọn hương vị thơm ngon mát lạnh, bảo đảm chất lượng vệ sinh an toàn thực phẩm và thưởng thức trọn vẹn hương vị yêu thích.`;
-      }
-      if (/mua|nhập|hàng|đơn|hợp đồng|báo giá|nhà cung cấp/i.test(trimmedText)) {
-        return `${cleanBase} Cần chủ động rà soát chi tiết thông số kỹ thuật, số lượng, đơn giá và thời hạn bàn giao để xúc tiến thực hiện chuẩn xác.`;
-      }
-      if (/công việc|nhiệm vụ|kế hoạch|tiến độ/i.test(trimmedText)) {
-        return `${cleanBase} Toàn bộ các hạng mục cần được bám sát các mốc thời gian đề ra nhằm bảo đảm tiến độ và chất lượng tối ưu.`;
-      }
-      return `${baseNoDot}, đồng thời phát triển toàn diện và đồng bộ các yếu tố liên quan để đạt kết quả tốt nhất.`;
+      // Mở rộng mạch lạc từng ý dựa trên chính nội dung người dùng nhập
+      const expanded = lines.map((l) => {
+        const clean = l.replace(/[.!?…]+$/, '');
+        return `${clean} (bao gồm chi tiết thông số, kiểm tra xác nhận và theo dõi tiến độ thực hiện).`;
+      });
+      return expanded.join('\n') || cleanBase;
     }
 
     case 'action_items': {

@@ -61,14 +61,14 @@ export default async function aiRoutes(fastify: FastifyInstance) {
         candidateKeys.push(process.env.GEMINI_API_KEY.trim());
       }
 
-      // Deduplicate keys while preserving order
-      const uniqueKeys = Array.from(new Set(candidateKeys));
+      // Deduplicate keys while preserving order, and strictly reject any masked keys
+      const uniqueKeys = Array.from(new Set(candidateKeys)).filter((k) => k && typeof k === 'string' && k.trim().length > 0 && !k.includes('••••'));
 
       if (uniqueKeys.length === 0) {
         return reply.code(400).send({
           success: false,
           needsApiKey: true,
-          message: 'Chưa cấu hình Gemini API Key. Vui lòng cài đặt khóa API trong Cài đặt → API Key.',
+          message: 'Chưa cấu hình API Key khả dụng. Vui lòng cài đặt khóa API trong Cài đặt → API Key.',
         });
       }
 
@@ -103,34 +103,117 @@ export default async function aiRoutes(fastify: FastifyInstance) {
 
       let lastErr: any = null;
 
-      // Iterate through keys pool sequentially (Intelligent Auto-failover)
+      // Iterate through keys pool sequentially (Intelligent Auto-failover across Gemini, DeepSeek & OpenAI)
       for (let kIdx = 0; kIdx < uniqueKeys.length; kIdx++) {
-        const apiKey = uniqueKeys[kIdx];
-        const ai = new GoogleGenAI({ apiKey });
+        const apiKey = uniqueKeys[kIdx].trim();
 
-        for (const model of models) {
+        if (apiKey.startsWith('sk-proj-') || apiKey.startsWith('sk-openai-')) {
+          // OpenAI Provider Failover
           try {
-            const response = await ai.models.generateContent({
-              model,
-              contents: prompt,
-              config: {
-                temperature: 0.2,
+            const oaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${apiKey}`,
               },
+              body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                messages: [
+                  { role: 'system', content: baseInstruction },
+                  { role: 'user', content: prompt },
+                ],
+                temperature: 0.2,
+              }),
             });
-            const resultText = response.text?.trim() || '';
-            if (resultText) {
-              return reply.send({
-                success: true,
-                result: resultText,
-                usedGemini: true,
-                model,
-                usedKeyIndex: kIdx,
-                fallbackKeyUsed: kIdx > 0,
-              });
+            if (oaiRes.ok) {
+              const data: any = await oaiRes.json();
+              const resultText = data.choices?.[0]?.message?.content?.trim();
+              if (resultText) {
+                return reply.send({
+                  success: true,
+                  result: resultText,
+                  usedGemini: false,
+                  provider: 'openai',
+                  model: 'gpt-4o-mini',
+                  usedKeyIndex: kIdx,
+                  fallbackKeyUsed: kIdx > 0,
+                });
+              }
             }
-          } catch (mErr: any) {
-            lastErr = mErr;
-            continue; // Thử tiếp model khác trước khi chuyển key
+          } catch (oaiErr: any) {
+            lastErr = oaiErr;
+            continue;
+          }
+        } else if (apiKey.startsWith('sk-')) {
+          // DeepSeek Provider Failover
+          try {
+            const dsRes = await fetch('https://api.deepseek.com/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${apiKey}`,
+              },
+              body: JSON.stringify({
+                model: 'deepseek-chat',
+                messages: [
+                  { role: 'system', content: baseInstruction },
+                  { role: 'user', content: prompt },
+                ],
+                temperature: 0.2,
+              }),
+            });
+            if (dsRes.ok) {
+              const data: any = await dsRes.json();
+              const resultText = data.choices?.[0]?.message?.content?.trim();
+              if (resultText) {
+                return reply.send({
+                  success: true,
+                  result: resultText,
+                  usedGemini: false,
+                  provider: 'deepseek',
+                  model: 'deepseek-chat',
+                  usedKeyIndex: kIdx,
+                  fallbackKeyUsed: kIdx > 0,
+                });
+              }
+            }
+          } catch (dsErr: any) {
+            lastErr = dsErr;
+            continue;
+          }
+        } else {
+          // Google Gemini Provider Failover
+          const ai = new GoogleGenAI({ apiKey });
+          for (const model of models) {
+            try {
+              const response = await ai.models.generateContent({
+                model,
+                contents: prompt,
+                config: {
+                  temperature: 0.2,
+                },
+              });
+              const resultText = response.text?.trim() || '';
+              if (resultText) {
+                return reply.send({
+                  success: true,
+                  result: resultText,
+                  usedGemini: true,
+                  provider: 'gemini',
+                  model,
+                  usedKeyIndex: kIdx,
+                  fallbackKeyUsed: kIdx > 0,
+                });
+              }
+            } catch (mErr: any) {
+              lastErr = mErr;
+              const errStr = (mErr?.message || '').toLowerCase();
+              if (errStr.includes('429') || errStr.includes('quota') || errStr.includes('resource_exhausted')) {
+                // Key quota exhausted, switch to next candidate key immediately
+                break;
+              }
+              continue;
+            }
           }
         }
       }
@@ -342,11 +425,9 @@ export default async function aiRoutes(fastify: FastifyInstance) {
 
       if (geminiModels.length === 0) {
         geminiModels = [
-          'gemini-2.5-flash',
           'gemini-2.0-flash',
           'gemini-1.5-flash',
           'gemini-2.0-flash-lite',
-          'gemini-2.5-pro',
           'gemini-1.5-pro',
         ];
       }

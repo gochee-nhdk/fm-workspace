@@ -59,8 +59,8 @@ async function getSmtpConfig(clientConfig?: any): Promise<SmtpConfig> {
   let senderName = (await getSetting('smtp_sender_name')) || 'Farmers Market Assistant';
   let from = (await getSetting('smtp_from')) || process.env.SMTP_FROM || `"${senderName}" <${user}>`;
 
-  // Fallback to client-provided SMTP configuration (in-memory for this session only, never auto-save to global db)
-  if ((!user || !pass) && clientConfig?.user && clientConfig?.pass) {
+  // Prioritize client-provided SMTP configuration (in-memory for this session only, never auto-save to global db)
+  if (clientConfig?.user && clientConfig?.pass) {
     user = String(clientConfig.user).trim();
     pass = String(clientConfig.pass).trim().replace(/\s+/g, '');
     host = String(clientConfig.host || host).trim();
@@ -107,6 +107,53 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
       fullUser: request.user?.role === 'admin' ? (config.user || null) : null,
       senderName: config.senderName,
     });
+  });
+
+  // 1b. Live Verify SMTP Credentials (Accessible for any authenticated user to test their personal or system email setup)
+  fastify.post('/verify-smtp', { preHandler: verifyToken }, async (request: any, reply) => {
+    const { user, pass, host, port } = request.body || {};
+    if (!user || !pass) {
+      return reply.code(400).send({
+        success: false,
+        message: 'Vui lòng cung cấp Email và Mật khẩu ứng dụng (Google App Password).',
+      });
+    }
+
+    const cleanUser = String(user).trim();
+    const cleanPass = String(pass).replace(/\s+/g, '');
+    const cleanHost = String(host || 'smtp.gmail.com').trim();
+    const cleanPort = Number(port) || 587;
+
+    const testTransporter = nodemailer.createTransport({
+      host: cleanHost,
+      port: cleanPort,
+      secure: cleanPort === 465,
+      auth: {
+        user: cleanUser,
+        pass: cleanPass,
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+    });
+
+    try {
+      await testTransporter.verify();
+      return reply.send({
+        success: true,
+        message: 'Xác thực tài khoản và kết nối máy chủ gửi thư SMTP thành công!',
+        configured: true,
+        smtpHost: cleanHost,
+        smtpPort: cleanPort,
+        smtpUser: cleanUser,
+      });
+    } catch (testErr: any) {
+      return reply.code(400).send({
+        success: false,
+        message: `Xác thực máy chủ SMTP thất bại: ${testErr.message || 'Không thể đăng nhập'}. Nếu dùng Gmail, bạn cần tạo và dùng Mật khẩu ứng dụng (Google App Password 16 chữ cái) thay vì mật khẩu thông thường.`,
+        error: testErr.message,
+      });
+    }
   });
 
   // 2. Configure & Verify SMTP Settings (Accessible for users configuring notifications)
@@ -368,7 +415,13 @@ export default async function notificationsRoutes(fastify: FastifyInstance) {
               <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 22px;">
                 <tr>
                   <td valign="middle" style="width: 44px; padding-right: 12px;">
+                    ${logoPath ? `
                     <img src="cid:${LOGO_CID}" alt="Farmers Market" width="40" height="40" class="apple-logo-img" style="display: block; width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);" />
+                    ` : `
+                    <div style="width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #34c759, #0071e3); color: #ffffff; font-size: 20px; font-weight: bold; text-align: center; line-height: 40px; box-shadow: 0 2px 8px rgba(0, 113, 227, 0.25);">
+                      🌾
+                    </div>
+                    `}
                   </td>
                   <td valign="middle">
                     <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #86868B; line-height: 1.2;">
@@ -732,7 +785,13 @@ ${safeContent}
               <table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 22px;">
                 <tr>
                   <td valign="middle" style="width: 44px; padding-right: 12px;">
+                    ${logoPath ? `
                     <img src="cid:${LOGO_CID}" alt="Farmers Market" width="40" height="40" class="apple-logo-img" style="display: block; width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(0, 0, 0, 0.08); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);" />
+                    ` : `
+                    <div style="width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, #34c759, #0071e3); color: #ffffff; font-size: 20px; font-weight: bold; text-align: center; line-height: 40px; box-shadow: 0 2px 8px rgba(0, 113, 227, 0.25);">
+                      🌾
+                    </div>
+                    `}
                   </td>
                   <td valign="middle">
                     <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #86868B; line-height: 1.2;">

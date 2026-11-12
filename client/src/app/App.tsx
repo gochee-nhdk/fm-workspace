@@ -8,6 +8,7 @@ import RoutesConfig from './routes';
 import { useUiStore, resolveTheme } from '@/stores/ui-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { useNoteStore } from '@/stores/note-store';
+import { reminderService } from '@/services/reminderService';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -94,6 +95,12 @@ function WorkspaceDataBootstrap() {
     checkAuth()
       .then(() => autoRestore())
       .catch(() => {});
+
+    // Start background reminder watcher (scans for due notes & tasks and dispatches alerts)
+    const stopWatcher = reminderService.startMonitoring();
+    return () => {
+      stopWatcher();
+    };
   }, [checkAuth, autoRestore, loadNotes]);
 
   return null;
