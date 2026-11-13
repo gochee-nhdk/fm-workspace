@@ -569,12 +569,12 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
         )}
       </div>
 
-      {/* ─────────────────── LAYER 3: Dedicated Pop-up Box for Month / Year (Không blur, đổ bóng nhẹ nhàng tinh tế) ─────────────────── */}
+      {/* ─────────────────── LAYER 3: Dedicated Pop-up Box for Month / Year (Liquid Glass Blur & Apple Depth) ─────────────────── */}
       {shouldRenderSubPicker && (
         <div
           className={cn(
             'absolute inset-0 z-30 rounded-2xl flex items-center justify-center p-2.5',
-            'bg-black/35 dark:bg-black/60',
+            'bg-black/25 dark:bg-black/50 backdrop-blur-md',
             'transition-opacity duration-200 ease-out',
             isSubPickerExiting
               ? 'opacity-0 pointer-events-none'
@@ -585,7 +585,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
           <div
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              'w-full p-3 rounded-2xl bg-white dark:bg-[#252528] shadow-[0_24px_70px_rgba(0,0,0,0.35)] border border-black/10 dark:border-white/15 flex flex-col gap-2',
+              'w-full p-3 rounded-2xl bg-white/92 dark:bg-[#252528]/92 backdrop-blur-2xl shadow-[0_24px_70px_rgba(0,0,0,0.35),inset_0_1px_1px_rgba(255,255,255,0.85)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.65),inset_0_1px_1px_rgba(255,255,255,0.15)] border border-black/10 dark:border-white/15 flex flex-col gap-2',
               'transition-all duration-200 ease-out',
               isSubPickerExiting
                 ? 'scale-95 opacity-0'

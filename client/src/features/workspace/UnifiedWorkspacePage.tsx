@@ -24,7 +24,6 @@ import {
 } from 'sf-symbols-lib';
 import { Button } from '@/components/ui/button';
 import { CloseButton } from '@/components/ui/close-button';
-import { StatCard } from '@/components/ui/stat-card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { dataService } from '@/services/dataService';
 import { excelService } from '@/services/excelService';
@@ -556,85 +555,6 @@ export const UnifiedWorkspacePage: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto space-y-5 mt-5">
-        {/* ─────────────────── Quick Stat Overview Cards ─────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-          {activeTab === 'accounts' && (
-            <>
-              <StatCard
-                title="Tổng tài khoản"
-                value={accounts.length}
-                subtitle="Hệ thống đăng nhập nội bộ"
-                type="actual"
-                icon={<SFShieldFill size={18} />}
-              />
-              <StatCard
-                title="Phần mềm quản lý"
-                value={new Set(accounts.map((a) => a.software)).size}
-                subtitle="Phần mềm & dịch vụ"
-                type="calculated"
-                icon={<SFStorefront size={18} />}
-              />
-              <StatCard
-                title="Cổng truy cập"
-                value={accounts.filter((a) => !!a.link).length}
-                subtitle="Liên kết đăng nhập trực tiếp"
-                type="actual"
-                icon={<SFLink size={18} />}
-              />
-            </>
-          )}
-          {activeTab === 'links' && (
-            <>
-              <StatCard
-                title="Tổng số liên kết"
-                value={links.length}
-                subtitle="Hệ thống link nghiệp vụ"
-                type="actual"
-                icon={<SFLink size={18} />}
-              />
-              <StatCard
-                title="Mục yêu thích"
-                value={links.filter((l) => l.favorite).length}
-                subtitle="Ghim truy cập nhanh"
-                type="calculated"
-                icon={<SFStarFill size={18} className="text-amber-500" />}
-              />
-              <StatCard
-                title="Phân nhóm danh mục"
-                value={categories.length}
-                subtitle="Danh mục phân loại"
-                type="actual"
-                icon={<SFShieldFill size={18} />}
-              />
-            </>
-          )}
-          {activeTab === 'stores' && (
-            <>
-              <StatCard
-                title="Tổng cửa hàng"
-                value={stores.length}
-                subtitle="Hệ thống chuỗi toàn quốc"
-                type="actual"
-                icon={<SFStorefront size={18} />}
-              />
-              <StatCard
-                title="Đã định vị bản đồ"
-                value={stores.filter((s) => !!s.googleMaps || !!s.address).length}
-                subtitle="Tọa độ Google Maps"
-                type="calculated"
-                icon={<SFMappinAndEllipse size={18} />}
-              />
-              <StatCard
-                title="Phân loại cửa hàng"
-                value={new Set(stores.map((s) => s.type).filter(Boolean)).size || 1}
-                subtitle="Khu vực & mô hình"
-                type="actual"
-                icon={<SFShieldFill size={18} />}
-              />
-            </>
-          )}
-        </div>
-
         {/* ─────────────────── Search & Quick Filter Bar ─────────────────── */}
         <div className="relative z-10 glass-material rounded-[20px] p-3 sm:p-3.5 flex flex-col md:flex-row items-center justify-between gap-3 shadow-xs">
         {/* Instant Search Bar */}
