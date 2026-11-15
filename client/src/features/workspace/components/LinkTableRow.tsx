@@ -93,7 +93,7 @@ export const LinkTableRow = React.memo<LinkTableRowProps>(({
           title={item.favorite ? 'Bỏ yêu thích' : 'Đánh dấu yêu thích'}
         >
           {item.favorite ? (
-            <SFStarFill size={16} className="text-amber-500 drop-shadow-[0_1px_4px_rgba(245,158,11,0.4)]" />
+            <SFStarFill size={16} className="text-amber-500" />
           ) : (
             <SFStar size={16} className="text-[#cccccc] hover:text-amber-500" />
           )}

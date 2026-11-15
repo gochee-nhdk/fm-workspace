@@ -247,7 +247,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
               label={
                 <div className="flex items-center gap-2">
                   {favorite ? (
-                    <SFStarFill size={16} className="text-amber-500 drop-shadow-[0_1px_4px_rgba(245,158,11,0.4)]" />
+                    <SFStarFill size={16} className="text-amber-500" />
                   ) : (
                     <SFStar size={16} className="text-[#86868b]" />
                   )}
