@@ -593,7 +593,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {/* Liquid Glass Dynamic Backdrop with Smooth Fade */}
       <div
         className={cn(
-          'fixed inset-0 bg-black/40 dark:bg-black/65 backdrop-blur-md',
+          'fixed inset-0 bg-black/45 dark:bg-black/70 backdrop-blur-md',
           isClosing ? 'liquid-backdrop-exit' : 'liquid-backdrop-enter'
         )}
         onClick={handleClose}
@@ -605,14 +605,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         aria-modal="true"
         aria-label="Tìm kiếm nhanh Spotlight"
         className={cn(
-          'relative w-full max-w-2xl sm:max-w-[720px] bg-white/98 dark:bg-[#1c1c22]/98 backdrop-blur-3xl rounded-[26px] shadow-[0_32px_90px_rgba(0,0,0,0.4),0_10px_30px_rgba(0,0,0,0.12),inset_0_1.5px_1px_rgba(255,255,255,0.95)] dark:shadow-[0_36px_100px_rgba(0,0,0,0.85),0_12px_36px_rgba(0,0,0,0.6),inset_0_1.5px_1px_rgba(255,255,255,0.15)] border border-black/10 dark:border-white/15 overflow-hidden z-10 flex flex-col',
+          'relative w-full max-w-2xl sm:max-w-[720px] bg-white dark:bg-[#1e1e24] rounded-[26px] shadow-[0_32px_90px_rgba(0,0,0,0.35),0_10px_30px_rgba(0,0,0,0.12),inset_0_1.5px_1px_rgba(255,255,255,1)] dark:shadow-[0_36px_100px_rgba(0,0,0,0.85),0_12px_36px_rgba(0,0,0,0.6),inset_0_1.5px_1px_rgba(255,255,255,0.15)] border border-black/10 dark:border-white/15 overflow-hidden z-10 flex flex-col',
           isClosing ? 'liquid-droplet-exit' : 'liquid-droplet-enter'
         )}
       >
         {/* Seamless Search Bar Header */}
         <div
           onMouseEnter={resetSelectionImmediate}
-          className="flex items-center gap-3.5 px-5 py-4 border-b border-black/[0.06] dark:border-white/10 bg-transparent"
+          className="flex items-center gap-3.5 px-5 py-4 border-b border-black/[0.06] dark:border-white/10 bg-white dark:bg-[#1e1e24]"
         >
           <div className="w-8 h-8 rounded-xl bg-[#0071e3]/10 dark:bg-[#2997ff]/15 text-[#0066cc] dark:text-[#2997ff] flex items-center justify-center shrink-0">
             <SFMagnifyingglass size={16} />
@@ -625,7 +625,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Tìm kiếm liên kết, tài khoản, cửa hàng, trang, tác vụ..."
-            className="w-full text-[16px] bg-transparent text-[#1d1d1f] dark:text-white placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] border-0 outline-none ring-0 p-0 shadow-none font-normal"
+            className="w-full text-[16px] bg-transparent text-[#1d1d1f] dark:text-white placeholder:text-[#6e6e73] dark:placeholder:text-[#a1a1a6] border-0 outline-none ring-0 p-0 shadow-none font-medium"
             style={{ outline: 'none', boxShadow: 'none', border: 'none', caretColor: '#0071e3' }}
           />
 
@@ -817,7 +817,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                       )}
                     </div>
                     {item.sub && (
-                      <div className="text-[11.5px] truncate text-[#86868b] dark:text-[#a1a1a6]">
+                      <div className="text-[12px] truncate text-[#636366] dark:text-[#a1a1a6] font-normal">
                         <HighlightedText text={item.sub} query={query} />
                       </div>
                     )}
@@ -864,29 +864,29 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         {/* Footer Navigation Bar - Desktop Keyboard Shortcuts Only */}
         <div
           onMouseEnter={resetSelectionImmediate}
-          className="hidden sm:flex px-5 py-2.5 border-t border-black/[0.06] dark:border-white/10 bg-white/40 dark:bg-[#1c1c1e]/40 backdrop-blur-md items-center justify-between text-[11px] text-[#76767b] dark:text-[#a1a1a6]"
+          className="hidden sm:flex px-5 py-2.5 border-t border-black/[0.06] dark:border-white/10 bg-[#f5f5f7]/80 dark:bg-[#18181c]/80 backdrop-blur-md items-center justify-between text-[11px] text-[#636366] dark:text-[#a1a1a6]"
         >
           <div className="flex items-center gap-2.5 flex-wrap">
             <span className="inline-flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-[#272729] rounded border border-black/[0.08] dark:border-white/10 shadow-2xs font-medium text-[#1d1d1f] dark:text-white">
+              <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-[#272729] rounded border border-black/[0.08] dark:border-white/10 shadow-2xs font-semibold text-[#1d1d1f] dark:text-white">
                 ↑↓
               </kbd>
               <span>di chuyển</span>
             </span>
             <span className="inline-flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-[#272729] rounded border border-black/[0.08] dark:border-white/10 shadow-2xs font-medium text-[#1d1d1f] dark:text-white">
+              <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-[#272729] rounded border border-black/[0.08] dark:border-white/10 shadow-2xs font-semibold text-[#1d1d1f] dark:text-white">
                 ↵
               </kbd>
               <span>chọn</span>
             </span>
             <span className="inline-flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-[#272729] rounded border border-black/[0.08] dark:border-white/10 shadow-2xs font-medium text-[#1d1d1f] dark:text-white">
+              <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-[#272729] rounded border border-black/[0.08] dark:border-white/10 shadow-2xs font-semibold text-[#1d1d1f] dark:text-white">
                 Tab
               </kbd>
               <span>đổi lọc</span>
             </span>
             <span className="inline-flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-[#272729] rounded border border-black/[0.08] dark:border-white/10 shadow-2xs font-medium text-[#1d1d1f] dark:text-white">
+              <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-[#272729] rounded border border-black/[0.08] dark:border-white/10 shadow-2xs font-semibold text-[#1d1d1f] dark:text-white">
                 esc
               </kbd>
               <span>đóng</span>
@@ -895,7 +895,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
           <div className="hidden sm:flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#0066cc] dark:bg-[#2997ff] animate-pulse" />
-            <span className="font-medium opacity-85 text-[10.5px]">FM Spotlight</span>
+            <span className="font-semibold opacity-90 text-[10.5px]">FM Spotlight</span>
           </div>
         </div>
       </div>
