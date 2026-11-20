@@ -2055,14 +2055,8 @@
 .apple-file-delete-btn:active {
   transform: scale(0.92) !important;
 }
-.apple-img-delete-btn:hover {
-  transform: scale(1.08);
-  background: #ff3b30 !important;
-  color: #ffffff !important;
-  box-shadow: 0 3px 12px rgba(255, 59, 48, 0.45) !important;
-}
 .apple-img-delete-btn:active {
-  transform: scale(0.90) !important;
+  transform: scale(0.92) !important;
 }
 
 .liquid-tab-enter {
@@ -2811,27 +2805,27 @@ tbody td {
 /* Apple Liquid Glass Quick Delete Button on Image */
 .apple-img-wrapper .apple-img-delete-btn,
 .apple-img-delete-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 28px;
-  height: 28px;
-  min-width: 28px;
-  min-height: 28px;
-  border-radius: 50%;
-  background: rgba(24, 24, 27, 0.85) !important;
-  backdrop-filter: blur(20px) saturate(190%);
-  -webkit-backdrop-filter: blur(20px) saturate(190%);
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  border-radius: 50% !important;
+  background: rgba(24, 24, 27, 0.88) !important;
+  backdrop-filter: blur(20px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
   color: #ffffff !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.7) !important;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  border: 1.5px solid rgba(255, 255, 255, 0.75) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  cursor: pointer;
-  padding: 0;
-  margin: 0;
-  outline: none;
+  cursor: pointer !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  outline: none !important;
   opacity: 0.95;
   transform: scale(0.96);
   transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1),
@@ -2841,7 +2835,7 @@ tbody td {
               color 0.18s ease,
               box-shadow 0.18s ease !important;
   will-change: transform, opacity;
-  z-index: 20;
+  z-index: 25 !important;
   user-select: none;
   line-height: 1;
   font-size: 13px;
@@ -2854,7 +2848,20 @@ tbody td {
   width: 13px !important;
   height: 13px !important;
   stroke: #ffffff !important;
-  stroke-width: 2.2 !important;
+  stroke-width: 2.4 !important;
+  fill: none !important;
+  pointer-events: none !important;
+  flex-shrink: 0 !important;
+}
+
+.apple-img-wrapper .apple-img-delete-btn svg line,
+.apple-img-delete-btn svg line,
+.apple-img-wrapper .apple-img-delete-btn svg path,
+.apple-img-delete-btn svg path {
+  stroke: #ffffff !important;
+  stroke-width: 2.4 !important;
+  fill: none !important;
+  stroke-linecap: round !important;
 }
 
 .apple-img-wrapper:hover .apple-img-delete-btn,
@@ -2867,9 +2874,16 @@ tbody td {
 .apple-img-delete-btn:hover {
   background: #ff3b30 !important;
   color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #ffffff !important;
   transform: scale(1.1) !important;
-  box-shadow: 0 4px 14px rgba(255, 59, 48, 0.6) !important;
+  box-shadow: 0 4px 14px rgba(255, 59, 48, 0.65) !important;
+}
+
+.apple-img-wrapper .apple-img-delete-btn:hover svg,
+.apple-img-delete-btn:hover svg,
+.apple-img-wrapper .apple-img-delete-btn:hover svg line,
+.apple-img-delete-btn:hover svg line {
+  stroke: #ffffff !important;
 }
 
 .apple-img-wrapper .apple-img-delete-btn:active,
