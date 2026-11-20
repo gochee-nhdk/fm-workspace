@@ -2809,7 +2809,8 @@ tbody td {
 }
 
 /* Apple Liquid Glass Quick Delete Button on Image */
-.apple-img-wrapper .apple-img-delete-btn {
+.apple-img-wrapper .apple-img-delete-btn,
+.apple-img-delete-btn {
   position: absolute;
   top: 8px;
   right: 8px;
@@ -2818,24 +2819,25 @@ tbody td {
   min-width: 28px;
   min-height: 28px;
   border-radius: 50%;
-  background: rgba(28, 28, 32, 0.78) !important;
+  background: rgba(24, 24, 27, 0.85) !important;
   backdrop-filter: blur(20px) saturate(190%);
   -webkit-backdrop-filter: blur(20px) saturate(190%);
   color: #ffffff !important;
-  border: 1px solid rgba(255, 255, 255, 0.35) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border: 1.5px solid rgba(255, 255, 255, 0.7) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   cursor: pointer;
   padding: 0;
   margin: 0;
   outline: none;
-  opacity: 0;
-  transform: scale(0.88);
+  opacity: 0.95;
+  transform: scale(0.96);
   transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
               background 0.18s ease,
+              border-color 0.18s ease,
               color 0.18s ease,
               box-shadow 0.18s ease !important;
   will-change: transform, opacity;
@@ -2846,27 +2848,39 @@ tbody td {
   box-sizing: border-box;
 }
 
+.apple-img-wrapper .apple-img-delete-btn svg,
+.apple-img-delete-btn svg {
+  display: block !important;
+  width: 13px !important;
+  height: 13px !important;
+  stroke: #ffffff !important;
+  stroke-width: 2.2 !important;
+}
+
 .apple-img-wrapper:hover .apple-img-delete-btn,
 .apple-img-wrapper:focus-within .apple-img-delete-btn {
   opacity: 1 !important;
   transform: scale(1) !important;
 }
 
-.apple-img-wrapper .apple-img-delete-btn:hover {
+.apple-img-wrapper .apple-img-delete-btn:hover,
+.apple-img-delete-btn:hover {
   background: #ff3b30 !important;
   color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.6) !important;
-  transform: scale(1.08) !important;
-  box-shadow: 0 3px 12px rgba(255, 59, 48, 0.5) !important;
+  border-color: rgba(255, 255, 255, 0.95) !important;
+  transform: scale(1.1) !important;
+  box-shadow: 0 4px 14px rgba(255, 59, 48, 0.6) !important;
 }
 
-.apple-img-wrapper .apple-img-delete-btn:active {
-  transform: scale(0.90) !important;
+.apple-img-wrapper .apple-img-delete-btn:active,
+.apple-img-delete-btn:active {
+  transform: scale(0.92) !important;
 }
 
 @media (hover: none) {
-  .apple-img-wrapper .apple-img-delete-btn {
-    opacity: 0.95 !important;
+  .apple-img-wrapper .apple-img-delete-btn,
+  .apple-img-delete-btn {
+    opacity: 1 !important;
     transform: scale(1) !important;
   }
 }
