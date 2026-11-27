@@ -23,29 +23,24 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          npm install
-          npm --prefix server install
-          npm --prefix client install --legacy-peer-deps
-          npm --prefix server run db:init
+        run: npm run install:all
 
-      - name: Build frontend and backend
-        run: npm run build:all
+      - name: Build production client
+        run: npm run build
 
-      - name: Package Portable Web App Release
+      - name: Package Vercel Full-Stack Release
         run: |
           mkdir -p release-pkg
-          cp -r server client package.json *.bat *.sh *.vbs logo.ico scripts release-pkg/
-          rm -rf release-pkg/client/src release-pkg/server/src
-          cd release-pkg && zip -r ../FM-Workspace-Local.zip . && cd ..
-          sha256sum FM-Workspace-Local.zip > checksums.sha256
+          cp -r api client/dist shared package.json vercel.json .env.example release-pkg/
+          cd release-pkg && zip -r ../FM-Workspace-Release.zip . && cd ..
+          sha256sum FM-Workspace-Release.zip > checksums.sha256
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            FM-Workspace-Local.zip
+            FM-Workspace-Release.zip
             checksums.sha256
           draft: false
           prerelease: false

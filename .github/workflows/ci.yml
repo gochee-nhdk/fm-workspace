@@ -26,18 +26,15 @@ jobs:
       - name: Install dependencies
         run: |
           npm install
-          npm --prefix server install
           npm --prefix client install --legacy-peer-deps
 
-      - name: TypeScript Lint / Typecheck
+      - name: TypeScript Lint / Typecheck & API Syntax Check
         run: |
           npm --prefix client run lint
-          npx tsc -p server/tsconfig.json --noEmit
+          find api -name "*.js" -print0 | xargs -0 -n1 node --check
 
       - name: Run Test Suites
-        run: |
-          npm --prefix server test
-          npm --prefix client test
+        run: npm --prefix client test
 
       - name: Verify Production Build
-        run: npm run build:all
+        run: npm run build
