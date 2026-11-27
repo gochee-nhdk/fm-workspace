@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { CloseButton } from '@/components/ui/close-button';
 import { useTabIndicator, useAppleTabSpring, motionTokens } from '@/lib/motion';
 import { useSecurityStore } from '@/stores/security-store';
+import { useAuthStore } from '@/stores/auth-store';
 import { LocalLockScreen } from '@/components/security/LocalLockScreen';
 import { cn } from '@/lib/utils';
 
@@ -79,6 +80,10 @@ export const AppShell: React.FC = () => {
   const lockNow = useSecurityStore((state) => state.lockNow);
   const recordActivity = useSecurityStore((state) => state.recordActivity);
   const checkAutoLock = useSecurityStore((state) => state.checkAutoLock);
+
+  const authMode = useAuthStore((state) => state.authMode);
+  const authUser = useAuthStore((state) => state.user);
+  const isCloudSync = authMode === 'cloud' && Boolean(authUser);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -347,10 +352,30 @@ export const AppShell: React.FC = () => {
               isSidebarCollapsed ? 'justify-center' : 'justify-between'
             } text-[11px] text-[#7a7a7a]`}
           >
-            <div className="flex items-center gap-1.5" title="Đã kết nối trực tuyến qua https://fm-workspace.vercel.app">
-              <span className="w-2 rounded-full aspect-square bg-emerald-500 shadow-xs shadow-emerald-500/60 animate-pulse" />
-              {!isSidebarCollapsed && <span className="text-[11px] font-medium text-[#7a7a7a]">Trực tuyến (Cloud / Sync)</span>}
-            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/settings')}
+              className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity text-left"
+              title={
+                isCloudSync
+                  ? `Đang đồng bộ Turso Cloud (${authUser?.email}) — Nhấp để quản lý`
+                  : 'Chế độ Local-First (Lưu trên thiết bị) — Nhấp để đăng nhập Cloud Sync'
+              }
+            >
+              <span
+                className={cn(
+                  'w-2 rounded-full aspect-square shadow-xs shrink-0',
+                  isCloudSync
+                    ? 'bg-emerald-500 shadow-emerald-500/60 animate-pulse'
+                    : 'bg-[#0088FF] shadow-[#0088FF]/40'
+                )}
+              />
+              {!isSidebarCollapsed && (
+                <span className="text-[11px] font-medium text-[#7a7a7a] dark:text-[#a1a1a6] truncate">
+                  {isCloudSync ? 'Cloud Sync (Turso)' : 'Local-First (Thiết bị)'}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </aside>
@@ -391,6 +416,29 @@ export const AppShell: React.FC = () => {
               <h2 className="text-[14px] sm:text-[16px] font-bold text-[#1d1d1f] dark:text-white tracking-tight truncate">
                 {pageTitle}
               </h2>
+              <button
+                type="button"
+                onClick={() => navigate('/settings')}
+                className={cn(
+                  'hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-[transform,opacity,background-color,border-color] duration-150 active:scale-95 cursor-pointer shrink-0',
+                  isCloudSync
+                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25 hover:bg-emerald-500/15'
+                    : 'bg-black/[0.04] dark:bg-white/[0.06] text-[#555558] dark:text-[#a1a1a6] border-black/[0.08] dark:border-white/[0.10] hover:bg-black/[0.07] dark:hover:bg-white/[0.10]'
+                )}
+                title={
+                  isCloudSync
+                    ? `Đang đồng bộ Cloud Sync (${authUser?.email})`
+                    : 'Chế độ Local-First — Nhấp để bật Cloud Sync'
+                }
+              >
+                <span
+                  className={cn(
+                    'w-1.5 h-1.5 rounded-full shrink-0',
+                    isCloudSync ? 'bg-emerald-500' : 'bg-[#0088FF] dark:bg-[#0091FF]'
+                  )}
+                />
+                <span>{isCloudSync ? 'Cloud Sync' : 'Local-First'}</span>
+              </button>
             </div>
           </div>
 

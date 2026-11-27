@@ -56,6 +56,8 @@ interface AuthState {
   authMode: AuthMode;
   isAuthenticated: boolean;
   isLoading: boolean;
+  error: string | null;
+  clearError: () => void;
   login: (token: string, user: User) => Promise<void>;
   loginWithPassword: (email: string, password: string) => Promise<boolean>;
   register: (email: string, password: string, fullName: string) => Promise<boolean>;
@@ -74,7 +76,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
     }
-    set({ token, user, authMode: 'cloud', isAuthenticated: true, isLoading: false });
+    set({ token, user, authMode: 'cloud', isAuthenticated: true, isLoading: false, error: null });
     await switchDatabaseUser(user.id);
     await dataService.resetInitialized();
     await useNoteStore.getState().loadNotes().catch((err) => {
@@ -88,6 +90,8 @@ export const useAuthStore = create<AuthState>((set, get) => {
     authMode: initialSession.authMode,
     isAuthenticated: initialSession.isAuthenticated,
     isLoading: false,
+    error: null,
+    clearError: () => set({ error: null }),
 
     autoRestoreWorkspaceIfEmpty: async () => {
       try {

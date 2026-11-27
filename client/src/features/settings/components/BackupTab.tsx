@@ -23,6 +23,7 @@ import { useNoteStore } from '@/stores/note-store';
 import { formatBytes } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import type { BackupImportOptions, BackupImportResult } from '@/types/workspace';
+import { CloudSyncCard } from './CloudSyncCard';
 
 export interface WorkspaceCounts {
   links: number;
@@ -222,6 +223,13 @@ export const BackupTab: React.FC<BackupTabProps> = React.memo(
 
     return (
       <div className="space-y-6">
+        <CloudSyncCard
+          onAuthChanged={async () => {
+            await onRefreshStats();
+            await onRefreshSyncStatus();
+          }}
+        />
+
         <div className="glass-material rounded-[22px] p-6 shadow-xs space-y-5">
           <div className="flex items-center justify-between pb-3.5 border-b border-[#e0e0e0] dark:border-white/10 flex-wrap gap-2">
             <div className="flex items-center gap-2">
