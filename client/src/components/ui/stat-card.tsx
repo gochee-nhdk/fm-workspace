@@ -55,7 +55,7 @@ export const StatCard: React.FC<StatCardProps> = ({
       ref={tiltRef}
       onClick={onClick}
       className={cn(
-        'p-5.5 rounded-[20px] border border-white/60 dark:border-white/12 liquid-glass-3d liquid-tilt-card transition-all duration-260 ease-spring relative overflow-hidden',
+        'p-5.5 rounded-[20px] border border-white/60 dark:border-white/12 liquid-glass-3d liquid-tilt-card transition-colors duration-260 ease-spring relative overflow-hidden',
         'animate-in fade-in-0 slide-in-from-bottom-2 zoom-in-[0.98] duration-350 ease-spring group',
         severityBorders[severity],
         onClick && 'cursor-pointer active:scale-[0.98] active:translate-y-[1px] hover:shadow-ios-liquid-hover',

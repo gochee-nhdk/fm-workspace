@@ -105,7 +105,7 @@ export function DataTable<TData, TValue>({
                         <div
                           className={cn(
                             'flex items-center gap-1.5',
-                            header.column.getCanSort() && 'cursor-pointer select-none hover:text-[#1d1d1f] dark:hover:text-white active:scale-95 transition-all duration-120'
+                            header.column.getCanSort() && 'cursor-pointer select-none hover:text-[#1d1d1f] dark:hover:text-white active:scale-95 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-120'
                           )}
                           onClick={header.column.getToggleSortingHandler()}
                         >
@@ -132,7 +132,7 @@ export function DataTable<TData, TValue>({
                   <tr
                     key={row.id}
                     className={cn(
-                      'transition-all duration-200 ease-spring relative group',
+                      'transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-spring relative group',
                       'hover:bg-[#f8f9fc]/85 dark:hover:bg-white/[0.05]',
                       'hover:shadow-[0_4px_16px_rgba(0,102,204,0.06)] dark:hover:shadow-[0_4px_20px_rgba(0,0,0,0.35)]',
                       row.getIsSelected() && 'bg-[#0066cc]/[0.06] dark:bg-[#2997ff]/[0.08]'
@@ -170,7 +170,7 @@ export function DataTable<TData, TValue>({
               <button
                 onClick={() => table.setPageIndex(0)}
                 disabled={!table.getCanPreviousPage()}
-                className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150 active:scale-90 touch-manipulation"
+                className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 active:scale-90 touch-manipulation"
                 title="Trang đầu"
               >
                 <SFBackwardEnd size={14} />
@@ -178,7 +178,7 @@ export function DataTable<TData, TValue>({
               <button
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
-                className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150 active:scale-90 touch-manipulation"
+                className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 active:scale-90 touch-manipulation"
                 title="Trang trước"
               >
                 <SFChevronLeft size={14} />
@@ -191,7 +191,7 @@ export function DataTable<TData, TValue>({
               <button
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
-                className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150 active:scale-90 touch-manipulation"
+                className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 active:scale-90 touch-manipulation"
                 title="Trang sau"
               >
                 <SFChevronRight size={14} />
@@ -199,7 +199,7 @@ export function DataTable<TData, TValue>({
               <button
                 onClick={() => table.setPageIndex(table.getPageCount() - 1)}
                 disabled={!table.getCanNextPage()}
-                className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-150 active:scale-90 touch-manipulation"
+                className="p-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 active:scale-90 touch-manipulation"
                 title="Trang cuối"
               >
                 <SFForwardEnd size={14} />
@@ -212,7 +212,7 @@ export function DataTable<TData, TValue>({
       {/* Floating Apple Liquid Batch Action Bar with Fluid Slide Up/Down Transition */}
       <div
         className={cn(
-          'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ease-spring',
+          'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 transition-[transform,opacity] duration-300 ease-spring',
           selectedRowCount > 0
             ? 'translate-y-0 opacity-100 scale-100 pointer-events-auto'
             : 'translate-y-16 opacity-0 scale-95 pointer-events-none'
@@ -236,7 +236,7 @@ export function DataTable<TData, TValue>({
                 <button
                   type="button"
                   onClick={() => onBatchDelete(selectedRows, clearSelection)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 active:scale-95 transition-all duration-150 font-medium text-[12.5px] cursor-pointer touch-manipulation"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 active:scale-95 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 font-medium text-[12.5px] cursor-pointer touch-manipulation"
                 >
                   <SFTrash size={13} />
                   <span>Xóa</span>
@@ -248,7 +248,7 @@ export function DataTable<TData, TValue>({
           <button
             type="button"
             onClick={clearSelection}
-            className="px-2.5 py-1 text-xs text-[#76767b] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white active:scale-95 transition-all duration-150 cursor-pointer"
+            className="px-2.5 py-1 text-xs text-[#76767b] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white active:scale-95 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 cursor-pointer"
           >
             Bỏ chọn
           </button>

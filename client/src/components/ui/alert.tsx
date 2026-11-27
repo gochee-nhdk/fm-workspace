@@ -28,23 +28,23 @@ export const Alert: React.FC<AlertProps> = ({
   className
 }) => {
   const styles = {
-    info: 'bg-sky-50 dark:bg-sky-950/40 text-sky-900 dark:text-sky-200 border-sky-200 dark:border-sky-800/80',
-    success: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800/80',
-    warning: 'bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border-amber-200 dark:border-amber-800/80',
-    error: 'bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 border-rose-200 dark:border-rose-800/80'
+    info: 'bg-[#0088FF]/[0.08] dark:bg-[#0091FF]/[0.14] text-[#005bb5] dark:text-[#7ac4ff] border-[#0088FF]/20 dark:border-[#0091FF]/28',
+    success: 'bg-[#34C759]/[0.08] dark:bg-[#30D158]/[0.14] text-[#1a8238] dark:text-[#6ee78f] border-[#34C759]/22 dark:border-[#30D158]/28',
+    warning: 'bg-[#FF8D28]/[0.09] dark:bg-[#FF9230]/[0.14] text-[#9a4b00] dark:text-[#ffc27a] border-[#FF8D28]/24 dark:border-[#FF9230]/28',
+    error: 'bg-[#FF383C]/[0.08] dark:bg-[#FF4245]/[0.14] text-[#b31b20] dark:text-[#ff8a8d] border-[#FF383C]/22 dark:border-[#FF4245]/28'
   };
 
   const icons = {
-    info: <SFInfoCircle size={16} className="text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />,
-    success: <SFCheckmarkCircleFill size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />,
-    warning: <SFExclamationmarkTriangleFill size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />,
-    error: <SFExclamationmarkCircle size={16} className="text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+    info: <SFInfoCircle size={16} className="text-[#0088FF] dark:text-[#0091FF] shrink-0 mt-0.5" />,
+    success: <SFCheckmarkCircleFill size={16} className="text-[#34C759] dark:text-[#30D158] shrink-0 mt-0.5" />,
+    warning: <SFExclamationmarkTriangleFill size={16} className="text-[#FF8D28] dark:text-[#FF9230] shrink-0 mt-0.5" />,
+    error: <SFExclamationmarkCircle size={16} className="text-[#FF383C] dark:text-[#FF4245] shrink-0 mt-0.5" />
   };
 
   return (
     <div
       className={cn(
-        'p-3.5 rounded-xl border flex items-start gap-3 text-xs transition-all duration-150',
+        'p-3.5 rounded-2xl border backdrop-blur-xl flex items-start gap-3 text-xs transition-colors duration-150 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
         styles[type],
         className
       )}

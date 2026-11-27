@@ -1,5 +1,6 @@
 import { flushSync } from 'react-dom';
 import { resolveTheme, useUiStore, Theme } from '@/stores/ui-store';
+import { motionTokens } from '@/lib/motion';
 
 /** Guard against rapid spam-clicking while animation is in flight */
 let isTransitioning = false;
@@ -149,8 +150,8 @@ function runViewTransition(
             clipPath: isGoingDark ? clipPath : [clipPath[1], clipPath[0]],
           },
           {
-            duration: 400,
-            easing: 'cubic-bezier(0.2, 0, 0, 1)',
+            duration: motionTokens.duration.themeIris,
+            easing: motionTokens.easing.iris,
             pseudoElement: isGoingDark
               ? '::view-transition-new(root)'
               : '::view-transition-old(root)',
@@ -217,8 +218,8 @@ function runGpuOverlayFallback(
     const anim = overlay.animate(
       { clipPath: clipPath },
       {
-        duration: 380,
-        easing: 'cubic-bezier(0.2, 0, 0, 1)',
+        duration: motionTokens.duration.themeIris,
+        easing: motionTokens.easing.iris,
         fill: 'forwards',
       }
     );
@@ -254,8 +255,8 @@ function runGpuOverlayFallback(
       const anim = overlay.animate(
         { clipPath: [clipPath[1], clipPath[0]] },
         {
-          duration: 380,
-          easing: 'cubic-bezier(0.2, 0, 0, 1)',
+          duration: motionTokens.duration.themeIris,
+          easing: motionTokens.easing.iris,
           fill: 'forwards',
         }
       );

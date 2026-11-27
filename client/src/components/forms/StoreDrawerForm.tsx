@@ -136,7 +136,7 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
           <textarea
             rows={3}
             className={cn(
-              'w-full text-[13px] rounded-xl border border-black/10 dark:border-white/12 bg-white/85 dark:bg-[#1c1c22]/85 backdrop-blur-xl p-3 text-[#1d1d1f] dark:text-white hover:border-black/20 dark:hover:border-white/25 focus:outline-none focus:ring-2 focus:ring-[#0088FF]/35 dark:focus:ring-[#0091FF]/45 focus:border-[#0088FF] dark:focus:border-[#0091FF] focus:shadow-[0_0_14px_rgba(0,136,255,0.25)] dark:focus:shadow-[0_0_18px_rgba(0,145,255,0.32)] resize-none transition-all duration-200 ease-spring placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] shadow-2xs',
+              'w-full text-[13px] rounded-xl border border-black/10 dark:border-white/12 bg-white/85 dark:bg-[#1c1c22]/85 p-3 text-[#1d1d1f] dark:text-white hover:border-black/20 dark:hover:border-white/25 focus:outline-none focus:ring-2 focus:ring-[#0088FF]/35 dark:focus:ring-[#0091FF]/45 focus:border-[#0088FF] dark:focus:border-[#0091FF] focus:shadow-[0_0_14px_rgba(0,136,255,0.25)] dark:focus:shadow-[0_0_18px_rgba(0,145,255,0.32)] resize-none transition-colors duration-200 ease-spring placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] shadow-2xs',
               errors.address ? 'border-[#FF383C] dark:border-[#FF4245] focus:ring-[#FF383C]/35 focus:border-[#FF383C] focus:shadow-[0_0_14px_rgba(255,56,60,0.25)]' : ''
             )}
             placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành..."
@@ -167,7 +167,7 @@ export const StoreDrawerForm: React.FC<StoreDrawerFormProps> = ({
                 type="button"
                 onClick={() => setShowMapPreview((prev) => !prev)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-180 ease-spring cursor-pointer active:scale-95 border",
+                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-180 ease-spring cursor-pointer active:scale-95 border",
                   showMapPreview
                     ? "bg-[#0088FF]/12 border-[#0088FF]/30 text-[#0088FF] dark:text-[#0091FF]"
                     : "bg-black/[0.03] dark:bg-white/[0.05] border-black/10 dark:border-white/10 text-[#555558] dark:text-[#a1a1a6] hover:bg-black/[0.06] dark:hover:bg-white/10 hover:text-[#1d1d1f] dark:hover:text-white"

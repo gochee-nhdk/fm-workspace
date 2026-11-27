@@ -116,6 +116,13 @@ class AutoBackupManager {
    */
   async triggerSync(type: 'auto' | 'manual' | 'snapshot' = 'auto'): Promise<boolean> {
     if (this.isSyncing) return false;
+
+    // In Local-First mode (no real JWT token), skip unauthenticated server sync to avoid 401 errors
+    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token || token === 'cloud-web-session') {
+      return false;
+    }
+
     this.isSyncing = true;
     this.notify();
 

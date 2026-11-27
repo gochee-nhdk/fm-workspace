@@ -40,8 +40,28 @@ import type { StoredAttachment } from './attachmentService';
 // CONSTANTS
 // ──────────────────────────────────────────────
 const MAX_IMPORT_BYTES = 50 * 1024 * 1024; // 50 MB
+const MAX_CLOUD_SYNC_BYTES = 4.2 * 1024 * 1024; // Safe ceiling below Vercel Hobby 4.5 MB limit
 const BACKUP_FILE_EXT = '.fmbackup';
 const BACKUP_MIME = 'application/json';
+
+async function compressPayloadGzipBase64(text: string): Promise<string | null> {
+  if (typeof CompressionStream === 'undefined') return null;
+  try {
+    const stream = new Blob([text], { type: 'text/plain' })
+      .stream()
+      .pipeThrough(new CompressionStream('gzip'));
+    const buf = await new Response(stream).arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
+  } catch (_) {
+    return null;
+  }
+}
 
 // ──────────────────────────────────────────────
 // SHA-256 CHECKSUM (Web Crypto API — built-in)
@@ -702,14 +722,37 @@ async function syncToServer(backupType: 'auto' | 'manual' | 'snapshot' = 'auto')
       }));
     } catch (_) {}
 
-    const res = await api.post('/sync/backup', {
+    let wirePayload = payloadStr;
+    let payloadEncoding: 'plain' | 'gzip-base64' = 'plain';
+
+    // Compress payload when > 64 KB to stay well under Vercel Hobby 4.5 MB limit
+    if (new Blob([payloadStr]).size > 64 * 1024) {
+      const compressed = await compressPayloadGzipBase64(payloadStr);
+      if (compressed && compressed.length < payloadStr.length) {
+        wirePayload = compressed;
+        payloadEncoding = 'gzip-base64';
+      }
+    }
+
+    const bodyObj = {
       backupType,
       deviceName: typeof navigator !== 'undefined' ? `${navigator.platform || 'Device'} (${navigator.userAgent.slice(0, 30)})` : 'Web Client',
       checksum,
       itemCounts,
-      payload: payloadStr,
+      payload: wirePayload,
+      payloadEncoding,
       isEncrypted: false,
-    });
+    };
+
+    const requestSizeBytes = new Blob([JSON.stringify(bodyObj)]).size;
+    if (requestSizeBytes > MAX_CLOUD_SYNC_BYTES) {
+      return {
+        success: false,
+        message: `Dữ liệu sao lưu (${(requestSizeBytes / (1024 * 1024)).toFixed(2)} MB sau nén) vượt quá giới hạn 4.5 MB của Vercel Cloud. Vui lòng xuất file .fmbackup thủ công hoặc xóa bớt tệp đính kèm lớn.`,
+      };
+    }
+
+    const res = await api.post('/sync/backup', bodyObj);
 
     return { success: res.data?.success ?? true };
   } catch (err: any) {
@@ -730,13 +773,16 @@ async function syncToServer(backupType: 'auto' | 'manual' | 'snapshot' = 'auto')
  * Fetch latest backup metadata and list from server
  */
 async function getServerBackupHistory(): Promise<any[]> {
-  try {
-    const res = await api.get('/sync/history');
-    if (Array.isArray(res.data?.data) && res.data.data.length > 0) {
-      return res.data.data;
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+  if (token && token !== 'cloud-web-session') {
+    try {
+      const res = await api.get('/sync/history');
+      if (Array.isArray(res.data?.data) && res.data.data.length > 0) {
+        return res.data.data;
+      }
+    } catch (err) {
+      console.warn('Failed to fetch server backup history:', err);
     }
-  } catch (err) {
-    console.warn('Failed to fetch server backup history:', err);
   }
 
   // Graceful fallback to local emergency backup snapshot if server history is empty

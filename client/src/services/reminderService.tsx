@@ -127,20 +127,23 @@ class ReminderService {
     senderName?: string;
   }> {
     const local = getLocalSmtp();
-    try {
-      const res = await api.get('/notifications/smtp-status');
-      if (res.data?.configured) {
-        return {
-          configured: true,
-          smtpHost: res.data?.smtpHost,
-          smtpPort: res.data?.smtpPort,
-          smtpUser: res.data?.smtpUser,
-          fullUser: res.data?.fullUser,
-          senderName: res.data?.senderName,
-        };
+    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+    if (token && token !== 'cloud-web-session') {
+      try {
+        const res = await api.get('/notifications/smtp-status');
+        if (res.data?.configured) {
+          return {
+            configured: true,
+            smtpHost: res.data?.smtpHost,
+            smtpPort: res.data?.smtpPort,
+            smtpUser: res.data?.smtpUser,
+            fullUser: res.data?.fullUser,
+            senderName: res.data?.senderName,
+          };
+        }
+      } catch (err) {
+        console.warn('[ReminderService] Failed to fetch SMTP status, using local fallback:', err);
       }
-    } catch (_) {
-      // Graceful fallback to local vault
     }
 
     if (local && local.user) {

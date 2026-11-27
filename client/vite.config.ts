@@ -40,12 +40,9 @@ export default defineConfig({
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-query': ['@tanstack/react-query', '@tanstack/react-table'],
-          'vendor-excel': ['xlsx'],
           'vendor-excel-style': ['xlsx-js-style'],
-          'vendor-charts': ['recharts'],
           'vendor-icons': ['sf-symbols-lib'],
-          'vendor-forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
-          'vendor-utils': ['date-fns', 'clsx', 'tailwind-merge', 'zustand', 'axios'],
+          'vendor-utils': ['clsx', 'tailwind-merge', 'zustand', 'axios'],
         }
       }
     },

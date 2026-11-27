@@ -673,7 +673,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
               type="button"
               onClick={() => setActiveCategory(cat.id)}
               className={cn(
-                'px-2.5 py-1 rounded-full font-bold active:scale-95 transition-all duration-180 ease-spring cursor-pointer flex items-center gap-1 whitespace-nowrap text-[11.5px]',
+                'px-2.5 py-1 rounded-full font-bold active:scale-95 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-180 ease-spring cursor-pointer flex items-center gap-1 whitespace-nowrap text-[11.5px]',
                 activeCategory === cat.id
                   ? 'bg-[#0088FF] text-white shadow-[0_2px_8px_rgba(0,136,255,0.35)]'
                   : 'bg-black/5 dark:bg-white/5 text-[#555558] dark:text-[#a1a1a6] hover:bg-black/10 dark:hover:bg-white/10 hover:text-[#1d1d1f] dark:hover:text-white'
@@ -721,7 +721,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                         key={term}
                         type="button"
                         onClick={() => setQuery(term)}
-                        className="px-2.5 py-1 text-xs rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-[#0088FF]/10 dark:hover:bg-[#0091FF]/15 hover:text-[#0088FF] dark:hover:text-[#0091FF] text-[#1d1d1f] dark:text-white active:scale-95 transition-all duration-180 ease-spring border border-black/[0.06] dark:border-white/10 cursor-pointer font-medium"
+                        className="px-2.5 py-1 text-xs rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-[#0088FF]/10 dark:hover:bg-[#0091FF]/15 hover:text-[#0088FF] dark:hover:text-[#0091FF] text-[#1d1d1f] dark:text-white active:scale-95 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-180 ease-spring border border-black/[0.06] dark:border-white/10 cursor-pointer font-medium"
                       >
                         {term}
                       </button>
@@ -742,7 +742,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                       key={tag}
                       type="button"
                       onClick={() => setQuery(tag)}
-                      className="px-2.5 py-1 text-xs rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0088FF] dark:hover:text-white active:scale-95 transition-all duration-180 ease-spring border border-black/[0.06] dark:border-white/10 cursor-pointer font-medium"
+                      className="px-2.5 py-1 text-xs rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0088FF] dark:hover:text-white active:scale-95 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-180 ease-spring border border-black/[0.06] dark:border-white/10 cursor-pointer font-medium"
                     >
                       {tag}
                     </button>
@@ -779,7 +779,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   onMouseEnter={() => handleItemMouseEnter(idx)}
                   onMouseLeave={handleItemMouseLeave}
                   className={cn(
-                    'w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left active:scale-[0.985] transition-all duration-150 ease-spring group cursor-pointer',
+                    'w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left active:scale-[0.985] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 ease-spring group cursor-pointer',
                     isSelected
                       ? 'bg-[#0088FF]/10 dark:bg-[#0091FF]/18 shadow-2xs'
                       : 'hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'

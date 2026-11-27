@@ -85,935 +85,34 @@ import { useAnimatedPresence } from '@/hooks/useAnimatedPresence';
 import { sanitizeNoteHTML } from '@/services/backupService';
 import toast from 'react-hot-toast';
 
-const COLOR_MAP: Record<
-  QuickNoteColor,
-  {
-    bg: string;
-    dot: string;
-    border: string;
-    glow: string;
-    selectedBorder: string;
-    selectedBg: string;
-    selectedTitle: string;
-    hoverBorder: string;
-    hoverBg: string;
-    iconColor: string;
-  }
-> = {
-  amber: {
-    bg: 'bg-amber-500/10 dark:bg-amber-400/15',
-    dot: 'bg-amber-500',
-    border: 'border-amber-500/30',
-    glow: 'rgba(245,158,11,0.25)',
-    selectedBorder: 'border-amber-500/50 dark:border-amber-400/55 shadow-[0_0_0_1px_rgba(245,158,11,0.35)]',
-    selectedBg: 'bg-amber-500/12 dark:bg-amber-400/18',
-    selectedTitle: 'text-amber-950 dark:text-amber-200',
-    hoverBorder: 'hover:border-amber-500/40',
-    hoverBg: 'hover:bg-amber-500/6 dark:hover:bg-amber-400/10',
-    iconColor: 'text-amber-500',
-  },
-  blue: {
-    bg: 'bg-[#0071e3]/10 dark:bg-[#2997ff]/15',
-    dot: 'bg-[#0071e3]',
-    border: 'border-[#0071e3]/30',
-    glow: 'rgba(0,113,227,0.25)',
-    selectedBorder: 'border-[#0071e3]/50 dark:border-[#2997ff]/55 shadow-[0_0_0_1px_rgba(0,113,227,0.35)]',
-    selectedBg: 'bg-[#0071e3]/12 dark:bg-[#2997ff]/18',
-    selectedTitle: 'text-[#004f9e] dark:text-[#70b5ff]',
-    hoverBorder: 'hover:border-[#0071e3]/40',
-    hoverBg: 'hover:bg-[#0071e3]/6 dark:hover:bg-[#2997ff]/10',
-    iconColor: 'text-[#0071e3] dark:text-[#2997ff]',
-  },
-  emerald: {
-    bg: 'bg-emerald-500/10 dark:bg-emerald-400/15',
-    dot: 'bg-emerald-500',
-    border: 'border-emerald-500/30',
-    glow: 'rgba(16,185,129,0.25)',
-    selectedBorder: 'border-emerald-500/50 dark:border-emerald-400/55 shadow-[0_0_0_1px_rgba(16,185,129,0.35)]',
-    selectedBg: 'bg-emerald-500/12 dark:bg-emerald-400/18',
-    selectedTitle: 'text-emerald-950 dark:text-emerald-200',
-    hoverBorder: 'hover:border-emerald-500/40',
-    hoverBg: 'hover:bg-emerald-500/6 dark:hover:bg-emerald-400/10',
-    iconColor: 'text-emerald-500 dark:text-emerald-400',
-  },
-  purple: {
-    bg: 'bg-purple-500/10 dark:bg-purple-400/15',
-    dot: 'bg-purple-500',
-    border: 'border-purple-500/30',
-    glow: 'rgba(139,92,246,0.25)',
-    selectedBorder: 'border-purple-500/50 dark:border-purple-400/55 shadow-[0_0_0_1px_rgba(168,85,247,0.35)]',
-    selectedBg: 'bg-purple-500/12 dark:bg-purple-400/18',
-    selectedTitle: 'text-purple-950 dark:text-purple-200',
-    hoverBorder: 'hover:border-purple-500/40',
-    hoverBg: 'hover:bg-purple-500/6 dark:hover:bg-purple-400/10',
-    iconColor: 'text-purple-500 dark:text-purple-400',
-  },
-  rose: {
-    bg: 'bg-rose-500/10 dark:bg-rose-400/15',
-    dot: 'bg-rose-500',
-    border: 'border-rose-500/30',
-    glow: 'rgba(244,63,94,0.25)',
-    selectedBorder: 'border-rose-500/50 dark:border-rose-400/55 shadow-[0_0_0_1px_rgba(244,63,94,0.35)]',
-    selectedBg: 'bg-rose-500/12 dark:bg-rose-400/18',
-    selectedTitle: 'text-rose-950 dark:text-rose-200',
-    hoverBorder: 'hover:border-rose-500/40',
-    hoverBg: 'hover:bg-rose-500/6 dark:hover:bg-rose-400/10',
-    iconColor: 'text-rose-500 dark:text-rose-400',
-  },
-};
-
-/**
- * Format date to YYYY-MM-DDTHH:mm for datetime-local input
- */
-const toDatetimeLocal = (date: Date): string => {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const year = date.getFullYear();
-  const month = pad(date.getMonth() + 1);
-  const day = pad(date.getDate());
-  const hours = pad(date.getHours());
-  const minutes = pad(date.getMinutes());
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-};
-
-/**
- * Format badge text for task reminder chip
- */
-const formatReminderBadge = (isoString?: string | null): string => {
-  if (!isoString) return '';
-  try {
-    const d = new Date(isoString);
-    const now = new Date();
-    const isToday = d.toDateString() === now.toDateString();
-    const timeStr = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-    if (isToday) return `${timeStr} Hôm nay`;
-    return `${timeStr} ${d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })}`;
-  } catch (_) {
-    return '';
-  }
-};
-
-/**
- * Sound effects disabled per user request
- */
-const playPopSound = () => {
-  // Silent no-op: sound effects disabled across app
-};
-
-/**
- * Ensures checklist text is clean markdown checkboxes without any HTML tags or file attachments
- */
-const cleanChecklistText = (raw?: string | null): string => {
-  if (!raw || !raw.trim()) return '- [ ] ';
-  let text = raw
-    .replace(/<span\b[^>]*class=["'][^"']*apple-file-attachment[^"']*["'][\s\S]*?<\/span>/gi, '')
-    .replace(/<div\b[^>]*class=["'][^"']*apple-img-wrapper[^"']*["'][\s\S]*?<\/div>/gi, '')
-    .replace(/<img\b[^>]*>/gi, '')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n')
-    .replace(/<\/div>/gi, '\n')
-    .replace(/<\/li>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\r\n/g, '\n');
-
-  const lines = text
-    .split('\n')
-    .map((l) => l.replace(/^\s+/, ''))
-    .filter((l) => Boolean(l && l.trim()));
-
-  const validLines = lines.filter((l) => /^(?:-\s*)?\[([ xX])\]/.test(l));
-  if (validLines.length > 0) return validLines.join('\n');
-  return '- [ ] ';
-};
-
-/**
- * Convert AI/plain-text output into checklist-only content.
- * To-do must never persist generated text in the note HTML `content` field.
- */
-const normalizeChecklistDraft = (raw?: string | null): string => {
-  if (!raw || !raw.trim()) return '- [ ] ';
-
-  const cleaned = raw
-    .replace(/<br\s*\/?\s*>/gi, '\n')
-    .replace(/<\/(?:p|div|li)>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\r\n/g, '\n');
-
-  const lines = cleaned
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => line.replace(/^(?:[-*•]\s*|\d+[.)]\s*)/, '').trim())
-    .filter(Boolean);
-
-  return lines.length > 0 ? lines.map((line) => `- [ ] ${line}`).join('\n') : '- [ ] ';
-};
-
-/**
- * Convert multiline plain text (from AI draft) into cleanly formatted note paragraph blocks,
- * preserving line breaks and paragraph structure exactly without collapsing lines into one run-on paragraph.
- */
-const convertTextToNoteBlocks = (text: string): HTMLElement[] => {
-  if (!text) return [];
-  const lines = text.split(/\r?\n/);
-  return lines.map((line) => {
-    const p = document.createElement('p');
-    if (!line.trim()) {
-      p.appendChild(document.createElement('br'));
-    } else {
-      p.textContent = line;
-    }
-    return p;
-  });
-};
-
-interface ChecklistRow {
-  lineIndex: number;
-  taskId: string;
-  completed: boolean;
-  text: string;
-  reminderAt?: string | null;
-}
-
-/**
- * Extract precise client rects of selected text nodes only.
- * This guarantees ZERO bounding boxes for block elements (<p>, <div>, <ul>, etc.)
- * and strictly isolates only the characters the user has actually highlighted.
- */
-const getStrictSelectionLineRects = (
-  range: Range,
-  canvasRect: DOMRect
-): Array<{ top: number; left: number; width: number; height: number }> => {
-  if (range.collapsed) return [];
-
-  const textNodes: Text[] = [];
-  const root = range.commonAncestorContainer;
-
-  if (root.nodeType === Node.TEXT_NODE) {
-    if (root.textContent && root.textContent.trim().length > 0) {
-      textNodes.push(root as Text);
-    }
-  } else {
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-      acceptNode(node) {
-        try {
-          if (!node.textContent || node.textContent.trim().length === 0) {
-            return NodeFilter.FILTER_REJECT;
-          }
-          return range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
-        } catch {
-          return NodeFilter.FILTER_REJECT;
-        }
-      },
-    });
-
-    let curr = walker.currentNode;
-    if (curr && curr.nodeType === Node.TEXT_NODE && curr.textContent && curr.textContent.trim().length > 0) {
-      try {
-        if (range.intersectsNode(curr)) textNodes.push(curr as Text);
-      } catch {}
-    }
-    while (walker.nextNode()) {
-      textNodes.push(walker.currentNode as Text);
-    }
-  }
-
-  const rawRects: DOMRect[] = [];
-
-  for (const node of textNodes) {
-    const text = node.textContent;
-    if (!text || text.trim().length === 0) continue;
-
-    let start = node === range.startContainer ? range.startOffset : 0;
-    let end = node === range.endContainer ? range.endOffset : text.length;
-
-    // Skip leading & trailing whitespace characters so the rect hugs only the visible text
-    while (start < end && /\s/.test(text[start])) start++;
-    while (end > start && /\s/.test(text[end - 1])) end--;
-
-    if (end <= start) continue;
-
-    const nodeRange = document.createRange();
-    try {
-      nodeRange.setStart(node, start);
-      nodeRange.setEnd(node, end);
-      const clientRects = nodeRange.getClientRects();
-      for (let i = 0; i < clientRects.length; i++) {
-        const r = clientRects[i];
-        if (r.width > 2 && r.height > 2) {
-          rawRects.push(r);
-        }
-      }
-    } catch {}
-  }
-
-  if (rawRects.length === 0) return [];
-
-  // Group and merge rects on the same visual line (within 5px vertical tolerance)
-  const merged: Array<{ top: number; left: number; width: number; height: number }> = [];
-
-  for (const r of rawRects) {
-    const relTop = r.top - canvasRect.top;
-    const relLeft = r.left - canvasRect.left;
-
-    const existing = merged.find(
-      (m) => Math.abs(m.top - relTop) < 6 && Math.abs(m.height - r.height) < 8
-    );
-
-    if (existing) {
-      const newLeft = Math.min(existing.left, relLeft);
-      const newRight = Math.max(existing.left + existing.width, relLeft + r.width);
-      existing.left = newLeft;
-      existing.width = newRight - newLeft;
-      existing.top = Math.min(existing.top, relTop);
-      existing.height = Math.max(existing.height, r.height);
-    } else {
-      merged.push({
-        top: relTop,
-        left: relLeft,
-        width: r.width,
-        height: r.height,
-      });
-    }
-  }
-
-  // Filter out any empty lines/whitespace gaps, narrow artifacts, vertical cursor stalks, or block-level containers
-  return merged
-    .filter((m) => {
-      // Must have substantive width and reasonable height for a text line
-      if (m.width < 14 || m.height > 50) return false;
-      // Stalk filter: text line height should never be more than twice its width
-      if (m.height / m.width > 2.0) return false;
-      return true;
-    })
-    .map((m) => ({
-      left: Math.max(0, m.left - 4),
-      width: m.width + 8,
-      top: m.top - 2,
-      height: m.height + 4,
-    }))
-    .sort((a, b) => a.top - b.top || a.left - b.left);
-};
-
-/**
- * Ensure note content is well-formed & strictly sanitized HTML for rich text editing
- */
-const ensureHtml = (content: string, noteImages?: NoteImageAttachment[]): string => {
-  if (!content) return '<p><br></p>';
-  // 1. Sanitize HTML to prevent Stored & DOM-based XSS attacks
-  let cleaned = sanitizeNoteHTML(content);
-
-  // Clean up any accidentally escaped or nested <p> tags
-  cleaned = cleaned
-    .replace(/&lt;p&gt;/gi, '')
-    .replace(/&lt;\/p&gt;/gi, '')
-    .replace(/<p>\s*<p>/gi, '<p>')
-    .replace(/<\/p>\s*<\/p>/gi, '</p>');
-
-  // Normalize headings: Strip redundant <b> or <strong> tags inside headings so all headings render uniformly
-  cleaned = cleaned.replace(/<h([1-3])([^>]*)>([\s\S]*?)<\/h\1>/gi, (_, lvl, attrs, inner) => {
-    return `<h${lvl}${attrs}>${inner.replace(/<\/?(?:b|strong)>/gi, '')}</h${lvl}>`;
-  });
-
-  // Dọn dẹp thanh 3 nút cũ nếu có trong các ghi chú trước đó, chuyển sang nút xóa Apple Liquid Glass tròn tinh tế
-  if (cleaned.includes('apple-img-action-bar')) {
-    cleaned = cleaned.replace(/<span class=["']apple-img-action-bar["'][^>]*>[\s\S]*?<\/span>/gi, '');
-  }
-
-  // Tự động chuẩn hóa và Self-Healing phục hồi các hình ảnh bị vỡ hoặc bị lưu nhầm blob: URL
-  if (typeof document !== 'undefined' && cleaned.includes('<img')) {
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(cleaned, 'text/html');
-      let modified = false;
-      const imgs = Array.from(doc.querySelectorAll('img'));
-      imgs.forEach((img, idx) => {
-        let src = img.getAttribute('src') || '';
-        // Self-Healing: Nếu src là blob: (đã bị revoke) hoặc rỗng, thử khôi phục từ noteImages
-        if ((src.startsWith('blob:') || !src) && noteImages && noteImages.length > 0) {
-          const matchImg = noteImages[idx] || noteImages.find((item) => item.url?.startsWith('data:image/'));
-          if (matchImg?.url && matchImg.url.startsWith('data:image/')) {
-            src = matchImg.url;
-            img.setAttribute('src', src);
-            modified = true;
-          } else if (src.startsWith('blob:')) {
-            // Strictly forbid persisting temporary blob: URLs
-            img.setAttribute('src', '');
-            modified = true;
-          }
-        } else if (src.startsWith('blob:')) {
-          // Strictly forbid persisting temporary blob: URLs
-          img.setAttribute('src', '');
-          modified = true;
-        }
-
-        if (!img.closest('.apple-img-wrapper')) {
-          modified = true;
-          const alt = img.getAttribute('alt') || 'Hình ảnh';
-          const span = document.createElement('span');
-          span.className = 'apple-img-wrapper';
-          span.setAttribute('contenteditable', 'false');
-          span.setAttribute('data-media-type', 'image');
-          span.setAttribute('style', 'position: relative; display: inline-flex; line-height: 0; font-size: 0; padding: 0; margin: 6px 0; max-width: 100%; vertical-align: middle; border-radius: 14px; overflow: hidden; box-shadow: 0 3px 12px rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.08); background: transparent;');
-          span.innerHTML = `<img src="${src}" alt="${alt}" class="apple-note-inline-img" style="max-width: 320px; max-height: 220px; width: auto; height: auto; object-fit: contain; border-radius: 13px; display: block; margin: 0; padding: 0; border: none; box-shadow: none; vertical-align: top; line-height: 0; cursor: zoom-in;" title="Nhấp để xem ảnh đầy đủ" /><button type="button" class="apple-img-delete-btn" style="position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; background: rgba(24,24,27,0.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #ffffff; border: 1.5px solid rgba(255,255,255,0.75); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; margin: 0; outline: none; z-index: 25; box-shadow: 0 2px 10px rgba(0,0,0,0.5);" title="Xóa hình ảnh này"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="11.5" y2="11.5" stroke="#ffffff" stroke-width="2.4"/><line x1="11.5" y1="2.5" x2="2.5" y2="11.5" stroke="#ffffff" stroke-width="2.4"/></svg></button>`;
-          img.replaceWith(span);
-        } else {
-          const wrapper = img.closest('.apple-img-wrapper');
-          if (wrapper) {
-            // Đảm bảo src trong wrapper cũng được cập nhật nếu vừa self-heal
-            if (img.getAttribute('src') !== src) {
-              img.setAttribute('src', src);
-              modified = true;
-            }
-            const existingBtn = wrapper.querySelector('.apple-img-delete-btn');
-            if (!existingBtn) {
-              modified = true;
-              const btn = document.createElement('button');
-              btn.type = 'button';
-              btn.className = 'apple-img-delete-btn';
-              btn.setAttribute('style', 'position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; background: rgba(24,24,27,0.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #ffffff; border: 1.5px solid rgba(255,255,255,0.75); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; margin: 0; outline: none; z-index: 25; box-shadow: 0 2px 10px rgba(0,0,0,0.5);');
-              btn.setAttribute('title', 'Xóa hình ảnh này');
-              btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="11.5" y2="11.5" stroke="#ffffff" stroke-width="2.4"/><line x1="11.5" y1="2.5" x2="2.5" y2="11.5" stroke="#ffffff" stroke-width="2.4"/></svg>`;
-              wrapper.appendChild(btn);
-            } else {
-              // Self-healing: Luôn đảm bảo nút xóa ảnh đồng bộ icon Xmark trắng sắc nét và phong cách Liquid Glass
-              modified = true;
-              existingBtn.setAttribute('style', 'position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; background: rgba(24,24,27,0.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #ffffff; border: 1.5px solid rgba(255,255,255,0.75); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; margin: 0; outline: none; z-index: 25; box-shadow: 0 2px 10px rgba(0,0,0,0.5);');
-              existingBtn.setAttribute('title', 'Xóa hình ảnh này');
-              existingBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="11.5" y2="11.5" stroke="#ffffff" stroke-width="2.4"/><line x1="11.5" y1="2.5" x2="2.5" y2="11.5" stroke="#ffffff" stroke-width="2.4"/></svg>`;
-            }
-          }
-        }
-      });
-      if (modified) {
-        cleaned = doc.body.innerHTML;
-      }
-    } catch (_) {}
-  }
-
-  // Tự động phục hồi (Self-Healing) các thẻ file đính kèm nếu từng bị strip mất SVG hoặc button
-  if (typeof document !== 'undefined' && cleaned.includes('apple-file-attachment')) {
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(cleaned, 'text/html');
-      let modified = false;
-      const fileCards = Array.from(doc.querySelectorAll('.apple-file-attachment'));
-      fileCards.forEach((card) => {
-        // Kiểm tra xem thẻ có bị thiếu SVG, thiếu nút hành động hoặc đang dùng màu sặc sỡ cũ không
-        const hasSvg = !!card.querySelector('svg');
-        const hasActions = !!card.querySelector('.apple-file-preview-btn, .apple-file-download-btn, .apple-file-delete-btn');
-        const hasOldColoredStyle = card.outerHTML.includes('rgba(0,113,227') || card.outerHTML.includes('rgba(52,199,89') || card.outerHTML.includes('rgba(255,59,48');
-        if (!hasSvg || !hasActions || hasOldColoredStyle) {
-          modified = true;
-          const fileId = card.getAttribute('data-file-id') || '';
-          const fileUrl = card.getAttribute('data-file-url') || '';
-          const fileName = card.getAttribute('data-file-name') || card.querySelector('.apple-file-attachment-title')?.textContent?.trim() || 'Tệp đính kèm';
-          let ext = card.getAttribute('data-file-ext') || '';
-          if (!ext && fileName.includes('.')) {
-            ext = fileName.split('.').pop() || '';
-          }
-          const sizeStr = card.getAttribute('data-file-size') || card.querySelector('.apple-file-attachment-size')?.textContent?.trim() || '';
-
-          const fileIdOrUrl = fileId || fileUrl || '#';
-          const freshHtml = generateFileCardHtml(fileIdOrUrl, fileName, ext, sizeStr);
-          
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = freshHtml;
-          const freshCard = tempDiv.querySelector('.apple-file-attachment');
-          if (freshCard) {
-            card.replaceWith(freshCard);
-          }
-        }
-      });
-      if (modified) {
-        cleaned = doc.body.innerHTML;
-      }
-    } catch (_) {}
-  }
-
-  // If already contains HTML tags
-  if (/<(p|div|h[1-6]|ul|ol|li|b|strong|i|em|u|s|strike|br|span|img)\b[^>]*>/i.test(cleaned)) {
-    return cleaned.replace(/^#\s+(.*?)$/gm, '<h2>$1</h2>');
-  }
-  return cleaned
-    .split('\n')
-    .map((line) => {
-      const l = line.trim();
-      if (!l) return '<p><br></p>';
-      if (l.startsWith('# ')) return `<h2>${l.substring(2)}</h2>`;
-      // Preserve checklist lines without converting to bullet list or stripping '- '
-      if (/^(?:-\s*)?\[([ xX])\]/.test(l)) {
-        return `<p>${l}</p>`;
-      }
-      if (l.startsWith('- ')) return `<ul><li>${l.substring(2)}</li></ul>`;
-      const numMatch = l.match(/^(\d+)\.\s+(.*)$/);
-      if (numMatch) return `<ol><li>${numMatch[2]}</li></ol>`;
-      return `<p>${l}</p>`;
-    })
-    .join('');
-};
-
-/**
- * Extract plain text from HTML string with newline separation between block elements
- */
-const extractPlainText = (html: string): string => {
-  if (!html) return '';
-  if (!/<[a-z][\s\S]*>/i.test(html)) {
-    return html;
-  }
-  // Strip heavy data: URLs (>50k chars) before parsing DOM to prevent main thread freezing
-  let cleaned = html.length > 50000 ? html.replace(/data:[^"'\s)]+/g, '') : html;
-  cleaned = cleaned.replace(/<span\b[^>]*class=["'][^"']*apple-file-attachment[^"']*["'][^>]*data-file-name=["']([^"']+)["'][^>]*>[\s\S]*?<\/span>/gi, ' 📎 $1 ');
-  cleaned = cleaned.replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, '');
-  const formatted = cleaned
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n')
-    .replace(/<\/div>/gi, '\n')
-    .replace(/<\/li>/gi, '\n')
-    .replace(/<\/h[1-6]>/gi, '\n\n');
-  const tmp = document.createElement('div');
-  tmp.innerHTML = formatted;
-  const raw = tmp.innerText || tmp.textContent || '';
-  return raw.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-};
-
-/**
- * Format note preview snippet for the left sidebar list (Ultra-fast, zero DOM allocation)
- */
-const formatNotePreview = (content: string): string => {
-  if (!content || !content.trim()) return 'Trống...';
-  try {
-    if (typeof document !== 'undefined') {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(content, 'text/html');
-
-      // 1. Remove all SVGs and scripts/styles
-      doc.querySelectorAll('svg, script, style').forEach((el) => el.remove());
-
-      // 2. Replace file attachment badges with clean readable text
-      doc.querySelectorAll('.apple-file-attachment').forEach((card) => {
-        const name = card.getAttribute('data-file-name') || card.querySelector('.apple-file-attachment-title')?.textContent?.trim() || 'Tệp đính kèm';
-        const txt = document.createTextNode(` 📎 ${name} `);
-        card.replaceWith(txt);
-      });
-
-      // 3. Replace image wrappers with clean readable text
-      doc.querySelectorAll('.apple-img-wrapper').forEach((wrapper) => {
-        const alt = wrapper.querySelector('img')?.getAttribute('alt') || 'Hình ảnh';
-        const txt = document.createTextNode(` 🖼️ ${alt} `);
-        wrapper.replaceWith(txt);
-      });
-
-      const raw = (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
-      if (!raw) return 'Trống...';
-      return raw.replace(/^(?:-\s*)?\[([ xX])\]\s*/, (_, check) =>
-        check.toLowerCase() === 'x' ? '☑ ' : '☐ '
-      );
-    }
-  } catch (_) {}
-
-  // Regex fallback:
-  let plain = content.replace(/<span\b[^>]*class=["'][^"']*apple-file-attachment[^"']*["'][^>]*data-file-name=["']([^"']+)["'][^>]*>[\s\S]*?<\/span>/gi, ' 📎 $1 ');
-  plain = plain.replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, '');
-  plain = plain.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
-  return plain || 'Trống...';
-};
-
-/**
- * Render Apple-styled document vector badge icon by file extension
- */
-const getAppleDocSvg = (ext: string): string => {
-  const e = ext.toLowerCase();
-  if (e === 'pdf') {
-    return `<svg width="26" height="32" viewBox="0 0 28 34" fill="none" style="flex-shrink:0;filter:drop-shadow(0 2px 4px rgba(224,62,45,0.25));"><path d="M4 2C2.89543 2 2 2.89543 2 4V30C2 31.1046 2.89543 32 4 32H24C25.1046 32 26 31.1046 26 30V10L18 2H4Z" fill="#ff4d4f"/><path d="M18 2V8C18 9.10457 18.8954 10 20 10H26L18 2Z" fill="#d9363e" opacity="0.85"/><rect x="5" y="16" width="18" height="9" rx="2.5" fill="white"/><text x="14" y="23" font-size="7.5" font-weight="900" font-family="system-ui,-apple-system,sans-serif" fill="#d9363e" text-anchor="middle">PDF</text></svg>`;
-  }
-  if (['doc', 'docx'].includes(e)) {
-    return `<svg width="26" height="32" viewBox="0 0 28 34" fill="none" style="flex-shrink:0;filter:drop-shadow(0 2px 4px rgba(43,87,154,0.25));"><path d="M4 2C2.89543 2 2 2.89543 2 4V30C2 31.1046 2.89543 32 4 32H24C25.1046 32 26 31.1046 26 30V10L18 2H4Z" fill="#2b579a"/><path d="M18 2V8C18 9.10457 18.8954 10 20 10H26L18 2Z" fill="#1e3e6e" opacity="0.85"/><rect x="5" y="16" width="18" height="9" rx="2.5" fill="white"/><text x="14" y="23" font-size="7" font-weight="900" font-family="system-ui,-apple-system,sans-serif" fill="#2b579a" text-anchor="middle">DOC</text></svg>`;
-  }
-  if (['xls', 'xlsx', 'csv'].includes(e)) {
-    return `<svg width="26" height="32" viewBox="0 0 28 34" fill="none" style="flex-shrink:0;filter:drop-shadow(0 2px 4px rgba(33,115,70,0.25));"><path d="M4 2C2.89543 2 2 2.89543 2 4V30C2 31.1046 2.89543 32 4 32H24C25.1046 32 26 31.1046 26 30V10L18 2H4Z" fill="#217346"/><path d="M18 2V8C18 9.10457 18.8954 10 20 10H26L18 2Z" fill="#165130" opacity="0.85"/><rect x="5" y="16" width="18" height="9" rx="2.5" fill="white"/><text x="14" y="23" font-size="7" font-weight="900" font-family="system-ui,-apple-system,sans-serif" fill="#217346" text-anchor="middle">XLS</text></svg>`;
-  }
-  if (['ppt', 'pptx'].includes(e)) {
-    return `<svg width="26" height="32" viewBox="0 0 28 34" fill="none" style="flex-shrink:0;filter:drop-shadow(0 2px 4px rgba(210,71,38,0.25));"><path d="M4 2C2.89543 2 2 2.89543 2 4V30C2 31.1046 2.89543 32 4 32H24C25.1046 32 26 31.1046 26 30V10L18 2H4Z" fill="#d24726"/><path d="M18 2V8C18 9.10457 18.8954 10 20 10H26L18 2Z" fill="#993219" opacity="0.85"/><rect x="5" y="16" width="18" height="9" rx="2.5" fill="white"/><text x="14" y="23" font-size="7" font-weight="900" font-family="system-ui,-apple-system,sans-serif" fill="#d24726" text-anchor="middle">PPT</text></svg>`;
-  }
-  if (['zip', 'rar', '7z', 'tar', 'gz'].includes(e)) {
-    return `<svg width="26" height="32" viewBox="0 0 28 34" fill="none" style="flex-shrink:0;filter:drop-shadow(0 2px 4px rgba(128,90,213,0.25));"><path d="M4 2C2.89543 2 2 2.89543 2 4V30C2 31.1046 2.89543 32 4 32H24C25.1046 32 26 31.1046 26 30V10L18 2H4Z" fill="#805ad5"/><path d="M18 2V8C18 9.10457 18.8954 10 20 10H26L18 2Z" fill="#5e3ca8" opacity="0.85"/><rect x="5" y="16" width="18" height="9" rx="2.5" fill="white"/><text x="14" y="23" font-size="7" font-weight="900" font-family="system-ui,-apple-system,sans-serif" fill="#805ad5" text-anchor="middle">ZIP</text></svg>`;
-  }
-  const label = (e.slice(0, 4) || 'FILE').toUpperCase();
-  return `<svg width="26" height="32" viewBox="0 0 28 34" fill="none" style="flex-shrink:0;filter:drop-shadow(0 2px 4px rgba(113,128,150,0.25));"><path d="M4 2C2.89543 2 2 2.89543 2 4V30C2 31.1046 2.89543 32 4 32H24C25.1046 32 26 31.1046 26 30V10L18 2H4Z" fill="#718096"/><path d="M18 2V8C18 9.10457 18.8954 10 20 10H26L18 2Z" fill="#4a5568" opacity="0.85"/><rect x="5" y="16" width="18" height="9" rx="2.5" fill="white"/><text x="14" y="23" font-size="6.5" font-weight="900" font-family="system-ui,-apple-system,sans-serif" fill="#718096" text-anchor="middle">${label}</text></svg>`;
-};
-
-/**
- * Universal byte reader for Blob/HTTP URLs and base64 Data URLs
- */
-const getBytesFromUrl = async (url: string): Promise<Uint8Array> => {
-  if (url.startsWith('blob:') || url.startsWith('http:') || url.startsWith('https:')) {
-    const res = await fetch(url);
-    const buf = await res.arrayBuffer();
-    return new Uint8Array(buf);
-  }
-  const parts = url.split(',');
-  const base64 = parts[1] || parts[0];
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-};
-
-/**
- * Decode file or base64 data URL to text
- */
-const decodeDataUrlText = async (dataUrl: string): Promise<string> => {
-  try {
-    if (dataUrl.startsWith('blob:') || dataUrl.startsWith('http:') || dataUrl.startsWith('https:')) {
-      const res = await fetch(dataUrl);
-      return await res.text();
-    }
-    const base64 = dataUrl.split(',')[1];
-    if (!base64) return '';
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    const decoder = new TextDecoder('utf-8');
-    return decoder.decode(bytes);
-  } catch {
-    return 'Không thể giải mã văn bản.';
-  }
-};
-
-/**
- * Convert base64 data URL or Blob URL to native Blob
- */
-const dataUrlToBlob = async (url: string): Promise<Blob> => {
-  if (url.startsWith('blob:')) {
-    const res = await fetch(url);
-    return await res.blob();
-  }
-  const parts = url.split(',');
-  const mime = parts[0]?.match(/:(.*?);/)?.[1] || 'application/octet-stream';
-  const base64 = parts[1] || parts[0];
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return new Blob([bytes], { type: mime });
-};
-
-interface ExcelSheetPreview {
-  name: string;
-  rows: any[][];
-  totalRows: number;
-  totalCols: number;
-}
-
-const parseExcelFromDataUrl = async (dataUrl: string): Promise<{ sheets: ExcelSheetPreview[]; activeSheetIndex: number } | null> => {
-  try {
-    const bytes = await getBytesFromUrl(dataUrl);
-    const XLSX = await import('xlsx');
-    const workbook = XLSX.read(bytes, { type: 'array' });
-    const sheets: ExcelSheetPreview[] = workbook.SheetNames.map((name) => {
-      const sheet = workbook.Sheets[name];
-      const rawData = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: '' });
-      let maxCols = 0;
-      rawData.forEach((row) => {
-        if (Array.isArray(row) && row.length > maxCols) maxCols = row.length;
-      });
-      return {
-        name,
-        rows: rawData.slice(0, 300), // First 300 rows for high performance
-        totalRows: rawData.length,
-        totalCols: maxCols,
-      };
-    });
-    return { sheets, activeSheetIndex: 0 };
-  } catch (err) {
-    console.error('Lỗi khi đọc bảng tính Excel:', err);
-    return null;
-  }
-};
-
-interface DocxBlock {
-  type: 'h1' | 'h2' | 'h3' | 'p' | 'li' | 'table';
-  text?: string;
-  align?: 'left' | 'center' | 'right' | 'justify';
-  bold?: boolean;
-  tableRows?: string[][];
-}
-
-const parseDocxFromDataUrl = async (dataUrl: string): Promise<DocxBlock[] | null> => {
-  try {
-    const buf = await getBytesFromUrl(dataUrl);
-    const view = new DataView(buf.buffer as ArrayBuffer, buf.byteOffset, buf.byteLength);
-    let offset = 0;
-    let docXmlText: string | null = null;
-    while (offset < buf.byteLength - 4) {
-      const sig = view.getUint32(offset, true);
-      if (sig !== 0x04034b50) break;
-      const compMethod = view.getUint16(offset + 8, true);
-      const compSize = view.getUint32(offset + 18, true);
-      const nameLen = view.getUint16(offset + 26, true);
-      const extraLen = view.getUint16(offset + 28, true);
-      const name = new TextDecoder().decode(buf.subarray(offset + 30, offset + 30 + nameLen));
-      const dataStart = offset + 30 + nameLen + extraLen;
-      const compData = buf.subarray(dataStart, dataStart + compSize);
-
-      if (name === 'word/document.xml') {
-        if (compMethod === 0) {
-          docXmlText = new TextDecoder().decode(compData);
-        } else if (compMethod === 8) {
-          const ds = new DecompressionStream('deflate-raw');
-          const writer = ds.writable.getWriter();
-          writer.write(compData as any);
-          writer.close();
-          const res = new Response(ds.readable);
-          docXmlText = await res.text();
-        }
-        break;
-      }
-      offset = dataStart + compSize;
-    }
-
-    if (!docXmlText) return null;
-
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(docXmlText, 'application/xml');
-    const body = xmlDoc.getElementsByTagName('w:body')[0];
-    if (!body) return null;
-
-    const blocks: DocxBlock[] = [];
-    const children = Array.from(body.children);
-
-    for (const child of children) {
-      if (child.nodeName === 'w:p') {
-        // Extract runs to preserve linebreaks
-        const textNodes = child.getElementsByTagName('w:t');
-        let fullText = '';
-        for (let i = 0; i < textNodes.length; i++) {
-          fullText += textNodes[i].textContent || '';
-        }
-        if (!fullText.trim()) continue;
-
-        // Extract alignment (left, center, right, both/justify)
-        const jcEl = child.getElementsByTagName('w:jc')[0];
-        const jcVal = jcEl?.getAttribute('w:val') || '';
-        let align: 'left' | 'center' | 'right' | 'justify' = 'left';
-        if (jcVal === 'center') align = 'center';
-        else if (jcVal === 'right') align = 'right';
-        else if (jcVal === 'both' || jcVal === 'distribute') align = 'justify';
-
-        // Check if paragraph has bold formatting
-        const hasBold = child.getElementsByTagName('w:b').length > 0;
-
-        const pStyle = child.getElementsByTagName('w:pStyle')[0]?.getAttribute('w:val') || '';
-        const numPr = child.getElementsByTagName('w:numPr')[0];
-        if (pStyle.toLowerCase().includes('heading1') || pStyle === '1') {
-          blocks.push({ type: 'h1', text: fullText, align });
-        } else if (pStyle.toLowerCase().includes('heading2') || pStyle === '2') {
-          blocks.push({ type: 'h2', text: fullText, align });
-        } else if (pStyle.toLowerCase().includes('heading3') || pStyle === '3') {
-          blocks.push({ type: 'h3', text: fullText, align });
-        } else if (numPr) {
-          blocks.push({ type: 'li', text: fullText, align });
-        } else {
-          blocks.push({ type: 'p', text: fullText, align, bold: hasBold });
-        }
-      } else if (child.nodeName === 'w:tbl') {
-        const trList = child.getElementsByTagName('w:tr');
-        const tableRows: string[][] = [];
-        for (let r = 0; r < trList.length; r++) {
-          const tcList = trList[r].getElementsByTagName('w:tc');
-          const rowCells: string[] = [];
-          for (let c = 0; c < tcList.length; c++) {
-            const tNodes = tcList[c].getElementsByTagName('w:t');
-            let cellText = '';
-            for (let k = 0; k < tNodes.length; k++) {
-              cellText += tNodes[k].textContent || '';
-            }
-            rowCells.push(cellText);
-          }
-          if (rowCells.length > 0) tableRows.push(rowCells);
-        }
-        if (tableRows.length > 0) {
-          blocks.push({ type: 'table', tableRows });
-        }
-      }
-    }
-
-    return blocks.length > 0 ? blocks : null;
-  } catch (e) {
-    console.error('Lỗi khi đọc file docx:', e);
-    return null;
-  }
-};
-
-interface PptxSlide {
-  slideNum: number;
-  texts: string[];
-}
-
-const parsePptxFromDataUrl = async (dataUrl: string): Promise<PptxSlide[] | null> => {
-  try {
-    const buf = await getBytesFromUrl(dataUrl);
-    const view = new DataView(buf.buffer as ArrayBuffer, buf.byteOffset, buf.byteLength);
-    let offset = 0;
-    const slideXmlMap: Record<number, string> = {};
-
-    while (offset < buf.byteLength - 4) {
-      const sig = view.getUint32(offset, true);
-      if (sig !== 0x04034b50) break;
-      const compMethod = view.getUint16(offset + 8, true);
-      const compSize = view.getUint32(offset + 18, true);
-      const nameLen = view.getUint16(offset + 26, true);
-      const extraLen = view.getUint16(offset + 28, true);
-      const name = new TextDecoder().decode(buf.subarray(offset + 30, offset + 30 + nameLen));
-      const dataStart = offset + 30 + nameLen + extraLen;
-      const compData = buf.subarray(dataStart, dataStart + compSize);
-
-      const slideMatch = name.match(/ppt\/slides\/slide(\d+)\.xml/);
-      if (slideMatch) {
-        const slideNum = parseInt(slideMatch[1], 10);
-        if (compMethod === 0) {
-          slideXmlMap[slideNum] = new TextDecoder().decode(compData);
-        } else if (compMethod === 8) {
-          const ds = new DecompressionStream('deflate-raw');
-          const writer = ds.writable.getWriter();
-          writer.write(compData as any);
-          writer.close();
-          const res = new Response(ds.readable);
-          slideXmlMap[slideNum] = await res.text();
-        }
-      }
-      offset = dataStart + compSize;
-    }
-
-    const parser = new DOMParser();
-    const slides: PptxSlide[] = [];
-    const slideNumbers = Object.keys(slideXmlMap).map(Number).sort((a, b) => a - b);
-
-    for (const num of slideNumbers) {
-      const xmlStr = slideXmlMap[num];
-      const xmlDoc = parser.parseFromString(xmlStr, 'application/xml');
-      const tNodes = xmlDoc.getElementsByTagName('a:t');
-      const texts: string[] = [];
-      for (let i = 0; i < tNodes.length; i++) {
-        const txt = (tNodes[i].textContent || '').trim();
-        if (txt) texts.push(txt);
-      }
-      if (texts.length > 0) {
-        slides.push({ slideNum: num, texts });
-      }
-    }
-
-    return slides.length > 0 ? slides : null;
-  } catch (e) {
-    console.error('Lỗi khi đọc file pptx:', e);
-    return null;
-  }
-};
-
-const escapeRegex = (str: string): string => {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-};
-
-const generateInlineImageHtml = (dataUrl: string, name: string): string => {
-  return `<p><span class="apple-img-wrapper" contenteditable="false" data-media-type="image" style="position: relative; display: inline-flex; line-height: 0; font-size: 0; padding: 0; margin: 6px 0; max-width: 100%; vertical-align: middle; border-radius: 14px; overflow: hidden; box-shadow: 0 3px 12px rgba(0,0,0,0.08); border: 1px solid rgba(0,0,0,0.08); background: transparent;">
-    <img src="${dataUrl}" alt="${name}" class="apple-note-inline-img" style="max-width: 320px; max-height: 220px; width: auto; height: auto; object-fit: contain; border-radius: 13px; display: block; margin: 0; padding: 0; border: none; box-shadow: none; vertical-align: top; line-height: 0; cursor: zoom-in;" title="Nhấp để xem ảnh đầy đủ" />
-    <button type="button" class="apple-img-delete-btn" style="position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; border-radius: 50%; background: rgba(24,24,27,0.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #ffffff; border: 1.5px solid rgba(255,255,255,0.75); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; margin: 0; outline: none; z-index: 25; box-shadow: 0 2px 10px rgba(0,0,0,0.5);" title="Xóa hình ảnh này"><svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"><line x1="2.5" y1="2.5" x2="11.5" y2="11.5" stroke="#ffffff" stroke-width="2.4"/><line x1="11.5" y1="2.5" x2="2.5" y2="11.5" stroke="#ffffff" stroke-width="2.4"/></svg></button>
-  </span></p><p><br></p>`;
-};
-
-const generateFileCardHtml = (fileIdOrUrl: string, fileName: string, ext: string, sizeStr: string): string => {
-  const docSvg = getAppleDocSvg(ext);
-
-  const isAttachmentId = fileIdOrUrl.startsWith('att_');
-  const fileIdAttr = isAttachmentId ? `data-file-id="${fileIdOrUrl}"` : '';
-  const fileUrlAttr = !isAttachmentId ? `data-file-url="${fileIdOrUrl}"` : '';
-  const downloadHref = isAttachmentId ? '#' : fileIdOrUrl;
-
-  return `<p><span class="apple-file-attachment" contenteditable="false" data-media-type="file" ${fileIdAttr} ${fileUrlAttr} data-file-name="${fileName}" data-file-ext="${ext}" data-file-size="${sizeStr}" style="display: inline-flex; align-items: center; gap: 10px; padding: 7px 12px; margin: 6px 0; border-radius: 16px; background: rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.08); font-size: 13px; font-weight: 500; text-decoration: none; user-select: none; box-shadow: 0 2px 6px rgba(0,0,0,0.03); vertical-align: middle; max-width: 100%;">
-    ${docSvg}
-    <span style="display: flex; flex-direction: column; min-width: 0; max-width: 220px; line-height: 1.25;">
-      <span class="apple-file-attachment-title" style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px;" title="${fileName}">${fileName}</span>
-      <span class="apple-file-attachment-size" style="font-size: 10.5px; font-family: ui-monospace, SFMono-Regular, monospace; margin-top: 1px;">${sizeStr}</span>
-    </span>
-    <span style="display: inline-flex; align-items: center; gap: 4px; margin-left: 6px;">
-      <button type="button" class="apple-file-preview-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,0.04); color: #48484a; border: 1px solid rgba(0,0,0,0.08); cursor: pointer; padding: 0; outline: none; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 1px 2px rgba(0,0,0,0.02);" title="Xem trước tệp (Quick Look)"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 8s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"/><circle cx="8" cy="8" r="2.5"/></svg></button>
-      <a href="${downloadHref}" download="${fileName}" class="apple-file-download-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,0.04); color: #48484a; border: 1px solid rgba(0,0,0,0.08); text-decoration: none; cursor: pointer; padding: 0; outline: none; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 1px 2px rgba(0,0,0,0.02);" title="Tải xuống tệp ${fileName}"><svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2v8M3.5 7L7 10.5 10.5 7M2 12h10"/></svg></a>
-      <button type="button" class="apple-file-delete-btn" style="display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,0.04); color: #48484a; border: 1px solid rgba(0,0,0,0.08); cursor: pointer; padding: 0; outline: none; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 1px 2px rgba(0,0,0,0.02);" title="Xóa tệp đính kèm"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333a1.333 1.333 0 0 1-1.334 1.334H4.667a1.333 1.333 0 0 1-1.334-1.334V4"/><line x1="6.5" y1="7" x2="6.5" y2="12"/><line x1="9.5" y1="7" x2="9.5" y2="12"/></svg></button>
-    </span>
-  </span></p><p><br></p>`;
-};
-
-/**
- * Safely removes a file or image attachment from HTML using DOMParser.
- * NEVER destroys sibling elements or unclosed tags.
- */
-const removeAttachmentFromHtml = (rawHtml: string, targetUrl: string, targetName?: string): string => {
-  if (!rawHtml || (!targetUrl && !targetName)) return rawHtml;
-  try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(rawHtml, 'text/html');
-    let modified = false;
-
-    // 1. Check file attachment cards
-    const fileBadges = Array.from(doc.querySelectorAll('.apple-file-attachment'));
-    fileBadges.forEach((badge) => {
-      const fileId = badge.getAttribute('data-file-id');
-      const u = badge.getAttribute('data-file-url');
-      const n = badge.getAttribute('data-file-name');
-      const a = badge.querySelector('a');
-      const href = a?.getAttribute('href');
-      const download = a?.getAttribute('download');
-
-      if (
-        (targetUrl && (fileId === targetUrl || u === targetUrl || href === targetUrl)) ||
-        (targetName && (n === targetName || download === targetName))
-      ) {
-        if (fileId) {
-          attachmentService.deleteAttachment(fileId).catch(console.error);
-        }
-        const parent = badge.parentElement;
-        badge.remove();
-        modified = true;
-        // Only remove parent if it is an empty paragraph with no text and no other children
-        if (parent && parent.tagName.toLowerCase() === 'p' && parent.children.length === 0 && !parent.textContent?.trim()) {
-          parent.remove();
-        }
-      }
-    });
-
-    // 2. Check inline images (.apple-img-wrapper and <img>)
-    const imgWrappers = Array.from(doc.querySelectorAll('.apple-img-wrapper, img'));
-    imgWrappers.forEach((el) => {
-      const img = el.tagName.toLowerCase() === 'img' ? (el as HTMLImageElement) : el.querySelector('img');
-      const src = img?.getAttribute('src') || '';
-      const alt = img?.getAttribute('alt') || '';
-
-      if ((targetUrl && src === targetUrl) || (targetName && alt === targetName)) {
-        const targetContainer = el.closest('.apple-img-wrapper') || el;
-        const parent = targetContainer.parentElement;
-        targetContainer.remove();
-        modified = true;
-        if (parent && parent.tagName.toLowerCase() === 'p' && parent.children.length === 0 && !parent.textContent?.trim()) {
-          parent.remove();
-        }
-      }
-    });
-
-    if (modified) {
-      return doc.body.innerHTML;
-    }
-  } catch (err) {
-    console.error('Lỗi khi xóa tệp khỏi HTML:', err);
-  }
-  return rawHtml;
-};
+import {
+  COLOR_MAP,
+  type ChecklistRow,
+  toDatetimeLocal,
+  formatReminderBadge,
+  playPopSound,
+  cleanChecklistText,
+  normalizeChecklistDraft,
+  convertTextToNoteBlocks,
+  getStrictSelectionLineRects,
+  getAppleDocSvg,
+  generateInlineImageHtml,
+  generateFileCardHtml,
+  ensureHtml,
+  extractPlainText,
+  formatNotePreview,
+  removeAttachmentFromHtml,
+} from './quick-note/noteHelpers';
+import {
+  type ExcelSheetPreview,
+  type DocxBlock,
+  type PptxSlide,
+  decodeDataUrlText,
+  dataUrlToBlob,
+  parseExcelFromDataUrl,
+  parseDocxFromDataUrl,
+  parsePptxFromDataUrl,
+} from './quick-note/documentParsers';
 
 export const QuickNoteWindow: React.FC = () => {
   const {
@@ -3121,7 +2220,7 @@ export const QuickNoteWindow: React.FC = () => {
           }
         } else if (['xlsx', 'xls'].includes(ext)) {
           const buf = await blob.arrayBuffer();
-          const XLSX = await import('xlsx');
+          const XLSX = await import('xlsx-js-style');
           const workbook = XLSX.read(new Uint8Array(buf), { type: 'array' });
           const sheets: ExcelSheetPreview[] = workbook.SheetNames.map((name) => {
             const sheet = workbook.Sheets[name];
@@ -4814,7 +3913,7 @@ export const QuickNoteWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleCreateNewNote(editorMode === 'checklist' ? 'checklist' : 'note')}
-                    className="w-7 h-7 rounded-full flex items-center justify-center text-[#0071e3] dark:text-[#2997ff] bg-[#0071e3]/10 hover:bg-[#0071e3]/20 dark:bg-[#0071e3]/15 dark:hover:bg-[#0071e3]/25 transition-all cursor-pointer shrink-0 active:scale-95 shadow-2xs"
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-[#0071e3] dark:text-[#2997ff] bg-[#0071e3]/10 hover:bg-[#0071e3]/20 dark:bg-[#0071e3]/15 dark:hover:bg-[#0071e3]/25 transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer shrink-0 active:scale-95 shadow-2xs"
                     title="Tạo sổ ghi chú mới"
                     aria-label="Tạo ghi chú mới"
                   >
@@ -4866,7 +3965,7 @@ export const QuickNoteWindow: React.FC = () => {
                     <div
                       key={note.id}
                       onClick={() => handleSelectNote(note.id)}
-                      className={`group relative p-3 rounded-2xl cursor-pointer transition-all duration-180 border ${
+                      className={`group relative p-3 rounded-2xl cursor-pointer transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-180 border ${
                         isSelected
                           ? isChecklistNote
                             ? 'bg-[#0071e3]/10 dark:bg-[#0071e3]/20 border-[#0071e3]/30 shadow-xs'
@@ -4892,7 +3991,7 @@ export const QuickNoteWindow: React.FC = () => {
                                 }, 50);
                               }
                             }}
-                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer ${
                               unlockedNoteIds.includes(note.id)
                                 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/15 opacity-90 hover:opacity-100'
                                 : 'text-[#0071e3] dark:text-[#2997ff] bg-[#0071e3]/15 opacity-100 shadow-2xs'
@@ -4906,7 +4005,7 @@ export const QuickNoteWindow: React.FC = () => {
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); togglePinNote(note.id); }}
-                          className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                          className={`w-7 h-7 rounded-full flex items-center justify-center transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer ${
                             note.pinned
                               ? 'text-amber-500 dark:text-amber-400 bg-amber-500/15 opacity-100 shadow-2xs'
                               : 'text-[#86868b] hover:text-amber-500 hover:bg-black/5 dark:hover:bg-white/10 opacity-70 group-hover:opacity-100'
@@ -4922,7 +4021,7 @@ export const QuickNoteWindow: React.FC = () => {
                             e.stopPropagation();
                             setNoteToDelete({ id: note.id, title: note.title?.trim() || 'Ghi chú không tên' });
                           }}
-                          className="w-7 h-7 rounded-full flex items-center justify-center text-[#86868b] hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-500/12 opacity-70 group-hover:opacity-100 transition-all cursor-pointer"
+                          className="w-7 h-7 rounded-full flex items-center justify-center text-[#86868b] hover:text-rose-500 dark:hover:text-rose-400 hover:bg-rose-500/12 opacity-70 group-hover:opacity-100 transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer"
                           title="Xóa ghi chú"
                         >
                           <SFTrash size={15} />
@@ -4961,7 +4060,7 @@ export const QuickNoteWindow: React.FC = () => {
                             </p>
                             {checklistTotalCount > 0 && (
                               <div className="w-full h-1 bg-black/[0.06] dark:bg-white/10 rounded-full overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-[#0088FF] to-emerald-500 rounded-full transition-all duration-300" style={{ width: `${checklistPercentVal}%` }} />
+                                <div className="h-full bg-gradient-to-r from-[#0088FF] to-emerald-500 rounded-full transition-[width] duration-300" style={{ width: `${checklistPercentVal}%` }} />
                               </div>
                             )}
                           </div>
@@ -5058,7 +4157,7 @@ export const QuickNoteWindow: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleSwitchNoteMode('note')}
-                        className={`relative z-10 w-full h-full flex items-center justify-center gap-1.5 rounded-full text-[12px] font-semibold transition-all duration-200 cursor-pointer active:scale-95 shrink-0 whitespace-nowrap px-1.5 ${
+                        className={`relative z-10 w-full h-full flex items-center justify-center gap-1.5 rounded-full text-[12px] font-semibold transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 cursor-pointer active:scale-95 shrink-0 whitespace-nowrap px-1.5 ${
                           !isChecklistActive
                             ? 'text-white font-bold'
                             : 'text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white'
@@ -5076,7 +4175,7 @@ export const QuickNoteWindow: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleSwitchNoteMode('checklist')}
-                        className={`relative z-10 w-full h-full flex items-center justify-center gap-1.5 rounded-full text-[12px] font-semibold transition-all duration-200 cursor-pointer active:scale-95 shrink-0 whitespace-nowrap px-1.5 ${
+                        className={`relative z-10 w-full h-full flex items-center justify-center gap-1.5 rounded-full text-[12px] font-semibold transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 cursor-pointer active:scale-95 shrink-0 whitespace-nowrap px-1.5 ${
                           isChecklistActive
                             ? 'text-white font-bold'
                             : 'text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white'
@@ -5098,7 +4197,7 @@ export const QuickNoteWindow: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleCreateNewNote(editorMode === 'checklist' ? 'checklist' : 'note')}
-                className="w-7 h-7 rounded-full bg-black/[0.04] dark:bg-white/[0.06] hover:bg-[#0071e3]/15 hover:text-[#0071e3] dark:hover:text-[#2997ff] text-[#76767b] flex items-center justify-center transition-all cursor-pointer active:scale-90 ml-0.5 shadow-2xs"
+                className="w-7 h-7 rounded-full bg-black/[0.04] dark:bg-white/[0.06] hover:bg-[#0071e3]/15 hover:text-[#0071e3] dark:hover:text-[#2997ff] text-[#76767b] flex items-center justify-center transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer active:scale-90 ml-0.5 shadow-2xs"
                 title="Tạo ghi chú / to-do mới (+)"
               >
                 <SFPlus size={14} />
@@ -5126,7 +4225,7 @@ export const QuickNoteWindow: React.FC = () => {
                         toast('Vui lòng nhập mã PIN 6 số để mở khóa ghi chú', { icon: '🔒', id: 'lock-pin-hint' });
                       }
                     }}
-                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer ${
                       activeNote.isLocked
                         ? unlockedNoteIds.includes(activeNote.id)
                           ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
@@ -5170,7 +4269,7 @@ export const QuickNoteWindow: React.FC = () => {
               <button
                 type="button"
                 onClick={handleMinimizeNote}
-                className="hidden sm:flex w-7 h-7 rounded-full items-center justify-center text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all duration-150 ease-spring cursor-pointer active:scale-90"
+                className="hidden sm:flex w-7 h-7 rounded-full items-center justify-center text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 ease-spring cursor-pointer active:scale-90"
                 title="Thu nhỏ xuống góc (Alt + N để mở lại)"
                 aria-label="Thu nhỏ cửa sổ ghi chú"
               >
@@ -5181,7 +4280,7 @@ export const QuickNoteWindow: React.FC = () => {
               <button
                 type="button"
                 onClick={handleToggleCompactMode}
-                className="hidden sm:flex w-7 h-7 rounded-full items-center justify-center text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all duration-150 ease-spring cursor-pointer active:scale-90"
+                className="hidden sm:flex w-7 h-7 rounded-full items-center justify-center text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 ease-spring cursor-pointer active:scale-90"
                 title={isCompactWindow ? 'Phóng to thành tab chính cố định (Góc dưới phải)' : 'Thu nhỏ thành cửa sổ nhỏ linh động di chuyển'}
                 aria-label={isCompactWindow ? 'Phóng to tab chính' : 'Thu nhỏ cửa sổ'}
               >
@@ -5229,7 +4328,7 @@ export const QuickNoteWindow: React.FC = () => {
                         <div
                           key={idx}
                           className={cn(
-                            "w-4 h-4 rounded-full transition-all duration-180",
+                            "w-4 h-4 rounded-full transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-180",
                             isFilled
                               ? unlockError
                                 ? "bg-rose-500 shadow-xs scale-110"
@@ -5312,7 +4411,7 @@ export const QuickNoteWindow: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleOpenReminderModal}
-                      className="w-7 h-7 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-[#0071e3] dark:text-[#2997ff] border-0 transition-all cursor-pointer relative group active:scale-90"
+                      className="w-7 h-7 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-[#0071e3] dark:text-[#2997ff] border-0 transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer relative group active:scale-90"
                       title={`Lịch nhắc: ${new Date(activeNote.reminderAt).toLocaleTimeString('vi-VN', {
                         hour: '2-digit',
                         minute: '2-digit',
@@ -5329,7 +4428,7 @@ export const QuickNoteWindow: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleOpenReminderModal}
-                      className="w-7 h-7 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white border-0 transition-all cursor-pointer active:scale-90"
+                      className="w-7 h-7 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.08] dark:hover:bg-white/[0.12] text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white border-0 transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer active:scale-90"
                       title="Cài đặt lịch nhắc cho ghi chú này"
                       aria-label="Hẹn giờ nhắc"
                     >
@@ -5360,13 +4459,13 @@ export const QuickNoteWindow: React.FC = () => {
               <div className="flex items-center justify-between gap-1.5 pb-2 mb-2 border-b border-black/[0.06] dark:border-white/10 shrink-0 select-none relative">
                 {/* Collapsible Rich-Text Formatting Controls with Liquid Spring Physics */}
                 <div
-                  className="flex items-center gap-0.5 shrink-0 overflow-x-auto scrollbar-none py-0.5 max-w-[400px] opacity-100 translate-x-0 transition-all duration-300 ease-spring"
+                  className="flex items-center gap-0.5 shrink-0 overflow-x-auto scrollbar-none py-0.5 max-w-[400px] opacity-100 translate-x-0 transition-[transform,opacity] duration-300 ease-spring"
                 >
                   <button
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleApplyFormat('bold')}
-                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center font-bold text-[13px] transition-all cursor-pointer ${
+                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center font-bold text-[13px] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer ${
                       activeFormats.bold
                         ? 'bg-[#0071e3] text-white shadow-xs'
                         : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/6 dark:hover:bg-white/10'
@@ -5380,7 +4479,7 @@ export const QuickNoteWindow: React.FC = () => {
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleApplyFormat('italic')}
-                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center font-serif text-[13.5px] transition-all cursor-pointer ${
+                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center font-serif text-[13.5px] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer ${
                       activeFormats.italic
                         ? 'bg-[#0071e3] text-white shadow-xs'
                         : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/6 dark:hover:bg-white/10'
@@ -5394,7 +4493,7 @@ export const QuickNoteWindow: React.FC = () => {
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleApplyFormat('underline')}
-                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center text-[13px] transition-all cursor-pointer ${
+                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center text-[13px] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer ${
                       activeFormats.underline
                         ? 'bg-[#0071e3] text-white shadow-xs'
                         : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/6 dark:hover:bg-white/10'
@@ -5408,7 +4507,7 @@ export const QuickNoteWindow: React.FC = () => {
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleApplyFormat('strike')}
-                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center text-[13px] transition-all cursor-pointer ${
+                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center text-[13px] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer ${
                       activeFormats.strike
                         ? 'bg-[#0071e3] text-white shadow-xs'
                         : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/6 dark:hover:bg-white/10'
@@ -5422,7 +4521,7 @@ export const QuickNoteWindow: React.FC = () => {
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleApplyFormat('h1')}
-                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center font-black text-[10px] transition-all cursor-pointer ${
+                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center font-black text-[10px] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer ${
                       activeFormats.headingLevel === 1
                         ? 'bg-[#0071e3] text-white shadow-xs'
                         : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/6 dark:hover:bg-white/10'
@@ -5435,7 +4534,7 @@ export const QuickNoteWindow: React.FC = () => {
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleApplyFormat('h2')}
-                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center font-black text-[10px] transition-all cursor-pointer ${
+                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center font-black text-[10px] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer ${
                       activeFormats.headingLevel === 2
                         ? 'bg-[#0071e3] text-white shadow-xs'
                         : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/6 dark:hover:bg-white/10'
@@ -5448,7 +4547,7 @@ export const QuickNoteWindow: React.FC = () => {
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleApplyFormat('h3')}
-                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center font-black text-[10px] transition-all cursor-pointer ${
+                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center font-black text-[10px] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer ${
                       activeFormats.headingLevel === 3
                         ? 'bg-[#0071e3] text-white shadow-xs'
                         : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/6 dark:hover:bg-white/10'
@@ -5464,7 +4563,7 @@ export const QuickNoteWindow: React.FC = () => {
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleApplyFormat('bullet')}
-                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-all cursor-pointer ${
+                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-[transform,opacity] cursor-pointer ${
                       activeFormats.bullet
                         ? 'bg-[#0071e3] text-white shadow-xs'
                         : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/6 dark:hover:bg-white/10'
@@ -5477,7 +4576,7 @@ export const QuickNoteWindow: React.FC = () => {
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleApplyFormat('number')}
-                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-all cursor-pointer ${
+                    className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-[transform,opacity] cursor-pointer ${
                       activeFormats.number
                         ? 'bg-[#0071e3] text-white shadow-xs'
                         : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/6 dark:hover:bg-white/10'
@@ -5499,7 +4598,7 @@ export const QuickNoteWindow: React.FC = () => {
                       }
                       setShowCompactAiMenu(!showCompactAiMenu);
                     }}
-                    className={`h-7 px-2.5 rounded-full flex items-center gap-1.5 text-[11px] font-semibold transition-all cursor-pointer active:scale-95 shadow-2xs ${
+                    className={`h-7 px-2.5 rounded-full flex items-center gap-1.5 text-[11px] font-semibold transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer active:scale-95 shadow-2xs ${
                       showCompactAiMenu
                         ? 'bg-[#0071e3] text-white shadow-xs'
                         : 'bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] border border-black/[0.06] dark:border-white/10'
@@ -5526,7 +4625,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setShowCompactAiMenu(false);
                           handleExecuteWritingTool('summarize');
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-[#0071e3]/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-[#0071e3]/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center shrink-0">
                           <SFDocument size={12} />
@@ -5540,7 +4639,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setShowCompactAiMenu(false);
                           handleExecuteWritingTool('keypoints');
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-amber-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-amber-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
                           <SFListBullet size={12} />
@@ -5554,7 +4653,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setShowCompactAiMenu(false);
                           handleExecuteWritingTool('professional');
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-purple-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-purple-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
                           <SFBriefcase size={12} />
@@ -5568,7 +4667,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setShowCompactAiMenu(false);
                           handleExecuteWritingTool('concise');
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-emerald-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-emerald-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                           <SFTextQuote size={12} />
@@ -5582,7 +4681,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setShowCompactAiMenu(false);
                           handleExecuteWritingTool('proofread');
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-rose-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-rose-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
                           <SFCheckmarkCircle size={12} />
@@ -5596,7 +4695,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setShowCompactAiMenu(false);
                           handleExecuteWritingTool('expand');
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-indigo-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-indigo-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                           <SFSquareAndPencil size={12} />
@@ -5610,7 +4709,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setShowCompactAiMenu(false);
                           handleExecuteWritingTool('action_items');
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-sky-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-sky-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
                           <SFCheckmarkSquare size={12} />
@@ -5624,7 +4723,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setShowCompactAiMenu(false);
                           handleExecuteWritingTool('translate_en');
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-blue-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-blue-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
                           <SFGlobe size={12} />
@@ -5638,7 +4737,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setShowCompactAiMenu(false);
                           handleExecuteWritingTool('translate_vi');
                         }}
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-teal-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-all duration-160 cursor-pointer"
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[11.5px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-teal-500/10 dark:hover:bg-white/10 hover:translate-x-1 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-160 cursor-pointer"
                       >
                         <div className="w-5.5 h-5.5 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
                           <SFGlobe size={12} />
@@ -5692,7 +4791,7 @@ export const QuickNoteWindow: React.FC = () => {
                         {/* Fluid Mini Progress Track */}
                         <div className="w-full h-1 bg-black/[0.06] dark:bg-white/[0.08] rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-emerald-500 dark:bg-emerald-400 transition-all duration-300 ease-out rounded-full"
+                            className="h-full bg-emerald-500 dark:bg-emerald-400 transition-colors duration-300 ease-out rounded-full"
                             style={{ width: `${checklistPercent}%` }}
                           />
                         </div>
@@ -5716,7 +4815,7 @@ export const QuickNoteWindow: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleToggleChecklistRow(row.lineIndex)}
-                            className={`w-[19px] h-[19px] rounded-full flex items-center justify-center transition-all duration-200 ease-spring cursor-pointer shrink-0 active:scale-85 my-auto ${
+                            className={`w-[19px] h-[19px] rounded-full flex items-center justify-center transition-[transform,opacity] duration-200 ease-spring cursor-pointer shrink-0 active:scale-85 my-auto ${
                               row.completed
                                 ? 'bg-[#34c759] dark:bg-[#30d158] text-white shadow-xs border-transparent'
                                 : 'border-[1.5px] border-black/30 dark:border-white/35 hover:border-[#0071e3] dark:hover:border-[#2997ff] bg-transparent hover:bg-black/[0.03] dark:hover:bg-white/[0.05]'
@@ -5726,7 +4825,7 @@ export const QuickNoteWindow: React.FC = () => {
                           >
                             <SFCheckmark
                               size={10.5}
-                              className={`stroke-[3] text-white drop-shadow-xs transition-all duration-200 ease-spring ${
+                              className={`stroke-[3] text-white drop-shadow-xs transition-colors duration-200 ease-spring ${
                                 row.completed ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
                               }`}
                             />
@@ -5747,7 +4846,7 @@ export const QuickNoteWindow: React.FC = () => {
                               }
                             }}
                             placeholder="Nhập việc cần làm..."
-                            className={`checklist-item-input flex-1 bg-transparent !border-0 !border-none !outline-none !shadow-none !ring-0 text-[13.5px] leading-snug py-1 transition-all duration-200 ease-spring ${
+                            className={`checklist-item-input flex-1 bg-transparent !border-0 !border-none !outline-none !shadow-none !ring-0 text-[13.5px] leading-snug py-1 transition-colors duration-200 ease-spring ${
                               row.completed
                                 ? 'line-through text-[#86868b] dark:text-[#76767b] opacity-75'
                                 : 'no-underline text-[#1d1d1f] dark:text-[#f5f5f7] opacity-100'
@@ -5767,7 +4866,7 @@ export const QuickNoteWindow: React.FC = () => {
                                     reminderAt: toDatetimeLocal(new Date(row.reminderAt!)),
                                   });
                                 }}
-                                className="!opacity-100 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium tracking-tight text-[#0071e3] dark:text-[#2997ff] bg-[#0071e3]/10 dark:bg-[#2997ff]/15 hover:bg-[#0071e3]/18 dark:hover:bg-[#2997ff]/25 active:scale-95 transition-all cursor-pointer border border-[#0071e3]/20 dark:border-[#2997ff]/25 shadow-2xs"
+                                className="!opacity-100 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium tracking-tight text-[#0071e3] dark:text-[#2997ff] bg-[#0071e3]/10 dark:bg-[#2997ff]/15 hover:bg-[#0071e3]/18 dark:hover:bg-[#2997ff]/25 active:scale-95 transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer border border-[#0071e3]/20 dark:border-[#2997ff]/25 shadow-2xs"
                                 title="Nhấp để đổi giờ hoặc hủy nhắc cho việc này"
                               >
                                 <SFClock size={13} className="text-[#0071e3] dark:text-[#2997ff] shrink-0" />
@@ -5784,7 +4883,7 @@ export const QuickNoteWindow: React.FC = () => {
                                     reminderAt: toDatetimeLocal(new Date(Date.now() + 30 * 60 * 1000)),
                                   });
                                 }}
-                                className="w-7 h-7 rounded-full flex items-center justify-center text-[#86868b] dark:text-[#a1a1a6] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/[0.05] dark:hover:bg-white/[0.08] active:scale-90 transition-all cursor-pointer"
+                                className="w-7 h-7 rounded-full flex items-center justify-center text-[#86868b] dark:text-[#a1a1a6] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/[0.05] dark:hover:bg-white/[0.08] active:scale-90 transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer"
                                 title="Hẹn giờ nhắc cho công việc này"
                                 aria-label="Hẹn giờ nhắc"
                               >
@@ -5796,7 +4895,7 @@ export const QuickNoteWindow: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleDeleteChecklistRow(row.lineIndex)}
-                              className="w-7 h-7 rounded-full flex items-center justify-center text-[#86868b] dark:text-[#a1a1a6] hover:text-[#ff3b30] dark:hover:text-[#ff453a] hover:bg-rose-500/10 active:scale-90 transition-all cursor-pointer"
+                              className="w-7 h-7 rounded-full flex items-center justify-center text-[#86868b] dark:text-[#a1a1a6] hover:text-[#ff3b30] dark:hover:text-[#ff453a] hover:bg-rose-500/10 active:scale-90 transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer"
                               title="Xóa công việc này"
                               aria-label="Xóa công việc"
                             >
@@ -5882,7 +4981,7 @@ export const QuickNoteWindow: React.FC = () => {
                     onScroll={handleEditorSelect}
                     onPaste={handleEditorPaste}
                     onClick={handleEditorClick}
-                    className="flex-1 w-full bg-transparent border-0 outline-none shadow-none ring-0 focus:ring-0 focus:outline-none focus:border-none font-sans text-[14.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] p-0 pr-1 selection:bg-purple-500/25 selection:text-[#1d1d1f] dark:selection:text-white overflow-y-auto min-h-0 [&_h1]:text-2xl [&_h1]:font-bold [&_h1_*]:font-bold [&_h1]:text-[#1d1d1f] dark:[&_h1]:text-white [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:leading-tight [&_h2]:text-xl [&_h2]:font-bold [&_h2_*]:font-bold [&_h2]:text-[#1d1d1f] dark:[&_h2]:text-white [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[17px] [&_h3]:font-semibold [&_h3_*]:font-semibold [&_h3]:text-[#1d1d1f] dark:[&_h3]:text-white [&_h3]:mt-2 [&_h3]:mb-0.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline [&_s]:line-through [&_img]:!max-w-[320px] [&_img]:!max-h-[220px] [&_img]:!w-auto [&_img]:!h-auto [&_img]:object-contain [&_img]:rounded-xl [&_img]:cursor-zoom-in [&_.apple-img-wrapper]:my-2 [&_.apple-img-wrapper_img]:!m-0 [&_.apple-img-wrapper_img]:!p-0 [&_.apple-img-wrapper_img]:!border-0 [&_.apple-img-wrapper_img]:!shadow-none [&_.apple-img-wrapper_img]:!block [&_.apple-file-attachment]:transition-all hover:[&_.apple-file-attachment]:bg-black/[0.07] dark:hover:[&_.apple-file-attachment]:bg-white/[0.08] cursor-text scrollbar-thin [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-black/30"
+                    className="flex-1 w-full bg-transparent border-0 outline-none shadow-none ring-0 focus:ring-0 focus:outline-none focus:border-none font-sans text-[14.5px] leading-relaxed text-[#1d1d1f] dark:text-[#f5f5f7] p-0 pr-1 selection:bg-purple-500/25 selection:text-[#1d1d1f] dark:selection:text-white overflow-y-auto min-h-0 [&_h1]:text-2xl [&_h1]:font-bold [&_h1_*]:font-bold [&_h1]:text-[#1d1d1f] dark:[&_h1]:text-white [&_h1]:mt-3 [&_h1]:mb-1.5 [&_h1]:leading-tight [&_h2]:text-xl [&_h2]:font-bold [&_h2_*]:font-bold [&_h2]:text-[#1d1d1f] dark:[&_h2]:text-white [&_h2]:mt-2 [&_h2]:mb-1 [&_h3]:text-[17px] [&_h3]:font-semibold [&_h3_*]:font-semibold [&_h3]:text-[#1d1d1f] dark:[&_h3]:text-white [&_h3]:mt-2 [&_h3]:mb-0.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1.5 [&_li]:my-0.5 [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline [&_s]:line-through [&_img]:!max-w-[320px] [&_img]:!max-h-[220px] [&_img]:!w-auto [&_img]:!h-auto [&_img]:object-contain [&_img]:rounded-xl [&_img]:cursor-zoom-in [&_.apple-img-wrapper]:my-2 [&_.apple-img-wrapper_img]:!m-0 [&_.apple-img-wrapper_img]:!p-0 [&_.apple-img-wrapper_img]:!border-0 [&_.apple-img-wrapper_img]:!shadow-none [&_.apple-img-wrapper_img]:!block [&_.apple-file-attachment]:transition-colors hover:[&_.apple-file-attachment]:bg-black/[0.07] dark:hover:[&_.apple-file-attachment]:bg-white/[0.08] cursor-text scrollbar-thin [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-black/15 dark:[&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-black/30"
                     style={{
                       border: 'none',
                       outline: 'none',
@@ -5961,7 +5060,7 @@ export const QuickNoteWindow: React.FC = () => {
                         <button
                           type="button"
                           onClick={handleCancelWritingTool}
-                          className="ml-0.5 px-2 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white text-[11px] font-semibold transition-all duration-150 cursor-pointer active:scale-95 flex items-center gap-1 shadow-2xs"
+                          className="ml-0.5 px-2 py-0.5 rounded-full bg-rose-500/10 hover:bg-rose-500 text-rose-600 hover:text-white dark:text-rose-400 dark:hover:text-white text-[11px] font-semibold transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 cursor-pointer active:scale-95 flex items-center gap-1 shadow-2xs"
                           title="Dừng xử lý ngay lập tức"
                         >
                           <SFXmark size={10} />
@@ -6012,7 +5111,7 @@ export const QuickNoteWindow: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setIsDraftExpanded((prev) => !prev)}
-                              className="w-6 h-6 rounded-full flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all cursor-pointer active:scale-90"
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer active:scale-90"
                               title={isDraftExpanded ? "Thu nhỏ về dạng hộp nổi" : "Phóng to toàn khung để kiểm tra văn bản dễ nhất"}
                               aria-label={isDraftExpanded ? "Thu nhỏ" : "Phóng to"}
                             >
@@ -6043,7 +5142,7 @@ export const QuickNoteWindow: React.FC = () => {
                           <button
                             type="button"
                             onClick={handleCopyAiDraft}
-                            className="px-2.5 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1 shadow-2xs"
+                            className="px-2.5 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1 shadow-2xs"
                             title="Sao chép kết quả"
                           >
                             <SFDocumentOnDocument size={11.5} />
@@ -6052,7 +5151,7 @@ export const QuickNoteWindow: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleApplyAiDraft('append')}
-                            className="px-3 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-all cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1 shadow-2xs"
+                            className="px-3 py-1.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] text-[11px] font-medium transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer border border-black/5 dark:border-white/10 active:scale-95 flex items-center gap-1 shadow-2xs"
                             title="Chèn nguyên vẹn từng đoạn xuống dưới phần chọn"
                           >
                             <SFPlus size={11} />
@@ -6061,7 +5160,7 @@ export const QuickNoteWindow: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleApplyAiDraft('replace')}
-                            className="px-3.5 py-1.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] font-semibold flex items-center gap-1 transition-all cursor-pointer shadow-xs active:scale-95"
+                            className="px-3.5 py-1.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] font-semibold flex items-center gap-1 transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer shadow-xs active:scale-95"
                             title="Thay thế đoạn văn bản đã chọn"
                           >
                             <SFCheckmark size={11.5} className="stroke-[3]" />
@@ -6089,7 +5188,7 @@ export const QuickNoteWindow: React.FC = () => {
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleApplyFormat('bold')}
-                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-all cursor-pointer ${
+                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-[transform,opacity] cursor-pointer ${
                             activeFormats.bold
                               ? 'bg-[#0071e3] text-white shadow-xs font-black'
                               : 'text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
@@ -6104,7 +5203,7 @@ export const QuickNoteWindow: React.FC = () => {
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleApplyFormat('italic')}
-                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center font-serif text-[13.5px] transition-all cursor-pointer ${
+                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center font-serif text-[13.5px] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer ${
                             activeFormats.italic
                               ? 'bg-[#0071e3] text-white shadow-xs'
                               : 'text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
@@ -6119,7 +5218,7 @@ export const QuickNoteWindow: React.FC = () => {
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleApplyFormat('underline')}
-                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center text-[13px] transition-all cursor-pointer ${
+                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center text-[13px] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer ${
                             activeFormats.underline
                               ? 'bg-[#0071e3] text-white shadow-xs'
                               : 'text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
@@ -6134,7 +5233,7 @@ export const QuickNoteWindow: React.FC = () => {
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleApplyFormat('strike')}
-                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center text-[13px] transition-all cursor-pointer ${
+                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center text-[13px] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer ${
                             activeFormats.strike
                               ? 'bg-[#0071e3] text-white shadow-xs'
                               : 'text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
@@ -6152,7 +5251,7 @@ export const QuickNoteWindow: React.FC = () => {
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleApplyFormat('bullet')}
-                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-all cursor-pointer ${
+                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-[transform,opacity] cursor-pointer ${
                             activeFormats.bullet
                               ? 'bg-[#0071e3] text-white shadow-xs'
                               : 'text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
@@ -6167,7 +5266,7 @@ export const QuickNoteWindow: React.FC = () => {
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleApplyFormat('number')}
-                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-all cursor-pointer ${
+                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-[transform,opacity] cursor-pointer ${
                             activeFormats.number
                               ? 'bg-[#0071e3] text-white shadow-xs'
                               : 'text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
@@ -6182,7 +5281,7 @@ export const QuickNoteWindow: React.FC = () => {
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleApplyFormat('h1')}
-                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-all cursor-pointer font-black text-[10px] ${
+                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer font-black text-[10px] ${
                             activeFormats.headingLevel === 1
                               ? 'bg-[#0071e3] text-white shadow-xs'
                               : 'text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
@@ -6196,7 +5295,7 @@ export const QuickNoteWindow: React.FC = () => {
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleApplyFormat('h2')}
-                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-all cursor-pointer font-black text-[10px] ${
+                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer font-black text-[10px] ${
                             activeFormats.headingLevel === 2
                               ? 'bg-[#0071e3] text-white shadow-xs'
                               : 'text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
@@ -6210,7 +5309,7 @@ export const QuickNoteWindow: React.FC = () => {
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleApplyFormat('h3')}
-                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-all cursor-pointer font-black text-[10px] ${
+                          className={`w-7 h-7 rounded-full active:scale-90 flex items-center justify-center transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer font-black text-[10px] ${
                             activeFormats.headingLevel === 3
                               ? 'bg-[#0071e3] text-white shadow-xs'
                               : 'text-[#1d1d1f] dark:text-white hover:bg-black/5 dark:hover:bg-white/10'
@@ -6238,7 +5337,7 @@ export const QuickNoteWindow: React.FC = () => {
                             }
                             setShowFloatingAiMenu((prev) => !prev);
                           }}
-                          className={`w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer active:scale-90 relative overflow-hidden group ${
+                          className={`w-7 h-7 rounded-full flex items-center justify-center transition-[transform,opacity] duration-200 cursor-pointer active:scale-90 relative overflow-hidden group ${
                             showFloatingAiMenu
                               ? 'bg-[#0071e3] text-white shadow-xs scale-105'
                               : 'bg-black/[0.05] dark:bg-white/[0.1] hover:bg-black/10 dark:hover:bg-white/15 text-[#1d1d1f] dark:text-white border border-black/[0.08] dark:border-white/[0.12] shadow-2xs hover:scale-105'
@@ -6270,7 +5369,7 @@ export const QuickNoteWindow: React.FC = () => {
                               type="button"
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => handleExecuteSelectedWritingTool('summarize')}
-                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
+                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer"
                             >
                               <div className="w-5.5 h-5.5 rounded-lg bg-[#0071e3]/10 text-[#0071e3] dark:text-[#2997ff] flex items-center justify-center shrink-0">
                                 <SFDocument size={12.5} />
@@ -6282,7 +5381,7 @@ export const QuickNoteWindow: React.FC = () => {
                               type="button"
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => handleExecuteSelectedWritingTool('keypoints')}
-                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
+                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer"
                             >
                               <div className="w-5.5 h-5.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
                                 <SFListBullet size={12.5} />
@@ -6294,7 +5393,7 @@ export const QuickNoteWindow: React.FC = () => {
                               type="button"
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => handleExecuteSelectedWritingTool('professional')}
-                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
+                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer"
                             >
                               <div className="w-5.5 h-5.5 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
                                 <SFBriefcase size={12.5} />
@@ -6306,7 +5405,7 @@ export const QuickNoteWindow: React.FC = () => {
                               type="button"
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => handleExecuteSelectedWritingTool('concise')}
-                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
+                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer"
                             >
                               <div className="w-5.5 h-5.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                                 <SFTextQuote size={12.5} />
@@ -6318,7 +5417,7 @@ export const QuickNoteWindow: React.FC = () => {
                               type="button"
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => handleExecuteSelectedWritingTool('proofread')}
-                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
+                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer"
                             >
                               <div className="w-5.5 h-5.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
                                 <SFCheckmarkCircle size={12.5} />
@@ -6330,7 +5429,7 @@ export const QuickNoteWindow: React.FC = () => {
                               type="button"
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => handleExecuteSelectedWritingTool('expand')}
-                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
+                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer"
                             >
                               <div className="w-5.5 h-5.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                                 <SFSquareAndPencil size={12.5} />
@@ -6342,7 +5441,7 @@ export const QuickNoteWindow: React.FC = () => {
                               type="button"
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => handleExecuteSelectedWritingTool('action_items')}
-                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
+                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer"
                             >
                               <div className="w-5.5 h-5.5 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
                                 <SFCheckmarkSquare size={12.5} />
@@ -6354,7 +5453,7 @@ export const QuickNoteWindow: React.FC = () => {
                               type="button"
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => handleExecuteSelectedWritingTool('translate_en')}
-                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
+                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer"
                             >
                               <div className="w-5.5 h-5.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
                                 <SFGlobe size={12.5} />
@@ -6366,7 +5465,7 @@ export const QuickNoteWindow: React.FC = () => {
                               type="button"
                               onMouseDown={(e) => e.preventDefault()}
                               onClick={() => handleExecuteSelectedWritingTool('translate_vi')}
-                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer"
+                              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-[12px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/10 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer"
                             >
                               <div className="w-5.5 h-5.5 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
                                 <SFGlobe size={12.5} />
@@ -6412,7 +5511,7 @@ export const QuickNoteWindow: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.12] dark:hover:bg-white/[0.18] hover:brightness-110 text-[#0071e3] dark:text-[#2997ff] border border-black/[0.05] dark:border-white/[0.08] transition-all cursor-pointer active:scale-90 shadow-2xs hover:shadow-xs"
+                      className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.12] dark:hover:bg-white/[0.18] hover:brightness-110 text-[#0071e3] dark:text-[#2997ff] border border-black/[0.05] dark:border-white/[0.08] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer active:scale-90 shadow-2xs hover:shadow-xs"
                       title="Chèn hình ảnh trực tiếp vào văn bản (Hỗ trợ kéo thả & dán)"
                       aria-label="Thêm hình ảnh"
                     >
@@ -6424,7 +5523,7 @@ export const QuickNoteWindow: React.FC = () => {
                       type="button"
                       disabled={isCapturingScreen}
                       onClick={handleStartSnipping}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center border border-black/[0.05] dark:border-white/[0.08] transition-all cursor-pointer active:scale-90 shadow-2xs ${
+                      className={`w-8 h-8 rounded-full flex items-center justify-center border border-black/[0.05] dark:border-white/[0.08] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer active:scale-90 shadow-2xs ${
                         isCapturingScreen
                           ? 'bg-amber-500/25 text-amber-600 animate-pulse'
                           : 'bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.12] dark:hover:bg-white/[0.18] hover:brightness-110 text-amber-500 dark:text-amber-400 hover:shadow-xs'
@@ -6439,7 +5538,7 @@ export const QuickNoteWindow: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => attachmentInputRef.current?.click()}
-                      className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.12] dark:hover:bg-white/[0.18] hover:brightness-110 text-emerald-600 dark:text-emerald-400 border border-black/[0.05] dark:border-white/[0.08] transition-all cursor-pointer active:scale-90 shadow-2xs hover:shadow-xs"
+                      className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.12] dark:hover:bg-white/[0.18] hover:brightness-110 text-emerald-600 dark:text-emerald-400 border border-black/[0.05] dark:border-white/[0.08] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer active:scale-90 shadow-2xs hover:shadow-xs"
                       title="Đính kèm tệp tin đa dạng (PDF, Word, Excel, ZIP, Text... vào văn bản)"
                       aria-label="Đính kèm tệp tin"
                     >
@@ -6453,7 +5552,7 @@ export const QuickNoteWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleCopyNote}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer active:scale-90 ${
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-[transform,opacity] cursor-pointer active:scale-90 ${
                       copied
                         ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shadow-xs scale-105'
                         : 'text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-white dark:hover:bg-[#2c2c2e] hover:shadow-xs'
@@ -6475,7 +5574,7 @@ export const QuickNoteWindow: React.FC = () => {
                         setNoteToDelete({ id: activeNote.id, title: activeNote.title?.trim() || 'Ghi chú hiện tại' });
                       }
                     }}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-[#76767b] hover:text-rose-600 hover:bg-rose-500/15 transition-all cursor-pointer active:scale-90 hover:shadow-xs"
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-[#76767b] hover:text-rose-600 hover:bg-rose-500/15 transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer active:scale-90 hover:shadow-xs"
                     title="Xóa ghi chú này"
                     aria-label="Xóa ghi chú"
                   >
@@ -6493,7 +5592,7 @@ export const QuickNoteWindow: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleCreateNewNote(typeFilter === 'checklist' ? 'checklist' : 'note')}
-                className={`mt-3 px-4 py-1.5 rounded-full text-white text-xs font-semibold shadow-xs transition-all cursor-pointer active:scale-95 ${
+                className={`mt-3 px-4 py-1.5 rounded-full text-white text-xs font-semibold shadow-xs transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer active:scale-95 ${
                   typeFilter === 'checklist'
                     ? 'bg-[#0071e3] hover:bg-[#0077ed]'
                     : 'bg-amber-500 hover:bg-amber-600'
@@ -6551,28 +5650,28 @@ export const QuickNoteWindow: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleApplyPreset(30)}
-                className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-all text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
+                className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-[transform,opacity,background-color,border-color,color,box-shadow] text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
               >
                 ⚡ Sau 30 phút nữa
               </button>
               <button
                 type="button"
                 onClick={() => handleApplyPresetTime(15, 0)}
-                className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-all text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
+                className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-[transform,opacity,background-color,border-color,color,box-shadow] text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
               >
                 ☀️ Chiều nay 15:00
               </button>
               <button
                 type="button"
                 onClick={() => handleApplyPresetTime(9, 0, true)}
-                className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-all text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
+                className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-[transform,opacity,background-color,border-color,color,box-shadow] text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
               >
                 🌅 Sáng mai 09:00
               </button>
               <button
                 type="button"
                 onClick={handleApplyNextMonday}
-                className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-all text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
+                className="px-3 py-2 rounded-xl text-[12px] font-medium bg-black/[0.03] dark:bg-white/[0.06] hover:bg-amber-500/15 text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-amber-700 dark:hover:text-amber-300 transition-[transform,opacity,background-color,border-color,color,box-shadow] text-left border border-black/[0.06] dark:border-white/10 hover:border-amber-500/30 cursor-pointer shadow-2xs active:scale-[0.98]"
               >
                 📅 Thứ Hai tới 08:30
               </button>
@@ -6658,7 +5757,7 @@ export const QuickNoteWindow: React.FC = () => {
                       type="button"
                       disabled={isSendingTestEmail}
                       onClick={handleSendTestEmail}
-                      className="px-3 py-2 rounded-xl text-[11.5px] font-medium bg-[#0071e3]/10 hover:bg-[#0071e3]/20 text-[#0071e3] dark:text-[#2997ff] border border-[#0071e3]/20 flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 shrink-0"
+                      className="px-3 py-2 rounded-xl text-[11.5px] font-medium bg-[#0071e3]/10 hover:bg-[#0071e3]/20 text-[#0071e3] dark:text-[#2997ff] border border-[#0071e3]/20 flex items-center gap-1.5 transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer disabled:opacity-50 shrink-0"
                       title="Gửi thử một email mẫu để kiểm tra hòm thư"
                     >
                       {isSendingTestEmail ? <SFArrowClockwise size={12} className="animate-spin" /> : <SFPaperplaneFill size={12} />}
@@ -6722,7 +5821,7 @@ export const QuickNoteWindow: React.FC = () => {
                         type="button"
                         disabled={isConfiguringSmtp}
                         onClick={handleSaveSmtpConfig}
-                        className="w-full py-1.5 rounded-lg bg-[#0071e3] text-white font-semibold text-[11.5px] hover:bg-[#0077ed] transition-all cursor-pointer disabled:opacity-50"
+                        className="w-full py-1.5 rounded-lg bg-[#0071e3] text-white font-semibold text-[11.5px] hover:bg-[#0077ed] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer disabled:opacity-50"
                       >
                         {isConfiguringSmtp ? 'Đang kiểm tra kết nối...' : 'Lưu & Kích hoạt gửi thư'}
                       </button>
@@ -6757,7 +5856,7 @@ export const QuickNoteWindow: React.FC = () => {
             <button
               type="button"
               onClick={handleSaveReminder}
-              className="px-4.5 py-1.5 rounded-full text-[12px] font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-xs transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+              className="px-4.5 py-1.5 rounded-full text-[12px] font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-xs transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer active:scale-95 whitespace-nowrap"
             >
               Lưu lịch nhắc
             </button>
@@ -6924,7 +6023,7 @@ export const QuickNoteWindow: React.FC = () => {
                     );
                     setTodoReminderTarget(null);
                   }}
-                  className="px-4 py-1.5 rounded-full text-[12px] font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-xs transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+                  className="px-4 py-1.5 rounded-full text-[12px] font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-xs transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer active:scale-95 whitespace-nowrap"
                 >
                   Lưu hẹn giờ
                 </button>
@@ -6996,7 +6095,7 @@ export const QuickNoteWindow: React.FC = () => {
                 <div
                   key={i}
                   className={cn(
-                    "w-4 h-4 rounded-full transition-all duration-150",
+                    "w-4 h-4 rounded-full transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150",
                     lockConfigMismatch
                       ? "bg-rose-500 shadow-xs scale-110"
                       : isFilled
@@ -7214,7 +6313,7 @@ export const QuickNoteWindow: React.FC = () => {
                 <div
                   key={i}
                   className={cn(
-                    "w-4 h-4 rounded-full transition-all duration-150",
+                    "w-4 h-4 rounded-full transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150",
                     lockRemoveMismatch
                       ? "bg-rose-500 shadow-xs scale-110"
                       : isFilled
@@ -7341,7 +6440,7 @@ export const QuickNoteWindow: React.FC = () => {
               <header
                 onClick={(e) => e.stopPropagation()}
                 className={cn(
-                  "w-full max-w-xl flex items-center justify-between px-4 py-2 rounded-full bg-white/10 dark:bg-white/[0.08] backdrop-blur-3xl border border-white/20 shadow-[0_12px_40px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.3)] text-white shrink-0 z-20 transition-all duration-200 ease-out",
+                  "w-full max-w-xl flex items-center justify-between px-4 py-2 rounded-full bg-white/10 dark:bg-white/[0.08] backdrop-blur-3xl border border-white/20 shadow-[0_12px_40px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.3)] text-white shrink-0 z-20 transition-colors duration-200 ease-out",
                   lightboxPresence.isExiting
                     ? "-translate-y-4 opacity-0 scale-95 pointer-events-none"
                     : "translate-y-0 opacity-100 scale-100"
@@ -7366,7 +6465,7 @@ export const QuickNoteWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsEditingImage(true)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 active:scale-90 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 cursor-pointer shadow-xs shrink-0"
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 active:scale-90 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-out hover:scale-105 cursor-pointer shadow-xs shrink-0"
                     title="Chỉnh sửa ảnh (Bút vẽ, Dạ quang, Text, Khung) - Phím E"
                   >
                     <SFPencil size={14} />
@@ -7377,7 +6476,7 @@ export const QuickNoteWindow: React.FC = () => {
                     type="button"
                     onClick={() => handleExtractImageText(activeImg)}
                     disabled={isExtractingText}
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 active:scale-90 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 cursor-pointer shadow-xs shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 active:scale-90 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-out hover:scale-105 cursor-pointer shadow-xs shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
                     title="Trích xuất văn bản từ ảnh (OCR)"
                   >
                     {isExtractingText
@@ -7389,7 +6488,7 @@ export const QuickNoteWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleCopyImage(activeImg)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 active:scale-90 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 cursor-pointer shadow-xs shrink-0"
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/25 active:scale-90 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-out hover:scale-105 cursor-pointer shadow-xs shrink-0"
                     title="Sao chép ảnh (Ctrl+C)"
                   >
                     <SFSquareOnSquare size={14} />
@@ -7398,7 +6497,7 @@ export const QuickNoteWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => downloadImage(activeImg.url, activeImg.name)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-90 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 cursor-pointer shadow-xs shrink-0"
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-90 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-out hover:scale-105 cursor-pointer shadow-xs shrink-0"
                     title="Tải ảnh về máy"
                   >
                     <SFArrowDownToLine size={14} />
@@ -7411,7 +6510,7 @@ export const QuickNoteWindow: React.FC = () => {
                       setLightboxImage(null);
                       handleResetLightboxZoom();
                     }}
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white border border-red-500/30 hover:border-red-500 active:scale-90 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 cursor-pointer shadow-[0_2px_8px_rgba(239,68,68,0.25)] shrink-0"
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white border border-red-500/30 hover:border-red-500 active:scale-90 backdrop-blur-xl transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-out hover:scale-105 cursor-pointer shadow-[0_2px_8px_rgba(239,68,68,0.25)] shrink-0"
                     title="Xóa ảnh khỏi ghi chú"
                   >
                     <SFTrash size={14} />
@@ -7425,7 +6524,7 @@ export const QuickNoteWindow: React.FC = () => {
                       handleResetLightboxZoom();
                     }}
                     size="md"
-                    className="w-8 h-8 min-w-[32px] min-h-[32px] bg-white/15 hover:bg-white/25 text-white border border-white/20 backdrop-blur-xl transition-all duration-200 ease-out hover:scale-105 active:scale-90 shadow-xs"
+                    className="w-8 h-8 min-w-[32px] min-h-[32px] bg-white/15 hover:bg-white/25 text-white border border-white/20 backdrop-blur-xl transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-out hover:scale-105 active:scale-90 shadow-xs"
                     title="Đóng xem ảnh (Esc)"
                   />
                 </div>
@@ -7451,7 +6550,7 @@ export const QuickNoteWindow: React.FC = () => {
                       handlePrevImage();
                     }}
                     className={cn(
-                      "absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 active:scale-90 text-white backdrop-blur-2xl border border-white/15 flex items-center justify-center transition-all cursor-pointer shadow-lg z-20",
+                      "absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 active:scale-90 text-white backdrop-blur-2xl border border-white/15 flex items-center justify-center transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer shadow-lg z-20",
                       lightboxPresence.isExiting && "opacity-0 scale-90 pointer-events-none"
                     )}
                     title="Ảnh trước (Phím Mũi tên trái)"
@@ -7514,7 +6613,7 @@ export const QuickNoteWindow: React.FC = () => {
                     style={{
                       transform: `translate3d(${lightboxPan.x}px, ${lightboxPan.y}px, 0) scale(${lightboxZoom})`,
                       cursor: lightboxZoom > 1 ? (isLightboxPanning ? 'grabbing' : 'grab') : 'zoom-in',
-                      transition: isLightboxPanning ? 'none' : 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+                      transition: isLightboxPanning ? 'none' : 'transform var(--motion-duration-popover) var(--motion-ease-spring)',
                     }}
                     className="max-h-[calc(100vh-170px)] max-w-[90vw] object-contain rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.85),0_4px_16px_rgba(0,0,0,0.5)] border border-white/15 select-none will-change-transform"
                   />
@@ -7529,7 +6628,7 @@ export const QuickNoteWindow: React.FC = () => {
                       handleNextImage();
                     }}
                     className={cn(
-                      "absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 active:scale-90 text-white backdrop-blur-2xl border border-white/15 flex items-center justify-center transition-all cursor-pointer shadow-lg z-20",
+                      "absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 active:scale-90 text-white backdrop-blur-2xl border border-white/15 flex items-center justify-center transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer shadow-lg z-20",
                       lightboxPresence.isExiting && "opacity-0 scale-90 pointer-events-none"
                     )}
                     title="Ảnh kế tiếp (Phím Mũi tên phải)"
@@ -7543,7 +6642,7 @@ export const QuickNoteWindow: React.FC = () => {
               <footer
                 onClick={(e) => e.stopPropagation()}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-2 rounded-full bg-white/10 dark:bg-white/[0.08] backdrop-blur-3xl border border-white/20 shadow-[0_12px_40px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.3)] text-white text-[12px] shrink-0 z-20 transition-all duration-200 ease-out",
+                  "flex items-center gap-3 px-4 py-2 rounded-full bg-white/10 dark:bg-white/[0.08] backdrop-blur-3xl border border-white/20 shadow-[0_12px_40px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.3)] text-white text-[12px] shrink-0 z-20 transition-colors duration-200 ease-out",
                   lightboxPresence.isExiting
                     ? "translate-y-4 opacity-0 scale-95 pointer-events-none"
                     : "translate-y-0 opacity-100 scale-100"
@@ -7552,7 +6651,7 @@ export const QuickNoteWindow: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleZoomOutLightbox}
-                  className="w-7 h-7 rounded-full hover:bg-white/15 active:scale-90 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer text-sm font-bold"
+                  className="w-7 h-7 rounded-full hover:bg-white/15 active:scale-90 text-white/80 hover:text-white flex items-center justify-center transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer text-sm font-bold"
                   title="Thu nhỏ (-)"
                 >
                   -
@@ -7561,7 +6660,7 @@ export const QuickNoteWindow: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleResetLightboxZoom}
-                  className="px-2.5 py-0.5 rounded-full hover:bg-white/15 active:scale-95 text-white/80 hover:text-white transition-all cursor-pointer font-mono text-[11px]"
+                  className="px-2.5 py-0.5 rounded-full hover:bg-white/15 active:scale-95 text-white/80 hover:text-white transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer font-mono text-[11px]"
                   title="Tỉ lệ ban đầu 100% (Phím 0 hoặc nhấp đúp)"
                 >
                   {Math.round(lightboxZoom * 100)}%
@@ -7570,7 +6669,7 @@ export const QuickNoteWindow: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleZoomInLightbox}
-                  className="w-7 h-7 rounded-full hover:bg-white/15 active:scale-90 text-white/80 hover:text-white flex items-center justify-center transition-all cursor-pointer text-sm font-bold"
+                  className="w-7 h-7 rounded-full hover:bg-white/15 active:scale-90 text-white/80 hover:text-white flex items-center justify-center transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer text-sm font-bold"
                   title="Phóng to (+)"
                 >
                   +
@@ -7602,7 +6701,7 @@ export const QuickNoteWindow: React.FC = () => {
         title={currentFilePreview ? `Xem trước tệp ${currentFilePreview.name}` : 'Xem trước tệp'}
         overlayClassName={isPreviewFullscreen ? "p-0" : "p-3 sm:p-6"}
         contentClassName={cn(
-          "relative bg-white dark:bg-[#1c1c24] flex flex-col overflow-hidden transition-all duration-220 ease-spring will-change-[width,height,transform]",
+          "relative bg-white dark:bg-[#1c1c24] flex flex-col overflow-hidden transition-[transform,opacity] duration-220 ease-spring will-change-transform",
           isPreviewFullscreen
             ? "fixed inset-0 w-full h-full max-w-none max-h-none rounded-none shadow-none border-0 z-50"
             : "w-full max-w-4xl h-[85vh] max-h-[850px] rounded-2xl shadow-[0_24px_70px_rgba(0,0,0,0.55)] border border-black/10 dark:border-white/12"
@@ -7644,7 +6743,7 @@ export const QuickNoteWindow: React.FC = () => {
                         });
                         setIsEditingImage(true);
                       }}
-                      className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs shrink-0"
+                      className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs shrink-0"
                       title="Chỉnh sửa hình ảnh"
                     >
                       <SFPencil size={14} />
@@ -7667,7 +6766,7 @@ export const QuickNoteWindow: React.FC = () => {
                         setTimeout(() => a.remove(), 120);
                       }
                     }}
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs shrink-0"
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs shrink-0"
                     title="Tải xuống tệp tin"
                   >
                     <SFArrowDownToLine size={14} />
@@ -7677,7 +6776,7 @@ export const QuickNoteWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleDeleteFileFromPreview(currentFilePreview.url, currentFilePreview.name, currentFilePreview.fileId)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs shrink-0"
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs shrink-0"
                     title="Xóa tệp này khỏi ghi chú"
                   >
                     <SFTrash size={14} />
@@ -7687,7 +6786,7 @@ export const QuickNoteWindow: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsPreviewFullscreen((prev) => !prev)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-all duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs shrink-0"
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-out hover:scale-105 active:scale-90 cursor-pointer shadow-2xs shrink-0"
                     title={isPreviewFullscreen ? 'Thu nhỏ cửa sổ' : 'Phóng to toàn màn hình'}
                   >
                     {isPreviewFullscreen ? <SFArrowDownRightAndArrowUpLeft size={14} /> : <SFArrowUpLeftAndArrowDownRight size={14} />}
@@ -7700,7 +6799,7 @@ export const QuickNoteWindow: React.FC = () => {
                       setIsPreviewFullscreen(false);
                     }}
                     size="md"
-                    className="w-8 h-8 min-w-[32px] min-h-[32px] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-all duration-200 ease-out hover:scale-105 active:scale-90 shadow-2xs"
+                    className="w-8 h-8 min-w-[32px] min-h-[32px] bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.16] text-[#48484a] hover:text-[#1d1d1f] dark:text-[#ebebf5] dark:hover:text-white border border-black/[0.06] dark:border-white/10 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-out hover:scale-105 active:scale-90 shadow-2xs"
                     title="Đóng xem trước (Esc)"
                   />
                 </div>
@@ -7738,7 +6837,7 @@ export const QuickNoteWindow: React.FC = () => {
                               key={s.name + idx}
                               type="button"
                               onClick={() => setExcelPreview({ ...excelPreview, activeSheetIndex: idx })}
-                              className={`px-3 py-1 rounded-full text-[12px] font-medium transition-all cursor-pointer whitespace-nowrap ${
+                              className={`px-3 py-1 rounded-full text-[12px] font-medium transition-colors cursor-pointer whitespace-nowrap ${
                                 excelPreview.activeSheetIndex === idx
                                   ? 'bg-[#217346] text-white shadow-xs font-semibold'
                                   : 'text-[#6e6e73] dark:text-[#a1a1a6] hover:bg-black/5 dark:hover:bg-white/10'
@@ -7955,7 +7054,7 @@ export const QuickNoteWindow: React.FC = () => {
                           setTimeout(() => a.remove(), 120);
                         }
                       }}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[13px] font-semibold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[13px] font-semibold shadow-md hover:shadow-lg transition-[transform,opacity,background-color,border-color,color,box-shadow] active:scale-95 cursor-pointer"
                     >
                       <SFArrowDownToLine size={14} />
                       <span>Tải xuống tệp tin ({currentFilePreview.size || 'tệp đính kèm'})</span>
@@ -8041,7 +7140,7 @@ export const QuickNoteWindow: React.FC = () => {
               <button
                 type="button"
                 onClick={() => handleInsertOcrText(extractedOcrText)}
-                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-[12.5px] font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-xs transition-all cursor-pointer active:scale-95"
+                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-[12.5px] font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white shadow-xs transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer active:scale-95"
               >
                 <SFTextBadgePlus size={13} />
                 <span>Thêm vào ghi chú</span>

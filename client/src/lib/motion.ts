@@ -26,6 +26,7 @@ export const motionTokens = {
     sidebar:    260,  // sidebar width morph
     modal:      280,  // modal sheet entrance
     spatial:    300,  // large spatial transitions (window open)
+    themeIris:  380,  // circular iris theme transition
   },
   easing: {
     // Apple's signature: immediate acceleration, ultra-smooth overshooting deceleration
@@ -40,6 +41,8 @@ export const motionTokens = {
     exit:        'cubic-bezier(0.3, 0, 0.8, 0.15)',
     // Subtle physical badge bounce (slight overshoot)
     subtleBounce:'cubic-bezier(0.34, 1.18, 0.64, 1)',
+    // Theme iris clip-path curve
+    iris:        'cubic-bezier(0.2, 0, 0, 1)',
     // Linear for shimmer/orb float
     linear:      'linear',
   },
@@ -177,7 +180,7 @@ export function useAppleTabSpring(
     rafId: 0,
   });
 
-  const snap = useCallback((pos: number, size: number) => {
+    const snap = useCallback((pos: number, size: number) => {
     const pill = pillRef.current;
     if (!pill) return;
     if (isVertical) {
@@ -187,6 +190,7 @@ export function useAppleTabSpring(
       pill.style.transform = `translate3d(${pos}px, 0, 0) scale(1, 1)`;
       pill.style.width = `${size}px`;
     }
+    pill.style.willChange = 'auto';
     pill.style.opacity = '1';
   }, [pillRef, isVertical]);
 
@@ -237,6 +241,7 @@ export function useAppleTabSpring(
 
     state.lastTime = performance.now();
     state.animating = true;
+    pill.style.willChange = isVertical ? 'transform, height' : 'transform, width';
 
     const step = (now: number) => {
       if (!state.animating) return;
@@ -310,7 +315,9 @@ export function useAppleTabSpring(
     state.rafId = requestAnimationFrame(step);
 
     return () => {
+      state.animating = false;
       if (state.rafId) cancelAnimationFrame(state.rafId);
+      pill.style.willChange = 'auto';
     };
   }, [activeTabId, stiffness, damping, mass, allowDeformation, isVertical, reducedMotion, snap]);
 
@@ -469,6 +476,7 @@ export function useLiquidPress(options: LiquidPressOptions = {}) {
     if (spring.rafId) cancelAnimationFrame(spring.rafId);
     spring.animating = true;
     spring.lastTime = performance.now();
+    el.style.willChange = 'transform';
 
     const step = (now: number) => {
       if (!spring.animating) return;
@@ -491,6 +499,7 @@ export function useLiquidPress(options: LiquidPressOptions = {}) {
         spring.velocity  = 0;
         spring.animating = false;
         el.style.transform = spring.target === 1 ? '' : `scale3d(${spring.target}, ${spring.target}, 1)`;
+        el.style.willChange = 'auto';
         return;
       }
 
@@ -518,7 +527,6 @@ export function useLiquidPress(options: LiquidPressOptions = {}) {
     const el = ref.current;
     if (!el || !enabled) return;
 
-    el.style.willChange = 'transform';
     el.addEventListener('pointerdown', onPointerDown);
     el.addEventListener('pointerup', onPointerUp);
     el.addEventListener('pointercancel', onPointerUp);

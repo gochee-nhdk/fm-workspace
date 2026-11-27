@@ -545,3 +545,62 @@ export interface SearchResult {
   subtitle: string;
   url: string;
 }
+
+// ---- Serverless Cloud API Contracts ----
+
+export interface HealthResponse {
+  status: 'ok' | 'error';
+  service: string;
+  db: {
+    connected: boolean;
+    mode?: 'turso' | 'local';
+  };
+  timestamp: string;
+}
+
+export interface GeminiKeyPoolItem {
+  id: string;
+  name: string;
+  key: string;
+  rawKeyPreview?: string;
+  provider?: string;
+  isActive: boolean;
+  status: string;
+  statusMessage?: string;
+  model?: string;
+  lastCheckedAt?: string;
+}
+
+export interface SmtpStatusResponse {
+  success: boolean;
+  configured: boolean;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUser?: string | null;
+  fullUser?: string | null;
+  senderName?: string;
+  message?: string;
+}
+
+export interface SyncBackupRequest {
+  backupType?: 'auto' | 'manual' | 'snapshot';
+  deviceName?: string;
+  checksum: string;
+  itemCounts?: Record<string, number>;
+  payload: string;
+  payloadEncoding?: 'plain' | 'gzip-base64';
+  isEncrypted?: boolean;
+}
+
+export interface SyncBackupRecord {
+  id: string;
+  user_id?: string;
+  backup_type: string;
+  device_name: string;
+  checksum: string;
+  item_counts: Record<string, number>;
+  payload?: string;
+  is_encrypted: boolean;
+  size_bytes?: number;
+  created_at: string;
+}

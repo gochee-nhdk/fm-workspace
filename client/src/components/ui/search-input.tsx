@@ -36,7 +36,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
   return (
     <div
       className={cn(
-        'group relative flex items-center rounded-full w-full max-w-xs transition-all duration-200 ease-spring',
+        'group relative flex items-center rounded-full w-full max-w-xs transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-spring',
         'bg-white/80 dark:bg-white/[0.08] backdrop-blur-xl',
         'border border-black/10 dark:border-white/12 hover:border-black/20 dark:hover:border-white/20 shadow-2xs',
         'focus-within:border-[#0088FF] dark:focus-within:border-[#0091FF] focus-within:ring-2 focus-within:ring-[#0088FF]/30 dark:focus-within:ring-[#0091FF]/35 focus-within:shadow-[0_0_12px_rgba(0,136,255,0.25)] focus-within:bg-white dark:focus-within:bg-[#1c1c22]',

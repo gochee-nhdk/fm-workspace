@@ -79,7 +79,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="ambient-glow-sunset opacity-35 pointer-events-none" />
 
           {/* Liquid Glass Error Card */}
-          <div className="relative w-full max-w-lg p-6 sm:p-8 rounded-[32px] backdrop-blur-3xl bg-white/85 dark:bg-[#18181e]/85 border border-white/80 dark:border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.12),inset_0_1.5px_1px_rgba(255,255,255,1),inset_0_-1px_1.5px_rgba(0,0,0,0.06)] dark:shadow-[0_28px_90px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.18)] flex flex-col items-center text-center z-10 transition-all duration-300">
+          <div className="relative w-full max-w-lg p-6 sm:p-8 rounded-[32px] backdrop-blur-3xl bg-white/85 dark:bg-[#18181e]/85 border border-white/80 dark:border-white/15 shadow-[0_24px_80px_rgba(0,0,0,0.12),inset_0_1.5px_1px_rgba(255,255,255,1),inset_0_-1px_1.5px_rgba(0,0,0,0.06)] dark:shadow-[0_28px_90px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.18)] flex flex-col items-center text-center z-10 transition-colors duration-300">
             {/* Top Specular Meniscus Highlight */}
             <div className="absolute inset-x-0 top-0 h-[1.5px] bg-gradient-to-r from-transparent via-white/90 dark:via-white/20 to-transparent pointer-events-none" />
 
@@ -159,7 +159,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={this.handleReset}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-b from-[#0088FF] to-[#0062cc] text-white font-semibold text-[13px] shadow-[0_6px_20px_rgba(0,136,255,0.35),inset_0_1.5px_1px_rgba(255,255,255,0.65)] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-b from-[#0088FF] to-[#0062cc] text-white font-semibold text-[13px] shadow-[0_6px_20px_rgba(0,136,255,0.35),inset_0_1.5px_1px_rgba(255,255,255,0.65)] hover:scale-[1.02] active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer"
               >
                 <SFArrowCounterclockwise size={14} />
                 <span>Tải lại trang</span>
@@ -168,7 +168,7 @@ export class ErrorBoundary extends Component<Props, State> {
               <button
                 type="button"
                 onClick={this.handleGoHome}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] font-medium text-[13px] border border-black/[0.06] dark:border-white/10 active:scale-[0.98] transition-all cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full bg-black/[0.04] dark:bg-white/[0.08] hover:bg-black/[0.08] dark:hover:bg-white/[0.14] text-[#1d1d1f] dark:text-[#f5f5f7] font-medium text-[13px] border border-black/[0.06] dark:border-white/10 active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer"
               >
                 <SFHouse size={14} />
                 <span>Về trang chủ</span>

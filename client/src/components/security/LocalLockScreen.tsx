@@ -124,7 +124,7 @@ export const LocalLockScreen: React.FC = () => {
           e.stopPropagation();
           inputRef.current?.focus();
         }}
-        className={`w-full max-w-[340px] bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/12 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] p-6 text-center space-y-4 relative cursor-default transition-all duration-200 ${
+        className={`w-full max-w-[340px] bg-white/95 dark:bg-[#1c1c24]/95 backdrop-blur-2xl rounded-[26px] border border-white/60 dark:border-white/12 shadow-[0_24px_60px_rgba(0,0,0,0.16),0_2px_8px_rgba(0,0,0,0.06),inset_0_1px_0_rgba(255,255,255,0.8)] dark:shadow-[0_24px_60px_rgba(0,0,0,0.7),0_2px_8px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] p-6 text-center space-y-4 relative cursor-default transition-colors duration-200 ${
           isShaking ? 'apple-shake border-rose-500/50 shadow-[0_24px_60px_rgba(244,63,94,0.25)] ring-2 ring-rose-500/30' : ''
         }`}
       >
@@ -154,7 +154,7 @@ export const LocalLockScreen: React.FC = () => {
             return (
               <div
                 key={i}
-                className={`w-4 h-4 rounded-full transition-all duration-200 ease-spring ${
+                className={`w-4 h-4 rounded-full transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-spring ${
                   isError
                     ? 'bg-rose-500 shadow-xs scale-110'
                     : isFilled
@@ -228,7 +228,7 @@ export const LocalLockScreen: React.FC = () => {
                 key={digit}
                 type="button"
                 onClick={() => handleDigit(digit)}
-                className="h-11 rounded-2xl text-[17px] font-medium font-sans tracking-tight bg-black/[0.04] dark:bg-white/[0.07] hover:bg-[#0071e3]/15 dark:hover:bg-[#2997ff]/25 active:bg-[#0071e3]/30 dark:active:bg-[#2997ff]/40 text-[#1d1d1f] dark:text-white border border-black/5 dark:border-white/10 shadow-xs hover:shadow-sm hover:scale-[1.04] active:scale-[0.88] transition-all duration-150 ease-spring cursor-pointer flex items-center justify-center select-none will-change-transform"
+                className="h-11 rounded-2xl text-[17px] font-medium font-sans tracking-tight bg-black/[0.04] dark:bg-white/[0.07] hover:bg-[#0071e3]/15 dark:hover:bg-[#2997ff]/25 active:bg-[#0071e3]/30 dark:active:bg-[#2997ff]/40 text-[#1d1d1f] dark:text-white border border-black/5 dark:border-white/10 shadow-xs hover:shadow-sm hover:scale-[1.04] active:scale-[0.88] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 ease-spring cursor-pointer flex items-center justify-center select-none will-change-transform"
               >
                 {digit}
               </button>
@@ -240,21 +240,21 @@ export const LocalLockScreen: React.FC = () => {
                 setIsError(false);
                 inputRef.current?.focus();
               }}
-              className="h-11 rounded-2xl text-[12px] font-medium text-[#86868b] dark:text-[#a1a1a6] bg-black/[0.02] dark:bg-white/[0.04] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] active:bg-black/10 dark:active:bg-white/15 border border-black/5 dark:border-white/10 hover:scale-[1.04] active:scale-[0.88] transition-all duration-150 ease-spring cursor-pointer flex items-center justify-center select-none will-change-transform"
+              className="h-11 rounded-2xl text-[12px] font-medium text-[#86868b] dark:text-[#a1a1a6] bg-black/[0.02] dark:bg-white/[0.04] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] active:bg-black/10 dark:active:bg-white/15 border border-black/5 dark:border-white/10 hover:scale-[1.04] active:scale-[0.88] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 ease-spring cursor-pointer flex items-center justify-center select-none will-change-transform"
             >
               Làm mới
             </button>
             <button
               type="button"
               onClick={() => handleDigit('0')}
-              className="h-11 rounded-2xl text-[17px] font-medium font-sans tracking-tight bg-black/[0.04] dark:bg-white/[0.07] hover:bg-[#0071e3]/15 dark:hover:bg-[#2997ff]/25 active:bg-[#0071e3]/30 dark:active:bg-[#2997ff]/40 text-[#1d1d1f] dark:text-white border border-black/5 dark:border-white/10 shadow-xs hover:shadow-sm hover:scale-[1.04] active:scale-[0.88] transition-all duration-150 ease-spring cursor-pointer flex items-center justify-center select-none will-change-transform"
+              className="h-11 rounded-2xl text-[17px] font-medium font-sans tracking-tight bg-black/[0.04] dark:bg-white/[0.07] hover:bg-[#0071e3]/15 dark:hover:bg-[#2997ff]/25 active:bg-[#0071e3]/30 dark:active:bg-[#2997ff]/40 text-[#1d1d1f] dark:text-white border border-black/5 dark:border-white/10 shadow-xs hover:shadow-sm hover:scale-[1.04] active:scale-[0.88] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 ease-spring cursor-pointer flex items-center justify-center select-none will-change-transform"
             >
               0
             </button>
             <button
               type="button"
               onClick={handleBackspace}
-              className="h-11 rounded-2xl text-[14px] text-[#86868b] dark:text-[#a1a1a6] bg-black/[0.02] dark:bg-white/[0.04] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] active:bg-black/10 dark:active:bg-white/15 border border-black/5 dark:border-white/10 hover:scale-[1.04] active:scale-[0.88] transition-all duration-150 ease-spring cursor-pointer flex items-center justify-center select-none will-change-transform"
+              className="h-11 rounded-2xl text-[14px] text-[#86868b] dark:text-[#a1a1a6] bg-black/[0.02] dark:bg-white/[0.04] hover:bg-black/[0.06] dark:hover:bg-white/[0.1] active:bg-black/10 dark:active:bg-white/15 border border-black/5 dark:border-white/10 hover:scale-[1.04] active:scale-[0.88] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 ease-spring cursor-pointer flex items-center justify-center select-none will-change-transform"
             >
               <SFDeleteLeft size={16} />
             </button>

@@ -62,7 +62,8 @@ export const CloseButton = React.forwardRef<HTMLButtonElement, CloseButtonProps>
           'group relative inline-flex items-center justify-center rounded-full shrink-0 select-none cursor-pointer',
           'bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 active:bg-black/15 dark:active:bg-white/25',
           'text-[#76767b] hover:text-[#1d1d1f] dark:text-[#a1a1a6] dark:hover:text-white',
-          'transition-all duration-150 ease-out active:scale-90',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0088FF]/50 dark:focus-visible:ring-[#0091FF]/60',
+          'transition-[transform,background-color,color] duration-150 ease-out active:scale-90',
           sizeConfig.btn,
           className
         )}

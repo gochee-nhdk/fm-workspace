@@ -57,7 +57,7 @@ export const LinkTableRow = React.memo<LinkTableRowProps>(({
       onDragLeave={(e) => onDragLeave(item.id, e)}
       onDrop={(e) => onDrop(item.id, e)}
       onDragEnd={onDragEnd}
-      className={`content-auto transition-all duration-200 ease-spring group relative ${
+      className={`content-auto transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-spring group relative ${
         isDragged
           ? 'opacity-30 bg-[#0066cc]/5 dark:bg-[#2997ff]/5'
           : isSelected
@@ -89,7 +89,7 @@ export const LinkTableRow = React.memo<LinkTableRowProps>(({
         <button
           type="button"
           onClick={(e) => onToggleFavorite(item.id, e)}
-          className="text-[#cccccc] hover:text-amber-500 transition-all duration-150 active:scale-75 cursor-pointer p-1 touch-manipulation"
+          className="text-[#cccccc] hover:text-amber-500 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 active:scale-75 cursor-pointer p-1 touch-manipulation"
           title={item.favorite ? 'Bỏ yêu thích' : 'Đánh dấu yêu thích'}
         >
           {item.favorite ? (
@@ -104,7 +104,7 @@ export const LinkTableRow = React.memo<LinkTableRowProps>(({
       <td className="px-4 py-3 font-semibold text-[#1d1d1f] dark:text-white min-w-[140px] max-w-[220px]">
         <div className="flex items-center gap-2 truncate">
           <span
-            className="opacity-30 group-hover:opacity-60 hover:opacity-100 cursor-grab active:cursor-grabbing text-[#8e8e93] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-all p-0.5 rounded touch-manipulation shrink-0"
+            className="opacity-30 group-hover:opacity-60 hover:opacity-100 cursor-grab active:cursor-grabbing text-[#8e8e93] hover:text-[#0066cc] dark:hover:text-[#2997ff] transition-[transform,opacity,background-color,border-color,color,box-shadow] p-0.5 rounded touch-manipulation shrink-0"
             title="Kéo thả để sắp xếp thứ tự tùy ý"
           >
             <SFLine3Horizontal size={13} />
@@ -122,7 +122,7 @@ export const LinkTableRow = React.memo<LinkTableRowProps>(({
               href={sanitizeUrl(item.link)}
               target="_blank"
               rel="noopener noreferrer"
-              className="group/link inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold transition-all duration-150 active:scale-[0.95] hover:scale-[1.02] cursor-pointer bg-white/70 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.16] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.08] dark:border-white/12 shadow-[0_1px_3px_rgba(0,0,0,0.04),inset_0_1px_0.5px_rgba(255,255,255,0.9)] hover:shadow-[0_4px_14px_rgba(0,113,227,0.18)] backdrop-blur-md touch-manipulation"
+              className="group/link inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 active:scale-[0.95] hover:scale-[1.02] cursor-pointer bg-white/70 dark:bg-white/[0.08] hover:bg-white dark:hover:bg-white/[0.16] text-[#1d1d1f] dark:text-[#f5f5f7] hover:text-[#0071e3] dark:hover:text-[#2997ff] border border-black/[0.08] dark:border-white/12 shadow-[0_1px_3px_rgba(0,0,0,0.04),inset_0_1px_0.5px_rgba(255,255,255,0.9)] hover:shadow-[0_4px_14px_rgba(0,113,227,0.18)] touch-manipulation"
               title="Mở liên kết trong tab mới"
             >
               <span>Mở link</span>
@@ -133,7 +133,7 @@ export const LinkTableRow = React.memo<LinkTableRowProps>(({
             <button
               type="button"
               onClick={() => onCopy(item.link, 'đường dẫn', `link-${item.id}`)}
-              className="w-6 h-6 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/20 transition-all duration-150 active:scale-85 cursor-pointer shrink-0 touch-manipulation"
+              className="w-6 h-6 rounded-full flex items-center justify-center text-[#76767b] hover:text-[#0071e3] dark:hover:text-[#2997ff] hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/20 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 active:scale-85 cursor-pointer shrink-0 touch-manipulation"
               title="Sao chép link"
             >
               {copiedKey === `link-${item.id}` ? (
@@ -174,7 +174,7 @@ export const LinkTableRow = React.memo<LinkTableRowProps>(({
           <button
             type="button"
             onClick={() => onEdit(item)}
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/20 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white transition-all duration-150 active:scale-90 touch-manipulation cursor-pointer"
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 active:bg-black/10 dark:active:bg-white/20 text-[#76767b] hover:text-[#1d1d1f] dark:hover:text-white transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 active:scale-90 touch-manipulation cursor-pointer"
             title="Chỉnh sửa"
             aria-label="Chỉnh sửa"
           >
@@ -183,7 +183,7 @@ export const LinkTableRow = React.memo<LinkTableRowProps>(({
           <button
             type="button"
             onClick={() => onDelete(item)}
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-rose-500/10 active:bg-rose-500/20 active:text-rose-700 text-[#76767b] hover:text-rose-600 transition-all duration-150 active:scale-90 touch-manipulation cursor-pointer"
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-rose-500/10 active:bg-rose-500/20 active:text-rose-700 text-[#76767b] hover:text-rose-600 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 active:scale-90 touch-manipulation cursor-pointer"
             title="Xóa link"
             aria-label="Xóa link"
           >

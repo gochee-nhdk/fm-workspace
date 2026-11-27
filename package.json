@@ -4,34 +4,29 @@
   "author": "Farmers Market Vietnam",
   "license": "UNLICENSED",
   "private": true,
-  "description": "FM Workspace - Personal Work OS & Procurement Assistant (Cloud Web App)",
-  "main": "server/dist/index.js",
+  "description": "FM Workspace - Personal Work OS & Procurement Assistant (Vercel Serverless + Turso)",
+  "main": "api/index.js",
   "scripts": {
-    "setup": "npm install && npm --prefix server install && npm --prefix client install --legacy-peer-deps && npm run build:all",
-    "install:all": "npm --prefix server install && npm --prefix client install --legacy-peer-deps",
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "cd server && npm run dev",
-    "dev:client": "cd client && npm run dev",
+    "setup": "npm install && npm --prefix client install --legacy-peer-deps && npm run build",
+    "install:all": "npm install && npm --prefix client install --legacy-peer-deps",
+    "dev": "npm --prefix client run dev",
+    "dev:client": "npm --prefix client run dev",
     "build": "npm --prefix client run build",
-    "build:all": "npm --prefix server run build && npm --prefix client run build",
-    "build:server": "npm --prefix server run build",
     "build:client": "npm --prefix client run build",
-    "start": "node server/dist/index.js",
-    "test": "npm --prefix server test",
-    "db:init": "cd server && npm run db:init",
-    "db:seed": "cd server && npm run db:seed"
+    "lint": "npm --prefix client run lint",
+    "test": "npm --prefix client test"
   },
   "devDependencies": {
     "@vercel/node": "^28.0.0",
     "concurrently": "^9.1.0",
     "cross-env": "^10.1.0",
-    "tailwindcss": "^4.3.3",
-    "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "@vercel/analytics": "^2.0.1",
-    "nodemailer": "^10.2.1"
+    "nodemailer": "^10.2.1",
+    "zod": "^3.24.2"
   },
   "allowScripts": {
     "esbuild@0.27.0": true

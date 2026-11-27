@@ -19,10 +19,10 @@ export const api = axios.create({
   }
 });
 
-// Request interceptor to attach JWT token if available
+// Request interceptor to attach real JWT token if available
 api.interceptors.request.use((config) => {
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
-  if (token && config.headers) {
+  if (token && token !== 'cloud-web-session' && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;

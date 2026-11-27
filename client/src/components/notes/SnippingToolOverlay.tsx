@@ -380,7 +380,7 @@ export const SnippingToolOverlay: React.FC<SnippingToolOverlayProps> = ({
                   e.stopPropagation();
                   handleConfirmCrop();
                 }}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[12px] font-semibold transition-all cursor-pointer shadow-md shadow-[#0071e3]/40 active:scale-95"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[12px] font-semibold transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer shadow-md shadow-[#0071e3]/40 active:scale-95"
                 title="Lưu vùng đã chọn vào ghi chú (Enter)"
               >
                 <SFCheckmark size={14} className="stroke-[3]" />

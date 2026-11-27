@@ -24,41 +24,61 @@ export function useLiquidTilt<T extends HTMLElement = HTMLDivElement>(options: L
     let rafId = 0;
     let active = false;
     let lastEvent: MouseEvent | null = null;
+    let lastTime = 0;
     let currentX = 0;
     let currentY = 0;
     let targetX = 0;
     let targetY = 0;
 
-    const render = () => {
+    const render = (now: number) => {
       rafId = 0;
+      const dt = lastTime ? Math.min(Math.max((now - lastTime) / 1000, 0.001), 0.05) : 1 / 120;
+      lastTime = now;
+
       const event = lastEvent;
       if (event && active) {
         const rect = el.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-        targetX = ((x - rect.width / 2) / (rect.width / 2)) * maxTilt;
-        targetY = -((y - rect.height / 2) / (rect.height / 2)) * maxTilt;
-        el.style.setProperty('--mouse-x', `${((x / rect.width) * 100).toFixed(1)}%`);
-        el.style.setProperty('--mouse-y', `${((y / rect.height) * 100).toFixed(1)}%`);
+        if (rect.width > 0 && rect.height > 0) {
+          const x = event.clientX - rect.left;
+          const y = event.clientY - rect.top;
+          targetX = ((x - rect.width / 2) / (rect.width / 2)) * maxTilt;
+          targetY = -((y - rect.height / 2) / (rect.height / 2)) * maxTilt;
+          el.style.setProperty('--mouse-x', `${((x / rect.width) * 100).toFixed(1)}%`);
+          el.style.setProperty('--mouse-y', `${((y / rect.height) * 100).toFixed(1)}%`);
+        }
       } else {
         targetX = 0;
         targetY = 0;
         lastEvent = null;
       }
-      const response = Math.min(0.35, 16 / Math.max(speed, 1));
-      currentX += (targetX - currentX) * response;
-      currentY += (targetY - currentY) * response;
+
+      // Frame-rate independent exponential smoothing (consistent across 60Hz/120Hz/240Hz)
+      const tauMs = Math.max(speed * 0.25, 16);
+      const alpha = 1 - Math.exp((-dt * 1000) / tauMs);
+      currentX += (targetX - currentX) * alpha;
+      currentY += (targetY - currentY) * alpha;
+
+      const isSettledAtRest = !active && Math.abs(currentX) <= 0.01 && Math.abs(currentY) <= 0.01;
+      if (isSettledAtRest) {
+        currentX = 0;
+        currentY = 0;
+        lastTime = 0;
+        el.style.transform = '';
+        el.style.willChange = 'auto';
+        return;
+      }
+
+      el.style.willChange = 'transform';
       const activeScale = active ? scale : 1;
       el.style.transform = `perspective(${perspective}px) rotateX(${currentY.toFixed(2)}deg) rotateY(${currentX.toFixed(2)}deg) scale3d(${activeScale}, ${activeScale}, ${activeScale})`;
-      if (active || Math.abs(currentX) > 0.01 || Math.abs(currentY) > 0.01) rafId = requestAnimationFrame(render);
+      rafId = requestAnimationFrame(render);
     };
     const schedule = () => { if (!rafId) rafId = requestAnimationFrame(render); };
     const handleMouseMove = (event: MouseEvent) => { active = true; lastEvent = event; schedule(); };
     const handleMouseLeave = () => { active = false; lastEvent = null; schedule(); };
 
-    el.addEventListener('mousemove', handleMouseMove);
-    el.addEventListener('mouseleave', handleMouseLeave);
-    el.style.willChange = 'transform';
+    el.addEventListener('mousemove', handleMouseMove, { passive: true });
+    el.addEventListener('mouseleave', handleMouseLeave, { passive: true });
 
     return () => {
       if (rafId) cancelAnimationFrame(rafId);

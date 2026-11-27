@@ -1,6 +1,7 @@
 {
-  "installCommand": "npm install && cd client && npm install",
-  "buildCommand": "cd client && npm run build",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "npm install && npm --prefix client install --legacy-peer-deps",
+  "buildCommand": "npm --prefix client run build",
   "outputDirectory": "client/dist",
   "rewrites": [
     {

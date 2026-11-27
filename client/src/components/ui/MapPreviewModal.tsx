@@ -269,7 +269,7 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
               <button
                 type="button"
                 onClick={handleCopyAddress}
-                className="liquid-lens-pill px-3 py-1.5 flex items-center gap-1.5 text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] active:scale-95 transition-all cursor-pointer"
+                className="liquid-lens-pill px-3 py-1.5 flex items-center gap-1.5 text-[12px] font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] active:scale-95 transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer"
                 title="Sao chép địa chỉ cửa hàng"
               >
                 {copied ? (
@@ -291,7 +291,7 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
               href={externalUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-semibold text-white bg-gradient-to-b from-[#007aff] to-[#0062cc] shadow-[0_4px_12px_rgba(0,122,255,0.35),inset_0_1px_1px_rgba(255,255,255,0.6)] border border-white/30 active:scale-95 transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[12px] font-semibold text-white bg-gradient-to-b from-[#007aff] to-[#0062cc] shadow-[0_4px_12px_rgba(0,122,255,0.35),inset_0_1px_1px_rgba(255,255,255,0.6)] border border-white/30 active:scale-95 transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer"
               title="Mở trên ứng dụng Google Maps ngoài"
             >
               <SFLocationFill size={14} />
@@ -326,7 +326,7 @@ export const MapPreviewModal: React.FC<MapPreviewModalProps> = ({
                 href={externalUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#007aff] text-white text-xs font-semibold shadow-md active:scale-95 transition-all"
+                className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#007aff] text-white text-xs font-semibold shadow-md active:scale-95 transition-[transform,opacity,background-color,border-color,color,box-shadow]"
               >
                 <span>Tìm kiếm "{currentStore.storeCode}" trên Google Maps</span>
                 <SFArrowUpRightSquare size={14} />

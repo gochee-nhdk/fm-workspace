@@ -418,6 +418,33 @@ Apple's whitespace is the product's pedestal. Every tile begins with at least 64
 | `{rounded.pill}` | 9999px | Primary blue pill CTAs, sub-nav buy button, configurator option chips, search input — the signature Apple pill |
 | `{rounded.full}` | 9999px / 50% | Circular control chips floating over photography |
 
+---
+
+## FM Workspace Liquid Glass System (macOS 27 / iOS)
+
+> **Canonical Implementation:** `client/tailwind.config.ts`, `client/src/index.css`, and `client/src/components/ui/`.
+
+### Glass Surface Tiers
+| Tier | Class / Token | Use |
+|---|---|---|
+| Regular Glass | `.glass-regular` / `--lg-regular-*` | Windows, sidebars, primary structural chrome (`blur(44px)` light / `48px` dark) |
+| Clear Glass | `.glass-clear` / `--lg-clear-*` | Floating controls, pills, menus, modals (`blur(36px)` light / `38px` dark) |
+| Panel Glass | `.liquid-glass` / `.ios-glass-panel` | Content cards & elevated panels (`rounded-surface` / `20px`) |
+| Control Glass | `.apple-liquid-glass-control` | Floating toolbars, segmented tracks, capsule buttons (`rounded-pill`) |
+| Sticky Header | `.sticky-liquid-header` | High-opacity (`96%`) frosted page headers (`blur(52px)`) |
+
+### Concentric Radii & Hairlines
+- **Radii:** `window` (`28px`) · `surface` (`20px`) · `card` (`16px`) · `control` (`12px`) · `pill` (`9999px`)
+- **Dialogs & Drawers:** `rounded-[24px]` desktop (`rounded-t-[28px]` mobile bottom sheet), `border-black/[0.08] dark:border-white/[0.12]`
+- **Inputs & Selects:** `rounded-xl` (`12px`), `border-black/10 dark:border-white/12`
+- **Focus Rings:** `focus-visible:ring-2 focus-visible:ring-[#0088FF]/50 dark:focus-visible:ring-[#0091FF]/60`
+
+### Unified UI Primitives (`client/src/components/ui/`)
+- **Dialogs / Sheets:** `AppleLiquidDialog`, `Modal`, `Drawer`, `ConfirmDeleteDialog`
+- **Selection & Navigation:** `AppleListbox`, `Select`, `SegmentedNavigation`, `Tabs`, `AppleCheckbox`
+- **Actions & Feedback:** `Button`, `CloseButton`, `Badge`, `Alert`, `Input`, `Card`
+- **Icons:** `AppleIcon` / `sf-symbols-lib` (SF Symbols)
+
 ### Photography Geometry
 - **Hero imagery**: full-bleed, 21:9 or taller on the homepage; 16:9 on environment and shop pages. Product renders are photographic-realistic, often shot on a tinted surface that becomes the tile background.
 - **Product renders**: PNG/WebP with transparency; rest on a surface tile and pick up the system shadow.

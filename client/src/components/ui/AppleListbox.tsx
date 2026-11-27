@@ -205,7 +205,7 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
               aria-selected={isSelected}
               onClick={() => handleSelectOption(opt.value)}
               className={cn(
-                'w-full flex items-center justify-between px-3 py-2 rounded-xl text-[12.5px] active:scale-[0.98] transition-all duration-150 ease-spring cursor-pointer text-left',
+                'w-full flex items-center justify-between px-3 py-2 rounded-xl text-[12.5px] active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 ease-spring cursor-pointer text-left',
                 isSelected
                   ? 'bg-[#0088FF]/12 dark:bg-[#0091FF]/20 text-[#0088FF] dark:text-[#0091FF] font-semibold'
                   : 'text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-black/[0.05] dark:hover:bg-white/[0.08] font-normal'
@@ -247,7 +247,7 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
             type="button"
             onClick={handleSelectCustom}
             className={cn(
-              'w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[12.5px] active:scale-[0.98] transition-all duration-150 ease-spring cursor-pointer text-left',
+              'w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[12.5px] active:scale-[0.98] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 ease-spring cursor-pointer text-left',
               isCustomSelected
                 ? 'bg-[#0088FF]/12 dark:bg-[#0091FF]/20 text-[#0088FF] dark:text-[#0091FF] font-semibold'
                 : 'text-[#0088FF] dark:text-[#0091FF] hover:bg-[#0088FF]/10 font-medium'
@@ -281,7 +281,7 @@ export const AppleListbox: React.FC<AppleListboxProps> = ({
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         className={cn(
-          'w-full flex items-center justify-between text-sm font-medium active:scale-95 transition-all duration-200 ease-spring text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0088FF]/50 dark:focus-visible:ring-[#0091FF]/60 focus-visible:shadow-[0_0_12px_rgba(0,136,255,0.3)]',
+          'w-full flex items-center justify-between text-sm font-medium active:scale-95 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-spring text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0088FF]/50 dark:focus-visible:ring-[#0091FF]/60 focus-visible:shadow-[0_0_12px_rgba(0,136,255,0.3)]',
           compact ? 'px-3 py-1.5 rounded-xl text-[12.5px]' : 'px-3.5 py-2.5 rounded-xl',
           disabled
             ? 'opacity-40 cursor-not-allowed bg-[#f5f5f7] dark:bg-white/5 border-black/10 dark:border-white/10 text-[#86868b]'

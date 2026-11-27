@@ -19,6 +19,15 @@ dist-electron/
 electron/dist/
 .tsup/
 client/dist/
+.vercel/
+client/.vercel/
+api/.vercel/
+.turbo/
+build/
+output/
+coverage/
+*.tsbuildinfo
+.eslintcache
 
 # IDE, Editor & AI Agent local caches
 .antigravity/
@@ -87,8 +96,9 @@ graphify-out/
 graph.html
 graph.json
 
-# Open Design (optional large assets)
+# Open Design & root font bloat (optional large assets)
 open-design/
+San Francisco/
 
 # Skills & internal configs không cần thiết cho người dùng cuối
 .skills/

@@ -94,7 +94,7 @@ export const Drawer: React.FC<DrawerProps> = ({
       <div
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          'relative w-full bg-white/95 dark:bg-[#1c1c22]/95 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] dark:shadow-[0_28px_84px_rgba(0,0,0,0.6),inset_0_1.5px_1px_rgba(255,255,255,0.12)] border-t sm:border border-black/10 dark:border-white/15 rounded-t-[28px] sm:rounded-[24px] rounded-b-none sm:rounded-b-[24px] flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden z-10 pb-[env(safe-area-inset-bottom,0px)] will-change-[transform,opacity] [transform:translateZ(0)]',
+          'relative w-full bg-white/95 dark:bg-[#1c1c22]/95 backdrop-blur-2xl shadow-[0_24px_80px_rgba(0,0,0,0.25),inset_0_1.5px_1px_rgba(255,255,255,0.95)] dark:shadow-[0_28px_84px_rgba(0,0,0,0.6),inset_0_1.5px_1px_rgba(255,255,255,0.12)] border-t sm:border border-black/[0.08] dark:border-white/[0.12] rounded-t-[28px] sm:rounded-[24px] rounded-b-none sm:rounded-b-[24px] flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden z-10 pb-[env(safe-area-inset-bottom,0px)] will-change-[transform,opacity] [transform:translateZ(0)]',
           widths[width],
           isExiting ? 'apple-drawer-surface-exit pointer-events-none' : 'apple-drawer-surface-enter pointer-events-auto'
         )}

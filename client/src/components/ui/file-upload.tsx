@@ -69,7 +69,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         onDrop={handleDrop}
         onClick={() => inputRef.current?.click()}
         className={cn(
-          'relative rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-all duration-150 flex flex-col items-center justify-center gap-3',
+          'relative rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-colors duration-150 flex flex-col items-center justify-center gap-3',
           dragOver
             ? 'border-teal-500 bg-teal-50/50 dark:bg-teal-950/30'
             : 'border-slate-300 dark:border-slate-700 hover:border-teal-500/60 bg-white/40 dark:bg-slate-900/40'

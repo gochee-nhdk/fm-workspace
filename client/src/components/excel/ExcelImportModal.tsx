@@ -184,7 +184,7 @@ export const ExcelImportModal: React.FC<ExcelImportModalProps> = ({
         <div className="py-4 overflow-y-auto flex-1 space-y-4">
           {step === 'upload' && (
             <div
-              className={`border-2 border-dashed rounded-[20px] p-8 text-center transition-all ${
+              className={`border-2 border-dashed rounded-[20px] p-8 text-center transition-colors ${
                 dragActive
                   ? 'border-[#0071e3] bg-[#0071e3]/10 scale-[0.99]'
                   : 'border-black/10 dark:border-white/15 hover:border-[#0071e3] dark:hover:border-[#2997ff] bg-black/[0.02] dark:bg-white/[0.04]'

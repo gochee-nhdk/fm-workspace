@@ -2,10 +2,17 @@
 const DB_NAME = 'FM_WORKSPACE_DB';
 const DB_VERSION = 4;
 
-export const getActiveDbName = (): string => DB_NAME;
+let activeUserId: string | null = null;
 
-export const switchDatabaseUser = async (_newUserId?: string | null): Promise<void> => {
-  // Always use the primary unified FM_WORKSPACE_DB
+export const getActiveDbName = (): string =>
+  activeUserId ? `${DB_NAME}_${activeUserId}` : DB_NAME;
+
+export const switchDatabaseUser = async (newUserId?: string | null): Promise<void> => {
+  const normalizedId = typeof newUserId === 'string' && newUserId.trim() ? newUserId.trim() : null;
+  if (normalizedId === activeUserId && dbInstance) {
+    return;
+  }
+  activeUserId = normalizedId;
   if (dbInstance) {
     try {
       dbInstance.close();

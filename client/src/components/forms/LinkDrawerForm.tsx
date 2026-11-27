@@ -203,7 +203,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
                 type="text"
                 autoFocus
                 placeholder="Nhập tên phân nhóm mới..."
-                className="mt-2 w-full text-[13px] rounded-xl border border-[#0088FF] dark:border-[#0091FF] bg-white/85 dark:bg-[#1c1c22]/85 backdrop-blur-xl px-3.5 py-2 text-[#1d1d1f] dark:text-white placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] focus:outline-none focus:ring-2 focus:ring-[#0088FF]/35 dark:focus:ring-[#0091FF]/45 focus:shadow-[0_0_12px_rgba(0,136,255,0.25)] transition-all duration-200 ease-spring font-medium shadow-2xs"
+                className="mt-2 w-full text-[13px] rounded-xl border border-[#0088FF] dark:border-[#0091FF] bg-white/85 dark:bg-[#1c1c22]/85 px-3.5 py-2 text-[#1d1d1f] dark:text-white placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] focus:outline-none focus:ring-2 focus:ring-[#0088FF]/35 dark:focus:ring-[#0091FF]/45 focus:shadow-[0_0_12px_rgba(0,136,255,0.25)] transition-colors duration-200 ease-spring font-medium shadow-2xs"
                 value={customCategory}
                 onChange={(e) => {
                   setCustomCategory(e.target.value);
@@ -232,7 +232,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
           </label>
           <textarea
             rows={3}
-            className="w-full text-[13px] rounded-xl border border-black/10 dark:border-white/12 bg-white/85 dark:bg-[#1c1c22]/85 backdrop-blur-xl p-3 text-[#1d1d1f] dark:text-white hover:border-black/20 dark:hover:border-white/25 focus:outline-none focus:ring-2 focus:ring-[#0088FF]/35 dark:focus:ring-[#0091FF]/45 focus:border-[#0088FF] dark:focus:border-[#0091FF] focus:shadow-[0_0_14px_rgba(0,136,255,0.25)] dark:focus:shadow-[0_0_18px_rgba(0,145,255,0.32)] resize-none transition-all duration-200 ease-spring placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] shadow-2xs"
+            className="w-full text-[13px] rounded-xl border border-black/10 dark:border-white/12 bg-white/85 dark:bg-[#1c1c22]/85 p-3 text-[#1d1d1f] dark:text-white hover:border-black/20 dark:hover:border-white/25 focus:outline-none focus:ring-2 focus:ring-[#0088FF]/35 dark:focus:ring-[#0091FF]/45 focus:border-[#0088FF] dark:focus:border-[#0091FF] focus:shadow-[0_0_14px_rgba(0,136,255,0.25)] dark:focus:shadow-[0_0_18px_rgba(0,145,255,0.32)] resize-none transition-colors duration-200 ease-spring placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] shadow-2xs"
             placeholder="Ghi chú về cách dùng, chu kỳ báo cáo, hoặc người phụ trách..."
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -240,7 +240,7 @@ export const LinkDrawerForm: React.FC<LinkDrawerFormProps> = ({
         </div>
 
         <div className="pt-2">
-          <div className="p-3.5 rounded-2xl border border-black/10 dark:border-white/12 bg-white/60 dark:bg-white/[0.04] backdrop-blur-md hover:bg-white/80 dark:hover:bg-white/[0.08] transition-all duration-180 ease-spring shadow-2xs">
+          <div className="p-3.5 rounded-2xl border border-black/10 dark:border-white/12 bg-white/60 dark:bg-white/[0.04] hover:bg-white/80 dark:hover:bg-white/[0.08] transition-colors duration-180 ease-spring shadow-2xs">
             <AppleCheckbox
               checked={favorite}
               onChange={setFavorite}

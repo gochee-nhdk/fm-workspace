@@ -386,7 +386,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
           className={cn(
             'flex-1 flex items-center justify-between px-3 py-1.5 rounded-xl',
             'bg-black/[0.03] dark:bg-white/[0.05] hover:bg-[#0071e3]/10 dark:hover:bg-[#0071e3]/20',
-            'border border-black/5 dark:border-white/10 transition-all cursor-pointer active:scale-95 group'
+            'border border-black/5 dark:border-white/10 transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer active:scale-95 group'
           )}
           title="Cuộn chuột để đổi tháng, hoặc nhấp để mở bảng chọn tháng"
         >
@@ -410,7 +410,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
           className={cn(
             'flex-1 flex items-center justify-between px-3 py-1.5 rounded-xl',
             'bg-black/[0.03] dark:bg-white/[0.05] hover:bg-[#0071e3]/10 dark:hover:bg-[#0071e3]/20',
-            'border border-black/5 dark:border-white/10 transition-all cursor-pointer active:scale-95 group'
+            'border border-black/5 dark:border-white/10 transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer active:scale-95 group'
           )}
           title="Cuộn chuột để đổi năm, hoặc nhấp để mở bảng chọn năm"
         >
@@ -455,7 +455,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
                 type="button"
                 onClick={() => handleSelectDay(item.date)}
                 className={cn(
-                  'w-[30px] h-[30px] rounded-full text-[12px] font-medium flex items-center justify-center transition-all cursor-pointer relative',
+                  'w-[30px] h-[30px] rounded-full text-[12px] font-medium flex items-center justify-center transition-colors cursor-pointer relative',
                   item.isCurrentMonth
                     ? 'text-[#1d1d1f] dark:text-[#f5f5f7]'
                     : 'text-[#86868b]/30 dark:text-[#a1a1a6]/25',
@@ -562,7 +562,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className="px-4 py-1.5 rounded-xl text-[12px] font-semibold bg-[#0088FF] text-white hover:bg-[#0077ed] transition-all duration-180 ease-spring cursor-pointer shadow-[0_2px_8px_rgba(0,136,255,0.35)] active:scale-95 shrink-0"
+            className="px-4 py-1.5 rounded-xl text-[12px] font-semibold bg-[#0088FF] text-white hover:bg-[#0077ed] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-180 ease-spring cursor-pointer shadow-[0_2px_8px_rgba(0,136,255,0.35)] active:scale-95 shrink-0"
           >
             Xong
           </button>
@@ -586,7 +586,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
             onClick={(e) => e.stopPropagation()}
             className={cn(
               'w-full p-3 rounded-2xl bg-white/92 dark:bg-[#252528]/92 backdrop-blur-2xl shadow-[0_24px_70px_rgba(0,0,0,0.35),inset_0_1px_1px_rgba(255,255,255,0.85)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.65),inset_0_1px_1px_rgba(255,255,255,0.15)] border border-black/10 dark:border-white/15 flex flex-col gap-2',
-              'transition-all duration-200 ease-out',
+              'transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-out',
               isSubPickerExiting
                 ? 'scale-95 opacity-0'
                 : 'scale-100 opacity-100 animate-in fade-in zoom-in-95 duration-200'
@@ -626,7 +626,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
                         setActiveSubPicker(null);
                       }}
                       className={cn(
-                        'py-2 rounded-xl text-[11.5px] font-medium transition-all cursor-pointer text-center',
+                        'py-2 rounded-xl text-[11.5px] font-medium transition-colors cursor-pointer text-center',
                         isCurrMonth
                           ? 'bg-[#0071e3] text-white font-semibold shadow-2xs'
                           : 'hover:bg-black/5 dark:hover:bg-white/10 text-[#1d1d1f] dark:text-[#f5f5f7]'
@@ -658,7 +658,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
                         setActiveSubPicker(null);
                       }}
                       className={cn(
-                        'py-2 rounded-xl text-[12px] font-medium transition-all cursor-pointer tabular-nums text-center',
+                        'py-2 rounded-xl text-[12px] font-medium transition-colors cursor-pointer tabular-nums text-center',
                         isCurrYear
                           ? 'bg-[#0071e3] text-white font-semibold shadow-2xs'
                           : 'hover:bg-black/5 dark:hover:bg-white/10 text-[#1d1d1f] dark:text-[#f5f5f7]'
@@ -696,7 +696,7 @@ export const AppleDateTimePicker: React.FC<AppleDateTimePickerProps> = ({
           setIsOpen(!isOpen);
         }}
         className={cn(
-          'w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-[12.5px] font-medium active:scale-95 transition-all duration-200 ease-spring cursor-pointer shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0088FF]/50 dark:focus-visible:ring-[#0091FF]/60 focus-visible:shadow-[0_0_12px_rgba(0,136,255,0.3)]',
+          'w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-[12.5px] font-medium active:scale-95 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-spring cursor-pointer shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0088FF]/50 dark:focus-visible:ring-[#0091FF]/60 focus-visible:shadow-[0_0_12px_rgba(0,136,255,0.3)]',
           'bg-white/85 dark:bg-[#1c1c22]/85 backdrop-blur-xl border border-black/10 dark:border-white/12',
           'text-[#1d1d1f] dark:text-[#f5f5f7] hover:border-black/20 dark:hover:border-white/25',
           isOpen && 'border-[#0088FF] ring-2 ring-[#0088FF]/30 dark:border-[#0091FF] dark:ring-[#0091FF]/30 shadow-[0_0_14px_rgba(0,136,255,0.25)]'

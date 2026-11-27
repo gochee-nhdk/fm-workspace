@@ -54,19 +54,19 @@ export const AppleCheckbox: React.FC<AppleCheckboxProps> = ({
       {/* Apple Tactile Checkbox Box */}
       <div
         className={cn(
-          'relative flex items-center justify-center shrink-0 transition-all duration-150 ease-spring',
+          'relative flex items-center justify-center shrink-0 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 ease-spring',
           isSm ? 'w-4 h-4 rounded-[4.5px]' : 'w-[18px] h-[18px] rounded-[5.5px]',
           !disabled && 'active:scale-90 group-active:scale-90',
           checked
-            ? 'bg-[#0071e3] dark:bg-[#2997ff] border-[#0071e3] dark:border-[#2997ff] text-white shadow-[0_1px_4px_rgba(0,113,227,0.35)]'
-            : 'border-[1.5px] border-black/25 dark:border-white/30 bg-white/70 dark:bg-black/30 group-hover:border-[#0071e3] dark:group-hover:border-[#2997ff] group-hover:bg-white/90 dark:group-hover:bg-black/50',
+            ? 'bg-[#0088FF] dark:bg-[#0091FF] border-[#0088FF] dark:border-[#0091FF] text-white shadow-[0_1px_4px_rgba(0,136,255,0.35)]'
+            : 'border-[1.5px] border-black/25 dark:border-white/30 bg-white/70 dark:bg-black/30 group-hover:border-[#0088FF] dark:group-hover:border-[#0091FF] group-hover:bg-white/90 dark:group-hover:bg-black/50',
           boxClassName
         )}
       >
         <SFCheckmark
           size={isSm ? 10 : 12}
           className={cn(
-            'stroke-[3] text-white transition-all duration-150 ease-spring drop-shadow-xs',
+            'stroke-[3] text-white transition-colors duration-150 ease-spring drop-shadow-xs',
             checked ? 'opacity-100 scale-100' : 'opacity-0 scale-50'
           )}
         />

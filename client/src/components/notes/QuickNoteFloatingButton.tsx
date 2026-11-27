@@ -26,7 +26,7 @@ export const QuickNoteFloatingButton: React.FC = () => {
           shadow-[0_16px_36px_-8px_rgba(0,0,0,0.18),inset_0_1.5px_1px_rgba(255,255,255,0.95),inset_0_-1.5px_1.5px_rgba(0,0,0,0.08)]
           hover:shadow-[0_20px_44px_-8px_rgba(245,158,11,0.35),0_0_24px_rgba(245,158,11,0.2),inset_0_1.5px_1px_rgba(255,255,255,1)]
           hover:scale-[1.07] active:scale-[0.91]
-          transition-all duration-200 ease-spring cursor-pointer
+          transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 ease-spring cursor-pointer
           overflow-visible will-change-transform
         `}
       >

@@ -139,7 +139,7 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
             <input
               type={showPassword ? 'text' : 'password'}
               placeholder="Nhập mật khẩu..."
-              className="w-full text-[13px] rounded-xl border border-black/10 dark:border-white/12 bg-white/85 dark:bg-[#1c1c22]/85 backdrop-blur-xl pl-9 pr-10 py-2.5 text-[#1d1d1f] dark:text-white placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] hover:border-black/20 dark:hover:border-white/25 focus:outline-none focus:ring-2 focus:ring-[#0088FF]/35 dark:focus:ring-[#0091FF]/45 focus:border-[#0088FF] dark:focus:border-[#0091FF] focus:shadow-[0_0_14px_rgba(0,136,255,0.25)] dark:focus:shadow-[0_0_18px_rgba(0,145,255,0.32)] font-mono transition-all duration-200 ease-spring"
+              className="w-full text-[13px] rounded-xl border border-black/10 dark:border-white/12 bg-white/85 dark:bg-[#1c1c22]/85 pl-9 pr-10 py-2.5 text-[#1d1d1f] dark:text-white placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] hover:border-black/20 dark:hover:border-white/25 focus:outline-none focus:ring-2 focus:ring-[#0088FF]/35 dark:focus:ring-[#0091FF]/45 focus:border-[#0088FF] dark:focus:border-[#0091FF] focus:shadow-[0_0_14px_rgba(0,136,255,0.25)] dark:focus:shadow-[0_0_18px_rgba(0,145,255,0.32)] font-mono transition-colors duration-200 ease-spring"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
@@ -147,7 +147,7 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-[#86868b] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all duration-150 ease-spring cursor-pointer"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center text-[#86868b] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 ease-spring cursor-pointer"
               title={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
             >
               {showPassword ? <SFEyeSlash size={16} /> : <SFEye size={16} />}
@@ -188,7 +188,7 @@ export const AccountDrawerForm: React.FC<AccountDrawerFormProps> = ({
           </label>
           <textarea
             rows={2}
-            className="w-full text-[13px] rounded-xl border border-black/10 dark:border-white/12 bg-white/85 dark:bg-[#1c1c22]/85 backdrop-blur-xl p-3 text-[#1d1d1f] dark:text-white hover:border-black/20 dark:hover:border-white/25 focus:outline-none focus:ring-2 focus:ring-[#0088FF]/35 dark:focus:ring-[#0091FF]/45 focus:border-[#0088FF] dark:focus:border-[#0091FF] focus:shadow-[0_0_14px_rgba(0,136,255,0.25)] dark:focus:shadow-[0_0_18px_rgba(0,145,255,0.32)] resize-none transition-all duration-200 ease-spring placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] shadow-2xs"
+            className="w-full text-[13px] rounded-xl border border-black/10 dark:border-white/12 bg-white/85 dark:bg-[#1c1c22]/85 p-3 text-[#1d1d1f] dark:text-white hover:border-black/20 dark:hover:border-white/25 focus:outline-none focus:ring-2 focus:ring-[#0088FF]/35 dark:focus:ring-[#0091FF]/45 focus:border-[#0088FF] dark:focus:border-[#0091FF] focus:shadow-[0_0_14px_rgba(0,136,255,0.25)] dark:focus:shadow-[0_0_18px_rgba(0,145,255,0.32)] resize-none transition-colors duration-200 ease-spring placeholder:text-[#86868b] dark:placeholder:text-[#a1a1a6] shadow-2xs"
             placeholder="Ghi chú phân quyền, tài khoản chung hay cá nhân..."
             value={note}
             onChange={(e) => setNote(e.target.value)}

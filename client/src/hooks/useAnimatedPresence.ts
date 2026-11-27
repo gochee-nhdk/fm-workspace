@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motionTokens } from '@/lib/motion';
 
 export interface AnimatedPresenceState {
   shouldRender: boolean;
@@ -10,7 +11,10 @@ export interface AnimatedPresenceState {
  * Keeps components rendered in the DOM for a specified duration while `isExiting === true`
  * so closing/exit animations can complete smoothly before unmounting.
  */
-export function useAnimatedPresence(isOpen: boolean, durationMs = 180): AnimatedPresenceState {
+export function useAnimatedPresence(
+  isOpen: boolean,
+  durationMs: number = motionTokens.duration.exit
+): AnimatedPresenceState {
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [isExiting, setIsExiting] = useState(false);
 

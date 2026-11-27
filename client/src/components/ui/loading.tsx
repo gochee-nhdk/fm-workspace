@@ -90,7 +90,7 @@ export const ContextualLoading: React.FC<ContextualLoadingProps> = ({
       {progress !== undefined && (
         <div className="w-full max-w-xs mx-auto bg-[#e0e0e0] dark:bg-white/15 h-1.5 rounded-full overflow-hidden">
           <div
-            className="bg-[#0066cc] dark:bg-[#2997ff] h-full transition-all duration-300 rounded-full"
+            className="bg-[#0066cc] dark:bg-[#2997ff] h-full transition-colors duration-300 rounded-full"
             style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
           />
         </div>

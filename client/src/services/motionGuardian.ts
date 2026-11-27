@@ -1,3 +1,5 @@
+import { motionTokens } from '@/lib/motion';
+
 /**
  * ==============================================================================
  * 🛡️ FM WORKSPACE - MOTION & ANIMATION GUARDIAN AGENT (macOS 27 & iOS 18)
@@ -65,19 +67,23 @@ class MotionGuardianAgent {
     if (typeof document === 'undefined') return;
 
     const root = document.documentElement;
-    root.style.setProperty('--motion-duration-press', '80ms');
-    root.style.setProperty('--motion-duration-micro', '110ms');
-    root.style.setProperty('--motion-duration-hover', '150ms');
-    root.style.setProperty('--motion-duration-tab', '180ms');
-    root.style.setProperty('--motion-duration-popover', '210ms');
-    root.style.setProperty('--motion-duration-exit', '180ms');
-    root.style.setProperty('--motion-duration-sidebar', '240ms');
-    root.style.setProperty('--motion-duration-modal', '260ms');
-    root.style.setProperty('--motion-duration-spatial', '320ms');
-    root.style.setProperty('--motion-ease-spring', 'cubic-bezier(0.16, 1, 0.3, 1)');
-    root.style.setProperty('--motion-ease-fluid', 'cubic-bezier(0.32, 0.72, 0, 1)');
-    root.style.setProperty('--motion-ease-snappy', 'cubic-bezier(0.18, 0.9, 0.22, 1)');
-    root.style.setProperty('--motion-ease-exit', 'cubic-bezier(0.3, 0, 0.8, 0.15)');
+    root.style.setProperty('--motion-duration-press', `${motionTokens.duration.press}ms`);
+    root.style.setProperty('--motion-duration-micro', `${motionTokens.duration.micro}ms`);
+    root.style.setProperty('--motion-duration-hover', `${motionTokens.duration.hover}ms`);
+    root.style.setProperty('--motion-duration-tab', `${motionTokens.duration.tabContent}ms`);
+    root.style.setProperty('--motion-duration-popover', `${motionTokens.duration.popover}ms`);
+    root.style.setProperty('--motion-duration-exit', `${motionTokens.duration.exit}ms`);
+    root.style.setProperty('--motion-duration-sidebar', `${motionTokens.duration.sidebar}ms`);
+    root.style.setProperty('--motion-duration-modal', `${motionTokens.duration.modal}ms`);
+    root.style.setProperty('--motion-duration-spatial', `${motionTokens.duration.spatial}ms`);
+    root.style.setProperty('--motion-duration-iris', `${motionTokens.duration.themeIris}ms`);
+    root.style.setProperty('--motion-ease-spring', motionTokens.easing.spring);
+    root.style.setProperty('--motion-ease-fluid', motionTokens.easing.fluid);
+    root.style.setProperty('--motion-ease-snappy', motionTokens.easing.snappy);
+    root.style.setProperty('--motion-ease-smooth', motionTokens.easing.smooth);
+    root.style.setProperty('--motion-ease-exit', motionTokens.easing.exit);
+    root.style.setProperty('--motion-ease-bounce', motionTokens.easing.subtleBounce);
+    root.style.setProperty('--motion-ease-iris', motionTokens.easing.iris);
   }
 
   /**
@@ -133,14 +139,14 @@ export function triggerLiquidSpringClick(target: HTMLElement | null): void {
   try {
     target.animate(
       [
-        { transform: 'scale(1)', filter: 'brightness(1)' },
-        { transform: 'scale(0.952)', filter: 'brightness(0.95)' },
-        { transform: 'scale(1.028)', filter: 'brightness(1.08)' },
-        { transform: 'scale(1)', filter: 'brightness(1)' },
+        { transform: 'scale3d(1, 1, 1)' },
+        { transform: 'scale3d(0.952, 0.952, 1)' },
+        { transform: 'scale3d(1.028, 1.028, 1)' },
+        { transform: 'scale3d(1, 1, 1)' },
       ],
       {
-        duration: 260,
-        easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        duration: motionTokens.duration.modal,
+        easing: motionTokens.easing.spring,
         fill: 'none',
       }
     );

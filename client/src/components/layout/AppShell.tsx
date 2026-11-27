@@ -242,7 +242,7 @@ export const AppShell: React.FC = () => {
             title="Về trang chủ"
           >
             {/* Apple-grade crisp circular 3D glass logo (44px) */}
-            <div className="w-11 h-11 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-[0_4px_14px_rgba(250,196,38,0.38),0_1px_3px_rgba(0,0,0,0.06)] border-2 border-white dark:border-white/20 shrink-0 group-hover:scale-105 group-active:scale-95 transition-all duration-200">
+            <div className="w-11 h-11 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-[0_4px_14px_rgba(250,196,38,0.38),0_1px_3px_rgba(0,0,0,0.06)] border-2 border-white dark:border-white/20 shrink-0 group-hover:scale-105 group-active:scale-95 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200">
               <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover rounded-full pointer-events-none" />
             </div>
             {!isSidebarCollapsed && (
@@ -261,7 +261,7 @@ export const AppShell: React.FC = () => {
           <button
             type="button"
             onClick={toggleSidebar}
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-[#555558] dark:text-[#a1a1a6] hover:text-[#0088FF] dark:hover:text-[#0091FF] hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-all cursor-pointer outline-none shrink-0"
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-[#555558] dark:text-[#a1a1a6] hover:text-[#0088FF] dark:hover:text-[#0091FF] hover:bg-black/5 dark:hover:bg-white/10 active:scale-95 transition-[transform,opacity,background-color,border-color,color,box-shadow] cursor-pointer outline-none shrink-0"
             title={isSidebarCollapsed ? 'Mở rộng thanh bên (Ctrl+\\)' : 'Thu gọn thanh bên (Ctrl+\\)'}
             aria-label={isSidebarCollapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
           >
@@ -335,7 +335,7 @@ export const AppShell: React.FC = () => {
             title={isSidebarCollapsed ? 'Import / Export Excel' : undefined}
             className={`flex items-center ${
               isSidebarCollapsed ? 'justify-center w-11 h-11 aspect-square shrink-0 mx-auto px-0' : 'w-full gap-3 px-4 py-2.5'
-            } rounded-full text-[13px] font-medium text-[#0088FF] dark:text-[#0091FF] liquid-lens-pill hover:!bg-white/80 dark:hover:!bg-white/[0.14] transition-all duration-200 active:scale-[0.98] cursor-pointer`}
+            } rounded-full text-[13px] font-medium text-[#0088FF] dark:text-[#0091FF] liquid-lens-pill hover:!bg-white/80 dark:hover:!bg-white/[0.14] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 active:scale-[0.98] cursor-pointer`}
           >
             <SFTablecells size={16} className="shrink-0 text-[#0088FF] dark:text-[#0091FF]" />
             {!isSidebarCollapsed && <span>Import / Export Excel</span>}
@@ -511,7 +511,7 @@ export const AppShell: React.FC = () => {
                   className="flex items-center gap-2.5 text-left min-w-0 flex-1 group cursor-pointer outline-none select-none [-webkit-tap-highlight-color:transparent]"
                   title="Về trang chủ"
                 >
-                  <div className="w-11 h-11 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-[0_4px_14px_rgba(250,196,38,0.38),0_1px_3px_rgba(0,0,0,0.06)] border-2 border-white dark:border-white/20 shrink-0 group-hover:scale-105 active:scale-95 transition-all duration-200">
+                  <div className="w-11 h-11 rounded-full overflow-hidden bg-[#FAC426] flex items-center justify-center shadow-[0_4px_14px_rgba(250,196,38,0.38),0_1px_3px_rgba(0,0,0,0.06)] border-2 border-white dark:border-white/20 shrink-0 group-hover:scale-105 active:scale-95 transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200">
                     <img src="/logo.png" alt="Farmers Market" className="w-full h-full object-cover rounded-full pointer-events-none" />
                   </div>
                   <div className="min-w-0 flex-1 flex flex-col justify-center select-none font-sans">
@@ -546,7 +546,7 @@ export const AppShell: React.FC = () => {
                       data-tab-id={item.to}
                       onClick={handleCloseMobileMenu}
                       className={({ isActive }) =>
-                        `relative flex items-center gap-3 px-3.5 h-11 rounded-full text-[13.5px] transition-all duration-150 active:scale-[0.98] select-none ${
+                        `relative flex items-center gap-3 px-3.5 h-11 rounded-full text-[13.5px] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-150 active:scale-[0.98] select-none ${
                           isActive
                             ? 'fm-primary-pill-surface text-white font-semibold shadow-[0_4px_16px_rgba(0,136,255,0.35)]'
                             : 'text-[#555558] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] font-medium'
@@ -579,7 +579,7 @@ export const AppShell: React.FC = () => {
                     handleCloseMobileMenu();
                     setImportModalOpen(true);
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-[13px] font-medium text-[#0088FF] dark:text-[#0091FF] liquid-lens-pill hover:!bg-white/80 dark:hover:!bg-white/[0.14] transition-all duration-200 active:scale-[0.98] cursor-pointer"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-[13px] font-medium text-[#0088FF] dark:text-[#0091FF] liquid-lens-pill hover:!bg-white/80 dark:hover:!bg-white/[0.14] transition-[transform,opacity,background-color,border-color,color,box-shadow] duration-200 active:scale-[0.98] cursor-pointer"
                 >
                   <SFTablecells size={16} className="shrink-0 text-[#0088FF] dark:text-[#0091FF]" />
                   <span>Import / Export Excel</span>
